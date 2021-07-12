@@ -1,0 +1,18 @@
+target/
+Cargo.lock
+
+# Common
+*.log*
+.env*.local
+
+# Editor
+*.njsproj
+*.ntvs*
+*.sln
+*.suo
+*.sw?
+.idea/
+.vscode/
+
+# Operating system
+.DS_Store
