@@ -89,7 +89,7 @@ impl Parser {
     ///     Token::Symbol(Symbol::Semicolon),
     ///     Token::Keyword(Keyword::While),
     ///     Token::Identifier("x".to_owned()),
-    ///     Token::Symbol(Symbol::OpenBracket),
+    ///     Token::Symbol(Symbol::LessThan),
     ///     Token::Literal(Literal::Integer(3)),
     ///     Token::Symbol(Symbol::OpenBrace),
     ///     Token::Identifier("x".to_owned()),
@@ -180,7 +180,7 @@ impl Parser {
             Token::Symbol(symbol) => {
                 let op = match symbol {
                     Symbol::Equal => BinaryOp::Assign,
-                    Symbol::OpenBracket => BinaryOp::LessThan,
+                    Symbol::LessThan => BinaryOp::LessThan,
                     Symbol::Plus => BinaryOp::Add,
                     symbol => todo!("symbol: {}", symbol),
                 };
