@@ -43,6 +43,10 @@ impl<T> Stream<T> {
         }
     }
 
+    pub(crate) fn consume_until(&mut self, condition: impl Fn(&T) -> bool) -> Vec<T> {
+        self.consume_while(|item| !condition(item))
+    }
+
     pub(crate) fn consume_while(&mut self, condition: impl Fn(&T) -> bool) -> Vec<T> {
         let mut items = Vec::new();
         while let Some(item) = self.consume_if(|item| condition(item)) {
