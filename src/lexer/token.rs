@@ -69,7 +69,7 @@ impl fmt::Display for Literal {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Symbol {
     Ampersand,
     AmpersandEqual,
@@ -126,9 +126,65 @@ pub enum Symbol {
     TripleMoreThanEqual,
 }
 
-impl fmt::Display for Symbol {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(match self {
+impl Symbol {
+    pub(crate) const VALUES: [Self; 53] = [
+        Self::Ampersand,
+        Self::AmpersandEqual,
+        Self::Asterisk,
+        Self::AsteriskEqual,
+        Self::Bang,
+        Self::BangDoubleEqual,
+        Self::BangEqual,
+        Self::Caret,
+        Self::CaretEqual,
+        Self::CloseBrace,
+        Self::CloseBracket,
+        Self::CloseParen,
+        Self::Colon,
+        Self::Comma,
+        Self::Dot,
+        Self::DoubleAmpersand,
+        Self::DoubleAsterisk,
+        Self::DoubleAsteriskEqual,
+        Self::DoubleEqual,
+        Self::DoubleLessThan,
+        Self::DoubleLessThanEqual,
+        Self::DoubleMoreThan,
+        Self::DoubleMoreThanEqual,
+        Self::DoubleMinus,
+        Self::DoublePipe,
+        Self::DoublePlus,
+        Self::DoubleQuestion,
+        Self::Equal,
+        Self::EqualMoreThan,
+        Self::LessThan,
+        Self::LessThanEqual,
+        Self::Minus,
+        Self::MinusEqual,
+        Self::MoreThan,
+        Self::MoreThanEqual,
+        Self::OpenBrace,
+        Self::OpenBracket,
+        Self::OpenParen,
+        Self::Percent,
+        Self::PercentEqual,
+        Self::Pipe,
+        Self::PipeEqual,
+        Self::Plus,
+        Self::PlusEqual,
+        Self::Question,
+        Self::Semicolon,
+        Self::Slash,
+        Self::SlashEqual,
+        Self::Tilde,
+        Self::TripleDot,
+        Self::TripleEqual,
+        Self::TripleMoreThan,
+        Self::TripleMoreThanEqual,
+    ];
+
+    pub fn to_str(&self) -> &'static str {
+        match *self {
             Self::Ampersand => "&",
             Self::AmpersandEqual => "&=",
             Self::Asterisk => "*",
@@ -182,7 +238,13 @@ impl fmt::Display for Symbol {
             Self::TripleEqual => "===",
             Self::TripleMoreThan => ">>>",
             Self::TripleMoreThanEqual => ">>>=",
-        })
+        }
+    }
+}
+
+impl fmt::Display for Symbol {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str(self.to_str())
     }
 }
 
@@ -190,62 +252,12 @@ impl FromStr for Symbol {
     type Err = BadSymbolError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(match s {
-            "&" => Self::Ampersand,
-            "&=" => Self::AmpersandEqual,
-            "*" => Self::Asterisk,
-            "*=" => Self::AsteriskEqual,
-            "!" => Self::Bang,
-            "!==" => Self::BangDoubleEqual,
-            "!=" => Self::BangEqual,
-            "^" => Self::Caret,
-            "^=" => Self::CaretEqual,
-            "}" => Self::CloseBrace,
-            "]" => Self::CloseBracket,
-            ")" => Self::CloseParen,
-            ":" => Self::Colon,
-            "," => Self::Comma,
-            "." => Self::Dot,
-            "&&" => Self::DoubleAmpersand,
-            "**" => Self::DoubleAsterisk,
-            "**=" => Self::DoubleAsteriskEqual,
-            "==" => Self::DoubleEqual,
-            "<<" => Self::DoubleLessThan,
-            "<<=" => Self::DoubleLessThanEqual,
-            ">>" => Self::DoubleMoreThan,
-            ">>=" => Self::DoubleMoreThanEqual,
-            "--" => Self::DoubleMinus,
-            "||" => Self::DoublePipe,
-            "++" => Self::DoublePlus,
-            "??" => Self::DoubleQuestion,
-            "=" => Self::Equal,
-            "=>" => Self::EqualMoreThan,
-            "<" => Self::LessThan,
-            "<=" => Self::LessThanEqual,
-            "-" => Self::Minus,
-            "-=" => Self::MinusEqual,
-            ">" => Self::MoreThan,
-            ">=" => Self::MoreThanEqual,
-            "{" => Self::OpenBrace,
-            "[" => Self::OpenBracket,
-            "(" => Self::OpenParen,
-            "%" => Self::Percent,
-            "%=" => Self::PercentEqual,
-            "|" => Self::Pipe,
-            "|=" => Self::PipeEqual,
-            "+" => Self::Plus,
-            "+=" => Self::PlusEqual,
-            "?" => Self::Question,
-            ";" => Self::Semicolon,
-            "/" => Self::Slash,
-            "/=" => Self::SlashEqual,
-            "~" => Self::Tilde,
-            "..." => Self::TripleDot,
-            "===" => Self::TripleEqual,
-            ">>>" => Self::TripleMoreThan,
-            ">>>=" => Self::TripleMoreThanEqual,
-            _ => return Err(BadSymbolError),
-        })
+        for symbol in Self::VALUES {
+            if symbol.to_str() == s {
+                return Ok(symbol);
+            }
+        }
+        Err(BadSymbolError)
     }
 }
 

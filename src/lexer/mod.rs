@@ -22,22 +22,69 @@ impl Lexer {
     }
 
     fn consume_symbol(&mut self) -> Option<Token> {
-        let symbol = match self.0.peek()? {
-            '}' => Symbol::CloseBrace,
-            ']' => Symbol::CloseBracket,
-            ')' => Symbol::CloseParen,
-            '=' => Symbol::Equal,
-            '<' => Symbol::LessThan,
-            '>' => Symbol::MoreThan,
-            '{' => Symbol::OpenBrace,
-            '[' => Symbol::OpenBracket,
-            '(' => Symbol::OpenParen,
-            '+' => Symbol::Plus,
-            ';' => Symbol::Semicolon,
-            _ => return None,
-        };
-        self.0.advance();
-        Some(Token::Symbol(symbol))
+        // Order is important. For two symbols which start with the same substring, the longer one
+        // needs to be checked first.
+        let symbols = [
+            Symbol::DoubleAmpersand,
+            Symbol::AmpersandEqual,
+            Symbol::Ampersand,
+            Symbol::DoubleAsteriskEqual,
+            Symbol::DoubleAsterisk,
+            Symbol::AsteriskEqual,
+            Symbol::Asterisk,
+            Symbol::BangDoubleEqual,
+            Symbol::BangEqual,
+            Symbol::Bang,
+            Symbol::CaretEqual,
+            Symbol::Caret,
+            Symbol::CloseBrace,
+            Symbol::CloseBracket,
+            Symbol::CloseParen,
+            Symbol::Colon,
+            Symbol::Comma,
+            Symbol::TripleDot,
+            Symbol::Dot,
+            Symbol::TripleEqual,
+            Symbol::DoubleEqual,
+            Symbol::EqualMoreThan,
+            Symbol::Equal,
+            Symbol::DoubleLessThanEqual,
+            Symbol::DoubleLessThan,
+            Symbol::LessThanEqual,
+            Symbol::LessThan,
+            Symbol::DoubleMinus,
+            Symbol::MinusEqual,
+            Symbol::Minus,
+            Symbol::TripleMoreThanEqual,
+            Symbol::TripleMoreThan,
+            Symbol::DoubleMoreThanEqual,
+            Symbol::DoubleMoreThan,
+            Symbol::MoreThanEqual,
+            Symbol::MoreThan,
+            Symbol::OpenBrace,
+            Symbol::OpenBracket,
+            Symbol::OpenParen,
+            Symbol::PercentEqual,
+            Symbol::Percent,
+            Symbol::DoublePipe,
+            Symbol::PipeEqual,
+            Symbol::Pipe,
+            Symbol::DoublePlus,
+            Symbol::PlusEqual,
+            Symbol::Plus,
+            Symbol::DoubleQuestion,
+            Symbol::Question,
+            Symbol::Semicolon,
+            Symbol::SlashEqual,
+            Symbol::Slash,
+            Symbol::Tilde,
+        ];
+        for symbol in symbols {
+            if self.0.consume_str(symbol.to_str()) {
+                return Some(Token::Symbol(symbol));
+            }
+        }
+        None
     }
 
     fn consume_character_literal(&mut self) -> Option<Token> {
@@ -236,5 +283,19 @@ impl Iterator for Lexer {
         } else {
             todo!("{}", ch)
         })
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn tokenise_symbols() {
+        for symbol in Symbol::VALUES {
+            let mut lexer = Lexer::for_str(symbol.to_str());
+            assert_eq!(lexer.next(), Some(Token::Symbol(symbol)));
+            assert_eq!(lexer.next(), None);
+        }
     }
 }

@@ -68,3 +68,15 @@ where
         }
     }
 }
+
+impl Stream<char> {
+    pub(crate) fn consume_str(&mut self, expected: &str) -> bool {
+        for (idx, ch) in expected.char_indices() {
+            if self.peek_n(idx) != Some(&ch) {
+                return false;
+            }
+        }
+        self.advance_n(expected.len());
+        true
+    }
+}
