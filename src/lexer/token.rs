@@ -166,7 +166,6 @@ impl FromStr for Keyword {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Literal {
-    Character(char),
     Integer(u64),
     String(String),
 }
@@ -174,7 +173,6 @@ pub enum Literal {
 impl fmt::Display for Literal {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::Character(it) => write!(f, r#"'{}'"#, it),
             Self::Integer(it) => write!(f, r#"{}"#, it),
             Self::String(it) => write!(f, r#""{}""#, it),
         }
@@ -376,8 +374,6 @@ impl FromStr for Symbol {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum LexError {
     BadNumericLiteral(ParseIntError),
-    NotSingleCharacter,
-    UnclosedCharacterLiteral,
     UnclosedStringLiteral,
 }
 
@@ -385,8 +381,6 @@ impl fmt::Display for LexError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(match self {
             Self::BadNumericLiteral(..) => "bad numeric literal",
-            Self::NotSingleCharacter => "not a single character",
-            Self::UnclosedCharacterLiteral => "unclosed character literal",
             Self::UnclosedStringLiteral => "unclosed string literal",
         })
     }
@@ -396,9 +390,7 @@ impl std::error::Error for LexError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::BadNumericLiteral(source) => Some(source),
-            Self::NotSingleCharacter
-            | Self::UnclosedCharacterLiteral
-            | Self::UnclosedStringLiteral => None,
+            Self::UnclosedStringLiteral => None,
         }
     }
 }

@@ -52,7 +52,6 @@ pub enum BinaryOp {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Constant {
-    Character(char),
     Integer(u64),
     String(String),
 }

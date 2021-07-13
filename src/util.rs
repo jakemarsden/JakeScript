@@ -60,6 +60,10 @@ impl<T> Stream<T>
 where
     T: Eq + fmt::Debug,
 {
+    pub(crate) fn consume_eq(&mut self, expected: &T) -> Option<T> {
+        self.consume_if(|it| it == expected)
+    }
+
     pub(crate) fn consume_exact(&mut self, expected: &T) -> T {
         match self.peek() {
             Some(actual) if actual == expected => self.consume().unwrap(),

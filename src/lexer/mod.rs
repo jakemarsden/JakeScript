@@ -87,58 +87,35 @@ impl Lexer {
         None
     }
 
-    fn consume_character_literal(&mut self) -> Option<Token> {
-        Some(match self.consume_quoted_literal('\'') {
-            Some(Ok(content)) if content.len() == 1 => {
-                let ch = content.chars().next().unwrap();
-                Token::Literal(Literal::Character(ch))
-            }
-            Some(Ok(_)) => Token::Invalid(LexError::NotSingleCharacter),
-            Some(Err(())) => Token::Invalid(LexError::UnclosedCharacterLiteral),
-            None => return None,
-        })
-    }
-
     fn consume_string_literal(&mut self) -> Option<Token> {
-        Some(match self.consume_quoted_literal('"') {
-            Some(Ok(content)) => Token::Literal(Literal::String(content)),
-            Some(Err(())) => Token::Invalid(LexError::UnclosedStringLiteral),
-            None => return None,
-        })
-    }
-
-    fn consume_quoted_literal(&mut self, qt: char) -> Option<Result<String, ()>> {
         // Opening quote
-        self.0.consume_if(|ch| ch == &qt)?;
+        let qt = self.0.consume_if(|ch| *ch == '"' || *ch == '\'')?;
 
-        if self.0.consume_if(|ch| ch == &qt).is_some() {
-            // Empty string literal
-            return Some(Ok(String::with_capacity(0)));
+        // Optimisation: avoid alloc for empty string literals
+        if self.0.consume_eq(&qt).is_some() {
+            return Some(Token::Literal(Literal::String(String::with_capacity(0))));
         }
 
         let mut content = String::new();
         let mut escaped = false;
-        loop {
+        Some(loop {
             match self.0.peek() {
                 Some(ch) if *ch == qt && !escaped => {
                     self.0.consume_exact(&qt);
-                    break Some(Ok(content));
+                    break Token::Literal(Literal::String(content));
                 }
                 Some('\\') if !escaped => {
                     self.0.consume_exact(&'\\');
                     escaped = true;
                 }
-                Some('\n') | None => break Some(Err(())),
+                Some('\n') | None => break Token::Invalid(LexError::UnclosedStringLiteral),
                 Some(ch) => {
-                    if escaped {
-                        escaped = false;
-                        content.push('\\');
-                    }
                     content.push(*ch);
+                    escaped = false;
                     self.0.advance();
                 }
             }
-        }
+        })
     }
 
     fn consume_numeric_literal(&mut self) -> Option<Token> {
@@ -272,8 +249,6 @@ impl Iterator for Lexer {
 
         Some(if let Some(token) = self.consume_symbol() {
             token
-        } else if let Some(token) = self.consume_character_literal() {
-            token
         } else if let Some(token) = self.consume_string_literal() {
             token
         } else if let Some(token) = self.consume_numeric_literal() {
@@ -306,5 +281,39 @@ mod test {
             assert_eq!(lexer.next(), Some(Token::Symbol(symbol)));
             assert_eq!(lexer.next(), None);
         }
+    }
+
+    #[test]
+    fn tokenise_string_literal() {
+        fn check_valid(source: &str, expected: &str) {
+            check(
+                source,
+                Some(Token::Literal(Literal::String(expected.to_owned()))),
+            );
+        }
+
+        fn check(source: &str, expected: Option<Token>) {
+            let mut lexer = Lexer::for_str(source);
+            assert_eq!(lexer.next(), expected);
+            assert_eq!(lexer.next(), None);
+        }
+
+        check_valid(r#""""#, r#""#);
+        check_valid(r#""hello, world!""#, r#"hello, world!"#);
+        check_valid(
+            r#""hello, \"escaped quotes\"!""#,
+            r#"hello, "escaped quotes"!"#,
+        );
+        check_valid(r#""hello, back\\slash""#, r#"hello, back\slash"#);
+        check_valid(r#""hello, \\\"\"\\\\""#, r#"hello, \""\\"#);
+
+        check_valid(r#"''"#, r#""#);
+        check_valid(r#"'hello, world!'"#, r#"hello, world!"#);
+        check_valid(
+            r#"'hello, \"escaped quotes\"!'"#,
+            r#"hello, "escaped quotes"!"#,
+        );
+        check_valid(r#"'hello, back\\slash'"#, r#"hello, back\slash"#);
+        check_valid(r#"'hello, \\\"\"\\\\'"#, r#"hello, \""\\"#);
     }
 }
