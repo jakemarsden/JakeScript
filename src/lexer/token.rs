@@ -28,12 +28,14 @@ impl fmt::Display for Token {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Keyword {
     Let,
+    While,
 }
 
 impl fmt::Display for Keyword {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(match self {
             Self::Let => "let",
+            Self::While => "while",
         })
     }
 }
@@ -44,6 +46,7 @@ impl FromStr for Keyword {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(match s {
             "let" => Self::Let,
+            "while" => Self::While,
             _ => return Err(BadKeywordError),
         })
     }
@@ -68,7 +71,13 @@ impl fmt::Display for Literal {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Symbol {
+    CloseBrace,
+    CloseBracket,
+    CloseParen,
     Equal,
+    OpenBrace,
+    OpenBracket,
+    OpenParen,
     Plus,
     Semicolon,
 }
@@ -76,7 +85,13 @@ pub enum Symbol {
 impl fmt::Display for Symbol {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(match self {
+            Self::CloseBrace => "}",
+            Self::CloseBracket => ">",
+            Self::CloseParen => ")",
             Self::Equal => "=",
+            Self::OpenBrace => "{",
+            Self::OpenBracket => "<",
+            Self::OpenParen => "(",
             Self::Plus => "+",
             Self::Semicolon => ";",
         })
@@ -88,7 +103,13 @@ impl FromStr for Symbol {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(match s {
+            "}" => Self::CloseBrace,
+            ">" => Self::CloseBracket,
+            ")" => Self::CloseParen,
             "=" => Self::Equal,
+            "{" => Self::OpenBrace,
+            "<" => Self::OpenBracket,
+            "(" => Self::OpenParen,
             "+" => Self::Plus,
             ";" => Self::Semicolon,
             _ => return Err(BadSymbolError),

@@ -23,7 +23,13 @@ impl Lexer {
 
     fn consume_symbol(&mut self) -> Option<Token> {
         let symbol = match self.0.peek()? {
+            '}' => Symbol::CloseBrace,
+            '>' => Symbol::CloseBracket,
+            ')' => Symbol::CloseParen,
             '=' => Symbol::Equal,
+            '{' => Symbol::OpenBrace,
+            '<' => Symbol::OpenBracket,
+            '(' => Symbol::OpenParen,
             '+' => Symbol::Plus,
             ';' => Symbol::Semicolon,
             _ => return None,
@@ -170,6 +176,44 @@ impl Lexer {
 ///     ]
 /// );
 /// ```
+///
+/// ```rust
+/// # use jakescript::lexer::*;
+/// let source = r##"
+/// let x = 0;
+/// while x < 3 {
+///     x = x + 1;
+/// }
+/// "##;
+///
+/// let mut lexer = Lexer::for_str(source);
+/// assert_eq!(
+///     lexer.collect::<Vec<_>>(),
+///     vec![
+///         Token::Keyword(Keyword::Let),
+///         Token::Identifier("x".to_owned()),
+///         Token::Symbol(Symbol::Equal),
+///         Token::Literal(Literal::Integer(0)),
+///         Token::Symbol(Symbol::Semicolon),
+///
+///         Token::Keyword(Keyword::While),
+///         //Token::Symbol(Symbol::OpenParen),
+///         Token::Identifier("x".to_owned()),
+///         Token::Symbol(Symbol::OpenBracket),
+///         Token::Literal(Literal::Integer(3)),
+///         //Token::Symbol(Symbol::CloseParen),
+///         Token::Symbol(Symbol::OpenBrace),
+///
+///         Token::Identifier("x".to_owned()),
+///         Token::Symbol(Symbol::Equal),
+///         Token::Identifier("x".to_owned()),
+///         Token::Symbol(Symbol::Plus),
+///         Token::Literal(Literal::Integer(1)),
+///         Token::Symbol(Symbol::Semicolon),
+///
+///         Token::Symbol(Symbol::CloseBrace),
+///     ]
+/// );
 impl Iterator for Lexer {
     type Item = Token;
 
