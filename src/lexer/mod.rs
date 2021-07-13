@@ -6,6 +6,11 @@ pub use token::*;
 
 mod token;
 
+/// ZERO WIDTH NON-JOINER
+const ZWNJ: char = '\u{200C}';
+/// ZERO WIDTH JOINER
+const ZWJ: char = '\u{200D}';
+
 pub struct Lexer(Stream<char>);
 
 impl Lexer {
@@ -136,19 +141,24 @@ impl Lexer {
     }
 
     fn consume_identifier_or_keyword(&mut self) -> Option<Token> {
+
         fn is_identifier_start(ch: &char) -> bool {
-            ch.is_ascii_alphabetic() || *ch == '_' || *ch == '$'
+            // FIXME: Acutally check if the character has the "ID_Start" Unicode property
+            let has_id_start = ch.is_ascii_alphabetic();
+            has_id_start || *ch == '$' || *ch == '_'
         }
 
-        fn is_identifier_middle(ch: &char) -> bool {
-            is_identifier_start(ch) || ch.is_ascii_digit()
+        fn is_identifier_part(ch: &char) -> bool {
+            // FIXME: Actually check if the character has the "ID_Continue" Unicode property
+            let has_id_continue = ch.is_ascii_alphabetic() || ch.is_ascii_digit() || *ch == '_';
+            has_id_continue || *ch == '$' || *ch == ZWNJ || *ch == ZWJ
         }
 
         let ch = self.0.consume_if(is_identifier_start)?;
         let mut content = String::new();
         content.push(ch);
 
-        while let Some(ch) = self.0.consume_if(is_identifier_middle) {
+        while let Some(ch) = self.0.consume_if(is_identifier_part) {
             content.push(ch);
         }
 
