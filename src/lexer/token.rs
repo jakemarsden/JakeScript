@@ -25,18 +25,129 @@ impl fmt::Display for Token {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Keyword {
+    Await,
+    Break,
+    Case,
+    Catch,
+    Class,
+    Const,
+    Continue,
+    Debugger,
+    Default,
+    Delete,
+    Do,
+    Else,
+    Enum,
+    Export,
+    Extends,
+    Finally,
+    For,
+    Function,
+    If,
+    Import,
+    In,
+    Instanceof,
+    // TODO: `let` is not in the spec as a _ReservedWord_?
     Let,
+    New,
+    Return,
+    Super,
+    Switch,
+    This,
+    Throw,
+    Try,
+    Typeof,
+    Var,
+    Void,
     While,
+    Yield,
+}
+
+impl Keyword {
+    pub(crate) const VALUES: [Self; 35] = [
+        Self::Await,
+        Self::Break,
+        Self::Case,
+        Self::Catch,
+        Self::Class,
+        Self::Const,
+        Self::Continue,
+        Self::Debugger,
+        Self::Default,
+        Self::Delete,
+        Self::Do,
+        Self::Else,
+        Self::Enum,
+        Self::Export,
+        Self::Extends,
+        Self::Finally,
+        Self::For,
+        Self::Function,
+        Self::If,
+        Self::Import,
+        Self::In,
+        Self::Instanceof,
+        Self::Let,
+        Self::New,
+        Self::Return,
+        Self::Super,
+        Self::Switch,
+        Self::This,
+        Self::Throw,
+        Self::Try,
+        Self::Typeof,
+        Self::Var,
+        Self::Void,
+        Self::While,
+        Self::Yield,
+    ];
+
+    pub fn to_str(&self) -> &'static str {
+        match self {
+            Self::Await => "await",
+            Self::Break => "break",
+            Self::Case => "case",
+            Self::Catch => "catch",
+            Self::Class => "class",
+            Self::Const => "const",
+            Self::Continue => "continue",
+            Self::Debugger => "debugger",
+            Self::Default => "default",
+            Self::Delete => "delete",
+            Self::Do => "do",
+            Self::Else => "else",
+            Self::Enum => "enum",
+            Self::Export => "export",
+            Self::Extends => "extends",
+            Self::Finally => "finally",
+            Self::For => "for",
+            Self::Function => "function",
+            Self::If => "if",
+            Self::Import => "import",
+            Self::In => "in",
+            Self::Instanceof => "instanceof",
+            Self::Let => "let",
+            Self::New => "new",
+            Self::Return => "return",
+            Self::Super => "super",
+            Self::Switch => "switch",
+            Self::This => "this",
+            Self::Throw => "throw",
+            Self::Try => "try",
+            Self::Typeof => "typeof",
+            Self::Var => "var",
+            Self::Void => "void",
+            Self::While => "while",
+            Self::Yield => "yield",
+        }
+    }
 }
 
 impl fmt::Display for Keyword {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(match self {
-            Self::Let => "let",
-            Self::While => "while",
-        })
+        f.write_str(self.to_str())
     }
 }
 
@@ -44,11 +155,12 @@ impl FromStr for Keyword {
     type Err = BadKeywordError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(match s {
-            "let" => Self::Let,
-            "while" => Self::While,
-            _ => return Err(BadKeywordError),
-        })
+        for keyword in Self::VALUES {
+            if keyword.to_str() == s {
+                return Ok(keyword);
+            }
+        }
+        Err(BadKeywordError)
     }
 }
 

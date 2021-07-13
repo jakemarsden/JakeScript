@@ -291,6 +291,15 @@ mod test {
     use super::*;
 
     #[test]
+    fn tokenise_keywords() {
+        for keyword in Keyword::VALUES {
+            let mut lexer = Lexer::for_str(keyword.to_str());
+            assert_eq!(lexer.next(), Some(Token::Keyword(keyword)));
+            assert_eq!(lexer.next(), None);
+        }
+    }
+
+    #[test]
     fn tokenise_symbols() {
         for symbol in Symbol::VALUES {
             let mut lexer = Lexer::for_str(symbol.to_str());
