@@ -53,8 +53,8 @@ pub enum BinaryOp {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Constant {
     Boolean(bool),
-    Integer(u64),
     Null,
+    Numeric(u64),
     String(String),
 }
 

@@ -19,9 +19,9 @@ impl Parser {
     /// # use jakescript::lexer::*;
     /// # use jakescript::parser::*;
     /// let source = vec![
-    ///     Token::Literal(Literal::Integer(100)),
+    ///     Token::Literal(Literal::Numeric(100)),
     ///     Token::Symbol(Symbol::Plus),
-    ///     Token::Literal(Literal::Integer(50)),
+    ///     Token::Literal(Literal::Numeric(50)),
     ///     Token::Symbol(Symbol::Semicolon),
     /// ];
     /// let mut parser = Parser::for_tokens(source);
@@ -30,8 +30,8 @@ impl Parser {
     ///     Program::new(Block::new(vec![Node::BinaryOp(
     ///         BinaryOp::Add,
     ///         Box::new((
-    ///             Node::Constant(Constant::Integer(100)),
-    ///             Node::Constant(Constant::Integer(50))
+    ///             Node::Constant(Constant::Numeric(100)),
+    ///             Node::Constant(Constant::Numeric(50))
     ///         ))
     ///     ),]))
     /// );
@@ -45,12 +45,12 @@ impl Parser {
     ///     Token::Keyword(Keyword::Let),
     ///     Token::Identifier("a".to_owned()),
     ///     Token::Symbol(Symbol::Equal),
-    ///     Token::Literal(Literal::Integer(100)),
+    ///     Token::Literal(Literal::Numeric(100)),
     ///     Token::Symbol(Symbol::Semicolon),
     ///     Token::Keyword(Keyword::Let),
     ///     Token::Identifier("b".to_owned()),
     ///     Token::Symbol(Symbol::Equal),
-    ///     Token::Literal(Literal::Integer(50)),
+    ///     Token::Literal(Literal::Numeric(50)),
     ///     Token::Symbol(Symbol::Semicolon),
     ///     Token::Identifier("a".to_owned()),
     ///     Token::Symbol(Symbol::Plus),
@@ -63,11 +63,11 @@ impl Parser {
     ///     Program::new(Block::new(vec![
     ///         Node::LocalVarDecl(
     ///             "a".to_owned(),
-    ///             Some(Box::new(Node::Constant(Constant::Integer(100))))
+    ///             Some(Box::new(Node::Constant(Constant::Numeric(100))))
     ///         ),
     ///         Node::LocalVarDecl(
     ///             "b".to_owned(),
-    ///             Some(Box::new(Node::Constant(Constant::Integer(50))))
+    ///             Some(Box::new(Node::Constant(Constant::Numeric(50))))
     ///         ),
     ///         Node::BinaryOp(
     ///             BinaryOp::Add,
@@ -85,18 +85,18 @@ impl Parser {
     ///     Token::Keyword(Keyword::Let),
     ///     Token::Identifier("x".to_owned()),
     ///     Token::Symbol(Symbol::Equal),
-    ///     Token::Literal(Literal::Integer(0)),
+    ///     Token::Literal(Literal::Numeric(0)),
     ///     Token::Symbol(Symbol::Semicolon),
     ///     Token::Keyword(Keyword::While),
     ///     Token::Identifier("x".to_owned()),
     ///     Token::Symbol(Symbol::LessThan),
-    ///     Token::Literal(Literal::Integer(3)),
+    ///     Token::Literal(Literal::Numeric(3)),
     ///     Token::Symbol(Symbol::OpenBrace),
     ///     Token::Identifier("x".to_owned()),
     ///     Token::Symbol(Symbol::Equal),
     ///     Token::Identifier("x".to_owned()),
     ///     Token::Symbol(Symbol::Plus),
-    ///     Token::Literal(Literal::Integer(1)),
+    ///     Token::Literal(Literal::Numeric(1)),
     ///     Token::Symbol(Symbol::Semicolon),
     ///     Token::Symbol(Symbol::CloseBrace),
     /// ];
@@ -106,14 +106,14 @@ impl Parser {
     ///     Program::new(Block::new(vec![
     ///         Node::LocalVarDecl(
     ///             "x".to_owned(),
-    ///             Some(Box::new(Node::Constant(Constant::Integer(0))))
+    ///             Some(Box::new(Node::Constant(Constant::Numeric(0))))
     ///         ),
     ///         Node::While(
     ///             Box::new(Node::BinaryOp(
     ///                 BinaryOp::LessThan,
     ///                 Box::new((
     ///                     Node::Local("x".to_owned()),
-    ///                     Node::Constant(Constant::Integer(3))
+    ///                     Node::Constant(Constant::Numeric(3))
     ///                 ))
     ///             )),
     ///             Block::new(vec![Node::BinaryOp(
@@ -124,7 +124,7 @@ impl Parser {
     ///                         BinaryOp::Add,
     ///                         Box::new((
     ///                             Node::Local("x".to_owned()),
-    ///                             Node::Constant(Constant::Integer(1))
+    ///                             Node::Constant(Constant::Numeric(1))
     ///                         ))
     ///                     )
     ///                 ))
@@ -154,8 +154,8 @@ impl Parser {
             Some(Token::Identifier(name)) => Node::Local(name),
             Some(Token::Literal(literal)) => Node::Constant(match literal {
                 Literal::Boolean(it) => Constant::Boolean(it),
-                Literal::Integer(it) => Constant::Integer(it),
                 Literal::Null => Constant::Null,
+                Literal::Numeric(it) => Constant::Numeric(it),
                 Literal::String(it) => Constant::String(it),
             }),
             token => todo!("token: {:?}", token),

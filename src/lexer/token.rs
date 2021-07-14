@@ -169,8 +169,8 @@ impl FromStr for Keyword {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Literal {
     Boolean(bool),
-    Integer(u64),
     Null,
+    Numeric(u64),
     String(String),
 }
 
@@ -178,8 +178,8 @@ impl fmt::Display for Literal {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Boolean(it) => write!(f, "{}", it),
-            Self::Integer(it) => write!(f, "{}", it),
             Self::Null => write!(f, "null"),
+            Self::Numeric(it) => write!(f, "{}", it),
             Self::String(it) => write!(f, r#""{}""#, it),
         }
     }

@@ -135,7 +135,7 @@ impl Lexer {
         }
 
         Some(match u64::from_str(&content) {
-            Ok(num) => Token::Literal(Literal::Integer(num)),
+            Ok(num) => Token::Literal(Literal::Numeric(num)),
             Err(err) => Token::Invalid(LexError::BadNumericLiteral(err)),
         })
     }
@@ -180,9 +180,9 @@ impl Lexer {
 /// let source = r##"100 + 50;"##;
 /// let mut lexer = Lexer::for_str(source);
 ///
-/// assert_eq!(lexer.next(), Some(Token::Literal(Literal::Integer(100))));
+/// assert_eq!(lexer.next(), Some(Token::Literal(Literal::Numeric(100))));
 /// assert_eq!(lexer.next(), Some(Token::Symbol(Symbol::Plus)));
-/// assert_eq!(lexer.next(), Some(Token::Literal(Literal::Integer(50))));
+/// assert_eq!(lexer.next(), Some(Token::Literal(Literal::Numeric(50))));
 /// assert_eq!(lexer.next(), Some(Token::Symbol(Symbol::Semicolon)));
 /// assert_eq!(lexer.next(), None);
 /// assert_eq!(lexer.next(), None);
@@ -203,12 +203,12 @@ impl Lexer {
 ///         Token::Keyword(Keyword::Let),
 ///         Token::Identifier("a".to_owned()),
 ///         Token::Symbol(Symbol::Equal),
-///         Token::Literal(Literal::Integer(100)),
+///         Token::Literal(Literal::Numeric(100)),
 ///         Token::Symbol(Symbol::Semicolon),
 ///         Token::Keyword(Keyword::Let),
 ///         Token::Identifier("b".to_owned()),
 ///         Token::Symbol(Symbol::Equal),
-///         Token::Literal(Literal::Integer(50)),
+///         Token::Literal(Literal::Numeric(50)),
 ///         Token::Symbol(Symbol::Semicolon),
 ///         Token::Identifier("a".to_owned()),
 ///         Token::Symbol(Symbol::Plus),
@@ -234,14 +234,14 @@ impl Lexer {
 ///         Token::Keyword(Keyword::Let),
 ///         Token::Identifier("x".to_owned()),
 ///         Token::Symbol(Symbol::Equal),
-///         Token::Literal(Literal::Integer(0)),
+///         Token::Literal(Literal::Numeric(0)),
 ///         Token::Symbol(Symbol::Semicolon),
 ///
 ///         Token::Keyword(Keyword::While),
 ///         //Token::Symbol(Symbol::OpenParen),
 ///         Token::Identifier("x".to_owned()),
 ///         Token::Symbol(Symbol::LessThan),
-///         Token::Literal(Literal::Integer(3)),
+///         Token::Literal(Literal::Numeric(3)),
 ///         //Token::Symbol(Symbol::CloseParen),
 ///         Token::Symbol(Symbol::OpenBrace),
 ///
@@ -249,7 +249,7 @@ impl Lexer {
 ///         Token::Symbol(Symbol::Equal),
 ///         Token::Identifier("x".to_owned()),
 ///         Token::Symbol(Symbol::Plus),
-///         Token::Literal(Literal::Integer(1)),
+///         Token::Literal(Literal::Numeric(1)),
 ///         Token::Symbol(Symbol::Semicolon),
 ///
 ///         Token::Symbol(Symbol::CloseBrace),
