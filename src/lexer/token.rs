@@ -3,6 +3,31 @@ use std::num::ParseIntError;
 use std::str::FromStr;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub enum Element {
+    Comment(String, CommentKind),
+    Token(Token),
+    LineTerminator,
+    Whitespace(char),
+}
+
+impl fmt::Display for Element {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Comment(content, kind) => write!(f, "Comment({:?})<{}>", kind, content),
+            Self::Token(it) => write!(f, "Token<{}>", it),
+            Self::LineTerminator => write!(f, "LineTerminator"),
+            Self::Whitespace(it) => write!(f, "Whitespace<{}>", it),
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum CommentKind {
+    MultiLine,
+    SingleLine,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Token {
     Identifier(String),
     Keyword(Keyword),

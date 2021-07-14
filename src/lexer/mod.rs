@@ -6,11 +6,6 @@ pub use token::*;
 
 mod token;
 
-/// ZERO WIDTH NON-JOINER
-const ZWNJ: char = '\u{200C}';
-/// ZERO WIDTH JOINER
-const ZWJ: char = '\u{200D}';
-
 pub struct Lexer(Stream<char>);
 
 impl Lexer {
@@ -22,98 +17,13 @@ impl Lexer {
         Self(Stream::new(source))
     }
 
-    fn consume_whitespace(&mut self) {
-        self.0.consume_while(|ch| ch.is_whitespace());
-    }
-
-    fn consume_symbol(&mut self) -> Option<Token> {
-        for symbol in Symbol::VALUES_IN_LEXICAL_ORDER {
-            if self.0.consume_str(symbol.to_str()) {
-                return Some(Token::Symbol(symbol));
+    pub fn tokens(self) -> impl Iterator<Item = Token> {
+        self.filter_map(|it| {
+            if let Element::Token(token) = it {
+                Some(token)
+            } else {
+                None
             }
-        }
-        None
-    }
-
-    fn consume_string_literal(&mut self) -> Option<Token> {
-        // Opening quote
-        let qt = self.0.consume_if(|ch| *ch == '"' || *ch == '\'')?;
-
-        // Optimisation: avoid alloc for empty string literals
-        if self.0.consume_eq(&qt).is_some() {
-            return Some(Token::Literal(Literal::String(String::with_capacity(0))));
-        }
-
-        let mut content = String::new();
-        let mut escaped = false;
-        Some(loop {
-            match self.0.peek() {
-                Some(ch) if *ch == qt && !escaped => {
-                    self.0.consume_exact(&qt);
-                    break Token::Literal(Literal::String(content));
-                }
-                Some('\\') if !escaped => {
-                    self.0.consume_exact(&'\\');
-                    escaped = true;
-                }
-                Some('\n') | None => break Token::Invalid(LexicalError::UnclosedStringLiteral),
-                Some(ch) => {
-                    content.push(*ch);
-                    escaped = false;
-                    self.0.advance();
-                }
-            }
-        })
-    }
-
-    fn consume_numeric_literal(&mut self) -> Option<Token> {
-        let ch = self.0.consume_if(|ch| ch.is_ascii_digit())?;
-
-        let mut content = String::new();
-        content.push(ch);
-
-        // FIXME: Retun error if no space between numeric literal and something else
-        while let Some(ch) = self.0.consume_if(|ch| ch.is_ascii_digit()) {
-            content.push(ch);
-        }
-
-        Some(match u64::from_str(&content) {
-            Ok(num) => Token::Literal(Literal::Numeric(num)),
-            Err(err) => Token::Invalid(LexicalError::BadNumericLiteral(err)),
-        })
-    }
-
-    fn consume_identifier_or_keyword_or_null_or_bool(&mut self) -> Option<Token> {
-        fn is_identifier_start(ch: &char) -> bool {
-            // FIXME: Acutally check if the character has the "ID_Start" Unicode property
-            let has_id_start = ch.is_ascii_alphabetic();
-            has_id_start || *ch == '$' || *ch == '_'
-        }
-
-        fn is_identifier_part(ch: &char) -> bool {
-            // FIXME: Actually check if the character has the "ID_Continue" Unicode property
-            let has_id_continue = ch.is_ascii_alphabetic() || ch.is_ascii_digit() || *ch == '_';
-            has_id_continue || *ch == '$' || *ch == ZWNJ || *ch == ZWJ
-        }
-
-        let ch = self.0.consume_if(is_identifier_start)?;
-        let mut content = String::new();
-        content.push(ch);
-
-        while let Some(ch) = self.0.consume_if(is_identifier_part) {
-            content.push(ch);
-        }
-
-        Some(if let Ok(keyword) = Keyword::from_str(&content) {
-            Token::Keyword(keyword)
-        } else if &content == "null" {
-            Token::Literal(Literal::Null)
-        } else if &content == "true" {
-            Token::Literal(Literal::Boolean(true))
-        } else if &content == "false" {
-            Token::Literal(Literal::Boolean(false))
-        } else {
-            Token::Identifier(content)
         })
     }
 }
@@ -121,42 +31,71 @@ impl Lexer {
 /// ```rust
 /// # use jakescript::lexer::*;
 /// let source = r##"100 + 50;"##;
-/// let mut lexer = Lexer::for_str(source);
 ///
-/// assert_eq!(lexer.next(), Some(Token::Literal(Literal::Numeric(100))));
-/// assert_eq!(lexer.next(), Some(Token::Symbol(Symbol::Plus)));
-/// assert_eq!(lexer.next(), Some(Token::Literal(Literal::Numeric(50))));
-/// assert_eq!(lexer.next(), Some(Token::Symbol(Symbol::Semicolon)));
-/// assert_eq!(lexer.next(), None);
-/// assert_eq!(lexer.next(), None);
+/// let mut lexer = Lexer::for_str(source);
+/// assert_eq!(
+///     lexer.collect::<Vec<_>>(),
+///     vec![
+///         Element::Token(Token::Literal(Literal::Numeric(100))),
+///         Element::Whitespace(' '),
+///         Element::Token(Token::Symbol(Symbol::Plus)),
+///         Element::Whitespace(' '),
+///         Element::Token(Token::Literal(Literal::Numeric(50))),
+///         Element::Token(Token::Symbol(Symbol::Semicolon)),
+///     ]
+/// )
 /// ```
 ///
 /// ```rust
 /// # use jakescript::lexer::*;
 /// let source = r##"
-/// let a = 100;
-/// let b = 50;
-/// a + b;
+/// let a = /* Hello, */ 100;
+/// let b = 50; // world!
+/// console.log("100 + 50 = %s", a + b);
 /// "##;
 ///
 /// let mut lexer = Lexer::for_str(source);
 /// assert_eq!(
 ///     lexer.collect::<Vec<_>>(),
 ///     vec![
-///         Token::Keyword(Keyword::Let),
-///         Token::Identifier("a".to_owned()),
-///         Token::Symbol(Symbol::Equal),
-///         Token::Literal(Literal::Numeric(100)),
-///         Token::Symbol(Symbol::Semicolon),
-///         Token::Keyword(Keyword::Let),
-///         Token::Identifier("b".to_owned()),
-///         Token::Symbol(Symbol::Equal),
-///         Token::Literal(Literal::Numeric(50)),
-///         Token::Symbol(Symbol::Semicolon),
-///         Token::Identifier("a".to_owned()),
-///         Token::Symbol(Symbol::Plus),
-///         Token::Identifier("b".to_owned()),
-///         Token::Symbol(Symbol::Semicolon),
+///         Element::LineTerminator,
+///         Element::Token(Token::Keyword(Keyword::Let)),
+///         Element::Whitespace(' '),
+///         Element::Token(Token::Identifier("a".to_owned())),
+///         Element::Whitespace(' '),
+///         Element::Token(Token::Symbol(Symbol::Equal)),
+///         Element::Whitespace(' '),
+///         Element::Comment(" Hello, ".to_owned(), CommentKind::MultiLine),
+///         Element::Whitespace(' '),
+///         Element::Token(Token::Literal(Literal::Numeric(100))),
+///         Element::Token(Token::Symbol(Symbol::Semicolon)),
+///         Element::LineTerminator,
+///         Element::Token(Token::Keyword(Keyword::Let)),
+///         Element::Whitespace(' '),
+///         Element::Token(Token::Identifier("b".to_owned())),
+///         Element::Whitespace(' '),
+///         Element::Token(Token::Symbol(Symbol::Equal)),
+///         Element::Whitespace(' '),
+///         Element::Token(Token::Literal(Literal::Numeric(50))),
+///         Element::Token(Token::Symbol(Symbol::Semicolon)),
+///         Element::Whitespace(' '),
+///         Element::Comment(" world!".to_owned(), CommentKind::SingleLine),
+///         Element::LineTerminator,
+///         Element::Token(Token::Identifier("console".to_owned())),
+///         Element::Token(Token::Symbol(Symbol::Dot)),
+///         Element::Token(Token::Identifier("log".to_owned())),
+///         Element::Token(Token::Symbol(Symbol::OpenParen)),
+///         Element::Token(Token::Literal(Literal::String("100 + 50 = %s".to_owned()))),
+///         Element::Token(Token::Symbol(Symbol::Comma)),
+///         Element::Whitespace(' '),
+///         Element::Token(Token::Identifier("a".to_owned())),
+///         Element::Whitespace(' '),
+///         Element::Token(Token::Symbol(Symbol::Plus)),
+///         Element::Whitespace(' '),
+///         Element::Token(Token::Identifier("b".to_owned())),
+///         Element::Token(Token::Symbol(Symbol::CloseParen)),
+///         Element::Token(Token::Symbol(Symbol::Semicolon)),
+///         Element::LineTerminator,
 ///     ]
 /// );
 /// ```
@@ -165,14 +104,14 @@ impl Lexer {
 /// # use jakescript::lexer::*;
 /// let source = r##"
 /// let x = 0;
-/// while x < 3 {
+/// while (x < 3) {
 ///     x = x + 1;
 /// }
 /// "##;
 ///
 /// let mut lexer = Lexer::for_str(source);
 /// assert_eq!(
-///     lexer.collect::<Vec<_>>(),
+///     lexer.tokens().collect::<Vec<_>>(),
 ///     vec![
 ///         Token::Keyword(Keyword::Let),
 ///         Token::Identifier("x".to_owned()),
@@ -181,11 +120,11 @@ impl Lexer {
 ///         Token::Symbol(Symbol::Semicolon),
 ///
 ///         Token::Keyword(Keyword::While),
-///         //Token::Symbol(Symbol::OpenParen),
+///         Token::Symbol(Symbol::OpenParen),
 ///         Token::Identifier("x".to_owned()),
 ///         Token::Symbol(Symbol::LessThan),
 ///         Token::Literal(Literal::Numeric(3)),
-///         //Token::Symbol(Symbol::CloseParen),
+///         Token::Symbol(Symbol::CloseParen),
 ///         Token::Symbol(Symbol::OpenBrace),
 ///
 ///         Token::Identifier("x".to_owned()),
@@ -199,23 +138,261 @@ impl Lexer {
 ///     ]
 /// );
 impl Iterator for Lexer {
-    type Item = Token;
+    type Item = Element;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.consume_whitespace();
         let ch = *self.0.peek()?;
 
-        Some(if let Some(token) = self.consume_symbol() {
-            token
-        } else if let Some(token) = self.consume_string_literal() {
-            token
-        } else if let Some(token) = self.consume_numeric_literal() {
-            token
-        } else if let Some(token) = self.consume_identifier_or_keyword_or_null_or_bool() {
-            token
+        Some(if let Some(whitespace) = self.parse_whitespace() {
+            Element::Whitespace(whitespace)
+        } else if let Some(..) = self.parse_line_terminator_sequence() {
+            Element::LineTerminator
+        } else if let Some((content, kind)) = self.parse_comment() {
+            Element::Comment(content, kind)
+        } else if let Some(token) = self.parse_token() {
+            Element::Token(token)
         } else {
             todo!("{}", ch)
         })
+    }
+}
+
+/// CHARACTER TABULATION
+const TAB: char = '\u{0009}';
+/// LINE FEED (LF)
+const LF: char = '\u{000A}';
+/// LINE TABULATION
+const VT: char = '\u{000B}';
+/// FORM FEED (FF)
+const FF: char = '\u{000C}';
+/// CARRIAGE RETURN (CR)
+const CR: char = '\u{000D}';
+/// SPACE
+const SP: char = '\u{0020}';
+/// NO-BREAK SPACE
+const NBSP: char = '\u{00A0}';
+/// ZERO WIDTH NON-JOINER
+const ZWNJ: char = '\u{200C}';
+/// ZERO WIDTH JOINER
+const ZWJ: char = '\u{200D}';
+/// LINE SEPARATOR
+const LS: char = '\u{2028}';
+/// PARAGRAPH SEPARATOR
+const PS: char = '\u{2029}';
+/// ZERO WIDTH NO-BREAK SPACE
+const ZWNBSP: char = '\u{FEFF}';
+
+impl Lexer {
+    fn is_whitespace(ch: char) -> bool {
+        // FIXME: or USP, which is any other code point classified in the "Space_Separator"
+        // category, which is different from looking at the Unicode "White_Space" property
+        matches!(ch, TAB | VT | FF | SP | NBSP | ZWNBSP)
+    }
+
+    fn is_line_terminator(ch: char) -> bool {
+        matches!(ch, LF | CR | LS | PS)
+    }
+
+    fn is_identifier_start(ch: char) -> bool {
+        // TODO: Handle Unicode escape sequence
+        Self::is_unicode_start(ch) || matches!(ch, '$' | '_')
+    }
+
+    fn is_identifier_part(ch: char) -> bool {
+        // TODO: Handle Unicode escape sequence
+        Self::is_unicode_continue(ch) || matches!(ch, '$' | ZWNJ | ZWJ)
+    }
+
+    fn is_unicode_start(ch: char) -> bool {
+        // FIXME: Actually check for characters with the Unicode "ID_Start" property
+        ch.is_ascii_alphabetic()
+    }
+
+    fn is_unicode_continue(ch: char) -> bool {
+        // FIXME: Actually check for characters with the Unicode "ID_Continue" property
+        ch.is_ascii_alphabetic() || ch.is_ascii_digit() || ch == '_'
+    }
+
+    fn parse_whitespace(&mut self) -> Option<char> {
+        self.0.consume_if(|ch| Self::is_whitespace(*ch))
+    }
+
+    fn parse_line_terminator_sequence(&mut self) -> Option<(char, Option<char>)> {
+        match self.0.peek() {
+            Some(ch @ (&LF | &LS | &PS)) => {
+                let ch = *ch;
+                self.0.consume_exact(&ch);
+                Some((ch, None))
+            }
+            Some(&CR) if self.0.peek_n(1) != Some(&LF) => {
+                self.0.consume_exact(&CR);
+                Some((CR, None))
+            }
+            Some(&CR) if self.0.peek_n(1) == Some(&LF) => {
+                self.0.consume_exact(&CR);
+                self.0.consume_exact(&LF);
+                Some((CR, Some(LF)))
+            }
+            Some(_) | None => None,
+        }
+    }
+
+    fn parse_comment(&mut self) -> Option<(String, CommentKind)> {
+        if let Some(content) = self.parse_multi_line_comment() {
+            return Some((content, CommentKind::MultiLine));
+        }
+        if let Some(content) = self.parse_single_line_comment() {
+            return Some((content, CommentKind::SingleLine));
+        }
+        None
+    }
+
+    fn parse_multi_line_comment(&mut self) -> Option<String> {
+        if !self.0.peek_str("/*") {
+            return None;
+        }
+        let mut content = String::new();
+        for offset in 2.. {
+            let ch = *self.0.peek_n(offset)?;
+            if ch == '*' && self.0.peek_n(offset + 1) == Some(&'/') {
+                break;
+            }
+            content.push(ch);
+        }
+        self.0.consume_exact(&'/');
+        self.0.consume_exact(&'*');
+        self.0.advance_n(content.len());
+        self.0.consume_exact(&'*');
+        self.0.consume_exact(&'/');
+        Some(content)
+    }
+
+    fn parse_single_line_comment(&mut self) -> Option<String> {
+        if self.0.consume_str("//") {
+            Some(
+                self.0
+                    .consume_until_string(|ch| Self::is_line_terminator(*ch)),
+            )
+        } else {
+            None
+        }
+    }
+
+    fn parse_token(&mut self) -> Option<Token> {
+        Some(
+            if let Some(ident_name_or_keyword) = self.parse_identifier_name() {
+                if let Ok(keyword) = Keyword::from_str(&ident_name_or_keyword) {
+                    Token::Keyword(keyword)
+                } else {
+                    Token::Identifier(ident_name_or_keyword)
+                }
+            } else if let Some(punctuator) = self.parse_punctuator() {
+                Token::Symbol(punctuator)
+            } else if let Some(()) = self.parse_null_literal() {
+                Token::Literal(Literal::Null)
+            } else if let Some(bool_lit) = self.parse_boolean_literal() {
+                Token::Literal(Literal::Boolean(bool_lit))
+            } else if let Some(numeric_lit) = self.parse_numeric_literal() {
+                Token::Literal(Literal::Numeric(numeric_lit))
+            } else if let Some(string_lit) = self.parse_string_literal() {
+                Token::Literal(Literal::String(string_lit))
+            } else {
+                // TODO: Parse template tokens
+                return None;
+            },
+        )
+    }
+
+    fn parse_identifier_name(&mut self) -> Option<String> {
+        let ch0 = self.0.consume_if(|ch| Self::is_identifier_start(*ch))?;
+        let mut content = self
+            .0
+            .consume_while_string(|ch| Self::is_identifier_part(*ch));
+        content.insert(0, ch0);
+        Some(content)
+    }
+
+    fn parse_punctuator(&mut self) -> Option<Symbol> {
+        for punctuator in Symbol::VALUES_IN_LEXICAL_ORDER {
+            if self.0.consume_str(punctuator.to_str()) {
+                return Some(punctuator);
+            }
+        }
+        None
+    }
+
+    fn parse_null_literal(&mut self) -> Option<()> {
+        if self.0.consume_str("null") {
+            Some(())
+        } else {
+            None
+        }
+    }
+
+    fn parse_boolean_literal(&mut self) -> Option<bool> {
+        if self.0.consume_str("true") {
+            Some(true)
+        } else if self.0.consume_str("false") {
+            Some(false)
+        } else {
+            None
+        }
+    }
+
+    fn parse_numeric_literal(&mut self) -> Option<u64> {
+        // FIXME: This is a naieve implementation which doesn't match the spec
+        let content = self.0.consume_while_string(|ch| ch.is_ascii_digit());
+        if !content.is_empty() {
+            u64::from_str(&content).ok()
+        } else {
+            None
+        }
+    }
+
+    fn parse_string_literal(&mut self) -> Option<String> {
+        if let Some(content) = self.parse_quoted_literal('"') {
+            return Some(content);
+        }
+        if let Some(content) = self.parse_quoted_literal('\'') {
+            return Some(content);
+        }
+        None
+    }
+
+    fn parse_quoted_literal(&mut self, qt: char) -> Option<String> {
+        if self.0.peek() != Some(&qt) {
+            return None;
+        }
+        // Optimisation: avoid alloc for empty string literals
+        if self.0.peek_n(1) == Some(&qt) {
+            self.0.consume_exact(&qt);
+            self.0.consume_exact(&qt);
+            return Some(String::with_capacity(0));
+        }
+        // FIXME: This is a naieve implementation which doesn't match the spec
+        let mut content = String::new();
+        let mut escaped = false;
+        let mut raw_content_len = 0;
+        for offset in 1.. {
+            match self.0.peek_n(offset) {
+                Some(ch) if Self::is_line_terminator(*ch) => return None,
+                None => return None,
+                Some(ch) if !escaped && *ch == qt => break,
+                Some('\\') if !escaped => {
+                    escaped = true;
+                    raw_content_len += 1;
+                }
+                Some(ch) => {
+                    content.push(*ch);
+                    escaped = false;
+                    raw_content_len += 1;
+                }
+            }
+        }
+        self.0.consume_exact(&qt);
+        self.0.advance_n(raw_content_len);
+        self.0.consume_exact(&qt);
+        Some(content)
     }
 }
 
@@ -227,7 +404,7 @@ mod test {
     fn tokenise_keywords() {
         for keyword in Keyword::VALUES {
             let mut lexer = Lexer::for_str(keyword.to_str());
-            assert_eq!(lexer.next(), Some(Token::Keyword(keyword)));
+            assert_eq!(lexer.next(), Some(Element::Token(Token::Keyword(keyword))));
             assert_eq!(lexer.next(), None);
         }
     }
@@ -236,7 +413,7 @@ mod test {
     fn tokenise_symbols() {
         for symbol in Symbol::VALUES {
             let mut lexer = Lexer::for_str(symbol.to_str());
-            assert_eq!(lexer.next(), Some(Token::Symbol(symbol)));
+            assert_eq!(lexer.next(), Some(Element::Token(Token::Symbol(symbol))));
             assert_eq!(lexer.next(), None);
         }
     }
@@ -244,15 +421,13 @@ mod test {
     #[test]
     fn tokenise_string_literal() {
         fn check_valid(source: &str, expected: &str) {
-            check(
-                source,
-                Some(Token::Literal(Literal::String(expected.to_owned()))),
-            );
-        }
-
-        fn check(source: &str, expected: Option<Token>) {
             let mut lexer = Lexer::for_str(source);
-            assert_eq!(lexer.next(), expected);
+            assert_eq!(
+                lexer.next(),
+                Some(Element::Token(Token::Literal(Literal::String(
+                    expected.to_owned()
+                ))))
+            );
             assert_eq!(lexer.next(), None);
         }
 
