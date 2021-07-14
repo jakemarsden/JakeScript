@@ -20,9 +20,9 @@ impl Parser {
     /// # use jakescript::parser::*;
     /// let source = vec![
     ///     Token::Literal(Literal::Numeric(100)),
-    ///     Token::Symbol(Symbol::Plus),
+    ///     Token::Punctuator(Punctuator::Plus),
     ///     Token::Literal(Literal::Numeric(50)),
-    ///     Token::Symbol(Symbol::Semicolon),
+    ///     Token::Punctuator(Punctuator::Semicolon),
     /// ];
     /// let mut parser = Parser::for_tokens(source);
     /// assert_eq!(
@@ -44,18 +44,18 @@ impl Parser {
     /// let source = vec![
     ///     Token::Keyword(Keyword::Let),
     ///     Token::Identifier("a".to_owned()),
-    ///     Token::Symbol(Symbol::Equal),
+    ///     Token::Punctuator(Punctuator::Equal),
     ///     Token::Literal(Literal::Numeric(100)),
-    ///     Token::Symbol(Symbol::Semicolon),
+    ///     Token::Punctuator(Punctuator::Semicolon),
     ///     Token::Keyword(Keyword::Let),
     ///     Token::Identifier("b".to_owned()),
-    ///     Token::Symbol(Symbol::Equal),
+    ///     Token::Punctuator(Punctuator::Equal),
     ///     Token::Literal(Literal::Numeric(50)),
-    ///     Token::Symbol(Symbol::Semicolon),
+    ///     Token::Punctuator(Punctuator::Semicolon),
     ///     Token::Identifier("a".to_owned()),
-    ///     Token::Symbol(Symbol::Plus),
+    ///     Token::Punctuator(Punctuator::Plus),
     ///     Token::Identifier("b".to_owned()),
-    ///     Token::Symbol(Symbol::Semicolon),
+    ///     Token::Punctuator(Punctuator::Semicolon),
     /// ];
     /// let mut parser = Parser::for_tokens(source);
     /// assert_eq!(
@@ -84,21 +84,21 @@ impl Parser {
     /// let source = vec![
     ///     Token::Keyword(Keyword::Let),
     ///     Token::Identifier("x".to_owned()),
-    ///     Token::Symbol(Symbol::Equal),
+    ///     Token::Punctuator(Punctuator::Equal),
     ///     Token::Literal(Literal::Numeric(0)),
-    ///     Token::Symbol(Symbol::Semicolon),
+    ///     Token::Punctuator(Punctuator::Semicolon),
     ///     Token::Keyword(Keyword::While),
     ///     Token::Identifier("x".to_owned()),
-    ///     Token::Symbol(Symbol::LessThan),
+    ///     Token::Punctuator(Punctuator::LessThan),
     ///     Token::Literal(Literal::Numeric(3)),
-    ///     Token::Symbol(Symbol::OpenBrace),
+    ///     Token::Punctuator(Punctuator::OpenBrace),
     ///     Token::Identifier("x".to_owned()),
-    ///     Token::Symbol(Symbol::Equal),
+    ///     Token::Punctuator(Punctuator::Equal),
     ///     Token::Identifier("x".to_owned()),
-    ///     Token::Symbol(Symbol::Plus),
+    ///     Token::Punctuator(Punctuator::Plus),
     ///     Token::Literal(Literal::Numeric(1)),
-    ///     Token::Symbol(Symbol::Semicolon),
-    ///     Token::Symbol(Symbol::CloseBrace),
+    ///     Token::Punctuator(Punctuator::Semicolon),
+    ///     Token::Punctuator(Punctuator::CloseBrace),
     /// ];
     /// let mut parser = Parser::for_tokens(source);
     /// assert_eq!(
@@ -138,7 +138,7 @@ impl Parser {
         loop {
             // TODO: Check correctness of semicolons
             self.0
-                .consume_if(|it| matches!(it, Token::Symbol(Symbol::Semicolon)));
+                .consume_if(|it| matches!(it, Token::Punctuator(Punctuator::Semicolon)));
             block.push(match self.0.peek() {
                 Some(Token::Keyword(Keyword::Let)) => self.parse_variable_decl(),
                 Some(Token::Keyword(Keyword::While)) => self.parse_while(),
@@ -162,7 +162,7 @@ impl Parser {
         };
         if self
             .0
-            .consume_if(|it| it == &Token::Symbol(Symbol::Semicolon))
+            .consume_if(|it| it == &Token::Punctuator(Punctuator::Semicolon))
             .is_some()
         {
             lhs
@@ -173,17 +173,17 @@ impl Parser {
 
     fn try_parse_binary_operator(&mut self, lhs: Node) -> Node {
         match self.0.peek() {
-            Some(Token::Symbol(Symbol::OpenBrace | Symbol::Semicolon)) => return lhs,
-            Some(Token::Symbol(_)) => {}
+            Some(Token::Punctuator(Punctuator::OpenBrace | Punctuator::Semicolon)) => return lhs,
+            Some(Token::Punctuator(_)) => {}
             _ => return lhs,
         }
         match self.0.consume().unwrap() {
-            Token::Symbol(symbol) => {
-                let op = match symbol {
-                    Symbol::Equal => BinaryOp::Assign,
-                    Symbol::LessThan => BinaryOp::LessThan,
-                    Symbol::Plus => BinaryOp::Add,
-                    symbol => todo!("symbol: {}", symbol),
+            Token::Punctuator(punctuator) => {
+                let op = match punctuator {
+                    Punctuator::Equal => BinaryOp::Assign,
+                    Punctuator::LessThan => BinaryOp::LessThan,
+                    Punctuator::Plus => BinaryOp::Add,
+                    punctuator => todo!("punctuator: {}", punctuator),
                 };
                 let rhs = self.parse_expression();
                 Node::BinaryOp(op, Box::new((lhs, rhs)))
@@ -199,14 +199,17 @@ impl Parser {
 
         let condition = self.parse_expression();
 
-        if !matches!(self.0.consume(), Some(Token::Symbol(Symbol::OpenBrace))) {
+        if !matches!(
+            self.0.consume(),
+            Some(Token::Punctuator(Punctuator::OpenBrace))
+        ) {
             return self.invalid(ParseError);
         }
 
         let mut body = Vec::new();
         while self
             .0
-            .consume_if(|it| it == &Token::Symbol(Symbol::CloseBrace))
+            .consume_if(|it| it == &Token::Punctuator(Punctuator::CloseBrace))
             .is_none()
         {
             body.push(self.parse_expression());
@@ -228,11 +231,11 @@ impl Parser {
         };
 
         let initialiser = match self.0.consume() {
-            Some(Token::Symbol(Symbol::Equal)) => {
+            Some(Token::Punctuator(Punctuator::Equal)) => {
                 let expr = self.parse_expression();
                 Some(Box::new(expr))
             }
-            Some(Token::Symbol(Symbol::Semicolon)) => None,
+            Some(Token::Punctuator(Punctuator::Semicolon)) => None,
             _ => return self.invalid(ParseError),
         };
 
@@ -241,9 +244,9 @@ impl Parser {
 
     fn invalid(&mut self, err: ParseError) -> Node {
         self.0
-            .consume_until(|t| matches!(t, Token::Symbol(Symbol::Semicolon)));
+            .consume_until(|t| matches!(t, Token::Punctuator(Punctuator::Semicolon)));
         self.0
-            .consume_if(|t| matches!(t, Token::Symbol(Symbol::Semicolon)));
+            .consume_if(|t| matches!(t, Token::Punctuator(Punctuator::Semicolon)));
         Node::Invalid(err)
     }
 }

@@ -32,7 +32,7 @@ pub enum Token {
     Identifier(String),
     Keyword(Keyword),
     Literal(Literal),
-    Symbol(Symbol),
+    Punctuator(Punctuator),
 
     Invalid(LexicalError),
 }
@@ -43,7 +43,7 @@ impl fmt::Display for Token {
             Self::Identifier(it) => write!(f, "Identifier<{}>", it),
             Self::Keyword(it) => write!(f, "Keyword<{}>", it),
             Self::Literal(it) => write!(f, "Literal<{}>", it),
-            Self::Symbol(it) => write!(f, "Symbol<{}>", it),
+            Self::Punctuator(it) => write!(f, "Punctuator<{}>", it),
 
             Self::Invalid(it) => write!(f, "Invalid<{}>", it),
         }
@@ -236,9 +236,9 @@ impl FromStr for Keyword {
     type Err = BadKeywordError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        for keyword in Self::VALUES {
-            if keyword.to_str() == s {
-                return Ok(keyword);
+        for value in Self::VALUES {
+            if value.to_str() == s {
+                return Ok(value);
             }
         }
         Err(BadKeywordError)
@@ -267,7 +267,7 @@ impl fmt::Display for Literal {
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum Symbol {
+pub enum Punctuator {
     Ampersand,
     AmpersandEqual,
     Asterisk,
@@ -323,11 +323,11 @@ pub enum Symbol {
     TripleMoreThanEqual,
 }
 
-impl Symbol {
+impl Punctuator {
     pub(crate) const VALUES: [Self; 53] = Self::VALUES_IN_LEXICAL_ORDER;
 
-    /// Unlike for [VALUES], **order is important**. For multiple symbols which start with the same
-    /// substring, the longest needs to come first. This is relied on by the [Lexer].
+    /// Unlike for [VALUES], **order is important**. For multiple punctuators which start with the
+    /// same substring, the longest needs to come first. This is relied on by the [Lexer].
     pub(crate) const VALUES_IN_LEXICAL_ORDER: [Self; 53] = [
         Self::DoubleAmpersand,
         Self::AmpersandEqual,
@@ -443,22 +443,22 @@ impl Symbol {
     }
 }
 
-impl fmt::Display for Symbol {
+impl fmt::Display for Punctuator {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(self.to_str())
     }
 }
 
-impl FromStr for Symbol {
-    type Err = BadSymbolError;
+impl FromStr for Punctuator {
+    type Err = BadPunctuatorError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        for symbol in Self::VALUES {
-            if symbol.to_str() == s {
-                return Ok(symbol);
+        for value in Self::VALUES {
+            if value.to_str() == s {
+                return Ok(value);
             }
         }
-        Err(BadSymbolError)
+        Err(BadPunctuatorError)
     }
 }
 
@@ -498,12 +498,12 @@ impl fmt::Display for BadKeywordError {
 impl std::error::Error for BadKeywordError {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct BadSymbolError;
+pub struct BadPunctuatorError;
 
-impl fmt::Display for BadSymbolError {
+impl fmt::Display for BadPunctuatorError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str("bad symbol")
+        f.write_str("bad punctuator")
     }
 }
 
-impl std::error::Error for BadSymbolError {}
+impl std::error::Error for BadPunctuatorError {}
