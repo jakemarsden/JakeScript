@@ -27,6 +27,10 @@ impl fmt::Display for Token {
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Keyword {
+    // TODO: Some of these are only _contextually_ disallowed as identifiers, and under certain
+    // conditions _can_ be used as identifiers.
+    As,
+    Async,
     Await,
     Break,
     Case,
@@ -44,17 +48,28 @@ pub enum Keyword {
     Extends,
     Finally,
     For,
+    From,
     Function,
+    Get,
     If,
+    Implements,
     Import,
     In,
     Instanceof,
-    // TODO: `let` is not in the spec as a _ReservedWord_?
+    Interface,
     Let,
     New,
+    Of,
+    Package,
+    Private,
+    Protected,
+    Public,
     Return,
+    Set,
+    Static,
     Super,
     Switch,
+    Target,
     This,
     Throw,
     Try,
@@ -66,7 +81,9 @@ pub enum Keyword {
 }
 
 impl Keyword {
-    pub(crate) const VALUES: [Self; 35] = [
+    pub(crate) const VALUES: [Self; 49] = [
+        Self::As,
+        Self::Async,
         Self::Await,
         Self::Break,
         Self::Case,
@@ -84,16 +101,28 @@ impl Keyword {
         Self::Extends,
         Self::Finally,
         Self::For,
+        Self::From,
         Self::Function,
+        Self::Get,
         Self::If,
+        Self::Implements,
         Self::Import,
         Self::In,
         Self::Instanceof,
+        Self::Interface,
         Self::Let,
         Self::New,
+        Self::Of,
+        Self::Package,
+        Self::Private,
+        Self::Protected,
+        Self::Public,
         Self::Return,
+        Self::Set,
+        Self::Static,
         Self::Super,
         Self::Switch,
+        Self::Target,
         Self::This,
         Self::Throw,
         Self::Try,
@@ -104,8 +133,23 @@ impl Keyword {
         Self::Yield,
     ];
 
+    pub fn is_future_reserved_word(&self, strict_mode: bool) -> bool {
+        match self {
+            Self::Enum => true,
+            Self::Implements
+            | Self::Interface
+            | Self::Package
+            | Self::Private
+            | Self::Protected
+            | Self::Public => strict_mode,
+            _ => false,
+        }
+    }
+
     pub fn to_str(&self) -> &'static str {
         match self {
+            Self::As => "as",
+            Self::Async => "async",
             Self::Await => "await",
             Self::Break => "break",
             Self::Case => "case",
@@ -123,16 +167,28 @@ impl Keyword {
             Self::Extends => "extends",
             Self::Finally => "finally",
             Self::For => "for",
+            Self::From => "from",
             Self::Function => "function",
+            Self::Get => "get",
             Self::If => "if",
+            Self::Implements => "implements",
             Self::Import => "import",
+            Self::Interface => "interface",
             Self::In => "in",
             Self::Instanceof => "instanceof",
             Self::Let => "let",
             Self::New => "new",
+            Self::Of => "of",
+            Self::Package => "package",
+            Self::Private => "private",
+            Self::Protected => "protected",
+            Self::Public => "public",
             Self::Return => "return",
+            Self::Set => "set",
+            Self::Static => "static",
             Self::Super => "super",
             Self::Switch => "switch",
+            Self::Target => "target",
             Self::This => "this",
             Self::Throw => "throw",
             Self::Try => "try",
