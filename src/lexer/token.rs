@@ -9,7 +9,7 @@ pub enum Token {
     Literal(Literal),
     Symbol(Symbol),
 
-    Invalid(LexError),
+    Invalid(LexicalError),
 }
 
 impl fmt::Display for Token {
@@ -378,12 +378,12 @@ impl FromStr for Symbol {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum LexError {
+pub enum LexicalError {
     BadNumericLiteral(ParseIntError),
     UnclosedStringLiteral,
 }
 
-impl fmt::Display for LexError {
+impl fmt::Display for LexicalError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(match self {
             Self::BadNumericLiteral(..) => "bad numeric literal",
@@ -392,7 +392,7 @@ impl fmt::Display for LexError {
     }
 }
 
-impl std::error::Error for LexError {
+impl std::error::Error for LexicalError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::BadNumericLiteral(source) => Some(source),

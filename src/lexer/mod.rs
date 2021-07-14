@@ -113,7 +113,7 @@ impl Lexer {
                     self.0.consume_exact(&'\\');
                     escaped = true;
                 }
-                Some('\n') | None => break Token::Invalid(LexError::UnclosedStringLiteral),
+                Some('\n') | None => break Token::Invalid(LexicalError::UnclosedStringLiteral),
                 Some(ch) => {
                     content.push(*ch);
                     escaped = false;
@@ -136,7 +136,7 @@ impl Lexer {
 
         Some(match u64::from_str(&content) {
             Ok(num) => Token::Literal(Literal::Numeric(num)),
-            Err(err) => Token::Invalid(LexError::BadNumericLiteral(err)),
+            Err(err) => Token::Invalid(LexicalError::BadNumericLiteral(err)),
         })
     }
 
