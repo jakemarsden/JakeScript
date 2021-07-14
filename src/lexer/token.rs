@@ -164,16 +164,22 @@ impl FromStr for Keyword {
     }
 }
 
+// TODO: Support RegEx literals
+// TODO: Support decimal numeric literals
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Literal {
+    Boolean(bool),
     Integer(u64),
+    Null,
     String(String),
 }
 
 impl fmt::Display for Literal {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::Integer(it) => write!(f, r#"{}"#, it),
+            Self::Boolean(it) => write!(f, "{}", it),
+            Self::Integer(it) => write!(f, "{}", it),
+            Self::Null => write!(f, "null"),
             Self::String(it) => write!(f, r#""{}""#, it),
         }
     }

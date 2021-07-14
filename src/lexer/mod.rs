@@ -140,8 +140,7 @@ impl Lexer {
         })
     }
 
-    fn consume_identifier_or_keyword(&mut self) -> Option<Token> {
-
+    fn consume_identifier_or_keyword_or_null_or_bool(&mut self) -> Option<Token> {
         fn is_identifier_start(ch: &char) -> bool {
             // FIXME: Acutally check if the character has the "ID_Start" Unicode property
             let has_id_start = ch.is_ascii_alphabetic();
@@ -164,6 +163,12 @@ impl Lexer {
 
         Some(if let Ok(keyword) = Keyword::from_str(&content) {
             Token::Keyword(keyword)
+        } else if &content == "null" {
+            Token::Literal(Literal::Null)
+        } else if &content == "true" {
+            Token::Literal(Literal::Boolean(true))
+        } else if &content == "false" {
+            Token::Literal(Literal::Boolean(false))
         } else {
             Token::Identifier(content)
         })
@@ -263,7 +268,7 @@ impl Iterator for Lexer {
             token
         } else if let Some(token) = self.consume_numeric_literal() {
             token
-        } else if let Some(token) = self.consume_identifier_or_keyword() {
+        } else if let Some(token) = self.consume_identifier_or_keyword_or_null_or_bool() {
             token
         } else {
             todo!("{}", ch)

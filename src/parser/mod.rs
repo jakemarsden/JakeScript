@@ -153,7 +153,9 @@ impl Parser {
         let lhs = match self.0.consume() {
             Some(Token::Identifier(name)) => Node::Local(name),
             Some(Token::Literal(literal)) => Node::Constant(match literal {
+                Literal::Boolean(it) => Constant::Boolean(it),
                 Literal::Integer(it) => Constant::Integer(it),
+                Literal::Null => Constant::Null,
                 Literal::String(it) => Constant::String(it),
             }),
             token => todo!("token: {:?}", token),
