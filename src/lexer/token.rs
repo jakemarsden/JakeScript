@@ -1,5 +1,4 @@
 use std::fmt;
-use std::num::ParseIntError;
 use std::str::FromStr;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -33,8 +32,6 @@ pub enum Token {
     Keyword(Keyword),
     Literal(Literal),
     Punctuator(Punctuator),
-
-    Invalid(LexicalError),
 }
 
 impl fmt::Display for Token {
@@ -44,8 +41,6 @@ impl fmt::Display for Token {
             Self::Keyword(it) => write!(f, "Keyword<{}>", it),
             Self::Literal(it) => write!(f, "Literal<{}>", it),
             Self::Punctuator(it) => write!(f, "Punctuator<{}>", it),
-
-            Self::Invalid(it) => write!(f, "Invalid<{}>", it),
         }
     }
 }
@@ -459,30 +454,6 @@ impl FromStr for Punctuator {
             }
         }
         Err(BadPunctuatorError)
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum LexicalError {
-    BadNumericLiteral(ParseIntError),
-    UnclosedStringLiteral,
-}
-
-impl fmt::Display for LexicalError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(match self {
-            Self::BadNumericLiteral(..) => "bad numeric literal",
-            Self::UnclosedStringLiteral => "unclosed string literal",
-        })
-    }
-}
-
-impl std::error::Error for LexicalError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::BadNumericLiteral(source) => Some(source),
-            Self::UnclosedStringLiteral => None,
-        }
     }
 }
 
