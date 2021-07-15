@@ -21,6 +21,10 @@ impl<T> Stream<T> {
         self.items.iter().nth(offset)
     }
 
+    pub(crate) fn advance(&mut self) {
+        self.advance_n(1)
+    }
+
     pub(crate) fn advance_n(&mut self, count: usize) {
         for _ in 0..count {
             self.consume();
@@ -37,18 +41,6 @@ impl<T> Stream<T> {
         } else {
             None
         }
-    }
-
-    pub(crate) fn consume_until(&mut self, condition: impl Fn(&T) -> bool) -> Vec<T> {
-        self.consume_while(|item| !condition(item))
-    }
-
-    pub(crate) fn consume_while(&mut self, condition: impl Fn(&T) -> bool) -> Vec<T> {
-        let mut items = Vec::new();
-        while let Some(item) = self.consume_if(|item| condition(item)) {
-            items.push(item);
-        }
-        items
     }
 }
 
