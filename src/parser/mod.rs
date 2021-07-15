@@ -13,126 +13,128 @@ impl Parser {
     pub fn new(source: impl Iterator<Item = Token>) -> Self {
         Self(Stream::new(source))
     }
+}
 
-    /// ```rust
-    /// # use jakescript::ast::*;
-    /// # use jakescript::lexer::*;
-    /// # use jakescript::parser::*;
-    /// let source = vec![
-    ///     Token::Literal(Literal::Numeric(100)),
-    ///     Token::Punctuator(Punctuator::Plus),
-    ///     Token::Literal(Literal::Numeric(50)),
-    ///     Token::Punctuator(Punctuator::Semicolon),
-    /// ];
-    /// let mut parser = Parser::for_tokens(source);
-    /// assert_eq!(
-    ///     parser.execute(),
-    ///     Program::new(Block::new(vec![Node::BinaryOp(
-    ///         BinaryOp::Add,
-    ///         Box::new((
-    ///             Node::Constant(Constant::Numeric(100)),
-    ///             Node::Constant(Constant::Numeric(50))
-    ///         ))
-    ///     ),]))
-    /// );
-    /// ```
-    ///
-    /// ```rust
-    /// # use jakescript::ast::*;
-    /// # use jakescript::lexer::*;
-    /// # use jakescript::parser::*;
-    /// let source = vec![
-    ///     Token::Keyword(Keyword::Let),
-    ///     Token::Identifier("a".to_owned()),
-    ///     Token::Punctuator(Punctuator::Equal),
-    ///     Token::Literal(Literal::Numeric(100)),
-    ///     Token::Punctuator(Punctuator::Semicolon),
-    ///     Token::Keyword(Keyword::Let),
-    ///     Token::Identifier("b".to_owned()),
-    ///     Token::Punctuator(Punctuator::Equal),
-    ///     Token::Literal(Literal::Numeric(50)),
-    ///     Token::Punctuator(Punctuator::Semicolon),
-    ///     Token::Identifier("a".to_owned()),
-    ///     Token::Punctuator(Punctuator::Plus),
-    ///     Token::Identifier("b".to_owned()),
-    ///     Token::Punctuator(Punctuator::Semicolon),
-    /// ];
-    /// let mut parser = Parser::for_tokens(source);
-    /// assert_eq!(
-    ///     parser.execute(),
-    ///     Program::new(Block::new(vec![
-    ///         Node::LocalVarDecl(
-    ///             "a".to_owned(),
-    ///             Some(Box::new(Node::Constant(Constant::Numeric(100))))
-    ///         ),
-    ///         Node::LocalVarDecl(
-    ///             "b".to_owned(),
-    ///             Some(Box::new(Node::Constant(Constant::Numeric(50))))
-    ///         ),
-    ///         Node::BinaryOp(
-    ///             BinaryOp::Add,
-    ///             Box::new((Node::Local("a".to_owned()), Node::Local("b".to_owned()),))
-    ///         ),
-    ///     ]))
-    /// );
-    /// ```
-    ///
-    /// ```rust
-    /// # use jakescript::ast::*;
-    /// # use jakescript::lexer::*;
-    /// # use jakescript::parser::*;
-    /// let source = vec![
-    ///     Token::Keyword(Keyword::Let),
-    ///     Token::Identifier("x".to_owned()),
-    ///     Token::Punctuator(Punctuator::Equal),
-    ///     Token::Literal(Literal::Numeric(0)),
-    ///     Token::Punctuator(Punctuator::Semicolon),
-    ///     Token::Keyword(Keyword::While),
-    ///     Token::Identifier("x".to_owned()),
-    ///     Token::Punctuator(Punctuator::LessThan),
-    ///     Token::Literal(Literal::Numeric(3)),
-    ///     Token::Punctuator(Punctuator::OpenBrace),
-    ///     Token::Identifier("x".to_owned()),
-    ///     Token::Punctuator(Punctuator::Equal),
-    ///     Token::Identifier("x".to_owned()),
-    ///     Token::Punctuator(Punctuator::Plus),
-    ///     Token::Literal(Literal::Numeric(1)),
-    ///     Token::Punctuator(Punctuator::Semicolon),
-    ///     Token::Punctuator(Punctuator::CloseBrace),
-    /// ];
-    /// let mut parser = Parser::for_tokens(source);
-    /// assert_eq!(
-    ///     parser.execute(),
-    ///     Program::new(Block::new(vec![
-    ///         Node::LocalVarDecl(
-    ///             "x".to_owned(),
-    ///             Some(Box::new(Node::Constant(Constant::Numeric(0))))
-    ///         ),
-    ///         Node::While(
-    ///             Box::new(Node::BinaryOp(
-    ///                 BinaryOp::LessThan,
-    ///                 Box::new((
-    ///                     Node::Local("x".to_owned()),
-    ///                     Node::Constant(Constant::Numeric(3))
-    ///                 ))
-    ///             )),
-    ///             Block::new(vec![Node::BinaryOp(
-    ///                 BinaryOp::Assign,
-    ///                 Box::new((
-    ///                     Node::Local("x".to_owned()),
-    ///                     Node::BinaryOp(
-    ///                         BinaryOp::Add,
-    ///                         Box::new((
-    ///                             Node::Local("x".to_owned()),
-    ///                             Node::Constant(Constant::Numeric(1))
-    ///                         ))
-    ///                     )
-    ///                 ))
-    ///             ),])
-    ///         ),
-    ///     ]))
-    /// );
-    /// ```
+/// ```rust
+/// # use jakescript::ast::*;
+/// # use jakescript::lexer::*;
+/// # use jakescript::parser::*;
+/// let source = vec![
+///     Token::Literal(Literal::Numeric(100)),
+///     Token::Punctuator(Punctuator::Plus),
+///     Token::Literal(Literal::Numeric(50)),
+///     Token::Punctuator(Punctuator::Semicolon),
+/// ];
+/// let mut parser = Parser::for_tokens(source);
+/// assert_eq!(
+///     parser.execute(),
+///     Program::new(Block::new(vec![Node::BinaryOp(
+///         BinaryOp::Add,
+///         Box::new((
+///             Node::Constant(Constant::Numeric(100)),
+///             Node::Constant(Constant::Numeric(50))
+///         ))
+///     ),]))
+/// );
+/// ```
+///
+/// ```rust
+/// # use jakescript::ast::*;
+/// # use jakescript::lexer::*;
+/// # use jakescript::parser::*;
+/// let source = vec![
+///     Token::Keyword(Keyword::Let),
+///     Token::Identifier("a".to_owned()),
+///     Token::Punctuator(Punctuator::Equal),
+///     Token::Literal(Literal::Numeric(100)),
+///     Token::Punctuator(Punctuator::Semicolon),
+///     Token::Keyword(Keyword::Let),
+///     Token::Identifier("b".to_owned()),
+///     Token::Punctuator(Punctuator::Equal),
+///     Token::Literal(Literal::Numeric(50)),
+///     Token::Punctuator(Punctuator::Semicolon),
+///     Token::Identifier("a".to_owned()),
+///     Token::Punctuator(Punctuator::Plus),
+///     Token::Identifier("b".to_owned()),
+///     Token::Punctuator(Punctuator::Semicolon),
+/// ];
+/// let mut parser = Parser::for_tokens(source);
+/// assert_eq!(
+///     parser.execute(),
+///     Program::new(Block::new(vec![
+///         Node::LocalVarDecl(
+///             "a".to_owned(),
+///             Some(Box::new(Node::Constant(Constant::Numeric(100))))
+///         ),
+///         Node::LocalVarDecl(
+///             "b".to_owned(),
+///             Some(Box::new(Node::Constant(Constant::Numeric(50))))
+///         ),
+///         Node::BinaryOp(
+///             BinaryOp::Add,
+///             Box::new((Node::Local("a".to_owned()), Node::Local("b".to_owned()),))
+///         ),
+///     ]))
+/// );
+/// ```
+///
+/// ```rust
+/// # use jakescript::ast::*;
+/// # use jakescript::lexer::*;
+/// # use jakescript::parser::*;
+/// let source = vec![
+///     Token::Keyword(Keyword::Let),
+///     Token::Identifier("x".to_owned()),
+///     Token::Punctuator(Punctuator::Equal),
+///     Token::Literal(Literal::Numeric(0)),
+///     Token::Punctuator(Punctuator::Semicolon),
+///     Token::Keyword(Keyword::While),
+///     Token::Identifier("x".to_owned()),
+///     Token::Punctuator(Punctuator::LessThan),
+///     Token::Literal(Literal::Numeric(3)),
+///     Token::Punctuator(Punctuator::OpenBrace),
+///     Token::Identifier("x".to_owned()),
+///     Token::Punctuator(Punctuator::Equal),
+///     Token::Identifier("x".to_owned()),
+///     Token::Punctuator(Punctuator::Plus),
+///     Token::Literal(Literal::Numeric(1)),
+///     Token::Punctuator(Punctuator::Semicolon),
+///     Token::Punctuator(Punctuator::CloseBrace),
+/// ];
+/// let mut parser = Parser::for_tokens(source);
+/// assert_eq!(
+///     parser.execute(),
+///     Program::new(Block::new(vec![
+///         Node::LocalVarDecl(
+///             "x".to_owned(),
+///             Some(Box::new(Node::Constant(Constant::Numeric(0))))
+///         ),
+///         Node::While(
+///             Box::new(Node::BinaryOp(
+///                 BinaryOp::LessThan,
+///                 Box::new((
+///                     Node::Local("x".to_owned()),
+///                     Node::Constant(Constant::Numeric(3))
+///                 ))
+///             )),
+///             Block::new(vec![Node::BinaryOp(
+///                 BinaryOp::Assign,
+///                 Box::new((
+///                     Node::Local("x".to_owned()),
+///                     Node::BinaryOp(
+///                         BinaryOp::Add,
+///                         Box::new((
+///                             Node::Local("x".to_owned()),
+///                             Node::Constant(Constant::Numeric(1))
+///                         ))
+///                     )
+///                 ))
+///             ),])
+///         ),
+///     ]))
+/// );
+/// ```
+impl Parser {
     pub fn execute(mut self) -> Program {
         let mut block = Vec::new();
         loop {
