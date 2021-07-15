@@ -341,11 +341,26 @@ impl Lexer {
 
     fn parse_numeric_literal(&mut self) -> Option<u64> {
         // FIXME: This is a naieve implementation which doesn't match the spec
-        let content = self.0.consume_while_string(|ch| ch.is_ascii_digit());
-        if !content.is_empty() {
-            u64::from_str(&content).ok()
+        let mut content = String::new();
+        for offset in 0.. {
+            match self.0.peek_n(offset) {
+                Some(ch) if ch.is_ascii_digit() => content.push(*ch),
+                Some(_) | None => break,
+            }
+        }
+        if content.is_empty() {
+            return None;
+        }
+        match self.0.peek_n(content.len()) {
+            Some(next_ch) if Self::is_identifier_start(*next_ch) => return None,
+            Some(next_ch) if next_ch.is_ascii_digit() => return None,
+            Some(_) | None => {}
+        }
+        if let Ok(value) = u64::from_str(&content) {
+            self.0.advance_n(content.len());
+            Some(value)
         } else {
-            None
+            todo!("{}", content)
         }
     }
 
