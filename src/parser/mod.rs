@@ -45,6 +45,57 @@ impl Parser {
 ///     )),])
 /// );
 /// ```
+///
+/// ```rust
+/// # use jakescript::ast::{self, *};
+/// # use jakescript::lexer::{Literal, *};
+/// # use jakescript::parser::*;
+/// let source = vec![
+///     Token::Keyword(Keyword::Let),
+///     Token::Identifier("a".to_owned()),
+///     Token::Punctuator(Punctuator::Equal),
+///     Token::Literal(Literal::Numeric(100)),
+///     Token::Punctuator(Punctuator::Semicolon),
+///     Token::Keyword(Keyword::Let),
+///     Token::Identifier("b".to_owned()),
+///     Token::Punctuator(Punctuator::Equal),
+///     Token::Literal(Literal::Numeric(50)),
+///     Token::Punctuator(Punctuator::Semicolon),
+///     Token::Identifier("a".to_owned()),
+///     Token::Punctuator(Punctuator::Plus),
+///     Token::Identifier("b".to_owned()),
+///     Token::Punctuator(Punctuator::Semicolon),
+/// ];
+/// let mut parser = Parser::for_tokens(source);
+/// assert_eq!(
+///     parser.execute(),
+///     Program(vec![
+///         BlockItem::Declaration(Declaration::Variable(
+///             VariableDeclKind::Let,
+///             "a".to_owned(),
+///             Some(Expression::Member(MemberExpression::Literal(
+///                 ast::Literal::Numeric(100)
+///             )))
+///         )),
+///         BlockItem::Declaration(Declaration::Variable(
+///             VariableDeclKind::Let,
+///             "b".to_owned(),
+///             Some(Expression::Member(MemberExpression::Literal(
+///                 ast::Literal::Numeric(50)
+///             )))
+///         )),
+///         BlockItem::Statement(Statement::Expression(Expression::BinaryOp(
+///             BinaryOp::Add,
+///             Box::new(Expression::Member(MemberExpression::Identifier(
+///                 "a".to_owned()
+///             ))),
+///             Box::new(Expression::Member(MemberExpression::Identifier(
+///                 "b".to_owned()
+///             )))
+///         )))
+///     ])
+/// );
+/// ```
 impl Parser {
     pub fn execute(mut self) -> Program {
         let mut block = Vec::new();
@@ -155,6 +206,36 @@ impl Parser {
     }
 
     fn parse_declaration(&mut self) -> Option<Declaration> {
-        todo!("parse_declaration: {}", self.0.peek()?)
+        match self.0.peek()? {
+            Token::Keyword(Keyword::Const | Keyword::Let) => self
+                .parse_variable_decl()
+                .map(|(kind, name, initialiser)| Declaration::Variable(kind, name, initialiser)),
+            token => todo!("parse_declaration: {}", token),
+        }
+    }
+
+    fn parse_variable_decl(
+        &mut self,
+    ) -> Option<(VariableDeclKind, IdentifierName, Option<Expression>)> {
+        let decl_kind = match self.0.consume() {
+            Some(Token::Keyword(Keyword::Const)) => VariableDeclKind::Const,
+            Some(Token::Keyword(Keyword::Let)) => VariableDeclKind::Let,
+            token => panic!("Expected variable declaration but was: {:?}", token),
+        };
+
+        if let Some(Token::Identifier(var_name)) = self.0.consume() {
+            let initialiser = match self.0.consume() {
+                Some(Token::Punctuator(Punctuator::Equal)) => Some(
+                    self.parse_expression()
+                        .expect("Expected initialiser or semicolon but was <end>"),
+                ),
+                Some(Token::Punctuator(Punctuator::Semicolon)) => None,
+                Some(token) => panic!("Expected initialiser or semicolon but was {}", token),
+                None => panic!("Expected initialiser or semicolon but was <end>"),
+            };
+            Some((decl_kind, var_name, initialiser))
+        } else {
+            panic!("Expected variable name");
+        }
     }
 }
