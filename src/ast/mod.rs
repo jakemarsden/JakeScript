@@ -18,6 +18,10 @@ pub enum Statement {
         success_block: Vec<BlockItem>,
         else_block: Option<Vec<BlockItem>>,
     },
+    WhileLoop {
+        condition: Expression,
+        block: Vec<BlockItem>,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

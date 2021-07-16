@@ -178,6 +178,72 @@ impl Parser {
 ///     ])
 /// );
 /// ```
+///
+/// ```rust
+/// # use jakescript::ast::{self, *};
+/// # use jakescript::lexer::{Literal, *};
+/// # use jakescript::parser::*;
+/// let source = vec![
+///     Token::Keyword(Keyword::Let),
+///     Token::Identifier("a".to_owned()),
+///     Token::Punctuator(Punctuator::Equal),
+///     Token::Literal(Literal::Numeric(3)),
+///     Token::Punctuator(Punctuator::Semicolon),
+///     Token::Keyword(Keyword::While),
+///     Token::Punctuator(Punctuator::OpenParen),
+///     Token::Identifier("a".to_owned()),
+///     Token::Punctuator(Punctuator::BangDoubleEqual),
+///     Token::Literal(Literal::Numeric(0)),
+///     Token::Punctuator(Punctuator::CloseParen),
+///     Token::Punctuator(Punctuator::OpenBrace),
+///     Token::Identifier("a".to_owned()),
+///     Token::Punctuator(Punctuator::Equal),
+///     Token::Identifier("a".to_owned()),
+///     Token::Punctuator(Punctuator::Minus),
+///     Token::Literal(Literal::Numeric(1)),
+///     Token::Punctuator(Punctuator::Semicolon),
+///     Token::Punctuator(Punctuator::CloseBrace),
+/// ];
+/// let mut parser = Parser::for_tokens(source);
+/// assert_eq!(
+///     parser.execute(),
+///     Program(vec![
+///         BlockItem::Declaration(Declaration::Variable {
+///             kind: VariableDeclKind::Let,
+///             var_name: "a".to_owned(),
+///             initialiser: Some(Expression::Member(MemberExpression::Literal(
+///                 ast::Literal::Numeric(3)
+///             )))
+///         }),
+///         BlockItem::Statement(Statement::WhileLoop {
+///             condition: Expression::BinaryOp {
+///                 kind: BinaryOp::NotIdentical,
+///                 lhs: Box::new(Expression::Member(MemberExpression::Identifier(
+///                     "a".to_owned()
+///                 ))),
+///                 rhs: Box::new(Expression::Member(MemberExpression::Literal(
+///                     ast::Literal::Numeric(0)
+///                 )))
+///             },
+///             block: vec![BlockItem::Statement(Statement::Expression(
+///                 Expression::AssignmentOp {
+///                     kind: AssignmentOp::Assign,
+///                     lhs: MemberExpression::Identifier("a".to_owned()),
+///                     rhs: Box::new(Expression::BinaryOp {
+///                         kind: BinaryOp::Sub,
+///                         lhs: Box::new(Expression::Member(MemberExpression::Identifier(
+///                             "a".to_string()
+///                         ))),
+///                         rhs: Box::new(Expression::Member(MemberExpression::Literal(
+///                             ast::Literal::Numeric(1)
+///                         ))),
+///                     }),
+///                 }
+///             )),],
+///         }),
+///     ])
+/// );
+/// ```
 impl Parser {
     pub fn execute(mut self) -> Program {
         let mut block = Vec::new();
@@ -227,6 +293,9 @@ impl Parser {
                         else_block,
                     })
             }
+            Token::Keyword(Keyword::While) => self
+                .parse_while_statement()
+                .map(|(condition, block)| Statement::WhileLoop { condition, block }),
             _ => self.parse_expression().map(Statement::Expression),
         }
     }
@@ -390,5 +459,18 @@ impl Parser {
             None
         };
         Some((condition, success_block, else_block))
+    }
+
+    fn parse_while_statement(&mut self) -> Option<(Expression, Vec<BlockItem>)> {
+        self.0.consume_exact(&Token::Keyword(Keyword::While));
+        self.0
+            .consume_exact(&Token::Punctuator(Punctuator::OpenParen));
+        let condition = self
+            .parse_expression()
+            .expect("Expected expression but was <end>");
+        self.0
+            .consume_exact(&Token::Punctuator(Punctuator::CloseParen));
+        let block = self.parse_block();
+        Some((condition, block))
     }
 }
