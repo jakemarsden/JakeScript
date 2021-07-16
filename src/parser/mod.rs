@@ -107,7 +107,9 @@ impl Parser {
 ///     Token::Punctuator(Punctuator::Equal),
 ///     Token::Literal(Literal::Numeric(100)),
 ///     Token::Punctuator(Punctuator::Semicolon),
-///
+///     Token::Keyword(Keyword::Let),
+///     Token::Identifier("b".to_owned()),
+///     Token::Punctuator(Punctuator::Semicolon),
 ///     Token::Keyword(Keyword::If),
 ///     Token::Punctuator(Punctuator::OpenParen),
 ///     Token::Identifier("a".to_owned()),
@@ -115,23 +117,17 @@ impl Parser {
 ///     Token::Literal(Literal::Numeric(3)),
 ///     Token::Punctuator(Punctuator::CloseParen),
 ///     Token::Punctuator(Punctuator::OpenBrace),
-///
-///     Token::Keyword(Keyword::Let),
 ///     Token::Identifier("b".to_owned()),
 ///     Token::Punctuator(Punctuator::Equal),
 ///     Token::Literal(Literal::String("success block!".to_owned())),
 ///     Token::Punctuator(Punctuator::Semicolon),
-///
 ///     Token::Punctuator(Punctuator::CloseBrace),
 ///     Token::Keyword(Keyword::Else),
 ///     Token::Punctuator(Punctuator::OpenBrace),
-///
-///     Token::Keyword(Keyword::Let),
 ///     Token::Identifier("b".to_owned()),
 ///     Token::Punctuator(Punctuator::Equal),
 ///     Token::Literal(Literal::String("else block!".to_owned())),
 ///     Token::Punctuator(Punctuator::Semicolon),
-///
 ///     Token::Punctuator(Punctuator::CloseBrace),
 /// ];
 /// let mut parser = Parser::for_tokens(source);
@@ -145,35 +141,43 @@ impl Parser {
 ///                 ast::Literal::Numeric(100)
 ///             )))
 ///         }),
+///         BlockItem::Declaration(Declaration::Variable {
+///             kind: VariableDeclKind::Let,
+///             var_name: "b".to_owned(),
+///             initialiser: None,
+///         }),
 ///         BlockItem::Statement(Statement::If {
 ///             condition: Expression::BinaryOp {
 ///                 kind: BinaryOp::MoreThanOrEqual,
-///                 lhs: Box::new(Expression::Member(MemberExpression::Identifier("a".to_owned()))),
+///                 lhs: Box::new(Expression::Member(MemberExpression::Identifier(
+///                     "a".to_owned()
+///                 ))),
 ///                 rhs: Box::new(Expression::Member(MemberExpression::Literal(
 ///                     ast::Literal::Numeric(3)
 ///                 )))
 ///             },
-///             success_block: vec![
-///                 BlockItem::Declaration(Declaration::Variable {
-///                     kind: VariableDeclKind::Let,
-///                     var_name: "b".to_owned(),
-///                     initialiser: Some(Expression::Member(MemberExpression::Literal(
-///                         ast::Literal::String("success block!".to_owned()),
-///                     )))
-///                 }),
-///             ],
-///             else_block: Some(vec![
-///                 BlockItem::Declaration(Declaration::Variable {
-///                     kind: VariableDeclKind::Let,
-///                     var_name: "b".to_owned(),
-///                     initialiser: Some(Expression::Member(MemberExpression::Literal(
-///                         ast::Literal::String("else block!".to_owned()),
-///                     )))
-///                 }),
-///             ])
+///             success_block: vec![BlockItem::Statement(Statement::Expression(
+///                 Expression::AssignmentOp {
+///                     kind: AssignmentOp::Assign,
+///                     lhs: MemberExpression::Identifier("b".to_owned()),
+///                     rhs: Box::new(Expression::Member(MemberExpression::Literal(
+///                         ast::Literal::String("success block!".to_owned())
+///                     ))),
+///                 }
+///             )),],
+///             else_block: Some(vec![BlockItem::Statement(Statement::Expression(
+///                 Expression::AssignmentOp {
+///                     kind: AssignmentOp::Assign,
+///                     lhs: MemberExpression::Identifier("b".to_owned()),
+///                     rhs: Box::new(Expression::Member(MemberExpression::Literal(
+///                         ast::Literal::String("else block!".to_owned())
+///                     ))),
+///                 }
+///             )),])
 ///         }),
 ///     ])
 /// );
+/// ```
 impl Parser {
     pub fn execute(mut self) -> Program {
         let mut block = Vec::new();
@@ -251,40 +255,58 @@ impl Parser {
                 Some(lhs)
             }
             None => Some(lhs),
-            Some(_) => self
-                .parse_binary_expression(lhs)
-                .map(|(kind, lhs, rhs)| Expression::BinaryOp { kind, lhs, rhs }),
+            Some(_) => self.parse_secondary_expression(lhs),
         }
     }
 
-    fn parse_binary_expression(
-        &mut self,
-        lhs: Expression,
-    ) -> Option<(BinaryOp, Box<Expression>, Box<Expression>)> {
+    fn parse_secondary_expression(&mut self, lhs: Expression) -> Option<Expression> {
+        #[derive(Copy, Clone, Debug, Eq, PartialEq)]
+        enum Op {
+            Assignment(AssignmentOp),
+            Binary(BinaryOp),
+        }
+
         let kind = match self.0.consume()? {
             Token::Punctuator(punctuator) => match punctuator {
-                Punctuator::Plus => BinaryOp::Add,
-                Punctuator::Slash => BinaryOp::Div,
-                Punctuator::Percent => BinaryOp::Mod,
-                Punctuator::Asterisk => BinaryOp::Mul,
-                Punctuator::DoubleAsterisk => BinaryOp::Pow,
-                Punctuator::Minus => BinaryOp::Sub,
-                Punctuator::DoubleEqual => BinaryOp::Equal,
-                Punctuator::BangEqual => BinaryOp::NotEqual,
-                Punctuator::TripleEqual => BinaryOp::Identical,
-                Punctuator::BangDoubleEqual => BinaryOp::NotIdentical,
-                Punctuator::LessThan => BinaryOp::LessThan,
-                Punctuator::LessThanEqual => BinaryOp::LessThanOrEqual,
-                Punctuator::MoreThan => BinaryOp::MoreThan,
-                Punctuator::MoreThanEqual => BinaryOp::MoreThanOrEqual,
-                Punctuator::DoubleLessThan => BinaryOp::ShiftLeft,
-                Punctuator::DoubleMoreThan => BinaryOp::ShiftRight,
-                Punctuator::TripleMoreThan => BinaryOp::ShiftRightUnsigned,
-                Punctuator::Ampersand => BinaryOp::BitwiseAnd,
-                Punctuator::Pipe => BinaryOp::BitwiseOr,
-                Punctuator::Caret => BinaryOp::BitwiseXOr,
-                Punctuator::DoubleAmpersand => BinaryOp::LogicalAnd,
-                Punctuator::DoublePipe => BinaryOp::LogicalOr,
+                Punctuator::Equal => Op::Assignment(AssignmentOp::Assign),
+                Punctuator::PlusEqual => Op::Assignment(AssignmentOp::AddAssign),
+                Punctuator::SlashEqual => Op::Assignment(AssignmentOp::DivAssign),
+                Punctuator::PercentEqual => Op::Assignment(AssignmentOp::ModAssign),
+                Punctuator::AsteriskEqual => Op::Assignment(AssignmentOp::MulAssign),
+                Punctuator::DoubleAsteriskEqual => Op::Assignment(AssignmentOp::PowAssign),
+                Punctuator::MinusEqual => Op::Assignment(AssignmentOp::SubAssign),
+                Punctuator::DoubleLessThanEqual => Op::Assignment(AssignmentOp::ShiftLeftAssign),
+                Punctuator::DoubleMoreThanEqual => Op::Assignment(AssignmentOp::ShiftRightAssign),
+                Punctuator::TripleMoreThanEqual => {
+                    Op::Assignment(AssignmentOp::ShiftRightUnsignedAssign)
+                }
+                Punctuator::AmpersandEqual => Op::Assignment(AssignmentOp::BitwiseAndAssign),
+                Punctuator::PipeEqual => Op::Assignment(AssignmentOp::BitwiseOrAssign),
+                Punctuator::CaretEqual => Op::Assignment(AssignmentOp::BitwiseXOrAssign),
+
+                Punctuator::Plus => Op::Binary(BinaryOp::Add),
+                Punctuator::Slash => Op::Binary(BinaryOp::Div),
+                Punctuator::Percent => Op::Binary(BinaryOp::Mod),
+                Punctuator::Asterisk => Op::Binary(BinaryOp::Mul),
+                Punctuator::DoubleAsterisk => Op::Binary(BinaryOp::Pow),
+                Punctuator::Minus => Op::Binary(BinaryOp::Sub),
+                Punctuator::DoubleEqual => Op::Binary(BinaryOp::Equal),
+                Punctuator::BangEqual => Op::Binary(BinaryOp::NotEqual),
+                Punctuator::TripleEqual => Op::Binary(BinaryOp::Identical),
+                Punctuator::BangDoubleEqual => Op::Binary(BinaryOp::NotIdentical),
+                Punctuator::LessThan => Op::Binary(BinaryOp::LessThan),
+                Punctuator::LessThanEqual => Op::Binary(BinaryOp::LessThanOrEqual),
+                Punctuator::MoreThan => Op::Binary(BinaryOp::MoreThan),
+                Punctuator::MoreThanEqual => Op::Binary(BinaryOp::MoreThanOrEqual),
+                Punctuator::DoubleLessThan => Op::Binary(BinaryOp::ShiftLeft),
+                Punctuator::DoubleMoreThan => Op::Binary(BinaryOp::ShiftRight),
+                Punctuator::TripleMoreThan => Op::Binary(BinaryOp::ShiftRightUnsigned),
+                Punctuator::Ampersand => Op::Binary(BinaryOp::BitwiseAnd),
+                Punctuator::Pipe => Op::Binary(BinaryOp::BitwiseOr),
+                Punctuator::Caret => Op::Binary(BinaryOp::BitwiseXOr),
+                Punctuator::DoubleAmpersand => Op::Binary(BinaryOp::LogicalAnd),
+                Punctuator::DoublePipe => Op::Binary(BinaryOp::LogicalOr),
+
                 token => panic!("Expected punctuator but was {}", token),
             },
             token => panic!("Expected punctuator but was {}", token),
@@ -293,7 +315,22 @@ impl Parser {
         let rhs = self
             .parse_expression()
             .expect("Expected rhs of binary expression but was <end>");
-        Some((kind, Box::new(lhs), Box::new(rhs)))
+        Some(match kind {
+            Op::Assignment(kind) => Expression::AssignmentOp {
+                kind,
+                lhs: if let Expression::Member(lhs) = lhs {
+                    lhs
+                } else {
+                    panic!("Expected member expression but was {:?}", lhs)
+                },
+                rhs: Box::new(rhs),
+            },
+            Op::Binary(kind) => Expression::BinaryOp {
+                kind,
+                lhs: Box::new(lhs),
+                rhs: Box::new(rhs),
+            },
+        })
     }
 
     fn parse_declaration(&mut self) -> Option<Declaration> {
