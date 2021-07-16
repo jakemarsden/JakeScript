@@ -13,39 +13,48 @@ pub enum BlockItem {
 pub enum Statement {
     Block(Vec<BlockItem>),
     Expression(Expression),
-    /// (condition, success_block, else_block)
-    If(Expression, Vec<BlockItem>, Option<Vec<BlockItem>>),
+    If {
+        condition: Expression,
+        success_block: Vec<BlockItem>,
+        else_block: Option<Vec<BlockItem>>,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Expression {
-    /// (op_kind, lhs, rhs)
-    AssignmentOp(AssignmentOp, MemberExpression, Box<Expression>),
-    /// (op_kind, lhs, rhs)
-    BinaryOp(BinaryOp, Box<Expression>, Box<Expression>),
-    /// (op_kind, operand)
-    UnaryOp(UnaryOp, Box<Expression>),
+    AssignmentOp {
+        kind: AssignmentOp,
+        lhs: MemberExpression,
+        rhs: Box<Expression>,
+    },
+    BinaryOp {
+        kind: BinaryOp,
+        lhs: Box<Expression>,
+        rhs: Box<Expression>,
+    },
+    UnaryOp {
+        kind: UnaryOp,
+        operand: Box<Expression>,
+    },
 
     Member(MemberExpression),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum MemberExpression {
-    /// (name)
     Identifier(IdentifierName),
     Literal(Literal),
-    /// (base, property_name)
-    PropertyAccess(Box<Expression>, IdentifierName),
+    PropertyAccess {
+        base: Box<Expression>,
+        member_name: IdentifierName,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Literal {
-    /// (value)
     Boolean(bool),
     Null,
-    /// (value)
     Numeric(u64),
-    /// (value)
     String(String),
 }
 
@@ -115,8 +124,11 @@ pub enum UnaryOp {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Declaration {
-    /// (decl_kind, var_name, initialiser)
-    Variable(VariableDeclKind, IdentifierName, Option<Expression>),
+    Variable {
+        kind: VariableDeclKind,
+        var_name: IdentifierName,
+        initialiser: Option<Expression>,
+    },
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
