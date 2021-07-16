@@ -96,6 +96,84 @@ impl Parser {
 ///     ])
 /// );
 /// ```
+///
+/// ```rust
+/// # use jakescript::ast::{self, *};
+/// # use jakescript::lexer::{Literal, *};
+/// # use jakescript::parser::*;
+/// let source = vec![
+///     Token::Keyword(Keyword::Let),
+///     Token::Identifier("a".to_owned()),
+///     Token::Punctuator(Punctuator::Equal),
+///     Token::Literal(Literal::Numeric(100)),
+///     Token::Punctuator(Punctuator::Semicolon),
+///
+///     Token::Keyword(Keyword::If),
+///     Token::Punctuator(Punctuator::OpenParen),
+///     Token::Identifier("a".to_owned()),
+///     Token::Punctuator(Punctuator::MoreThanEqual),
+///     Token::Literal(Literal::Numeric(3)),
+///     Token::Punctuator(Punctuator::CloseParen),
+///     Token::Punctuator(Punctuator::OpenBrace),
+///
+///     Token::Keyword(Keyword::Let),
+///     Token::Identifier("b".to_owned()),
+///     Token::Punctuator(Punctuator::Equal),
+///     Token::Literal(Literal::String("success block!".to_owned())),
+///     Token::Punctuator(Punctuator::Semicolon),
+///
+///     Token::Punctuator(Punctuator::CloseBrace),
+///     Token::Keyword(Keyword::Else),
+///     Token::Punctuator(Punctuator::OpenBrace),
+///
+///     Token::Keyword(Keyword::Let),
+///     Token::Identifier("b".to_owned()),
+///     Token::Punctuator(Punctuator::Equal),
+///     Token::Literal(Literal::String("else block!".to_owned())),
+///     Token::Punctuator(Punctuator::Semicolon),
+///
+///     Token::Punctuator(Punctuator::CloseBrace),
+/// ];
+/// let mut parser = Parser::for_tokens(source);
+/// assert_eq!(
+///     parser.execute(),
+///     Program(vec![
+///         BlockItem::Declaration(Declaration::Variable(
+///             VariableDeclKind::Let,
+///             "a".to_owned(),
+///             Some(Expression::Member(MemberExpression::Literal(
+///                 ast::Literal::Numeric(100)
+///             )))
+///         )),
+///         BlockItem::Statement(Statement::If(
+///             Expression::BinaryOp(
+///                 BinaryOp::MoreThanOrEqual,
+///                 Box::new(Expression::Member(MemberExpression::Identifier("a".to_owned()))),
+///                 Box::new(Expression::Member(MemberExpression::Literal(
+///                     ast::Literal::Numeric(3)
+///                 )))
+///             ),
+///             vec![
+///                 BlockItem::Declaration(Declaration::Variable(
+///                     VariableDeclKind::Let,
+///                     "b".to_owned(),
+///                     Some(Expression::Member(MemberExpression::Literal(
+///                         ast::Literal::String("success block!".to_owned()),
+///                     )))
+///                 )),
+///             ],
+///             Some(vec![
+///                 BlockItem::Declaration(Declaration::Variable(
+///                     VariableDeclKind::Let,
+///                     "b".to_owned(),
+///                     Some(Expression::Member(MemberExpression::Literal(
+///                         ast::Literal::String("else block!".to_owned()),
+///                     )))
+///                 )),
+///             ])
+///         )),
+///     ])
+/// );
 impl Parser {
     pub fn execute(mut self) -> Program {
         let mut block = Vec::new();
@@ -137,6 +215,12 @@ impl Parser {
     fn parse_statement(&mut self) -> Option<Statement> {
         match self.0.peek()? {
             Token::Punctuator(Punctuator::OpenBrace) => Some(Statement::Block(self.parse_block())),
+            Token::Keyword(Keyword::If) => {
+                self.parse_if_statement()
+                    .map(|(condition, success_block, else_block)| {
+                        Statement::If(condition, success_block, else_block)
+                    })
+            }
             _ => self.parse_expression().map(Statement::Expression),
         }
     }
@@ -157,6 +241,11 @@ impl Parser {
         match self.0.peek() {
             Some(&Token::Punctuator(Punctuator::Semicolon)) => {
                 self.0.advance();
+                Some(lhs)
+            }
+            Some(&Token::Punctuator(Punctuator::CloseParen)) => {
+                // TODO: Added to get if statement conditions to parse, but seems a bit
+                // arbitrary/hackish
                 Some(lhs)
             }
             None => Some(lhs),
@@ -237,5 +326,25 @@ impl Parser {
         } else {
             panic!("Expected variable name");
         }
+    }
+
+    fn parse_if_statement(
+        &mut self,
+    ) -> Option<(Expression, Vec<BlockItem>, Option<Vec<BlockItem>>)> {
+        self.0.consume_exact(&Token::Keyword(Keyword::If));
+        self.0
+            .consume_exact(&Token::Punctuator(Punctuator::OpenParen));
+        let condition = self
+            .parse_expression()
+            .expect("Expected expression but was <end>");
+        self.0
+            .consume_exact(&Token::Punctuator(Punctuator::CloseParen));
+        let success_block = self.parse_block();
+        let else_block = if self.0.consume_eq(&Token::Keyword(Keyword::Else)).is_some() {
+            Some(self.parse_block())
+        } else {
+            None
+        };
+        Some((condition, success_block, else_block))
     }
 }

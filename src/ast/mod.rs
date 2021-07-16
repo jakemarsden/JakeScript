@@ -13,6 +13,8 @@ pub enum BlockItem {
 pub enum Statement {
     Block(Vec<BlockItem>),
     Expression(Expression),
+    /// (condition, success_block, else_block)
+    If(Expression, Vec<BlockItem>, Option<Vec<BlockItem>>),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
