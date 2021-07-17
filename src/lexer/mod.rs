@@ -30,7 +30,7 @@ impl Lexer {
 
 /// ```rust
 /// # use jakescript::lexer::*;
-/// let source = r##"100 + 50;"##;
+/// let source = r##"100 + 50 + 17;"##;
 ///
 /// let mut lexer = Lexer::for_str(source);
 /// assert_eq!(
@@ -41,6 +41,10 @@ impl Lexer {
 ///         Element::Token(Token::Punctuator(Punctuator::Plus)),
 ///         Element::Whitespace(' '),
 ///         Element::Token(Token::Literal(Literal::Numeric(50))),
+///         Element::Whitespace(' '),
+///         Element::Token(Token::Punctuator(Punctuator::Plus)),
+///         Element::Whitespace(' '),
+///         Element::Token(Token::Literal(Literal::Numeric(17))),
 ///         Element::Token(Token::Punctuator(Punctuator::Semicolon)),
 ///     ]
 /// )

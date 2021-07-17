@@ -27,6 +27,8 @@ impl Parser {
 ///     Token::Literal(Literal::Numeric(100)),
 ///     Token::Punctuator(Punctuator::Plus),
 ///     Token::Literal(Literal::Numeric(50)),
+///     Token::Punctuator(Punctuator::Plus),
+///     Token::Literal(Literal::Numeric(17)),
 ///     Token::Punctuator(Punctuator::Semicolon),
 /// ];
 /// let mut parser = Parser::for_tokens(source);
@@ -38,9 +40,15 @@ impl Parser {
 ///             lhs: Box::new(Expression::Member(MemberExpression::Literal(
 ///                 ast::Literal::Numeric(100)
 ///             ))),
-///             rhs: Box::new(Expression::Member(MemberExpression::Literal(
-///                 ast::Literal::Numeric(50)
-///             )))
+///             rhs: Box::new(Expression::BinaryOp {
+///                 kind: BinaryOp::Add,
+///                 lhs: Box::new(Expression::Member(MemberExpression::Literal(
+///                     ast::Literal::Numeric(50)
+///                 ))),
+///                 rhs: Box::new(Expression::Member(MemberExpression::Literal(
+///                     ast::Literal::Numeric(17)
+///                 ))),
+///             }),
 ///         }
 ///     )),])
 /// );

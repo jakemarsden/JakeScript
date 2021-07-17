@@ -31,14 +31,20 @@ impl Interpreter {
 ///         lhs: Box::new(Expression::Member(MemberExpression::Literal(
 ///             Literal::Numeric(100),
 ///         ))),
-///         rhs: Box::new(Expression::Member(MemberExpression::Literal(
-///             Literal::Numeric(50),
-///         ))),
+///         rhs: Box::new(Expression::BinaryOp {
+///             kind: BinaryOp::Add,
+///             lhs: Box::new(Expression::Member(MemberExpression::Literal(
+///                 Literal::Numeric(50),
+///             ))),
+///             rhs: Box::new(Expression::Member(MemberExpression::Literal(
+///                 Literal::Numeric(17),
+///             ))),
+///         }),
 ///     },
 /// ))]);
 ///
 /// let mut it = Interpreter::default();
-/// assert_eq!(program.eval(&mut it), Value::Numeric(150));
+/// assert_eq!(program.eval(&mut it), Value::Numeric(167));
 /// ```
 pub trait Eval {
     fn eval(&self, it: &mut Interpreter) -> Value;
