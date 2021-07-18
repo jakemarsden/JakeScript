@@ -1,7 +1,9 @@
 use crate::ast::*;
 
+pub use error::*;
 pub use vm::*;
 
+mod error;
 mod vm;
 
 #[derive(Default)]
@@ -55,7 +57,7 @@ impl Interpreter {
 /// ))]);
 ///
 /// let mut it = Interpreter::default();
-/// assert_eq!(program.eval(&mut it), Value::Numeric(167));
+/// assert_eq!(program.eval(&mut it), Ok(Value::Numeric(167)));
 /// ```
 ///
 /// ```rust
@@ -88,37 +90,37 @@ impl Interpreter {
 /// ]);
 ///
 /// let mut it = Interpreter::default();
-/// assert_eq!(program.eval(&mut it), Value::Numeric(150));
+/// assert_eq!(program.eval(&mut it), Ok(Value::Numeric(150)));
 /// ```
 pub trait Eval {
-    fn eval(&self, it: &mut Interpreter) -> Value;
+    fn eval(&self, it: &mut Interpreter) -> Result<Value>;
 }
 
 impl Eval for Program {
-    fn eval(&self, it: &mut Interpreter) -> Value {
+    fn eval(&self, it: &mut Interpreter) -> Result<Value> {
         self.0.eval(it)
     }
 }
 
 impl Eval for Vec<BlockItem> {
-    fn eval(&self, it: &mut Interpreter) -> Value {
-        let mut result = Value::default();
+    fn eval(&self, it: &mut Interpreter) -> Result<Value> {
+        let mut result = Value::Undefined;
         for item in self.iter() {
             match item {
                 BlockItem::Declaration(..) => {
-                    item.eval(it);
+                    item.eval(it)?;
                 }
                 BlockItem::Statement(..) => {
-                    result = item.eval(it);
+                    result = item.eval(it)?;
                 }
             }
         }
-        result
+        Ok(result)
     }
 }
 
 impl Eval for BlockItem {
-    fn eval(&self, it: &mut Interpreter) -> Value {
+    fn eval(&self, it: &mut Interpreter) -> Result<Value> {
         match self {
             Self::Declaration(decl) => decl.eval(it),
             Self::Statement(stmt) => stmt.eval(it),
@@ -127,7 +129,7 @@ impl Eval for BlockItem {
 }
 
 impl Eval for Declaration {
-    fn eval(&self, it: &mut Interpreter) -> Value {
+    fn eval(&self, it: &mut Interpreter) -> Result<Value> {
         match self {
             Self::Variable {
                 kind,
@@ -139,29 +141,29 @@ impl Eval for Declaration {
                     kind => todo!("eval: decl: {:?}", kind),
                 };
                 let value = if let Some(initialiser) = initialiser {
-                    initialiser.eval(it)
+                    initialiser.eval(it)?
                 } else {
                     Value::Undefined
                 };
                 it.vm()
                     .peek_scope_mut()
                     .init_local(var_name.clone(), value)
-                    .expect("Variable already defined");
-                Value::Undefined
+                    .map(|()| Value::Undefined)
+                    .map_err(|()| Error::new(ErrorKind::VariableAlreadyDefined))
             }
         }
     }
 }
 
 impl Eval for Statement {
-    fn eval(&self, it: &mut Interpreter) -> Value {
+    fn eval(&self, it: &mut Interpreter) -> Result<Value> {
         match self {
             Self::Assertion { condition } => {
-                let value = condition.eval(it);
+                let value = condition.eval(it)?;
                 if value == Value::Boolean(true) {
-                    Value::Undefined
+                    Ok(Value::Undefined)
                 } else {
-                    todo!("Assertion failed: {:?}", value)
+                    Err(Error::new(ErrorKind::AssertionFailed))
                 }
             }
             Self::Block(items) => items.eval(it),
@@ -172,16 +174,16 @@ impl Eval for Statement {
 }
 
 impl Eval for Expression {
-    fn eval(&self, it: &mut Interpreter) -> Value {
+    fn eval(&self, it: &mut Interpreter) -> Result<Value> {
         match self {
             Self::BinaryOp { kind, lhs, rhs } => {
-                let lhs = lhs.eval(it);
-                let rhs = rhs.eval(it);
-                match kind {
+                let lhs = lhs.eval(it)?;
+                let rhs = rhs.eval(it)?;
+                Ok(match kind {
                     BinaryOp::Add => it.add(lhs, rhs),
                     BinaryOp::Identical => it.is_identical(lhs, rhs),
                     kind => todo!("eval: binary_op: {:?}", kind),
-                }
+                })
             }
             Self::Member(expr) => expr.eval(it),
             expr => todo!("eval: expr: {:?}", expr),
@@ -190,21 +192,21 @@ impl Eval for Expression {
 }
 
 impl Eval for MemberExpression {
-    fn eval(&self, it: &mut Interpreter) -> Value {
+    fn eval(&self, it: &mut Interpreter) -> Result<Value> {
         match self {
             MemberExpression::Identifier(ref name) => {
                 if let Some(value) = it.vm().peek_scope().lookup_local(name) {
-                    value.clone()
+                    Ok(value.clone())
                 } else {
-                    todo!("Undefined variable {}", name)
+                    Err(Error::new(ErrorKind::VariableNotDefined))
                 }
             }
-            MemberExpression::Literal(lit) => match lit {
+            MemberExpression::Literal(lit) => Ok(match lit {
                 Literal::Boolean(value) => Value::Boolean(*value),
                 Literal::Null => Value::Null,
                 Literal::Numeric(value) => Value::Numeric(*value),
                 Literal::String(value) => Value::String(value.clone()),
-            },
+            }),
             expr => todo!("eval: member_expr: {:?}", expr),
         }
     }
