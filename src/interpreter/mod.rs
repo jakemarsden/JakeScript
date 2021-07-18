@@ -6,6 +6,8 @@ pub use vm::*;
 mod error;
 mod vm;
 
+pub type Result<T> = std::result::Result<T, Error>;
+
 #[derive(Default)]
 pub struct Interpreter {
     vm: Vm,
@@ -136,10 +138,6 @@ impl Eval for Declaration {
                 var_name,
                 initialiser,
             } => {
-                match kind {
-                    VariableDeclKind::Let => {}
-                    kind => todo!("eval: decl: {:?}", kind),
-                };
                 let value = if let Some(initialiser) = initialiser {
                     initialiser.eval(it)?
                 } else {
@@ -147,7 +145,7 @@ impl Eval for Declaration {
                 };
                 it.vm()
                     .peek_scope_mut()
-                    .init_local(var_name.clone(), value)?;
+                    .init_variable(*kind, var_name.clone(), value)?;
                 Ok(Value::Undefined)
             }
         }
@@ -194,7 +192,7 @@ impl Eval for MemberExpression {
     fn eval(&self, it: &mut Interpreter) -> Result<Value> {
         match self {
             MemberExpression::Identifier(ref name) => {
-                let value = it.vm().peek_scope().lookup_local(name)?;
+                let value = it.vm().peek_scope().resolve_variable(name)?;
                 Ok(value.clone())
             }
             MemberExpression::Literal(lit) => Ok(match lit {

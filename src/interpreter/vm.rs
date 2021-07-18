@@ -1,4 +1,5 @@
-use crate::interpreter::error::{VariableAlreadyDefinedError, VariableNotDefinedError};
+use crate::ast::VariableDeclKind;
+use crate::interpreter::error::*;
 use std::collections::HashMap;
 use std::{fmt, mem};
 
@@ -67,31 +68,70 @@ impl Value {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Debug, Default)]
 pub struct ScopeCtx {
-    locals: HashMap<String, Value>,
+    locals: HashMap<String, Variable>,
     parent: Option<Box<ScopeCtx>>,
 }
 
 impl ScopeCtx {
-    pub fn lookup_local(&self, name: &str) -> Result<&Value, VariableNotDefinedError> {
-        if let Some(value) = self.locals.get(name) {
-            Ok(value)
+    pub fn init_variable(
+        &mut self,
+        kind: VariableDeclKind,
+        name: String,
+        initial_value: Value,
+    ) -> Result<(), VariableAlreadyDefinedError> {
+        let var = Variable {
+            kind,
+            value: initial_value,
+        };
+        self.locals
+            .try_insert(name, var)
+            .map(|_| ())
+            .map_err(|err| VariableAlreadyDefinedError::new(err.entry.key().to_owned()))
+    }
+
+    pub fn resolve_variable(&self, name: &str) -> Result<&Value, VariableNotDefinedError> {
+        self.lookup_variable(name).map(|var| &var.value)
+    }
+
+    pub fn set_variable(&mut self, name: &str, value: Value) -> Result<(), Error> {
+        let mut var = self.lookup_variable_mut(name)?;
+        match var.kind {
+            VariableDeclKind::Let => {
+                var.value = value;
+                Ok(())
+            }
+            VariableDeclKind::Const => Err(VariableIsConstError::new(name.to_owned()).into()),
+        }
+    }
+
+    fn lookup_variable(&self, name: &str) -> Result<&Variable, VariableNotDefinedError> {
+        if let Some(variable) = self.locals.get(name) {
+            Ok(variable)
         } else if let Some(ref parent) = self.parent {
-            parent.lookup_local(name)
+            parent.lookup_variable(name)
         } else {
             Err(VariableNotDefinedError::new(name.to_owned()))
         }
     }
 
-    pub fn init_local(
+    fn lookup_variable_mut(
         &mut self,
-        name: String,
-        value: Value,
-    ) -> Result<(), VariableAlreadyDefinedError> {
-        self.locals
-            .try_insert(name, value)
-            .map(|_| ())
-            .map_err(|err| VariableAlreadyDefinedError::new(err.entry.key().to_owned()))
+        name: &str,
+    ) -> Result<&mut Variable, VariableNotDefinedError> {
+        if let Some(variable) = self.locals.get_mut(name) {
+            Ok(variable)
+        } else if let Some(ref mut parent) = self.parent {
+            parent.lookup_variable_mut(name)
+        } else {
+            Err(VariableNotDefinedError::new(name.to_owned()))
+        }
     }
+}
+
+#[derive(Debug)]
+struct Variable {
+    kind: VariableDeclKind,
+    value: Value,
 }

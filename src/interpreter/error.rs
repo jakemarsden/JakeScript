@@ -1,12 +1,11 @@
 use crate::interpreter::Value;
 use std::fmt;
 
-pub type Result<T> = std::result::Result<T, Error>;
-
 #[derive(Clone, Debug, PartialEq)]
 pub enum Error {
     AssertionFailed(AssertionFailedError),
     VariableAlreadyDefined(VariableAlreadyDefinedError),
+    VariableIsConst(VariableIsConstError),
     VariableNotDefined(VariableNotDefinedError),
 }
 
@@ -22,6 +21,7 @@ impl std::error::Error for Error {
         Some(match self {
             Self::AssertionFailed(ref source) => source,
             Self::VariableAlreadyDefined(ref source) => source,
+            Self::VariableIsConst(ref source) => source,
             Self::VariableNotDefined(ref source) => source,
         })
     }
@@ -74,6 +74,35 @@ impl std::error::Error for VariableAlreadyDefinedError {}
 impl From<VariableAlreadyDefinedError> for Error {
     fn from(source: VariableAlreadyDefinedError) -> Self {
         Self::VariableAlreadyDefined(source)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct VariableIsConstError {
+    var_name: String,
+}
+
+impl VariableIsConstError {
+    pub fn new(var_name: String) -> Self {
+        Self { var_name }
+    }
+}
+
+impl fmt::Display for VariableIsConstError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            r#"Variable is const (cannot be set): "{}""#,
+            self.var_name
+        )
+    }
+}
+
+impl std::error::Error for VariableIsConstError {}
+
+impl From<VariableIsConstError> for Error {
+    fn from(source: VariableIsConstError) -> Self {
+        Self::VariableIsConst(source)
     }
 }
 
