@@ -173,6 +173,23 @@ impl Eval for Statement {
 impl Eval for Expression {
     fn eval(&self, it: &mut Interpreter) -> Result<Value> {
         match self {
+            Self::AssignmentOp { kind, lhs, rhs } => {
+                let var_name = match lhs {
+                    MemberExpression::Identifier(ref var_name) => var_name,
+                    lhs => todo!("eval: assignment_op: lhs: {:?}", lhs),
+                };
+                let lhs = it.vm().peek_scope().resolve_variable(var_name)?.clone();
+                let rhs = rhs.eval(it)?;
+                let value = match kind {
+                    AssignmentOp::Assign => rhs,
+                    AssignmentOp::AddAssign => it.add(lhs, rhs),
+                    kind => todo!("eval: assignment_op: {:?}", kind),
+                };
+                it.vm()
+                    .peek_scope_mut()
+                    .set_variable(var_name, value.clone())?;
+                Ok(value)
+            }
             Self::BinaryOp { kind, lhs, rhs } => {
                 let lhs = lhs.eval(it)?;
                 let rhs = rhs.eval(it)?;
