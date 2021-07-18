@@ -46,6 +46,39 @@ impl Interpreter {
 /// let mut it = Interpreter::default();
 /// assert_eq!(program.eval(&mut it), Value::Numeric(167));
 /// ```
+///
+/// ```rust
+/// # use jakescript::ast::*;
+/// # use jakescript::interpreter::*;
+/// let program = Program(vec![
+///     BlockItem::Declaration(Declaration::Variable {
+///         kind: VariableDeclKind::Let,
+///         var_name: "a".to_owned(),
+///         initialiser: Some(Expression::Member(MemberExpression::Literal(
+///             Literal::Numeric(100),
+///         ))),
+///     }),
+///     BlockItem::Declaration(Declaration::Variable {
+///         kind: VariableDeclKind::Let,
+///         var_name: "b".to_owned(),
+///         initialiser: Some(Expression::Member(MemberExpression::Literal(
+///             Literal::Numeric(50),
+///         ))),
+///     }),
+///     BlockItem::Statement(Statement::Expression(Expression::BinaryOp {
+///         kind: BinaryOp::Add,
+///         lhs: Box::new(Expression::Member(MemberExpression::Identifier(
+///             "a".to_owned(),
+///         ))),
+///         rhs: Box::new(Expression::Member(MemberExpression::Identifier(
+///             "b".to_owned(),
+///         ))),
+///     })),
+/// ]);
+///
+/// let mut it = Interpreter::default();
+/// assert_eq!(program.eval(&mut it), Value::Numeric(150));
+/// ```
 pub trait Eval {
     fn eval(&self, it: &mut Interpreter) -> Value;
 }
@@ -83,8 +116,29 @@ impl Eval for BlockItem {
 }
 
 impl Eval for Declaration {
-    fn eval(&self, _it: &mut Interpreter) -> Value {
-        todo!("eval: decl: {:?}", self)
+    fn eval(&self, it: &mut Interpreter) -> Value {
+        match self {
+            Self::Variable {
+                kind,
+                var_name,
+                initialiser,
+            } => {
+                match kind {
+                    VariableDeclKind::Let => {}
+                    kind => todo!("eval: decl: {:?}", kind),
+                };
+                let value = if let Some(initialiser) = initialiser {
+                    initialiser.eval(it)
+                } else {
+                    Value::Undefined
+                };
+                it.vm()
+                    .peek_scope_mut()
+                    .init_local(var_name.clone(), value)
+                    .expect("Variable already defined");
+                Value::Undefined
+            }
+        }
     }
 }
 
@@ -116,8 +170,15 @@ impl Eval for Expression {
 }
 
 impl Eval for MemberExpression {
-    fn eval(&self, _it: &mut Interpreter) -> Value {
+    fn eval(&self, it: &mut Interpreter) -> Value {
         match self {
+            MemberExpression::Identifier(ref name) => {
+                if let Some(value) = it.vm().peek_scope().lookup_local(name) {
+                    value.clone()
+                } else {
+                    todo!("Undefined variable {}", name)
+                }
+            }
             MemberExpression::Literal(lit) => match lit {
                 Literal::Boolean(value) => Value::Boolean(*value),
                 Literal::Null => Value::Null,
