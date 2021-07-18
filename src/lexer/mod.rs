@@ -283,28 +283,26 @@ impl Lexer {
     }
 
     fn parse_token(&mut self) -> Option<Token> {
-        Some(
-            if let Some(ident_name_or_keyword) = self.parse_identifier_name() {
-                if let Ok(keyword) = Keyword::from_str(&ident_name_or_keyword) {
-                    Token::Keyword(keyword)
-                } else {
-                    Token::Identifier(ident_name_or_keyword)
-                }
-            } else if let Some(punctuator) = self.parse_punctuator() {
-                Token::Punctuator(punctuator)
-            } else if let Some(()) = self.parse_null_literal() {
-                Token::Literal(Literal::Null)
-            } else if let Some(bool_lit) = self.parse_boolean_literal() {
-                Token::Literal(Literal::Boolean(bool_lit))
-            } else if let Some(numeric_lit) = self.parse_numeric_literal() {
-                Token::Literal(Literal::Numeric(numeric_lit))
-            } else if let Some(string_lit) = self.parse_string_literal() {
-                Token::Literal(Literal::String(string_lit))
+        Some(if let Some(punctuator) = self.parse_punctuator() {
+            Token::Punctuator(punctuator)
+        } else if let Some(()) = self.parse_null_literal() {
+            Token::Literal(Literal::Null)
+        } else if let Some(bool_lit) = self.parse_boolean_literal() {
+            Token::Literal(Literal::Boolean(bool_lit))
+        } else if let Some(numeric_lit) = self.parse_numeric_literal() {
+            Token::Literal(Literal::Numeric(numeric_lit))
+        } else if let Some(string_lit) = self.parse_string_literal() {
+            Token::Literal(Literal::String(string_lit))
+        } else if let Some(ident_name_or_keyword) = self.parse_identifier_name() {
+            if let Ok(keyword) = Keyword::from_str(&ident_name_or_keyword) {
+                Token::Keyword(keyword)
             } else {
-                // TODO: Parse template tokens
-                return None;
-            },
-        )
+                Token::Identifier(ident_name_or_keyword)
+            }
+        } else {
+            // TODO: Parse template tokens
+            return None;
+        })
     }
 
     fn parse_identifier_name(&mut self) -> Option<String> {
