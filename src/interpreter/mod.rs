@@ -1,4 +1,5 @@
 use crate::ast::*;
+use std::cmp::Ordering;
 
 pub use error::*;
 pub use vm::*;
@@ -17,6 +18,13 @@ impl Interpreter {
     pub fn add(&self, lhs: Value, rhs: Value) -> Value {
         match (lhs, rhs) {
             (Value::Numeric(lhs), Value::Numeric(rhs)) => Value::Numeric(lhs + rhs),
+            (lhs, rhs) => todo!("add: {:?}, {:?}", lhs, rhs),
+        }
+    }
+
+    pub fn compare(&self, lhs: Value, rhs: Value) -> Ordering {
+        match (lhs, rhs) {
+            (Value::Numeric(lhs), Value::Numeric(rhs)) => lhs.cmp(&rhs),
             (lhs, rhs) => todo!("add: {:?}, {:?}", lhs, rhs),
         }
     }
@@ -165,7 +173,30 @@ impl Eval for Statement {
             }
             Self::Block(items) => items.eval(it),
             Self::Expression(expr) => expr.eval(it),
-            stmt => todo!("eval: stmt: {:?}", stmt),
+            Self::If {
+                condition,
+                success_block,
+                else_block,
+            } => {
+                let condition = condition.eval(it)?;
+                if condition.as_boolean() {
+                    success_block.eval(it)?;
+                } else if let Some(else_block) = else_block {
+                    else_block.eval(it)?;
+                }
+                Ok(Value::Undefined)
+            }
+            Self::WhileLoop { condition, block } => {
+                loop {
+                    let condition = condition.eval(it)?;
+                    if condition.as_boolean() {
+                        block.eval(it)?;
+                    } else {
+                        break;
+                    }
+                }
+                Ok(Value::Undefined)
+            }
         }
     }
 }
@@ -196,6 +227,10 @@ impl Eval for Expression {
                 Ok(match kind {
                     BinaryOp::Add => it.add(lhs, rhs),
                     BinaryOp::Identical => it.is_identical(lhs, rhs),
+                    BinaryOp::LessThan => Value::Boolean(it.compare(lhs, rhs).is_lt()),
+                    BinaryOp::LessThanOrEqual => Value::Boolean(it.compare(lhs, rhs).is_le()),
+                    BinaryOp::MoreThan => Value::Boolean(it.compare(lhs, rhs).is_gt()),
+                    BinaryOp::MoreThanOrEqual => Value::Boolean(it.compare(lhs, rhs).is_ge()),
                     kind => todo!("eval: binary_op: {:?}", kind),
                 })
             }
