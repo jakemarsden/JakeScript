@@ -1,5 +1,6 @@
+use crate::interpreter::error::{VariableAlreadyDefinedError, VariableNotDefinedError};
 use std::collections::HashMap;
-use std::mem;
+use std::{fmt, mem};
 
 #[derive(Default)]
 pub struct Vm {
@@ -43,6 +44,29 @@ impl Default for Value {
     }
 }
 
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Boolean(value) => write!(f, "{}", value),
+            Self::Null => write!(f, "null"),
+            Self::Numeric(value) => write!(f, "{}", value),
+            Self::String(value) => write!(f, r#""{}""#, value),
+            Self::Undefined => write!(f, "undefined"),
+        }
+    }
+}
+
+impl Value {
+    pub fn as_boolean(&self) -> bool {
+        match self {
+            Self::Boolean(value) => *value,
+            Self::Numeric(value) => *value > 0,
+            Self::String(value) => !value.is_empty(),
+            Self::Null | Self::Undefined => false,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct ScopeCtx {
     locals: HashMap<String, Value>,
@@ -50,20 +74,24 @@ pub struct ScopeCtx {
 }
 
 impl ScopeCtx {
-    pub fn lookup_local(&self, name: &str) -> Option<&Value> {
+    pub fn lookup_local(&self, name: &str) -> Result<&Value, VariableNotDefinedError> {
         if let Some(value) = self.locals.get(name) {
-            Some(value)
+            Ok(value)
         } else if let Some(ref parent) = self.parent {
             parent.lookup_local(name)
         } else {
-            None
+            Err(VariableNotDefinedError::new(name.to_owned()))
         }
     }
 
-    pub fn init_local(&mut self, name: String, value: Value) -> Result<(), ()> {
+    pub fn init_local(
+        &mut self,
+        name: String,
+        value: Value,
+    ) -> Result<(), VariableAlreadyDefinedError> {
         self.locals
             .try_insert(name, value)
             .map(|_| ())
-            .map_err(|_| ())
+            .map_err(|err| VariableAlreadyDefinedError::new(err.entry.key().to_owned()))
     }
 }

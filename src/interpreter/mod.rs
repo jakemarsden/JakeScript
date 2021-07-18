@@ -147,9 +147,8 @@ impl Eval for Declaration {
                 };
                 it.vm()
                     .peek_scope_mut()
-                    .init_local(var_name.clone(), value)
-                    .map(|()| Value::Undefined)
-                    .map_err(|()| Error::new(ErrorKind::VariableAlreadyDefined))
+                    .init_local(var_name.clone(), value)?;
+                Ok(Value::Undefined)
             }
         }
     }
@@ -160,10 +159,10 @@ impl Eval for Statement {
         match self {
             Self::Assertion { condition } => {
                 let value = condition.eval(it)?;
-                if value == Value::Boolean(true) {
+                if value.as_boolean() {
                     Ok(Value::Undefined)
                 } else {
-                    Err(Error::new(ErrorKind::AssertionFailed))
+                    Err(AssertionFailedError::new(value).into())
                 }
             }
             Self::Block(items) => items.eval(it),
@@ -195,11 +194,8 @@ impl Eval for MemberExpression {
     fn eval(&self, it: &mut Interpreter) -> Result<Value> {
         match self {
             MemberExpression::Identifier(ref name) => {
-                if let Some(value) = it.vm().peek_scope().lookup_local(name) {
-                    Ok(value.clone())
-                } else {
-                    Err(Error::new(ErrorKind::VariableNotDefined))
-                }
+                let value = it.vm().peek_scope().lookup_local(name)?;
+                Ok(value.clone())
             }
             MemberExpression::Literal(lit) => Ok(match lit {
                 Literal::Boolean(value) => Value::Boolean(*value),
