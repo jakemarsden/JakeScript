@@ -293,6 +293,9 @@ impl Parser {
     fn parse_statement(&mut self) -> Option<Statement> {
         match self.0.peek()? {
             Token::Punctuator(Punctuator::OpenBrace) => Some(Statement::Block(self.parse_block())),
+            Token::Keyword(Keyword::Assert) => self
+                .parse_assert_statement()
+                .map(|condition| Statement::Assertion { condition }),
             Token::Keyword(Keyword::If) => {
                 self.parse_if_statement()
                     .map(|(condition, success_block, else_block)| Statement::If {
@@ -447,6 +450,14 @@ impl Parser {
         } else {
             panic!("Expected variable name");
         }
+    }
+
+    fn parse_assert_statement(&mut self) -> Option<Expression> {
+        self.0.consume_exact(&Token::Keyword(Keyword::Assert));
+        let condition = self
+            .parse_expression()
+            .expect("Expected expression but was <end>");
+        Some(condition)
     }
 
     fn parse_if_statement(

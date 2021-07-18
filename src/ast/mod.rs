@@ -11,6 +11,9 @@ pub enum BlockItem {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Statement {
+    Assertion {
+        condition: Expression,
+    },
     Block(Vec<BlockItem>),
     Expression(Expression),
     If {

@@ -17,6 +17,17 @@ impl Interpreter {
         }
     }
 
+    pub fn is_identical(&self, lhs: Value, rhs: Value) -> Value {
+        Value::Boolean(match (lhs, rhs) {
+            (Value::Boolean(lhs), Value::Boolean(rhs)) => lhs == rhs,
+            (Value::Null, Value::Null) => true,
+            (Value::Numeric(lhs), Value::Numeric(rhs)) => lhs == rhs,
+            (Value::String(lhs), Value::String(rhs)) => lhs == rhs,
+            (Value::Undefined, Value::Undefined) => true,
+            (_, _) => false,
+        })
+    }
+
     pub fn vm(&mut self) -> &mut Vm {
         &mut self.vm
     }
@@ -145,6 +156,14 @@ impl Eval for Declaration {
 impl Eval for Statement {
     fn eval(&self, it: &mut Interpreter) -> Value {
         match self {
+            Self::Assertion { condition } => {
+                let value = condition.eval(it);
+                if value == Value::Boolean(true) {
+                    Value::Undefined
+                } else {
+                    todo!("Assertion failed: {:?}", value)
+                }
+            }
             Self::Block(items) => items.eval(it),
             Self::Expression(expr) => expr.eval(it),
             stmt => todo!("eval: stmt: {:?}", stmt),
@@ -160,6 +179,7 @@ impl Eval for Expression {
                 let rhs = rhs.eval(it);
                 match kind {
                     BinaryOp::Add => it.add(lhs, rhs),
+                    BinaryOp::Identical => it.is_identical(lhs, rhs),
                     kind => todo!("eval: binary_op: {:?}", kind),
                 }
             }

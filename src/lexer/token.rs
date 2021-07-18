@@ -50,6 +50,7 @@ pub enum Keyword {
     // TODO: Some of these are only _contextually_ disallowed as identifiers, and under certain
     // conditions _can_ be used as identifiers.
     As,
+    Assert,
     Async,
     Await,
     Break,
@@ -101,8 +102,9 @@ pub enum Keyword {
 }
 
 impl Keyword {
-    pub(crate) const VALUES: [Self; 49] = [
+    pub(crate) const VALUES: [Self; 50] = [
         Self::As,
+        Self::Assert,
         Self::Async,
         Self::Await,
         Self::Break,
@@ -169,6 +171,7 @@ impl Keyword {
     pub fn to_str(&self) -> &'static str {
         match self {
             Self::As => "as",
+            Self::Assert => "assert",
             Self::Async => "async",
             Self::Await => "await",
             Self::Break => "break",
