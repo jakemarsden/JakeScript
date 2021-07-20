@@ -1,6 +1,7 @@
 #![feature(assert_matches)]
 
 use jakescript::interpreter::Error;
+
 mod common;
 
 const SOURCE_CODE: &str = r##"
