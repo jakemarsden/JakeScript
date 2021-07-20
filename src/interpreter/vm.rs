@@ -1,7 +1,7 @@
 use crate::ast::VariableDeclKind;
 use crate::interpreter::error::*;
 use std::collections::HashMap;
-use std::{fmt, mem};
+use std::{fmt, mem, ops};
 
 #[derive(Default)]
 pub struct Vm {
@@ -65,6 +65,14 @@ impl Value {
             Self::String(value) => !value.is_empty(),
             Self::Null | Self::Undefined => false,
         }
+    }
+}
+
+impl ops::Not for Value {
+    type Output = Self;
+
+    fn not(self) -> Self {
+        Self::Boolean(!self.as_boolean())
     }
 }
 

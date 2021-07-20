@@ -229,8 +229,11 @@ impl Eval for Expression {
                     BinaryOp::Identical => it.is_identical(lhs, rhs),
                     BinaryOp::LessThan => Value::Boolean(it.compare(lhs, rhs).is_lt()),
                     BinaryOp::LessThanOrEqual => Value::Boolean(it.compare(lhs, rhs).is_le()),
+                    BinaryOp::LogicalAnd => Value::Boolean(lhs.as_boolean() && rhs.as_boolean()),
+                    BinaryOp::LogicalOr => Value::Boolean(lhs.as_boolean() || rhs.as_boolean()),
                     BinaryOp::MoreThan => Value::Boolean(it.compare(lhs, rhs).is_gt()),
                     BinaryOp::MoreThanOrEqual => Value::Boolean(it.compare(lhs, rhs).is_ge()),
+                    BinaryOp::NotIdentical => !it.is_identical(lhs, rhs),
                     kind => todo!("eval: binary_op: {:?}", kind),
                 })
             }
