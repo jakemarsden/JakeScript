@@ -322,7 +322,7 @@ impl Parser {
                     Literal::String(value) => ast::Literal::String(value),
                 }))
             }
-            token => todo!("parse_expression: {}", token),
+            token => todo!("Parser::parse_expression: token={}", token),
         };
         match self.0.peek() {
             Some(&Token::Punctuator(Punctuator::Semicolon)) => {
@@ -423,7 +423,7 @@ impl Parser {
                         initialiser,
                     })
             }
-            token => todo!("parse_declaration: {}", token),
+            token => todo!("Parser::parse_declaration: token={}", token),
         }
     }
 

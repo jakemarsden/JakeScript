@@ -156,7 +156,7 @@ impl Iterator for Lexer {
         } else if let Some(token) = self.parse_token() {
             Element::Token(token)
         } else {
-            todo!("{}", ch)
+            todo!("Lexer::next: ch={}", ch)
         })
     }
 }
@@ -362,7 +362,7 @@ impl Lexer {
             self.0.advance_n(content.len());
             Some(value)
         } else {
-            todo!("{}", content)
+            todo!("Lexer::parse_numeric_literal: content={}", content)
         }
     }
 

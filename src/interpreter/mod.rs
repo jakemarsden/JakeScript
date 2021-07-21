@@ -18,14 +18,14 @@ impl Interpreter {
     pub fn add(&self, lhs: Value, rhs: Value) -> Value {
         match (lhs, rhs) {
             (Value::Numeric(lhs), Value::Numeric(rhs)) => Value::Numeric(lhs + rhs),
-            (lhs, rhs) => todo!("add: {:?}, {:?}", lhs, rhs),
+            (lhs, rhs) => todo!("Interpreter::add: lhs={:?}, rhs={:?}", lhs, rhs),
         }
     }
 
     pub fn compare(&self, lhs: Value, rhs: Value) -> Ordering {
         match (lhs, rhs) {
             (Value::Numeric(lhs), Value::Numeric(rhs)) => lhs.cmp(&rhs),
-            (lhs, rhs) => todo!("add: {:?}, {:?}", lhs, rhs),
+            (lhs, rhs) => todo!("Interpreter::add: lhs={:?}, rhs={:?}", lhs, rhs),
         }
     }
 
@@ -207,14 +207,14 @@ impl Eval for Expression {
             Self::AssignmentOp { kind, lhs, rhs } => {
                 let var_name = match lhs {
                     MemberExpression::Identifier(ref var_name) => var_name,
-                    lhs => todo!("eval: assignment_op: lhs: {:?}", lhs),
+                    lhs => todo!("Expression::eval: assignment_op: lhs={:?}", lhs),
                 };
                 let lhs = it.vm().peek_scope().resolve_variable(var_name)?.clone();
                 let rhs = rhs.eval(it)?;
                 let value = match kind {
                     AssignmentOp::Assign => rhs,
                     AssignmentOp::AddAssign => it.add(lhs, rhs),
-                    kind => todo!("eval: assignment_op: {:?}", kind),
+                    kind => todo!("Expression::eval: kind={:?}", kind),
                 };
                 it.vm()
                     .peek_scope_mut()
@@ -234,11 +234,11 @@ impl Eval for Expression {
                     BinaryOp::MoreThan => Value::Boolean(it.compare(lhs, rhs).is_gt()),
                     BinaryOp::MoreThanOrEqual => Value::Boolean(it.compare(lhs, rhs).is_ge()),
                     BinaryOp::NotIdentical => !it.is_identical(lhs, rhs),
-                    kind => todo!("eval: binary_op: {:?}", kind),
+                    kind => todo!("Expression::eval: kind={:?}", kind),
                 })
             }
             Self::Member(expr) => expr.eval(it),
-            expr => todo!("eval: expr: {:?}", expr),
+            expr => todo!("Expression::eval: expr={:?}", expr),
         }
     }
 }
@@ -256,7 +256,7 @@ impl Eval for MemberExpression {
                 Literal::Numeric(value) => Value::Numeric(*value),
                 Literal::String(value) => Value::String(value.clone()),
             }),
-            expr => todo!("eval: member_expr: {:?}", expr),
+            expr => todo!("MemberExpression::eval: expr={:?}", expr),
         }
     }
 }
