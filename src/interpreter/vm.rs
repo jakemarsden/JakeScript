@@ -34,7 +34,7 @@ impl Vm {
 pub enum Value {
     Boolean(bool),
     Null,
-    Numeric(u64),
+    Numeric(i64),
     String(String),
     Undefined,
 }
@@ -67,7 +67,7 @@ impl Value {
         }
     }
 
-    pub fn as_numeric(&self) -> u64 {
+    pub fn as_numeric(&self) -> i64 {
         match self {
             Self::Numeric(value) => *value,
             value => todo!("Value::as_numeric: {}", value),

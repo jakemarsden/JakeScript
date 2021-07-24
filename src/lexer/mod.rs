@@ -341,7 +341,7 @@ impl Lexer {
         }
     }
 
-    fn parse_numeric_literal(&mut self) -> Option<u64> {
+    fn parse_numeric_literal(&mut self) -> Option<i64> {
         // FIXME: This is a naieve implementation which doesn't match the spec
         let mut content = String::new();
         for offset in 0.. {
@@ -358,7 +358,7 @@ impl Lexer {
             Some(next_ch) if next_ch.is_ascii_digit() => return None,
             Some(_) | None => {}
         }
-        if let Ok(value) = u64::from_str(&content) {
+        if let Ok(value) = i64::from_str(&content) {
             self.0.advance_n(content.len());
             Some(value)
         } else {

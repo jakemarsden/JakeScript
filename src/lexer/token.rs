@@ -249,7 +249,7 @@ impl FromStr for Keyword {
 pub enum Literal {
     Boolean(bool),
     Null,
-    Numeric(u64),
+    Numeric(i64),
     String(String),
 }
 
