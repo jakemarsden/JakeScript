@@ -1,6 +1,7 @@
 use crate::ast::{self, *};
 use crate::lexer::{Literal, *};
 use crate::util::Stream;
+use std::convert::TryFrom;
 use std::iter::Iterator;
 
 pub struct Parser(Stream<Token>);
@@ -340,55 +341,14 @@ impl Parser {
     }
 
     fn parse_secondary_expression(&mut self, lhs: Expression) -> Option<Expression> {
-        #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-        enum Op {
-            Assignment(AssignmentOp),
-            Binary(BinaryOp),
-        }
-
         let kind = match self.0.consume()? {
-            Token::Punctuator(punctuator) => match punctuator {
-                Punctuator::Equal => Op::Assignment(AssignmentOp::Assign),
-                Punctuator::PlusEqual => Op::Assignment(AssignmentOp::AddAssign),
-                Punctuator::SlashEqual => Op::Assignment(AssignmentOp::DivAssign),
-                Punctuator::PercentEqual => Op::Assignment(AssignmentOp::ModAssign),
-                Punctuator::AsteriskEqual => Op::Assignment(AssignmentOp::MulAssign),
-                Punctuator::DoubleAsteriskEqual => Op::Assignment(AssignmentOp::PowAssign),
-                Punctuator::MinusEqual => Op::Assignment(AssignmentOp::SubAssign),
-                Punctuator::DoubleLessThanEqual => Op::Assignment(AssignmentOp::ShiftLeftAssign),
-                Punctuator::DoubleMoreThanEqual => Op::Assignment(AssignmentOp::ShiftRightAssign),
-                Punctuator::TripleMoreThanEqual => {
-                    Op::Assignment(AssignmentOp::ShiftRightUnsignedAssign)
+            Token::Punctuator(punctuator) => {
+                if let Ok(op) = Op::try_from(punctuator) {
+                    op
+                } else {
+                    panic!("Expected operator punctuator but was {}", punctuator)
                 }
-                Punctuator::AmpersandEqual => Op::Assignment(AssignmentOp::BitwiseAndAssign),
-                Punctuator::PipeEqual => Op::Assignment(AssignmentOp::BitwiseOrAssign),
-                Punctuator::CaretEqual => Op::Assignment(AssignmentOp::BitwiseXOrAssign),
-
-                Punctuator::Plus => Op::Binary(BinaryOp::Add),
-                Punctuator::Slash => Op::Binary(BinaryOp::Div),
-                Punctuator::Percent => Op::Binary(BinaryOp::Mod),
-                Punctuator::Asterisk => Op::Binary(BinaryOp::Mul),
-                Punctuator::DoubleAsterisk => Op::Binary(BinaryOp::Pow),
-                Punctuator::Minus => Op::Binary(BinaryOp::Sub),
-                Punctuator::DoubleEqual => Op::Binary(BinaryOp::Equal),
-                Punctuator::BangEqual => Op::Binary(BinaryOp::NotEqual),
-                Punctuator::TripleEqual => Op::Binary(BinaryOp::Identical),
-                Punctuator::BangDoubleEqual => Op::Binary(BinaryOp::NotIdentical),
-                Punctuator::LessThan => Op::Binary(BinaryOp::LessThan),
-                Punctuator::LessThanEqual => Op::Binary(BinaryOp::LessThanOrEqual),
-                Punctuator::MoreThan => Op::Binary(BinaryOp::MoreThan),
-                Punctuator::MoreThanEqual => Op::Binary(BinaryOp::MoreThanOrEqual),
-                Punctuator::DoubleLessThan => Op::Binary(BinaryOp::ShiftLeft),
-                Punctuator::DoubleMoreThan => Op::Binary(BinaryOp::ShiftRight),
-                Punctuator::TripleMoreThan => Op::Binary(BinaryOp::ShiftRightUnsigned),
-                Punctuator::Ampersand => Op::Binary(BinaryOp::BitwiseAnd),
-                Punctuator::Pipe => Op::Binary(BinaryOp::BitwiseOr),
-                Punctuator::Caret => Op::Binary(BinaryOp::BitwiseXOr),
-                Punctuator::DoubleAmpersand => Op::Binary(BinaryOp::LogicalAnd),
-                Punctuator::DoublePipe => Op::Binary(BinaryOp::LogicalOr),
-
-                token => panic!("Expected punctuator but was {}", token),
-            },
+            }
             token => panic!("Expected punctuator but was {}", token),
         };
 
@@ -491,5 +451,76 @@ impl Parser {
             .consume_exact(&Token::Punctuator(Punctuator::CloseParen));
         let block = self.parse_block();
         Some((condition, block))
+    }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+enum Op {
+    Assignment(AssignmentOp),
+    Binary(BinaryOp),
+}
+
+impl Operator for Op {
+    fn associativity(&self) -> Associativity {
+        match self {
+            Self::Assignment(op) => op.associativity(),
+            Self::Binary(op) => op.associativity(),
+        }
+    }
+
+    fn precedence(&self) -> Precedence {
+        match self {
+            Self::Assignment(op) => op.precedence(),
+            Self::Binary(op) => op.precedence(),
+        }
+    }
+}
+
+impl TryFrom<Punctuator> for Op {
+    type Error = ();
+
+    fn try_from(punc: Punctuator) -> Result<Self, Self::Error> {
+        Ok(match punc {
+            Punctuator::Equal => Self::Assignment(AssignmentOp::Assign),
+            Punctuator::PlusEqual => Self::Assignment(AssignmentOp::AddAssign),
+            Punctuator::SlashEqual => Self::Assignment(AssignmentOp::DivAssign),
+            Punctuator::PercentEqual => Self::Assignment(AssignmentOp::ModAssign),
+            Punctuator::AsteriskEqual => Self::Assignment(AssignmentOp::MulAssign),
+            Punctuator::DoubleAsteriskEqual => Self::Assignment(AssignmentOp::PowAssign),
+            Punctuator::MinusEqual => Self::Assignment(AssignmentOp::SubAssign),
+            Punctuator::DoubleLessThanEqual => Self::Assignment(AssignmentOp::ShiftLeftAssign),
+            Punctuator::DoubleMoreThanEqual => Self::Assignment(AssignmentOp::ShiftRightAssign),
+            Punctuator::TripleMoreThanEqual => {
+                Self::Assignment(AssignmentOp::ShiftRightUnsignedAssign)
+            }
+            Punctuator::AmpersandEqual => Self::Assignment(AssignmentOp::BitwiseAndAssign),
+            Punctuator::PipeEqual => Self::Assignment(AssignmentOp::BitwiseOrAssign),
+            Punctuator::CaretEqual => Self::Assignment(AssignmentOp::BitwiseXOrAssign),
+
+            Punctuator::Plus => Self::Binary(BinaryOp::Add),
+            Punctuator::Slash => Self::Binary(BinaryOp::Div),
+            Punctuator::Percent => Self::Binary(BinaryOp::Mod),
+            Punctuator::Asterisk => Self::Binary(BinaryOp::Mul),
+            Punctuator::DoubleAsterisk => Self::Binary(BinaryOp::Pow),
+            Punctuator::Minus => Self::Binary(BinaryOp::Sub),
+            Punctuator::DoubleEqual => Self::Binary(BinaryOp::Equal),
+            Punctuator::BangEqual => Self::Binary(BinaryOp::NotEqual),
+            Punctuator::TripleEqual => Self::Binary(BinaryOp::Identical),
+            Punctuator::BangDoubleEqual => Self::Binary(BinaryOp::NotIdentical),
+            Punctuator::LessThan => Self::Binary(BinaryOp::LessThan),
+            Punctuator::LessThanEqual => Self::Binary(BinaryOp::LessThanOrEqual),
+            Punctuator::MoreThan => Self::Binary(BinaryOp::MoreThan),
+            Punctuator::MoreThanEqual => Self::Binary(BinaryOp::MoreThanOrEqual),
+            Punctuator::DoubleLessThan => Self::Binary(BinaryOp::ShiftLeft),
+            Punctuator::DoubleMoreThan => Self::Binary(BinaryOp::ShiftRight),
+            Punctuator::TripleMoreThan => Self::Binary(BinaryOp::ShiftRightUnsigned),
+            Punctuator::Ampersand => Self::Binary(BinaryOp::BitwiseAnd),
+            Punctuator::Pipe => Self::Binary(BinaryOp::BitwiseOr),
+            Punctuator::Caret => Self::Binary(BinaryOp::BitwiseXOr),
+            Punctuator::DoubleAmpersand => Op::Binary(BinaryOp::LogicalAnd),
+            Punctuator::DoublePipe => Self::Binary(BinaryOp::LogicalOr),
+
+            _ => return Err(()),
+        })
     }
 }
