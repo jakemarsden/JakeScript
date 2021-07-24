@@ -16,17 +16,27 @@ pub struct Interpreter {
 
 impl Interpreter {
     pub fn add(&self, lhs: Value, rhs: Value) -> Value {
-        match (lhs, rhs) {
-            (Value::Numeric(lhs), Value::Numeric(rhs)) => Value::Numeric(lhs + rhs),
-            (lhs, rhs) => todo!("Interpreter::add: lhs={:?}, rhs={:?}", lhs, rhs),
-        }
+        Value::Numeric(lhs.as_numeric() + rhs.as_numeric())
+    }
+
+    pub fn sub(&self, lhs: Value, rhs: Value) -> Value {
+        Value::Numeric(lhs.as_numeric() - rhs.as_numeric())
+    }
+
+    pub fn mul(&self, lhs: Value, rhs: Value) -> Value {
+        Value::Numeric(lhs.as_numeric() * rhs.as_numeric())
+    }
+
+    pub fn r#mod(&self, lhs: Value, rhs: Value) -> Value {
+        Value::Numeric(lhs.as_numeric() % rhs.as_numeric())
+    }
+
+    pub fn div(&self, lhs: Value, rhs: Value) -> Value {
+        Value::Numeric(lhs.as_numeric() / rhs.as_numeric())
     }
 
     pub fn compare(&self, lhs: Value, rhs: Value) -> Ordering {
-        match (lhs, rhs) {
-            (Value::Numeric(lhs), Value::Numeric(rhs)) => lhs.cmp(&rhs),
-            (lhs, rhs) => todo!("Interpreter::add: lhs={:?}, rhs={:?}", lhs, rhs),
-        }
+        lhs.as_numeric().cmp(&rhs.as_numeric())
     }
 
     pub fn is_identical(&self, lhs: Value, rhs: Value) -> Value {
@@ -226,6 +236,10 @@ impl Eval for Expression {
                 let rhs = rhs.eval(it)?;
                 Ok(match kind {
                     BinaryOp::Add => it.add(lhs, rhs),
+                    BinaryOp::Sub => it.sub(lhs, rhs),
+                    BinaryOp::Mul => it.mul(lhs, rhs),
+                    BinaryOp::Div => it.div(lhs, rhs),
+                    BinaryOp::Mod => it.r#mod(lhs, rhs),
                     BinaryOp::Identical => it.is_identical(lhs, rhs),
                     BinaryOp::LessThan => Value::Boolean(it.compare(lhs, rhs).is_lt()),
                     BinaryOp::LessThanOrEqual => Value::Boolean(it.compare(lhs, rhs).is_le()),

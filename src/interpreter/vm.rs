@@ -66,6 +66,13 @@ impl Value {
             Self::Null | Self::Undefined => false,
         }
     }
+
+    pub fn as_numeric(&self) -> u64 {
+        match self {
+            Self::Numeric(value) => *value,
+            value => todo!("Value::as_numeric: {}", value),
+        }
+    }
 }
 
 impl ops::Not for Value {
