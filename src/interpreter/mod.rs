@@ -35,6 +35,14 @@ impl Interpreter {
         Value::Numeric(lhs.as_numeric() / rhs.as_numeric())
     }
 
+    pub fn pow(&self, lhs: Value, rhs: Value) -> Value {
+        let lhs = lhs.as_numeric();
+        let rhs = rhs.as_numeric();
+        assert!(rhs >= i32::MIN as i64 && rhs <= i32::MAX as i64);
+        let result = (lhs as f64).powi(rhs as i32);
+        Value::Numeric(result as i64)
+    }
+
     pub fn compare(&self, lhs: Value, rhs: Value) -> Ordering {
         lhs.as_numeric().cmp(&rhs.as_numeric())
     }
@@ -240,6 +248,7 @@ impl Eval for Expression {
                     BinaryOp::Mul => it.mul(lhs, rhs),
                     BinaryOp::Div => it.div(lhs, rhs),
                     BinaryOp::Mod => it.r#mod(lhs, rhs),
+                    BinaryOp::Pow => it.pow(lhs, rhs),
                     BinaryOp::Identical => it.is_identical(lhs, rhs),
                     BinaryOp::LessThan => Value::Boolean(it.compare(lhs, rhs).is_lt()),
                     BinaryOp::LessThanOrEqual => Value::Boolean(it.compare(lhs, rhs).is_le()),
