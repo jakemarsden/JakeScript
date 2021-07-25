@@ -38,18 +38,18 @@ impl Parser {
 ///     Program(vec![BlockItem::Statement(Statement::Expression(
 ///         Expression::BinaryOp {
 ///             kind: BinaryOp::Add,
-///             lhs: Box::new(Expression::Member(MemberExpression::Literal(
-///                 ast::Literal::Numeric(100)
-///             ))),
-///             rhs: Box::new(Expression::BinaryOp {
+///             lhs: Box::new(Expression::BinaryOp {
 ///                 kind: BinaryOp::Add,
 ///                 lhs: Box::new(Expression::Member(MemberExpression::Literal(
-///                     ast::Literal::Numeric(50)
+///                     ast::Literal::Numeric(100)
 ///                 ))),
 ///                 rhs: Box::new(Expression::Member(MemberExpression::Literal(
-///                     ast::Literal::Numeric(17)
+///                     ast::Literal::Numeric(50)
 ///                 ))),
 ///             }),
+///             rhs: Box::new(Expression::Member(MemberExpression::Literal(
+///                 ast::Literal::Numeric(17)
+///             ))),
 ///         }
 ///     )),])
 /// );
@@ -313,7 +313,43 @@ impl Parser {
     }
 
     fn parse_expression(&mut self) -> Option<Expression> {
-        let lhs = match self.0.consume()? {
+        self.parse_expression_impl(Precedence::MIN)
+    }
+
+    fn parse_expression_impl(&mut self, min_precedence: Precedence) -> Option<Expression> {
+        let mut expression = self.parse_primary_expression()?;
+        loop {
+            let op_kind = match self.0.peek() {
+                Some(&Token::Punctuator(Punctuator::Semicolon)) => {
+                    self.0.advance();
+                    None
+                }
+                Some(&Token::Punctuator(punctuator)) => {
+                    if let Ok(op_kind) = Op::try_from(punctuator) {
+                        Some(op_kind)
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            };
+            if let Some(op_kind) = op_kind {
+                if op_kind.precedence() <= min_precedence {
+                    break;
+                }
+                self.0.advance();
+                expression = self
+                    .parse_secondary_expression(expression, op_kind)
+                    .expect("Expected secondary expression but was <end>");
+            } else {
+                break;
+            }
+        }
+        Some(expression)
+    }
+
+    fn parse_primary_expression(&mut self) -> Option<Expression> {
+        Some(match self.0.consume()? {
             Token::Identifier(name) => Expression::Member(MemberExpression::Identifier(name)),
             Token::Literal(literal) => {
                 Expression::Member(MemberExpression::Literal(match literal {
@@ -323,39 +359,16 @@ impl Parser {
                     Literal::String(value) => ast::Literal::String(value),
                 }))
             }
-            token => todo!("Parser::parse_expression: token={}", token),
-        };
-        match self.0.peek() {
-            Some(&Token::Punctuator(Punctuator::Semicolon)) => {
-                self.0.advance();
-                Some(lhs)
-            }
-            Some(&Token::Punctuator(Punctuator::CloseParen)) => {
-                // TODO: Added to get if statement conditions to parse, but seems a bit
-                // arbitrary/hackish
-                Some(lhs)
-            }
-            None => Some(lhs),
-            Some(_) => self.parse_secondary_expression(lhs),
-        }
+            token => todo!("Parser::parse_primary_expression: token={}", token),
+        })
     }
 
-    fn parse_secondary_expression(&mut self, lhs: Expression) -> Option<Expression> {
-        let kind = match self.0.consume()? {
-            Token::Punctuator(punctuator) => {
-                if let Ok(op) = Op::try_from(punctuator) {
-                    op
-                } else {
-                    panic!("Expected operator punctuator but was {}", punctuator)
-                }
-            }
-            token => panic!("Expected punctuator but was {}", token),
-        };
-
+    fn parse_secondary_expression(&mut self, lhs: Expression, op_kind: Op) -> Option<Expression> {
         let rhs = self
-            .parse_expression()
-            .expect("Expected rhs of binary expression but was <end>");
-        Some(match kind {
+            .parse_expression_impl(op_kind.precedence())
+            .expect("Expected RHS of binary expression but was <end>");
+
+        Some(match op_kind {
             Op::Assignment(kind) => Expression::AssignmentOp {
                 kind,
                 lhs: if let Expression::Member(lhs) = lhs {

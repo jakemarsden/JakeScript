@@ -264,3 +264,8 @@ pub enum Associativity {
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Precedence(u8);
+
+impl Precedence {
+    pub const MIN: Self = Self(1);
+    pub const MAX: Self = Self(21);
+}
