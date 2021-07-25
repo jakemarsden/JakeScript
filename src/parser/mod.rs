@@ -319,31 +319,24 @@ impl Parser {
     fn parse_expression_impl(&mut self, min_precedence: Precedence) -> Option<Expression> {
         let mut expression = self.parse_primary_expression()?;
         loop {
-            let op_kind = match self.0.peek() {
+            match self.0.peek() {
                 Some(&Token::Punctuator(Punctuator::Semicolon)) => {
                     self.0.advance();
-                    None
                 }
                 Some(&Token::Punctuator(punctuator)) => {
                     if let Ok(op_kind) = Op::try_from(punctuator) {
-                        Some(op_kind)
-                    } else {
-                        None
+                        if op_kind.precedence() > min_precedence {
+                            self.0.advance();
+                            expression = self
+                                .parse_secondary_expression(expression, op_kind)
+                                .expect("Expected secondary expression but was <end>");
+                            continue;
+                        }
                     }
                 }
-                _ => None,
-            };
-            if let Some(op_kind) = op_kind {
-                if op_kind.precedence() <= min_precedence {
-                    break;
-                }
-                self.0.advance();
-                expression = self
-                    .parse_secondary_expression(expression, op_kind)
-                    .expect("Expected secondary expression but was <end>");
-            } else {
-                break;
+                Some(_) | None => {}
             }
+            break;
         }
         Some(expression)
     }
