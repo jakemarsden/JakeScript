@@ -12,17 +12,25 @@ fn js_tests() {
         match common::eval(&ast) {
             Ok(..) => {
                 success_count += 1;
-                println!("JS :: [passed] {:?}", source_file);
+                println!("    [passed] {}", source_file.display());
             }
             Err(err) => {
                 failure_count += 1;
-                println!("JS :: [failed] {:?}: {}", source_file, err);
-                println!("{:#?}", ast);
+                eprintln!("    [failed] {}: {}", source_file.display(), err);
+                eprintln!("{:#?}", ast);
             }
         }
     }
-    println!("JS :: {} passed, {} failed", success_count, failure_count);
-    if failure_count != 0 {
-        panic!("JS :: Tests failed");
+    if failure_count == 0 {
+        println!(
+            "    JavaScript tests: {} passed, {} failed",
+            success_count, failure_count
+        );
+    } else {
+        eprintln!(
+            "    JavaScript tests: {} passed, {} failed",
+            success_count, failure_count
+        );
+        panic!("At least one JavaScript test failed");
     }
 }
