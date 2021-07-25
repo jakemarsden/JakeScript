@@ -31,15 +31,13 @@ fn assertion_fails_for_falsy_expression() {
 }
 
 fn assertion_passes(source_code: &str) {
-    assert_matches!(
-        common::eval_from_source_code(source_code),
-        (Ok(Value::Undefined), _)
-    );
+    let ast = common::parse_from_source_code(source_code);
+    let result = common::eval(&ast);
+    assert_matches!(result, Ok(Value::Undefined))
 }
 
 fn assertion_fails(source_code: &str) {
-    assert_matches!(
-        common::eval_from_source_code(source_code),
-        (Err(Error::AssertionFailed(..)), _)
-    );
+    let ast = common::parse_from_source_code(source_code);
+    let result = common::eval(&ast);
+    assert_matches!(result, Err(Error::AssertionFailed(..)));
 }

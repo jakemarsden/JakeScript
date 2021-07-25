@@ -6,26 +6,22 @@ mod common;
 
 #[test]
 fn declare_const_variable_with_initialiser() {
-    assert_matches!(
-        common::eval_from_source_code(
-            r##"
+    let source_code = r##"
 const a = 10;
 assert a === 10;
-"##
-        ),
-        (Ok(Value::Undefined), _)
-    );
+"##;
+    let ast = common::parse_from_source_code(source_code);
+    let result = common::eval(&ast);
+    assert_matches!(result, Ok(Value::Undefined));
 }
 
 #[test]
 fn set_initialised_const_variable() {
-    assert_matches!(
-        common::eval_from_source_code(
-            r##"
+    let source_code = r##"
 const a = 10;
 a = 20;
-"##
-        ),
-        (Err(Error::VariableIsConst(..)), _)
-    );
+"##;
+    let ast = common::parse_from_source_code(source_code);
+    let result = common::eval(&ast);
+    assert_matches!(result, Err(Error::VariableIsConst(..)));
 }
