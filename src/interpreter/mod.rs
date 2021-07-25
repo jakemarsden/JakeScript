@@ -198,9 +198,13 @@ impl Eval for Statement {
             } => {
                 let condition = condition.eval(it)?;
                 if condition.as_boolean() {
+                    it.vm().push_scope();
                     success_block.eval(it)?;
+                    it.vm().pop_scope();
                 } else if let Some(else_block) = else_block {
+                    it.vm().push_scope();
                     else_block.eval(it)?;
+                    it.vm().pop_scope();
                 }
                 Ok(Value::Undefined)
             }
@@ -208,7 +212,9 @@ impl Eval for Statement {
                 loop {
                     let condition = condition.eval(it)?;
                     if condition.as_boolean() {
+                        it.vm().push_scope();
                         block.eval(it)?;
+                        it.vm().pop_scope();
                     } else {
                         break;
                     }
