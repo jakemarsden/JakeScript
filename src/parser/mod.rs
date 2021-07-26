@@ -8,7 +8,7 @@ pub struct Parser(Stream<Token>);
 
 impl Parser {
     pub fn for_lexer(source: Lexer) -> Self {
-        Self::new(source.tokens())
+        Self::new(source)
     }
 
     pub fn for_tokens(source: Vec<Token>) -> Self {
@@ -16,7 +16,7 @@ impl Parser {
     }
 
     pub fn new(source: impl Iterator<Item = Token>) -> Self {
-        Self(Stream::new(source))
+        Self(Stream::new(source.filter(Token::is_significant)))
     }
 }
 

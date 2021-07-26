@@ -17,14 +17,8 @@ impl Lexer {
         Self(Stream::new(source))
     }
 
-    pub fn tokens(self) -> impl Iterator<Item = Token> {
-        self.filter_map(|it| {
-            if let Element::Token(token) = it {
-                Some(token)
-            } else {
-                None
-            }
-        })
+    pub fn significant(self) -> impl Iterator<Item = Token> {
+        self.filter(Token::is_significant)
     }
 }
 
@@ -36,16 +30,16 @@ impl Lexer {
 /// assert_eq!(
 ///     lexer.collect::<Vec<_>>(),
 ///     vec![
-///         Element::Token(Token::Literal(Literal::Numeric(100))),
-///         Element::Whitespace(' '),
-///         Element::Token(Token::Punctuator(Punctuator::Plus)),
-///         Element::Whitespace(' '),
-///         Element::Token(Token::Literal(Literal::Numeric(50))),
-///         Element::Whitespace(' '),
-///         Element::Token(Token::Punctuator(Punctuator::Plus)),
-///         Element::Whitespace(' '),
-///         Element::Token(Token::Literal(Literal::Numeric(17))),
-///         Element::Token(Token::Punctuator(Punctuator::Semicolon)),
+///         Token::Literal(Literal::Numeric(100)),
+///         Token::Whitespace(' '),
+///         Token::Punctuator(Punctuator::Plus),
+///         Token::Whitespace(' '),
+///         Token::Literal(Literal::Numeric(50)),
+///         Token::Whitespace(' '),
+///         Token::Punctuator(Punctuator::Plus),
+///         Token::Whitespace(' '),
+///         Token::Literal(Literal::Numeric(17)),
+///         Token::Punctuator(Punctuator::Semicolon),
 ///     ]
 /// )
 /// ```
@@ -62,44 +56,44 @@ impl Lexer {
 /// assert_eq!(
 ///     lexer.collect::<Vec<_>>(),
 ///     vec![
-///         Element::LineTerminator,
-///         Element::Token(Token::Keyword(Keyword::Let)),
-///         Element::Whitespace(' '),
-///         Element::Token(Token::Identifier("a".to_owned())),
-///         Element::Whitespace(' '),
-///         Element::Token(Token::Punctuator(Punctuator::Equal)),
-///         Element::Whitespace(' '),
-///         Element::Comment(" Hello, ".to_owned(), CommentKind::MultiLine),
-///         Element::Whitespace(' '),
-///         Element::Token(Token::Literal(Literal::Numeric(100))),
-///         Element::Token(Token::Punctuator(Punctuator::Semicolon)),
-///         Element::LineTerminator,
-///         Element::Token(Token::Keyword(Keyword::Let)),
-///         Element::Whitespace(' '),
-///         Element::Token(Token::Identifier("b".to_owned())),
-///         Element::Whitespace(' '),
-///         Element::Token(Token::Punctuator(Punctuator::Equal)),
-///         Element::Whitespace(' '),
-///         Element::Token(Token::Literal(Literal::Numeric(50))),
-///         Element::Token(Token::Punctuator(Punctuator::Semicolon)),
-///         Element::Whitespace(' '),
-///         Element::Comment(" world!".to_owned(), CommentKind::SingleLine),
-///         Element::LineTerminator,
-///         Element::Token(Token::Identifier("console".to_owned())),
-///         Element::Token(Token::Punctuator(Punctuator::Dot)),
-///         Element::Token(Token::Identifier("log".to_owned())),
-///         Element::Token(Token::Punctuator(Punctuator::OpenParen)),
-///         Element::Token(Token::Literal(Literal::String("100 + 50 = %s".to_owned()))),
-///         Element::Token(Token::Punctuator(Punctuator::Comma)),
-///         Element::Whitespace(' '),
-///         Element::Token(Token::Identifier("a".to_owned())),
-///         Element::Whitespace(' '),
-///         Element::Token(Token::Punctuator(Punctuator::Plus)),
-///         Element::Whitespace(' '),
-///         Element::Token(Token::Identifier("b".to_owned())),
-///         Element::Token(Token::Punctuator(Punctuator::CloseParen)),
-///         Element::Token(Token::Punctuator(Punctuator::Semicolon)),
-///         Element::LineTerminator,
+///         Token::LineTerminator,
+///         Token::Keyword(Keyword::Let),
+///         Token::Whitespace(' '),
+///         Token::Identifier("a".to_owned()),
+///         Token::Whitespace(' '),
+///         Token::Punctuator(Punctuator::Equal),
+///         Token::Whitespace(' '),
+///         Token::Comment(" Hello, ".to_owned(), CommentKind::MultiLine),
+///         Token::Whitespace(' '),
+///         Token::Literal(Literal::Numeric(100)),
+///         Token::Punctuator(Punctuator::Semicolon),
+///         Token::LineTerminator,
+///         Token::Keyword(Keyword::Let),
+///         Token::Whitespace(' '),
+///         Token::Identifier("b".to_owned()),
+///         Token::Whitespace(' '),
+///         Token::Punctuator(Punctuator::Equal),
+///         Token::Whitespace(' '),
+///         Token::Literal(Literal::Numeric(50)),
+///         Token::Punctuator(Punctuator::Semicolon),
+///         Token::Whitespace(' '),
+///         Token::Comment(" world!".to_owned(), CommentKind::SingleLine),
+///         Token::LineTerminator,
+///         Token::Identifier("console".to_owned()),
+///         Token::Punctuator(Punctuator::Dot),
+///         Token::Identifier("log".to_owned()),
+///         Token::Punctuator(Punctuator::OpenParen),
+///         Token::Literal(Literal::String("100 + 50 = %s".to_owned())),
+///         Token::Punctuator(Punctuator::Comma),
+///         Token::Whitespace(' '),
+///         Token::Identifier("a".to_owned()),
+///         Token::Whitespace(' '),
+///         Token::Punctuator(Punctuator::Plus),
+///         Token::Whitespace(' '),
+///         Token::Identifier("b".to_owned()),
+///         Token::Punctuator(Punctuator::CloseParen),
+///         Token::Punctuator(Punctuator::Semicolon),
+///         Token::LineTerminator,
 ///     ]
 /// );
 /// ```
@@ -115,7 +109,7 @@ impl Lexer {
 ///
 /// let mut lexer = Lexer::for_str(source);
 /// assert_eq!(
-///     lexer.tokens().collect::<Vec<_>>(),
+///     lexer.significant().collect::<Vec<_>>(),
 ///     vec![
 ///         Token::Keyword(Keyword::Let),
 ///         Token::Identifier("x".to_owned()),
@@ -142,19 +136,12 @@ impl Lexer {
 ///     ]
 /// );
 impl Iterator for Lexer {
-    type Item = Element;
+    type Item = Token;
 
     fn next(&mut self) -> Option<Self::Item> {
         let ch = *self.0.peek()?;
-
-        Some(if let Some(whitespace) = self.parse_whitespace() {
-            Element::Whitespace(whitespace)
-        } else if let Some(..) = self.parse_line_terminator_sequence() {
-            Element::LineTerminator
-        } else if let Some((content, kind)) = self.parse_comment() {
-            Element::Comment(content, kind)
-        } else if let Some(token) = self.parse_token() {
-            Element::Token(token)
+        Some(if let Some(token) = self.parse_token() {
+            token
         } else {
             todo!("Lexer::next: ch={}", ch)
         })
@@ -283,7 +270,13 @@ impl Lexer {
     }
 
     fn parse_token(&mut self) -> Option<Token> {
-        Some(if let Some(punctuator) = self.parse_punctuator() {
+        Some(if let Some(whitespace) = self.parse_whitespace() {
+            Token::Whitespace(whitespace)
+        } else if let Some(..) = self.parse_line_terminator_sequence() {
+            Token::LineTerminator
+        } else if let Some((content, kind)) = self.parse_comment() {
+            Token::Comment(content, kind)
+        } else if let Some(punctuator) = self.parse_punctuator() {
             Token::Punctuator(punctuator)
         } else if let Some(()) = self.parse_null_literal() {
             Token::Literal(Literal::Null)
@@ -421,7 +414,7 @@ mod test {
     fn tokenise_keywords() {
         for keyword in Keyword::VALUES {
             let mut lexer = Lexer::for_str(keyword.to_str());
-            assert_eq!(lexer.next(), Some(Element::Token(Token::Keyword(keyword))));
+            assert_eq!(lexer.next(), Some(Token::Keyword(keyword)));
             assert_eq!(lexer.next(), None);
         }
     }
@@ -430,10 +423,7 @@ mod test {
     fn tokenise_punctuators() {
         for punctuator in Punctuator::VALUES {
             let mut lexer = Lexer::for_str(punctuator.to_str());
-            assert_eq!(
-                lexer.next(),
-                Some(Element::Token(Token::Punctuator(punctuator)))
-            );
+            assert_eq!(lexer.next(), Some(Token::Punctuator(punctuator)));
             assert_eq!(lexer.next(), None);
         }
     }
@@ -444,9 +434,7 @@ mod test {
             let mut lexer = Lexer::for_str(source);
             assert_eq!(
                 lexer.next(),
-                Some(Element::Token(Token::Literal(Literal::String(
-                    expected.to_owned()
-                ))))
+                Some(Token::Literal(Literal::String(expected.to_owned())))
             );
             assert_eq!(lexer.next(), None);
         }
