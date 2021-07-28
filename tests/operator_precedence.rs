@@ -9,23 +9,21 @@ fn add_mul() {
     let ast = common::parse_from_source_code(source_code);
     assert_eq!(
         ast,
-        Program(vec![BlockItem::Statement(Statement::Expression(
-            Expression::BinaryOp {
-                kind: BinaryOp::Add,
+        Program(vec![Statement::Expression(Expression::BinaryOp {
+            kind: BinaryOp::Add,
+            lhs: Box::new(Expression::Member(MemberExpression::Literal(
+                Literal::Numeric(2)
+            ))),
+            rhs: Box::new(Expression::BinaryOp {
+                kind: BinaryOp::Mul,
                 lhs: Box::new(Expression::Member(MemberExpression::Literal(
-                    Literal::Numeric(2)
+                    Literal::Numeric(3)
                 ))),
-                rhs: Box::new(Expression::BinaryOp {
-                    kind: BinaryOp::Mul,
-                    lhs: Box::new(Expression::Member(MemberExpression::Literal(
-                        Literal::Numeric(3)
-                    ))),
-                    rhs: Box::new(Expression::Member(MemberExpression::Literal(
-                        Literal::Numeric(4)
-                    ))),
-                }),
-            }
-        ))])
+                rhs: Box::new(Expression::Member(MemberExpression::Literal(
+                    Literal::Numeric(4)
+                ))),
+            }),
+        })])
     );
 
     let result = common::eval(&ast);
@@ -38,23 +36,21 @@ fn mul_add() {
     let ast = common::parse_from_source_code(source_code);
     assert_eq!(
         ast,
-        Program(vec![BlockItem::Statement(Statement::Expression(
-            Expression::BinaryOp {
-                kind: BinaryOp::Add,
-                lhs: Box::new(Expression::BinaryOp {
-                    kind: BinaryOp::Mul,
-                    lhs: Box::new(Expression::Member(MemberExpression::Literal(
-                        Literal::Numeric(2)
-                    ))),
-                    rhs: Box::new(Expression::Member(MemberExpression::Literal(
-                        Literal::Numeric(3)
-                    ))),
-                }),
-                rhs: Box::new(Expression::Member(MemberExpression::Literal(
-                    Literal::Numeric(4)
+        Program(vec![Statement::Expression(Expression::BinaryOp {
+            kind: BinaryOp::Add,
+            lhs: Box::new(Expression::BinaryOp {
+                kind: BinaryOp::Mul,
+                lhs: Box::new(Expression::Member(MemberExpression::Literal(
+                    Literal::Numeric(2)
                 ))),
-            }
-        ))])
+                rhs: Box::new(Expression::Member(MemberExpression::Literal(
+                    Literal::Numeric(3)
+                ))),
+            }),
+            rhs: Box::new(Expression::Member(MemberExpression::Literal(
+                Literal::Numeric(4)
+            ))),
+        })])
     );
 
     let result = common::eval(&ast);
@@ -69,23 +65,21 @@ fn eq_add() {
     let ast = common::parse_from_source_code(source_code);
     assert_eq!(
         ast,
-        Program(vec![BlockItem::Statement(Statement::Expression(
-            Expression::BinaryOp {
-                kind: BinaryOp::Identical,
+        Program(vec![Statement::Expression(Expression::BinaryOp {
+            kind: BinaryOp::Identical,
+            lhs: Box::new(Expression::Member(MemberExpression::Literal(
+                Literal::Numeric(30)
+            ))),
+            rhs: Box::new(Expression::BinaryOp {
+                kind: BinaryOp::Add,
                 lhs: Box::new(Expression::Member(MemberExpression::Literal(
-                    Literal::Numeric(30)
+                    Literal::Numeric(10)
                 ))),
-                rhs: Box::new(Expression::BinaryOp {
-                    kind: BinaryOp::Add,
-                    lhs: Box::new(Expression::Member(MemberExpression::Literal(
-                        Literal::Numeric(10)
-                    ))),
-                    rhs: Box::new(Expression::Member(MemberExpression::Literal(
-                        Literal::Numeric(20)
-                    ))),
-                }),
-            }
-        ))])
+                rhs: Box::new(Expression::Member(MemberExpression::Literal(
+                    Literal::Numeric(20)
+                ))),
+            }),
+        })])
     );
 
     let result = common::eval(&ast);
@@ -100,23 +94,21 @@ fn add_eq() {
     let ast = common::parse_from_source_code(source_code);
     assert_eq!(
         ast,
-        Program(vec![BlockItem::Statement(Statement::Expression(
-            Expression::BinaryOp {
-                kind: BinaryOp::Identical,
-                lhs: Box::new(Expression::BinaryOp {
-                    kind: BinaryOp::Add,
-                    lhs: Box::new(Expression::Member(MemberExpression::Literal(
-                        Literal::Numeric(10)
-                    ))),
-                    rhs: Box::new(Expression::Member(MemberExpression::Literal(
-                        Literal::Numeric(20)
-                    ))),
-                }),
-                rhs: Box::new(Expression::Member(MemberExpression::Literal(
-                    Literal::Numeric(30)
+        Program(vec![Statement::Expression(Expression::BinaryOp {
+            kind: BinaryOp::Identical,
+            lhs: Box::new(Expression::BinaryOp {
+                kind: BinaryOp::Add,
+                lhs: Box::new(Expression::Member(MemberExpression::Literal(
+                    Literal::Numeric(10)
                 ))),
-            }
-        ))])
+                rhs: Box::new(Expression::Member(MemberExpression::Literal(
+                    Literal::Numeric(20)
+                ))),
+            }),
+            rhs: Box::new(Expression::Member(MemberExpression::Literal(
+                Literal::Numeric(30)
+            ))),
+        })])
     );
 
     let result = common::eval(&ast);

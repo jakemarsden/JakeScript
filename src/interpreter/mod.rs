@@ -66,23 +66,21 @@ impl Interpreter {
 /// ```rust
 /// # use jakescript::ast::*;
 /// # use jakescript::interpreter::*;
-/// let program = Program(vec![BlockItem::Statement(Statement::Expression(
-///     Expression::BinaryOp {
+/// let program = Program(vec![Statement::Expression(Expression::BinaryOp {
+///     kind: BinaryOp::Add,
+///     lhs: Box::new(Expression::Member(MemberExpression::Literal(
+///         Literal::Numeric(100),
+///     ))),
+///     rhs: Box::new(Expression::BinaryOp {
 ///         kind: BinaryOp::Add,
 ///         lhs: Box::new(Expression::Member(MemberExpression::Literal(
-///             Literal::Numeric(100),
+///             Literal::Numeric(50),
 ///         ))),
-///         rhs: Box::new(Expression::BinaryOp {
-///             kind: BinaryOp::Add,
-///             lhs: Box::new(Expression::Member(MemberExpression::Literal(
-///                 Literal::Numeric(50),
-///             ))),
-///             rhs: Box::new(Expression::Member(MemberExpression::Literal(
-///                 Literal::Numeric(17),
-///             ))),
-///         }),
-///     },
-/// ))]);
+///         rhs: Box::new(Expression::Member(MemberExpression::Literal(
+///             Literal::Numeric(17),
+///         ))),
+///     }),
+/// })]);
 ///
 /// let mut it = Interpreter::default();
 /// assert_eq!(program.eval(&mut it), Ok(Value::Numeric(167)));
@@ -92,21 +90,21 @@ impl Interpreter {
 /// # use jakescript::ast::*;
 /// # use jakescript::interpreter::*;
 /// let program = Program(vec![
-///     BlockItem::Declaration(Declaration::Variable {
+///     Statement::VariableDeclaration {
 ///         kind: VariableDeclKind::Let,
 ///         var_name: "a".to_owned(),
 ///         initialiser: Some(Expression::Member(MemberExpression::Literal(
 ///             Literal::Numeric(100),
 ///         ))),
-///     }),
-///     BlockItem::Declaration(Declaration::Variable {
+///     },
+///     Statement::VariableDeclaration {
 ///         kind: VariableDeclKind::Let,
 ///         var_name: "b".to_owned(),
 ///         initialiser: Some(Expression::Member(MemberExpression::Literal(
 ///             Literal::Numeric(50),
 ///         ))),
-///     }),
-///     BlockItem::Statement(Statement::Expression(Expression::BinaryOp {
+///     },
+///     Statement::Expression(Expression::BinaryOp {
 ///         kind: BinaryOp::Add,
 ///         lhs: Box::new(Expression::Member(MemberExpression::Identifier(
 ///             "a".to_owned(),
@@ -114,7 +112,7 @@ impl Interpreter {
 ///         rhs: Box::new(Expression::Member(MemberExpression::Identifier(
 ///             "b".to_owned(),
 ///         ))),
-///     })),
+///     }),
 /// ]);
 ///
 /// let mut it = Interpreter::default();
@@ -130,51 +128,13 @@ impl Eval for Program {
     }
 }
 
-impl Eval for Vec<BlockItem> {
+impl Eval for Block {
     fn eval(&self, it: &mut Interpreter) -> Result<Value> {
         let mut result = Value::Undefined;
-        for item in self.iter() {
-            match item {
-                BlockItem::Declaration(..) => {
-                    item.eval(it)?;
-                }
-                BlockItem::Statement(..) => {
-                    result = item.eval(it)?;
-                }
-            }
+        for stmt in self.iter() {
+            result = stmt.eval(it)?;
         }
         Ok(result)
-    }
-}
-
-impl Eval for BlockItem {
-    fn eval(&self, it: &mut Interpreter) -> Result<Value> {
-        match self {
-            Self::Declaration(decl) => decl.eval(it),
-            Self::Statement(stmt) => stmt.eval(it),
-        }
-    }
-}
-
-impl Eval for Declaration {
-    fn eval(&self, it: &mut Interpreter) -> Result<Value> {
-        match self {
-            Self::Variable {
-                kind,
-                var_name,
-                initialiser,
-            } => {
-                let value = if let Some(initialiser) = initialiser {
-                    initialiser.eval(it)?
-                } else {
-                    Value::Undefined
-                };
-                it.vm()
-                    .peek_scope_mut()
-                    .init_variable(*kind, var_name.clone(), value)?;
-                Ok(Value::Undefined)
-            }
-        }
     }
 }
 
@@ -189,7 +149,7 @@ impl Eval for Statement {
                     Err(AssertionFailedError::new(value).into())
                 }
             }
-            Self::Block(items) => items.eval(it),
+            Self::Block(stmts) => stmts.eval(it),
             Self::Expression(expr) => expr.eval(it),
             Self::If {
                 condition,
@@ -206,6 +166,21 @@ impl Eval for Statement {
                     else_block.eval(it)?;
                     it.vm().pop_scope();
                 }
+                Ok(Value::Undefined)
+            }
+            Self::VariableDeclaration {
+                kind,
+                var_name,
+                initialiser,
+            } => {
+                let value = if let Some(initialiser) = initialiser {
+                    initialiser.eval(it)?
+                } else {
+                    Value::Undefined
+                };
+                it.vm()
+                    .peek_scope_mut()
+                    .init_variable(*kind, var_name.clone(), value)?;
                 Ok(Value::Undefined)
             }
             Self::WhileLoop { condition, block } => {

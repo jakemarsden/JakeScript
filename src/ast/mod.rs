@@ -1,29 +1,30 @@
 pub type IdentifierName = String;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Program(pub Vec<BlockItem>);
+pub type Block = Vec<Statement>;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum BlockItem {
-    Statement(Statement),
-    Declaration(Declaration),
-}
+pub struct Program(pub Block);
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Statement {
     Assertion {
         condition: Expression,
     },
-    Block(Vec<BlockItem>),
+    Block(Block),
     Expression(Expression),
     If {
         condition: Expression,
-        success_block: Vec<BlockItem>,
-        else_block: Option<Vec<BlockItem>>,
+        success_block: Block,
+        else_block: Option<Block>,
+    },
+    VariableDeclaration {
+        kind: VariableDeclKind,
+        var_name: IdentifierName,
+        initialiser: Option<Expression>,
     },
     WhileLoop {
         condition: Expression,
-        block: Vec<BlockItem>,
+        block: Block,
     },
 }
 
@@ -239,15 +240,6 @@ impl Operator for UnaryOp {
             | Self::DecrementPrefix => Precedence(17),
         }
     }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum Declaration {
-    Variable {
-        kind: VariableDeclKind,
-        var_name: IdentifierName,
-        initialiser: Option<Expression>,
-    },
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
