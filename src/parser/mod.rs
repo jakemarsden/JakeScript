@@ -1,5 +1,5 @@
-use crate::ast::{self, *};
-use crate::lexer::{Literal, *};
+use crate::ast::*;
+use crate::lexer::*;
 use crate::util::Stream;
 use std::convert::TryFrom;
 use std::iter::Iterator;
@@ -40,10 +40,16 @@ impl Parser {
 ///             kind: BinaryOp::Add,
 ///             lhs: Box::new(Expression::Binary(BinaryExpression {
 ///                 kind: BinaryOp::Add,
-///                 lhs: Box::new(Expression::Literal(ast::Literal::Numeric(100))),
-///                 rhs: Box::new(Expression::Literal(ast::Literal::Numeric(50))),
+///                 lhs: Box::new(Expression::Literal(LiteralExpression {
+///                     value: Value::Numeric(100)
+///                 })),
+///                 rhs: Box::new(Expression::Literal(LiteralExpression {
+///                     value: Value::Numeric(50)
+///                 })),
 ///             })),
-///             rhs: Box::new(Expression::Literal(ast::Literal::Numeric(17))),
+///             rhs: Box::new(Expression::Literal(LiteralExpression {
+///                 value: Value::Numeric(17)
+///             })),
 ///         }
 ///     )),]))
 /// );
@@ -76,12 +82,16 @@ impl Parser {
 ///         Statement::VariableDeclaration(VariableDeclaration {
 ///             kind: VariableDeclarationKind::Let,
 ///             var_name: "a".to_owned(),
-///             initialiser: Some(Expression::Literal(ast::Literal::Numeric(100)))
+///             initialiser: Some(Expression::Literal(LiteralExpression {
+///                 value: Value::Numeric(100)
+///             }))
 ///         }),
 ///         Statement::VariableDeclaration(VariableDeclaration {
 ///             kind: VariableDeclarationKind::Let,
 ///             var_name: "b".to_owned(),
-///             initialiser: Some(Expression::Literal(ast::Literal::Numeric(50)))
+///             initialiser: Some(Expression::Literal(LiteralExpression {
+///                 value: Value::Numeric(50)
+///             }))
 ///         }),
 ///         Statement::Expression(Expression::Binary(BinaryExpression {
 ///             kind: BinaryOp::Add,
@@ -132,7 +142,9 @@ impl Parser {
 ///         Statement::VariableDeclaration(VariableDeclaration {
 ///             kind: VariableDeclarationKind::Let,
 ///             var_name: "a".to_owned(),
-///             initialiser: Some(Expression::Literal(ast::Literal::Numeric(100)))
+///             initialiser: Some(Expression::Literal(LiteralExpression {
+///                 value: Value::Numeric(100)
+///             }))
 ///         }),
 ///         Statement::VariableDeclaration(VariableDeclaration {
 ///             kind: VariableDeclarationKind::Let,
@@ -143,24 +155,26 @@ impl Parser {
 ///             condition: Expression::Binary(BinaryExpression {
 ///                 kind: BinaryOp::MoreThanOrEqual,
 ///                 lhs: Box::new(Expression::VariableAccess("a".to_owned())),
-///                 rhs: Box::new(Expression::Literal(ast::Literal::Numeric(3)))
+///                 rhs: Box::new(Expression::Literal(LiteralExpression {
+///                     value: Value::Numeric(3)
+///                 }))
 ///             }),
 ///             success_block: Block::new(vec![Statement::Expression(Expression::Assignment(
 ///                 AssignmentExpression {
 ///                     kind: AssignmentOp::Assign,
 ///                     lhs: Box::new(Expression::VariableAccess("b".to_owned())),
-///                     rhs: Box::new(Expression::Literal(ast::Literal::String(
-///                         "success block!".to_owned()
-///                     ))),
+///                     rhs: Box::new(Expression::Literal(LiteralExpression {
+///                         value: Value::String("success block!".to_owned())
+///                     })),
 ///                 }
 ///             )),]),
 ///             else_block: Some(Block::new(vec![Statement::Expression(
 ///                 Expression::Assignment(AssignmentExpression {
 ///                     kind: AssignmentOp::Assign,
 ///                     lhs: Box::new(Expression::VariableAccess("b".to_owned())),
-///                     rhs: Box::new(Expression::Literal(ast::Literal::String(
-///                         "else block!".to_owned()
-///                     ))),
+///                     rhs: Box::new(Expression::Literal(LiteralExpression {
+///                         value: Value::String("else block!".to_owned())
+///                     })),
 ///                 })
 ///             ),]))
 ///         }),
@@ -200,13 +214,17 @@ impl Parser {
 ///         Statement::VariableDeclaration(VariableDeclaration {
 ///             kind: VariableDeclarationKind::Let,
 ///             var_name: "a".to_owned(),
-///             initialiser: Some(Expression::Literal(ast::Literal::Numeric(3)))
+///             initialiser: Some(Expression::Literal(LiteralExpression {
+///                 value: Value::Numeric(3)
+///             }))
 ///         }),
 ///         Statement::WhileLoop(WhileLoop {
 ///             condition: Expression::Binary(BinaryExpression {
 ///                 kind: BinaryOp::NotIdentical,
 ///                 lhs: Box::new(Expression::VariableAccess("a".to_owned())),
-///                 rhs: Box::new(Expression::Literal(ast::Literal::Numeric(0)))
+///                 rhs: Box::new(Expression::Literal(LiteralExpression {
+///                     value: Value::Numeric(0)
+///                 }))
 ///             }),
 ///             block: Block::new(vec![Statement::Expression(Expression::Assignment(
 ///                 AssignmentExpression {
@@ -215,7 +233,9 @@ impl Parser {
 ///                     rhs: Box::new(Expression::Binary(BinaryExpression {
 ///                         kind: BinaryOp::Sub,
 ///                         lhs: Box::new(Expression::VariableAccess("a".to_string())),
-///                         rhs: Box::new(Expression::Literal(ast::Literal::Numeric(1))),
+///                         rhs: Box::new(Expression::Literal(LiteralExpression {
+///                             value: Value::Numeric(1)
+///                         })),
 ///                     })),
 ///                 }
 ///             )),]),
@@ -297,11 +317,13 @@ impl Parser {
     fn parse_primary_expression(&mut self) -> Option<Expression> {
         Some(match self.0.consume()? {
             Token::Identifier(name) => Expression::VariableAccess(name),
-            Token::Literal(literal) => Expression::Literal(match literal {
-                Literal::Boolean(value) => ast::Literal::Boolean(value),
-                Literal::Null => ast::Literal::Null,
-                Literal::Numeric(value) => ast::Literal::Numeric(value),
-                Literal::String(value) => ast::Literal::String(value),
+            Token::Literal(literal) => Expression::Literal(LiteralExpression {
+                value: match literal {
+                    Literal::Boolean(value) => Value::Boolean(value),
+                    Literal::Null => Value::Null,
+                    Literal::Numeric(value) => Value::Numeric(value),
+                    Literal::String(value) => Value::String(value),
+                },
             }),
             token => todo!("Parser::parse_primary_expression: token={}", token),
         })

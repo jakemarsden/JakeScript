@@ -69,11 +69,17 @@ impl Interpreter {
 /// let program = Program::new(Block::new(vec![Statement::Expression(Expression::Binary(
 ///     BinaryExpression {
 ///         kind: BinaryOp::Add,
-///         lhs: Box::new(Expression::Literal(Literal::Numeric(100))),
+///         lhs: Box::new(Expression::Literal(LiteralExpression {
+///             value: Value::Numeric(100),
+///         })),
 ///         rhs: Box::new(Expression::Binary(BinaryExpression {
 ///             kind: BinaryOp::Add,
-///             lhs: Box::new(Expression::Literal(Literal::Numeric(50))),
-///             rhs: Box::new(Expression::Literal(Literal::Numeric(17))),
+///             lhs: Box::new(Expression::Literal(LiteralExpression {
+///                 value: Value::Numeric(50),
+///             })),
+///             rhs: Box::new(Expression::Literal(LiteralExpression {
+///                 value: Value::Numeric(17),
+///             })),
 ///         })),
 ///     },
 /// ))]));
@@ -89,12 +95,16 @@ impl Interpreter {
 ///     Statement::VariableDeclaration(VariableDeclaration {
 ///         kind: VariableDeclarationKind::Let,
 ///         var_name: "a".to_owned(),
-///         initialiser: Some(Expression::Literal(Literal::Numeric(100))),
+///         initialiser: Some(Expression::Literal(LiteralExpression {
+///             value: Value::Numeric(100),
+///         })),
 ///     }),
 ///     Statement::VariableDeclaration(VariableDeclaration {
 ///         kind: VariableDeclarationKind::Let,
 ///         var_name: "b".to_owned(),
-///         initialiser: Some(Expression::Literal(Literal::Numeric(50))),
+///         initialiser: Some(Expression::Literal(LiteralExpression {
+///             value: Value::Numeric(50),
+///         })),
 ///     }),
 ///     Statement::Expression(Expression::Binary(BinaryExpression {
 ///         kind: BinaryOp::Add,
@@ -204,13 +214,8 @@ impl Eval for Expression {
             Self::Assignment(ref node) => node.eval(it),
             Self::Binary(ref node) => node.eval(it),
             Self::Unary(ref node) => node.eval(it),
+            Self::Literal(ref node) => node.eval(it),
 
-            Self::Literal(lit) => Ok(match lit {
-                Literal::Boolean(value) => Value::Boolean(*value),
-                Literal::Null => Value::Null,
-                Literal::Numeric(value) => Value::Numeric(*value),
-                Literal::String(value) => Value::String(value.clone()),
-            }),
             Self::PropertyAccess { .. } => {
                 todo!("Expression::eval: {:?}", self)
             }
@@ -269,5 +274,11 @@ impl Eval for BinaryExpression {
 impl Eval for UnaryExpression {
     fn eval(&self, _it: &mut Interpreter) -> Result<Value> {
         todo!("UnaryExpression::eval: {:?}", self)
+    }
+}
+
+impl Eval for LiteralExpression {
+    fn eval(&self, _it: &mut Interpreter) -> Result<Value> {
+        Ok(self.value.clone())
     }
 }

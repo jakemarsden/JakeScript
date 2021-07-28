@@ -1,6 +1,7 @@
 #![feature(assert_matches)]
 
-use jakescript::interpreter::{Error, Value};
+use jakescript::ast::Value;
+use jakescript::interpreter::Error;
 
 mod common;
 

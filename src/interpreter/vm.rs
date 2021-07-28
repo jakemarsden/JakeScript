@@ -1,7 +1,7 @@
-use crate::ast::VariableDeclarationKind;
+use crate::ast::{Value, VariableDeclarationKind};
 use crate::interpreter::error::*;
 use std::collections::HashMap;
-use std::{fmt, mem, ops};
+use std::mem;
 
 #[derive(Default)]
 pub struct Vm {
@@ -27,59 +27,6 @@ impl Vm {
     pub fn pop_scope(&mut self) {
         let parent_scope = *self.scope.parent.take().expect("Cannot pop global scope");
         self.scope = parent_scope;
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum Value {
-    Boolean(bool),
-    Null,
-    Numeric(i64),
-    String(String),
-    Undefined,
-}
-
-impl Default for Value {
-    fn default() -> Self {
-        Self::Undefined
-    }
-}
-
-impl fmt::Display for Value {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Self::Boolean(value) => write!(f, "{}", value),
-            Self::Null => write!(f, "null"),
-            Self::Numeric(value) => write!(f, "{}", value),
-            Self::String(value) => write!(f, r#""{}""#, value),
-            Self::Undefined => write!(f, "undefined"),
-        }
-    }
-}
-
-impl Value {
-    pub fn as_boolean(&self) -> bool {
-        match self {
-            Self::Boolean(value) => *value,
-            Self::Numeric(value) => *value > 0,
-            Self::String(value) => !value.is_empty(),
-            Self::Null | Self::Undefined => false,
-        }
-    }
-
-    pub fn as_numeric(&self) -> i64 {
-        match self {
-            Self::Numeric(value) => *value,
-            value => todo!("Value::as_numeric: {}", value),
-        }
-    }
-}
-
-impl ops::Not for Value {
-    type Output = Self;
-
-    fn not(self) -> Self {
-        Self::Boolean(!self.as_boolean())
     }
 }
 
