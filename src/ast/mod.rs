@@ -2,6 +2,8 @@ use std::iter;
 
 pub type IdentifierName = String;
 
+pub trait Node: Clone + fmt::Debug + PartialEq {}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Program(Block);
 
@@ -14,6 +16,8 @@ impl Program {
         &self.0
     }
 }
+
+impl Node for Program {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Block(Vec<Statement>);
@@ -31,6 +35,8 @@ impl Block {
         self.statements().iter()
     }
 }
+
+impl Node for Block {}
 
 impl iter::IntoIterator for Block {
     type Item = Statement;
@@ -61,10 +67,14 @@ pub enum Statement {
     WhileLoop(WhileLoop),
 }
 
+impl Node for Statement {}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Assertion {
     pub condition: Expression,
 }
+
+impl Node for Assertion {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct IfStatement {
@@ -73,11 +83,15 @@ pub struct IfStatement {
     pub else_block: Option<Block>,
 }
 
+impl Node for IfStatement {}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct WhileLoop {
     pub condition: Expression,
     pub block: Block,
 }
+
+impl Node for WhileLoop {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VariableDeclaration {
@@ -85,6 +99,8 @@ pub struct VariableDeclaration {
     pub var_name: IdentifierName,
     pub initialiser: Option<Expression>,
 }
+
+impl Node for VariableDeclaration {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Expression {
@@ -100,12 +116,16 @@ pub enum Expression {
     VariableAccess(IdentifierName),
 }
 
+impl Node for Expression {}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct AssignmentExpression {
     pub kind: AssignmentOp,
     pub lhs: Box<Expression>,
     pub rhs: Box<Expression>,
 }
+
+impl Node for AssignmentExpression {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BinaryExpression {
@@ -114,11 +134,15 @@ pub struct BinaryExpression {
     pub rhs: Box<Expression>,
 }
 
+impl Node for BinaryExpression {}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct UnaryExpression {
     pub kind: UnaryOp,
     pub operand: Box<Expression>,
 }
+
+impl Node for UnaryExpression {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Literal {

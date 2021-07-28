@@ -106,7 +106,7 @@ impl Interpreter {
 /// let mut it = Interpreter::default();
 /// assert_eq!(program.eval(&mut it), Ok(Value::Numeric(150)));
 /// ```
-pub trait Eval {
+pub trait Eval: Node {
     fn eval(&self, it: &mut Interpreter) -> Result<Value>;
 }
 
