@@ -108,12 +108,8 @@ pub enum Expression {
     Binary(BinaryExpression),
     Unary(UnaryExpression),
     Literal(LiteralExpression),
-
-    PropertyAccess {
-        base: Box<Expression>,
-        member_name: IdentifierName,
-    },
-    VariableAccess(IdentifierName),
+    PropertyAccess(PropertyAccessExpression),
+    VariableAccess(VariableAccessExpression),
 }
 
 impl Node for Expression {}
@@ -150,6 +146,21 @@ pub struct LiteralExpression {
 }
 
 impl Node for LiteralExpression {}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PropertyAccessExpression {
+    pub base: Box<Expression>,
+    pub property_name: IdentifierName,
+}
+
+impl Node for PropertyAccessExpression {}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct VariableAccessExpression {
+    pub var_name: IdentifierName,
+}
+
+impl Node for VariableAccessExpression {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Value {

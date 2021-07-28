@@ -108,8 +108,12 @@ impl Interpreter {
 ///     }),
 ///     Statement::Expression(Expression::Binary(BinaryExpression {
 ///         kind: BinaryOp::Add,
-///         lhs: Box::new(Expression::VariableAccess("a".to_owned())),
-///         rhs: Box::new(Expression::VariableAccess("b".to_owned())),
+///         lhs: Box::new(Expression::VariableAccess(VariableAccessExpression {
+///             var_name: "a".to_owned(),
+///         })),
+///         rhs: Box::new(Expression::VariableAccess(VariableAccessExpression {
+///             var_name: "b".to_owned(),
+///         })),
 ///     })),
 /// ]));
 ///
@@ -214,15 +218,10 @@ impl Eval for Expression {
             Self::Assignment(ref node) => node.eval(it),
             Self::Binary(ref node) => node.eval(it),
             Self::Unary(ref node) => node.eval(it),
-            Self::Literal(ref node) => node.eval(it),
 
-            Self::PropertyAccess { .. } => {
-                todo!("Expression::eval: {:?}", self)
-            }
-            Self::VariableAccess(ref var_name) => {
-                let value = it.vm().peek_scope().resolve_variable(var_name)?;
-                Ok(value.clone())
-            }
+            Self::Literal(ref node) => node.eval(it),
+            Self::PropertyAccess(ref node) => node.eval(it),
+            Self::VariableAccess(ref node) => node.eval(it),
         }
     }
 }
@@ -230,7 +229,7 @@ impl Eval for Expression {
 impl Eval for AssignmentExpression {
     fn eval(&self, it: &mut Interpreter) -> Result<Value> {
         let var_name = match self.lhs.as_ref() {
-            Expression::VariableAccess(ref var_name) => var_name,
+            Expression::VariableAccess(node) => &node.var_name,
             lhs => todo!("Expression::eval: assignment_op: lhs={:?}", lhs),
         };
         let lhs = it.vm().peek_scope().resolve_variable(var_name)?.clone();
@@ -280,5 +279,18 @@ impl Eval for UnaryExpression {
 impl Eval for LiteralExpression {
     fn eval(&self, _it: &mut Interpreter) -> Result<Value> {
         Ok(self.value.clone())
+    }
+}
+
+impl Eval for PropertyAccessExpression {
+    fn eval(&self, _it: &mut Interpreter) -> Result<Value> {
+        todo!("PropertyExpression::eval: {:?}", self)
+    }
+}
+
+impl Eval for VariableAccessExpression {
+    fn eval(&self, it: &mut Interpreter) -> Result<Value> {
+        let value = it.vm().peek_scope().resolve_variable(&self.var_name)?;
+        Ok(value.clone())
     }
 }
