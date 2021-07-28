@@ -1,5 +1,5 @@
-use jakescript::ast::Program;
-use jakescript::interpreter::{self, Eval, Interpreter, Value};
+use jakescript::ast::{Program, Value};
+use jakescript::interpreter::{self, Eval, Interpreter};
 use jakescript::lexer::Lexer;
 use jakescript::parser::Parser;
 use std::path::Path;

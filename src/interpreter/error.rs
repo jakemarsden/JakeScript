@@ -1,4 +1,4 @@
-use crate::interpreter::Value;
+use crate::ast::Value;
 use std::fmt;
 
 #[derive(Clone, Debug, PartialEq)]

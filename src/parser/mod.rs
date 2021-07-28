@@ -1,5 +1,5 @@
-use crate::ast::{self, *};
-use crate::lexer::{Literal, *};
+use crate::ast::*;
+use crate::lexer::*;
 use crate::util::Stream;
 use std::convert::TryFrom;
 use std::iter::Iterator;
@@ -35,23 +35,23 @@ impl Parser {
 /// let mut parser = Parser::for_tokens(source);
 /// assert_eq!(
 ///     parser.execute(),
-///     Program(vec![BlockItem::Statement(Statement::Expression(
-///         Expression::BinaryOp {
+///     Program::new(Block::new(vec![Statement::Expression(Expression::Binary(
+///         BinaryExpression {
 ///             kind: BinaryOp::Add,
-///             lhs: Box::new(Expression::BinaryOp {
+///             lhs: Box::new(Expression::Binary(BinaryExpression {
 ///                 kind: BinaryOp::Add,
-///                 lhs: Box::new(Expression::Member(MemberExpression::Literal(
-///                     ast::Literal::Numeric(100)
-///                 ))),
-///                 rhs: Box::new(Expression::Member(MemberExpression::Literal(
-///                     ast::Literal::Numeric(50)
-///                 ))),
-///             }),
-///             rhs: Box::new(Expression::Member(MemberExpression::Literal(
-///                 ast::Literal::Numeric(17)
-///             ))),
+///                 lhs: Box::new(Expression::Literal(LiteralExpression {
+///                     value: Value::Numeric(100)
+///                 })),
+///                 rhs: Box::new(Expression::Literal(LiteralExpression {
+///                     value: Value::Numeric(50)
+///                 })),
+///             })),
+///             rhs: Box::new(Expression::Literal(LiteralExpression {
+///                 value: Value::Numeric(17)
+///             })),
 ///         }
-///     )),])
+///     )),]))
 /// );
 /// ```
 ///
@@ -78,31 +78,31 @@ impl Parser {
 /// let mut parser = Parser::for_tokens(source);
 /// assert_eq!(
 ///     parser.execute(),
-///     Program(vec![
-///         BlockItem::Declaration(Declaration::Variable {
-///             kind: VariableDeclKind::Let,
+///     Program::new(Block::new(vec![
+///         Statement::VariableDeclaration(VariableDeclaration {
+///             kind: VariableDeclarationKind::Let,
 ///             var_name: "a".to_owned(),
-///             initialiser: Some(Expression::Member(MemberExpression::Literal(
-///                 ast::Literal::Numeric(100)
-///             )))
+///             initialiser: Some(Expression::Literal(LiteralExpression {
+///                 value: Value::Numeric(100)
+///             }))
 ///         }),
-///         BlockItem::Declaration(Declaration::Variable {
-///             kind: VariableDeclKind::Let,
+///         Statement::VariableDeclaration(VariableDeclaration {
+///             kind: VariableDeclarationKind::Let,
 ///             var_name: "b".to_owned(),
-///             initialiser: Some(Expression::Member(MemberExpression::Literal(
-///                 ast::Literal::Numeric(50)
-///             )))
+///             initialiser: Some(Expression::Literal(LiteralExpression {
+///                 value: Value::Numeric(50)
+///             }))
 ///         }),
-///         BlockItem::Statement(Statement::Expression(Expression::BinaryOp {
+///         Statement::Expression(Expression::Binary(BinaryExpression {
 ///             kind: BinaryOp::Add,
-///             lhs: Box::new(Expression::Member(MemberExpression::Identifier(
-///                 "a".to_owned()
-///             ))),
-///             rhs: Box::new(Expression::Member(MemberExpression::Identifier(
-///                 "b".to_owned()
-///             )))
+///             lhs: Box::new(Expression::VariableAccess(VariableAccessExpression {
+///                 var_name: "a".to_owned()
+///             })),
+///             rhs: Box::new(Expression::VariableAccess(VariableAccessExpression {
+///                 var_name: "b".to_owned()
+///             }))
 ///         }))
-///     ])
+///     ]))
 /// );
 /// ```
 ///
@@ -142,49 +142,53 @@ impl Parser {
 /// let mut parser = Parser::for_tokens(source);
 /// assert_eq!(
 ///     parser.execute(),
-///     Program(vec![
-///         BlockItem::Declaration(Declaration::Variable {
-///             kind: VariableDeclKind::Let,
+///     Program::new(Block::new(vec![
+///         Statement::VariableDeclaration(VariableDeclaration {
+///             kind: VariableDeclarationKind::Let,
 ///             var_name: "a".to_owned(),
-///             initialiser: Some(Expression::Member(MemberExpression::Literal(
-///                 ast::Literal::Numeric(100)
-///             )))
+///             initialiser: Some(Expression::Literal(LiteralExpression {
+///                 value: Value::Numeric(100)
+///             }))
 ///         }),
-///         BlockItem::Declaration(Declaration::Variable {
-///             kind: VariableDeclKind::Let,
+///         Statement::VariableDeclaration(VariableDeclaration {
+///             kind: VariableDeclarationKind::Let,
 ///             var_name: "b".to_owned(),
 ///             initialiser: None,
 ///         }),
-///         BlockItem::Statement(Statement::If {
-///             condition: Expression::BinaryOp {
+///         Statement::IfStatement(IfStatement {
+///             condition: Expression::Binary(BinaryExpression {
 ///                 kind: BinaryOp::MoreThanOrEqual,
-///                 lhs: Box::new(Expression::Member(MemberExpression::Identifier(
-///                     "a".to_owned()
-///                 ))),
-///                 rhs: Box::new(Expression::Member(MemberExpression::Literal(
-///                     ast::Literal::Numeric(3)
-///                 )))
-///             },
-///             success_block: vec![BlockItem::Statement(Statement::Expression(
-///                 Expression::AssignmentOp {
+///                 lhs: Box::new(Expression::VariableAccess(VariableAccessExpression {
+///                     var_name: "a".to_owned()
+///                 })),
+///                 rhs: Box::new(Expression::Literal(LiteralExpression {
+///                     value: Value::Numeric(3)
+///                 }))
+///             }),
+///             success_block: Block::new(vec![Statement::Expression(Expression::Assignment(
+///                 AssignmentExpression {
 ///                     kind: AssignmentOp::Assign,
-///                     lhs: MemberExpression::Identifier("b".to_owned()),
-///                     rhs: Box::new(Expression::Member(MemberExpression::Literal(
-///                         ast::Literal::String("success block!".to_owned())
-///                     ))),
+///                     lhs: Box::new(Expression::VariableAccess(VariableAccessExpression {
+///                         var_name: "b".to_owned()
+///                     })),
+///                     rhs: Box::new(Expression::Literal(LiteralExpression {
+///                         value: Value::String("success block!".to_owned())
+///                     })),
 ///                 }
-///             )),],
-///             else_block: Some(vec![BlockItem::Statement(Statement::Expression(
-///                 Expression::AssignmentOp {
+///             )),]),
+///             else_block: Some(Block::new(vec![Statement::Expression(
+///                 Expression::Assignment(AssignmentExpression {
 ///                     kind: AssignmentOp::Assign,
-///                     lhs: MemberExpression::Identifier("b".to_owned()),
-///                     rhs: Box::new(Expression::Member(MemberExpression::Literal(
-///                         ast::Literal::String("else block!".to_owned())
-///                     ))),
-///                 }
-///             )),])
+///                     lhs: Box::new(Expression::VariableAccess(VariableAccessExpression {
+///                         var_name: "b".to_owned()
+///                     })),
+///                     rhs: Box::new(Expression::Literal(LiteralExpression {
+///                         value: Value::String("else block!".to_owned())
+///                     })),
+///                 })
+///             ),]))
 ///         }),
-///     ])
+///     ]))
 /// );
 /// ```
 ///
@@ -216,62 +220,64 @@ impl Parser {
 /// let mut parser = Parser::for_tokens(source);
 /// assert_eq!(
 ///     parser.execute(),
-///     Program(vec![
-///         BlockItem::Declaration(Declaration::Variable {
-///             kind: VariableDeclKind::Let,
+///     Program::new(Block::new(vec![
+///         Statement::VariableDeclaration(VariableDeclaration {
+///             kind: VariableDeclarationKind::Let,
 ///             var_name: "a".to_owned(),
-///             initialiser: Some(Expression::Member(MemberExpression::Literal(
-///                 ast::Literal::Numeric(3)
-///             )))
+///             initialiser: Some(Expression::Literal(LiteralExpression {
+///                 value: Value::Numeric(3)
+///             }))
 ///         }),
-///         BlockItem::Statement(Statement::WhileLoop {
-///             condition: Expression::BinaryOp {
+///         Statement::WhileLoop(WhileLoop {
+///             condition: Expression::Binary(BinaryExpression {
 ///                 kind: BinaryOp::NotIdentical,
-///                 lhs: Box::new(Expression::Member(MemberExpression::Identifier(
-///                     "a".to_owned()
-///                 ))),
-///                 rhs: Box::new(Expression::Member(MemberExpression::Literal(
-///                     ast::Literal::Numeric(0)
-///                 )))
-///             },
-///             block: vec![BlockItem::Statement(Statement::Expression(
-///                 Expression::AssignmentOp {
+///                 lhs: Box::new(Expression::VariableAccess(VariableAccessExpression {
+///                     var_name: "a".to_owned()
+///                 })),
+///                 rhs: Box::new(Expression::Literal(LiteralExpression {
+///                     value: Value::Numeric(0)
+///                 }))
+///             }),
+///             block: Block::new(vec![Statement::Expression(Expression::Assignment(
+///                 AssignmentExpression {
 ///                     kind: AssignmentOp::Assign,
-///                     lhs: MemberExpression::Identifier("a".to_owned()),
-///                     rhs: Box::new(Expression::BinaryOp {
+///                     lhs: Box::new(Expression::VariableAccess(VariableAccessExpression {
+///                         var_name: "a".to_owned()
+///                     })),
+///                     rhs: Box::new(Expression::Binary(BinaryExpression {
 ///                         kind: BinaryOp::Sub,
-///                         lhs: Box::new(Expression::Member(MemberExpression::Identifier(
-///                             "a".to_string()
-///                         ))),
-///                         rhs: Box::new(Expression::Member(MemberExpression::Literal(
-///                             ast::Literal::Numeric(1)
-///                         ))),
-///                     }),
+///                         lhs: Box::new(Expression::VariableAccess(VariableAccessExpression {
+///                             var_name: "a".to_string()
+///                         })),
+///                         rhs: Box::new(Expression::Literal(LiteralExpression {
+///                             value: Value::Numeric(1)
+///                         })),
+///                     })),
 ///                 }
-///             )),],
+///             )),]),
 ///         }),
-///     ])
+///     ]))
 /// );
 /// ```
 impl Parser {
     pub fn execute(mut self) -> Program {
-        let mut block = Vec::new();
-        while let Some(block_item) = self.parse_block_item() {
-            block.push(block_item);
+        let mut stmts = Vec::new();
+        while let Some(stmt) = self.parse_statement() {
+            stmts.push(stmt);
         }
-        Program(block)
+        Program::new(Block::new(stmts))
     }
 
-    fn parse_block(&mut self) -> Vec<BlockItem> {
+    fn parse_block(&mut self) -> Block {
         self.0
             .consume_exact(&Token::Punctuator(Punctuator::OpenBrace));
-        let mut block = Vec::new();
+        let mut stmts = Vec::new();
         while !matches!(
             self.0.peek(),
             Some(Token::Punctuator(Punctuator::CloseBrace))
         ) {
-            if let Some(block_item) = self.parse_block_item() {
-                block.push(block_item);
+            if let Some(stmt) = self.parse_statement() {
+                stmts.push(stmt);
             } else {
                 // Block not closed before end of input
                 break;
@@ -279,35 +285,18 @@ impl Parser {
         }
         self.0
             .consume_exact(&Token::Punctuator(Punctuator::CloseBrace));
-        block
-    }
-
-    fn parse_block_item(&mut self) -> Option<BlockItem> {
-        match self.0.peek()? {
-            Token::Keyword(Keyword::Const | Keyword::Let) => {
-                self.parse_declaration().map(BlockItem::Declaration)
-            }
-            _ => self.parse_statement().map(BlockItem::Statement),
-        }
+        Block::new(stmts)
     }
 
     fn parse_statement(&mut self) -> Option<Statement> {
         match self.0.peek()? {
             Token::Punctuator(Punctuator::OpenBrace) => Some(Statement::Block(self.parse_block())),
-            Token::Keyword(Keyword::Assert) => self
-                .parse_assert_statement()
-                .map(|condition| Statement::Assertion { condition }),
-            Token::Keyword(Keyword::If) => {
-                self.parse_if_statement()
-                    .map(|(condition, success_block, else_block)| Statement::If {
-                        condition,
-                        success_block,
-                        else_block,
-                    })
-            }
-            Token::Keyword(Keyword::While) => self
-                .parse_while_statement()
-                .map(|(condition, block)| Statement::WhileLoop { condition, block }),
+            Token::Keyword(Keyword::Assert) => self.parse_assertion().map(Statement::Assertion),
+            Token::Keyword(Keyword::If) => self.parse_if_statement().map(Statement::IfStatement),
+            Token::Keyword(Keyword::Const | Keyword::Let) => self
+                .parse_variable_declaration()
+                .map(Statement::VariableDeclaration),
+            Token::Keyword(Keyword::While) => self.parse_while_loop().map(Statement::WhileLoop),
             _ => self.parse_expression().map(Statement::Expression),
         }
     }
@@ -343,15 +332,17 @@ impl Parser {
 
     fn parse_primary_expression(&mut self) -> Option<Expression> {
         Some(match self.0.consume()? {
-            Token::Identifier(name) => Expression::Member(MemberExpression::Identifier(name)),
-            Token::Literal(literal) => {
-                Expression::Member(MemberExpression::Literal(match literal {
-                    Literal::Boolean(value) => ast::Literal::Boolean(value),
-                    Literal::Null => ast::Literal::Null,
-                    Literal::Numeric(value) => ast::Literal::Numeric(value),
-                    Literal::String(value) => ast::Literal::String(value),
-                }))
+            Token::Identifier(var_name) => {
+                Expression::VariableAccess(VariableAccessExpression { var_name })
             }
+            Token::Literal(literal) => Expression::Literal(LiteralExpression {
+                value: match literal {
+                    Literal::Boolean(value) => Value::Boolean(value),
+                    Literal::Null => Value::Null,
+                    Literal::Numeric(value) => Value::Numeric(value),
+                    Literal::String(value) => Value::String(value),
+                },
+            }),
             token => todo!("Parser::parse_primary_expression: token={}", token),
         })
     }
@@ -362,43 +353,23 @@ impl Parser {
             .expect("Expected RHS of binary expression but was <end>");
 
         Some(match op_kind {
-            Op::Assignment(kind) => Expression::AssignmentOp {
-                kind,
-                lhs: if let Expression::Member(lhs) = lhs {
-                    lhs
-                } else {
-                    panic!("Expected member expression but was {:?}", lhs)
-                },
-                rhs: Box::new(rhs),
-            },
-            Op::Binary(kind) => Expression::BinaryOp {
+            Op::Assignment(kind) => Expression::Assignment(AssignmentExpression {
                 kind,
                 lhs: Box::new(lhs),
                 rhs: Box::new(rhs),
-            },
+            }),
+            Op::Binary(kind) => Expression::Binary(BinaryExpression {
+                kind,
+                lhs: Box::new(lhs),
+                rhs: Box::new(rhs),
+            }),
         })
     }
 
-    fn parse_declaration(&mut self) -> Option<Declaration> {
-        match self.0.peek()? {
-            Token::Keyword(Keyword::Const | Keyword::Let) => {
-                self.parse_variable_decl()
-                    .map(|(kind, var_name, initialiser)| Declaration::Variable {
-                        kind,
-                        var_name,
-                        initialiser,
-                    })
-            }
-            token => todo!("Parser::parse_declaration: token={}", token),
-        }
-    }
-
-    fn parse_variable_decl(
-        &mut self,
-    ) -> Option<(VariableDeclKind, IdentifierName, Option<Expression>)> {
+    fn parse_variable_declaration(&mut self) -> Option<VariableDeclaration> {
         let kind = match self.0.consume() {
-            Some(Token::Keyword(Keyword::Const)) => VariableDeclKind::Const,
-            Some(Token::Keyword(Keyword::Let)) => VariableDeclKind::Let,
+            Some(Token::Keyword(Keyword::Const)) => VariableDeclarationKind::Const,
+            Some(Token::Keyword(Keyword::Let)) => VariableDeclarationKind::Let,
             token => panic!("Expected variable declaration but was: {:?}", token),
         };
 
@@ -412,23 +383,25 @@ impl Parser {
                 Some(token) => panic!("Expected initialiser or semicolon but was {}", token),
                 None => panic!("Expected initialiser or semicolon but was <end>"),
             };
-            Some((kind, var_name, initialiser))
+            Some(VariableDeclaration {
+                kind,
+                var_name,
+                initialiser,
+            })
         } else {
             panic!("Expected variable name");
         }
     }
 
-    fn parse_assert_statement(&mut self) -> Option<Expression> {
+    fn parse_assertion(&mut self) -> Option<Assertion> {
         self.0.consume_exact(&Token::Keyword(Keyword::Assert));
         let condition = self
             .parse_expression()
             .expect("Expected expression but was <end>");
-        Some(condition)
+        Some(Assertion { condition })
     }
 
-    fn parse_if_statement(
-        &mut self,
-    ) -> Option<(Expression, Vec<BlockItem>, Option<Vec<BlockItem>>)> {
+    fn parse_if_statement(&mut self) -> Option<IfStatement> {
         self.0.consume_exact(&Token::Keyword(Keyword::If));
         self.0
             .consume_exact(&Token::Punctuator(Punctuator::OpenParen));
@@ -443,10 +416,14 @@ impl Parser {
         } else {
             None
         };
-        Some((condition, success_block, else_block))
+        Some(IfStatement {
+            condition,
+            success_block,
+            else_block,
+        })
     }
 
-    fn parse_while_statement(&mut self) -> Option<(Expression, Vec<BlockItem>)> {
+    fn parse_while_loop(&mut self) -> Option<WhileLoop> {
         self.0.consume_exact(&Token::Keyword(Keyword::While));
         self.0
             .consume_exact(&Token::Punctuator(Punctuator::OpenParen));
@@ -456,7 +433,7 @@ impl Parser {
         self.0
             .consume_exact(&Token::Punctuator(Punctuator::CloseParen));
         let block = self.parse_block();
-        Some((condition, block))
+        Some(WhileLoop { condition, block })
     }
 }
 

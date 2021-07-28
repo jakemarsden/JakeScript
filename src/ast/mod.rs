@@ -1,68 +1,218 @@
+use std::{fmt, iter, ops};
+
 pub type IdentifierName = String;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Program(pub Vec<BlockItem>);
+pub trait Node: Clone + fmt::Debug + PartialEq {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum BlockItem {
-    Statement(Statement),
-    Declaration(Declaration),
+pub struct Program(Block);
+
+impl Program {
+    pub fn new(block: Block) -> Self {
+        Self(block)
+    }
+
+    pub fn block(&self) -> &Block {
+        &self.0
+    }
+}
+
+impl Node for Program {}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Block(Vec<Statement>);
+
+impl Block {
+    pub fn new(stmts: Vec<Statement>) -> Self {
+        Self(stmts)
+    }
+
+    pub fn statements(&self) -> &[Statement] {
+        &self.0
+    }
+
+    pub fn iter(&self) -> impl iter::Iterator<Item = &Statement> {
+        self.statements().iter()
+    }
+}
+
+impl Node for Block {}
+
+impl iter::IntoIterator for Block {
+    type Item = Statement;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl iter::FromIterator<Statement> for Block {
+    fn from_iter<T>(iter: T) -> Self
+    where
+        T: IntoIterator<Item = Statement>,
+    {
+        let stmts: Vec<_> = iter.into_iter().collect();
+        Self::new(stmts)
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Statement {
-    Assertion {
-        condition: Expression,
-    },
-    Block(Vec<BlockItem>),
+    Assertion(Assertion),
+    Block(Block),
     Expression(Expression),
-    If {
-        condition: Expression,
-        success_block: Vec<BlockItem>,
-        else_block: Option<Vec<BlockItem>>,
-    },
-    WhileLoop {
-        condition: Expression,
-        block: Vec<BlockItem>,
-    },
+    IfStatement(IfStatement),
+    VariableDeclaration(VariableDeclaration),
+    WhileLoop(WhileLoop),
 }
+
+impl Node for Statement {}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Assertion {
+    pub condition: Expression,
+}
+
+impl Node for Assertion {}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct IfStatement {
+    pub condition: Expression,
+    pub success_block: Block,
+    pub else_block: Option<Block>,
+}
+
+impl Node for IfStatement {}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct WhileLoop {
+    pub condition: Expression,
+    pub block: Block,
+}
+
+impl Node for WhileLoop {}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct VariableDeclaration {
+    pub kind: VariableDeclarationKind,
+    pub var_name: IdentifierName,
+    pub initialiser: Option<Expression>,
+}
+
+impl Node for VariableDeclaration {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Expression {
-    AssignmentOp {
-        kind: AssignmentOp,
-        lhs: MemberExpression,
-        rhs: Box<Expression>,
-    },
-    BinaryOp {
-        kind: BinaryOp,
-        lhs: Box<Expression>,
-        rhs: Box<Expression>,
-    },
-    UnaryOp {
-        kind: UnaryOp,
-        operand: Box<Expression>,
-    },
-
-    Member(MemberExpression),
+    Assignment(AssignmentExpression),
+    Binary(BinaryExpression),
+    Unary(UnaryExpression),
+    Literal(LiteralExpression),
+    PropertyAccess(PropertyAccessExpression),
+    VariableAccess(VariableAccessExpression),
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum MemberExpression {
-    Identifier(IdentifierName),
-    Literal(Literal),
-    PropertyAccess {
-        base: Box<Expression>,
-        member_name: IdentifierName,
-    },
-}
+impl Node for Expression {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum Literal {
+pub struct AssignmentExpression {
+    pub kind: AssignmentOp,
+    pub lhs: Box<Expression>,
+    pub rhs: Box<Expression>,
+}
+
+impl Node for AssignmentExpression {}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BinaryExpression {
+    pub kind: BinaryOp,
+    pub lhs: Box<Expression>,
+    pub rhs: Box<Expression>,
+}
+
+impl Node for BinaryExpression {}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct UnaryExpression {
+    pub kind: UnaryOp,
+    pub operand: Box<Expression>,
+}
+
+impl Node for UnaryExpression {}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct LiteralExpression {
+    pub value: Value,
+}
+
+impl Node for LiteralExpression {}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PropertyAccessExpression {
+    pub base: Box<Expression>,
+    pub property_name: IdentifierName,
+}
+
+impl Node for PropertyAccessExpression {}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct VariableAccessExpression {
+    pub var_name: IdentifierName,
+}
+
+impl Node for VariableAccessExpression {}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum Value {
     Boolean(bool),
     Null,
     Numeric(i64),
     String(String),
+    Undefined,
+}
+
+impl Default for Value {
+    fn default() -> Self {
+        Self::Undefined
+    }
+}
+
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Boolean(value) => write!(f, "{}", value),
+            Self::Null => write!(f, "null"),
+            Self::Numeric(value) => write!(f, "{}", value),
+            Self::String(value) => write!(f, r#""{}""#, value),
+            Self::Undefined => write!(f, "undefined"),
+        }
+    }
+}
+
+impl Value {
+    pub fn as_boolean(&self) -> bool {
+        match self {
+            Self::Boolean(value) => *value,
+            Self::Numeric(value) => *value > 0,
+            Self::String(value) => !value.is_empty(),
+            Self::Null | Self::Undefined => false,
+        }
+    }
+
+    pub fn as_numeric(&self) -> i64 {
+        match self {
+            Self::Numeric(value) => *value,
+            value => todo!("Value::as_numeric: {}", value),
+        }
+    }
+}
+
+impl ops::Not for Value {
+    type Output = Self;
+
+    fn not(self) -> Self {
+        Self::Boolean(!self.as_boolean())
+    }
 }
 
 pub trait Operator {
@@ -241,17 +391,8 @@ impl Operator for UnaryOp {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum Declaration {
-    Variable {
-        kind: VariableDeclKind,
-        var_name: IdentifierName,
-        initialiser: Option<Expression>,
-    },
-}
-
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum VariableDeclKind {
+pub enum VariableDeclarationKind {
     Const,
     Let,
 }
