@@ -132,23 +132,7 @@ impl Eval for Statement {
             Self::Assertion(node) => node.eval(it),
             Self::Block(node) => node.eval(it),
             Self::Expression(expr) => expr.eval(it),
-            Self::If {
-                condition,
-                success_block,
-                else_block,
-            } => {
-                let condition = condition.eval(it)?;
-                if condition.as_boolean() {
-                    it.vm().push_scope();
-                    success_block.eval(it)?;
-                    it.vm().pop_scope();
-                } else if let Some(else_block) = else_block {
-                    it.vm().push_scope();
-                    else_block.eval(it)?;
-                    it.vm().pop_scope();
-                }
-                Ok(Value::Undefined)
-            }
+            Self::IfStatement(node) => node.eval(it),
             Self::VariableDeclaration {
                 kind,
                 var_name,
@@ -164,19 +148,7 @@ impl Eval for Statement {
                     .init_variable(*kind, var_name.clone(), value)?;
                 Ok(Value::Undefined)
             }
-            Self::WhileLoop { condition, block } => {
-                loop {
-                    let condition = condition.eval(it)?;
-                    if condition.as_boolean() {
-                        it.vm().push_scope();
-                        block.eval(it)?;
-                        it.vm().pop_scope();
-                    } else {
-                        break;
-                    }
-                }
-                Ok(Value::Undefined)
-            }
+            Self::WhileLoop(node) => node.eval(it),
         }
     }
 }
@@ -189,6 +161,38 @@ impl Eval for Assertion {
         } else {
             Err(AssertionFailedError::new(value).into())
         }
+    }
+}
+
+impl Eval for IfStatement {
+    fn eval(&self, it: &mut Interpreter) -> Result<Value> {
+        let condition = self.condition.eval(it)?;
+        if condition.as_boolean() {
+            it.vm().push_scope();
+            self.success_block.eval(it)?;
+            it.vm().pop_scope();
+        } else if let Some(ref else_block) = self.else_block {
+            it.vm().push_scope();
+            else_block.eval(it)?;
+            it.vm().pop_scope();
+        }
+        Ok(Value::Undefined)
+    }
+}
+
+impl Eval for WhileLoop {
+    fn eval(&self, it: &mut Interpreter) -> Result<Value> {
+        loop {
+            let condition = self.condition.eval(it)?;
+            if condition.as_boolean() {
+                it.vm().push_scope();
+                self.block.eval(it)?;
+                it.vm().pop_scope();
+            } else {
+                break;
+            }
+        }
+        Ok(Value::Undefined)
     }
 }
 

@@ -139,7 +139,7 @@ impl Parser {
 ///             var_name: "b".to_owned(),
 ///             initialiser: None,
 ///         },
-///         Statement::If {
+///         Statement::IfStatement(IfStatement {
 ///             condition: Expression::Binary(BinaryExpression {
 ///                 kind: BinaryOp::MoreThanOrEqual,
 ///                 lhs: Box::new(Expression::VariableAccess("a".to_owned())),
@@ -163,7 +163,7 @@ impl Parser {
 ///                     ))),
 ///                 })
 ///             ),]))
-///         },
+///         }),
 ///     ]))
 /// );
 /// ```
@@ -202,7 +202,7 @@ impl Parser {
 ///             var_name: "a".to_owned(),
 ///             initialiser: Some(Expression::Literal(ast::Literal::Numeric(3)))
 ///         },
-///         Statement::WhileLoop {
+///         Statement::WhileLoop(WhileLoop {
 ///             condition: Expression::Binary(BinaryExpression {
 ///                 kind: BinaryOp::NotIdentical,
 ///                 lhs: Box::new(Expression::VariableAccess("a".to_owned())),
@@ -219,7 +219,7 @@ impl Parser {
 ///                     })),
 ///                 }
 ///             )),]),
-///         },
+///         }),
 ///     ]))
 /// );
 /// ```
@@ -256,14 +256,7 @@ impl Parser {
         match self.0.peek()? {
             Token::Punctuator(Punctuator::OpenBrace) => Some(Statement::Block(self.parse_block())),
             Token::Keyword(Keyword::Assert) => self.parse_assertion().map(Statement::Assertion),
-            Token::Keyword(Keyword::If) => {
-                self.parse_if_statement()
-                    .map(|(condition, success_block, else_block)| Statement::If {
-                        condition,
-                        success_block,
-                        else_block,
-                    })
-            }
+            Token::Keyword(Keyword::If) => self.parse_if_statement().map(Statement::IfStatement),
             Token::Keyword(Keyword::Const | Keyword::Let) => {
                 self.parse_variable_declaration()
                     .map(
@@ -274,9 +267,7 @@ impl Parser {
                         },
                     )
             }
-            Token::Keyword(Keyword::While) => self
-                .parse_while_statement()
-                .map(|(condition, block)| Statement::WhileLoop { condition, block }),
+            Token::Keyword(Keyword::While) => self.parse_while_loop().map(Statement::WhileLoop),
             _ => self.parse_expression().map(Statement::Expression),
         }
     }
@@ -375,7 +366,7 @@ impl Parser {
         Some(Assertion { condition })
     }
 
-    fn parse_if_statement(&mut self) -> Option<(Expression, Block, Option<Block>)> {
+    fn parse_if_statement(&mut self) -> Option<IfStatement> {
         self.0.consume_exact(&Token::Keyword(Keyword::If));
         self.0
             .consume_exact(&Token::Punctuator(Punctuator::OpenParen));
@@ -390,10 +381,14 @@ impl Parser {
         } else {
             None
         };
-        Some((condition, success_block, else_block))
+        Some(IfStatement {
+            condition,
+            success_block,
+            else_block,
+        })
     }
 
-    fn parse_while_statement(&mut self) -> Option<(Expression, Block)> {
+    fn parse_while_loop(&mut self) -> Option<WhileLoop> {
         self.0.consume_exact(&Token::Keyword(Keyword::While));
         self.0
             .consume_exact(&Token::Punctuator(Punctuator::OpenParen));
@@ -403,7 +398,7 @@ impl Parser {
         self.0
             .consume_exact(&Token::Punctuator(Punctuator::CloseParen));
         let block = self.parse_block();
-        Some((condition, block))
+        Some(WhileLoop { condition, block })
     }
 }
 

@@ -56,25 +56,31 @@ pub enum Statement {
     Assertion(Assertion),
     Block(Block),
     Expression(Expression),
-    If {
-        condition: Expression,
-        success_block: Block,
-        else_block: Option<Block>,
-    },
+    IfStatement(IfStatement),
     VariableDeclaration {
         kind: VariableDeclKind,
         var_name: IdentifierName,
         initialiser: Option<Expression>,
     },
-    WhileLoop {
-        condition: Expression,
-        block: Block,
-    },
+    WhileLoop(WhileLoop),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Assertion {
     pub condition: Expression,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct IfStatement {
+    pub condition: Expression,
+    pub success_block: Block,
+    pub else_block: Option<Block>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct WhileLoop {
+    pub condition: Expression,
+    pub block: Block,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
