@@ -73,16 +73,16 @@ impl Parser {
 /// assert_eq!(
 ///     parser.execute(),
 ///     Program::new(Block::new(vec![
-///         Statement::VariableDeclaration {
-///             kind: VariableDeclKind::Let,
+///         Statement::VariableDeclaration(VariableDeclaration {
+///             kind: VariableDeclarationKind::Let,
 ///             var_name: "a".to_owned(),
 ///             initialiser: Some(Expression::Literal(ast::Literal::Numeric(100)))
-///         },
-///         Statement::VariableDeclaration {
-///             kind: VariableDeclKind::Let,
+///         }),
+///         Statement::VariableDeclaration(VariableDeclaration {
+///             kind: VariableDeclarationKind::Let,
 ///             var_name: "b".to_owned(),
 ///             initialiser: Some(Expression::Literal(ast::Literal::Numeric(50)))
-///         },
+///         }),
 ///         Statement::Expression(Expression::Binary(BinaryExpression {
 ///             kind: BinaryOp::Add,
 ///             lhs: Box::new(Expression::VariableAccess("a".to_owned())),
@@ -129,16 +129,16 @@ impl Parser {
 /// assert_eq!(
 ///     parser.execute(),
 ///     Program::new(Block::new(vec![
-///         Statement::VariableDeclaration {
-///             kind: VariableDeclKind::Let,
+///         Statement::VariableDeclaration(VariableDeclaration {
+///             kind: VariableDeclarationKind::Let,
 ///             var_name: "a".to_owned(),
 ///             initialiser: Some(Expression::Literal(ast::Literal::Numeric(100)))
-///         },
-///         Statement::VariableDeclaration {
-///             kind: VariableDeclKind::Let,
+///         }),
+///         Statement::VariableDeclaration(VariableDeclaration {
+///             kind: VariableDeclarationKind::Let,
 ///             var_name: "b".to_owned(),
 ///             initialiser: None,
-///         },
+///         }),
 ///         Statement::IfStatement(IfStatement {
 ///             condition: Expression::Binary(BinaryExpression {
 ///                 kind: BinaryOp::MoreThanOrEqual,
@@ -197,11 +197,11 @@ impl Parser {
 /// assert_eq!(
 ///     parser.execute(),
 ///     Program::new(Block::new(vec![
-///         Statement::VariableDeclaration {
-///             kind: VariableDeclKind::Let,
+///         Statement::VariableDeclaration(VariableDeclaration {
+///             kind: VariableDeclarationKind::Let,
 ///             var_name: "a".to_owned(),
 ///             initialiser: Some(Expression::Literal(ast::Literal::Numeric(3)))
-///         },
+///         }),
 ///         Statement::WhileLoop(WhileLoop {
 ///             condition: Expression::Binary(BinaryExpression {
 ///                 kind: BinaryOp::NotIdentical,
@@ -257,16 +257,9 @@ impl Parser {
             Token::Punctuator(Punctuator::OpenBrace) => Some(Statement::Block(self.parse_block())),
             Token::Keyword(Keyword::Assert) => self.parse_assertion().map(Statement::Assertion),
             Token::Keyword(Keyword::If) => self.parse_if_statement().map(Statement::IfStatement),
-            Token::Keyword(Keyword::Const | Keyword::Let) => {
-                self.parse_variable_declaration()
-                    .map(
-                        |(kind, var_name, initialiser)| Statement::VariableDeclaration {
-                            kind,
-                            var_name,
-                            initialiser,
-                        },
-                    )
-            }
+            Token::Keyword(Keyword::Const | Keyword::Let) => self
+                .parse_variable_declaration()
+                .map(Statement::VariableDeclaration),
             Token::Keyword(Keyword::While) => self.parse_while_loop().map(Statement::WhileLoop),
             _ => self.parse_expression().map(Statement::Expression),
         }
@@ -333,12 +326,10 @@ impl Parser {
         })
     }
 
-    fn parse_variable_declaration(
-        &mut self,
-    ) -> Option<(VariableDeclKind, IdentifierName, Option<Expression>)> {
+    fn parse_variable_declaration(&mut self) -> Option<VariableDeclaration> {
         let kind = match self.0.consume() {
-            Some(Token::Keyword(Keyword::Const)) => VariableDeclKind::Const,
-            Some(Token::Keyword(Keyword::Let)) => VariableDeclKind::Let,
+            Some(Token::Keyword(Keyword::Const)) => VariableDeclarationKind::Const,
+            Some(Token::Keyword(Keyword::Let)) => VariableDeclarationKind::Let,
             token => panic!("Expected variable declaration but was: {:?}", token),
         };
 
@@ -352,7 +343,11 @@ impl Parser {
                 Some(token) => panic!("Expected initialiser or semicolon but was {}", token),
                 None => panic!("Expected initialiser or semicolon but was <end>"),
             };
-            Some((kind, var_name, initialiser))
+            Some(VariableDeclaration {
+                kind,
+                var_name,
+                initialiser,
+            })
         } else {
             panic!("Expected variable name");
         }

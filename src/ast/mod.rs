@@ -57,11 +57,7 @@ pub enum Statement {
     Block(Block),
     Expression(Expression),
     IfStatement(IfStatement),
-    VariableDeclaration {
-        kind: VariableDeclKind,
-        var_name: IdentifierName,
-        initialiser: Option<Expression>,
-    },
+    VariableDeclaration(VariableDeclaration),
     WhileLoop(WhileLoop),
 }
 
@@ -81,6 +77,13 @@ pub struct IfStatement {
 pub struct WhileLoop {
     pub condition: Expression,
     pub block: Block,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct VariableDeclaration {
+    pub kind: VariableDeclarationKind,
+    pub var_name: IdentifierName,
+    pub initialiser: Option<Expression>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -302,7 +305,7 @@ impl Operator for UnaryOp {
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum VariableDeclKind {
+pub enum VariableDeclarationKind {
     Const,
     Let,
 }

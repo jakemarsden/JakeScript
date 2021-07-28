@@ -86,16 +86,16 @@ impl Interpreter {
 /// # use jakescript::ast::*;
 /// # use jakescript::interpreter::*;
 /// let program = Program::new(Block::new(vec![
-///     Statement::VariableDeclaration {
-///         kind: VariableDeclKind::Let,
+///     Statement::VariableDeclaration(VariableDeclaration {
+///         kind: VariableDeclarationKind::Let,
 ///         var_name: "a".to_owned(),
 ///         initialiser: Some(Expression::Literal(Literal::Numeric(100))),
-///     },
-///     Statement::VariableDeclaration {
-///         kind: VariableDeclKind::Let,
+///     }),
+///     Statement::VariableDeclaration(VariableDeclaration {
+///         kind: VariableDeclarationKind::Let,
 ///         var_name: "b".to_owned(),
 ///         initialiser: Some(Expression::Literal(Literal::Numeric(50))),
-///     },
+///     }),
 ///     Statement::Expression(Expression::Binary(BinaryExpression {
 ///         kind: BinaryOp::Add,
 ///         lhs: Box::new(Expression::VariableAccess("a".to_owned())),
@@ -133,21 +133,7 @@ impl Eval for Statement {
             Self::Block(node) => node.eval(it),
             Self::Expression(node) => node.eval(it),
             Self::IfStatement(node) => node.eval(it),
-            Self::VariableDeclaration {
-                kind,
-                var_name,
-                initialiser,
-            } => {
-                let value = if let Some(initialiser) = initialiser {
-                    initialiser.eval(it)?
-                } else {
-                    Value::Undefined
-                };
-                it.vm()
-                    .peek_scope_mut()
-                    .init_variable(*kind, var_name.clone(), value)?;
-                Ok(Value::Undefined)
-            }
+            Self::VariableDeclaration(node) => node.eval(it),
             Self::WhileLoop(node) => node.eval(it),
         }
     }
@@ -192,6 +178,22 @@ impl Eval for WhileLoop {
                 break;
             }
         }
+        Ok(Value::Undefined)
+    }
+}
+
+impl Eval for VariableDeclaration {
+    fn eval(&self, it: &mut Interpreter) -> Result<Value> {
+        let initial_value = if let Some(ref initialiser) = self.initialiser {
+            initialiser.eval(it)?
+        } else {
+            Value::Undefined
+        };
+        it.vm().peek_scope_mut().init_variable(
+            self.kind,
+            self.var_name.to_owned(),
+            initial_value,
+        )?;
         Ok(Value::Undefined)
     }
 }
