@@ -35,17 +35,17 @@ impl Parser {
 /// let mut parser = Parser::for_tokens(source);
 /// assert_eq!(
 ///     parser.execute(),
-///     Program::new(Block::new(vec![Statement::Expression(
-///         Expression::BinaryOp {
+///     Program::new(Block::new(vec![Statement::Expression(Expression::Binary(
+///         BinaryExpression {
 ///             kind: BinaryOp::Add,
-///             lhs: Box::new(Expression::BinaryOp {
+///             lhs: Box::new(Expression::Binary(BinaryExpression {
 ///                 kind: BinaryOp::Add,
 ///                 lhs: Box::new(Expression::Literal(ast::Literal::Numeric(100))),
 ///                 rhs: Box::new(Expression::Literal(ast::Literal::Numeric(50))),
-///             }),
+///             })),
 ///             rhs: Box::new(Expression::Literal(ast::Literal::Numeric(17))),
 ///         }
-///     ),]))
+///     )),]))
 /// );
 /// ```
 ///
@@ -83,11 +83,11 @@ impl Parser {
 ///             var_name: "b".to_owned(),
 ///             initialiser: Some(Expression::Literal(ast::Literal::Numeric(50)))
 ///         },
-///         Statement::Expression(Expression::BinaryOp {
+///         Statement::Expression(Expression::Binary(BinaryExpression {
 ///             kind: BinaryOp::Add,
 ///             lhs: Box::new(Expression::VariableAccess("a".to_owned())),
 ///             rhs: Box::new(Expression::VariableAccess("b".to_owned()))
-///         })
+///         }))
 ///     ]))
 /// );
 /// ```
@@ -140,26 +140,28 @@ impl Parser {
 ///             initialiser: None,
 ///         },
 ///         Statement::If {
-///             condition: Expression::BinaryOp {
+///             condition: Expression::Binary(BinaryExpression {
 ///                 kind: BinaryOp::MoreThanOrEqual,
 ///                 lhs: Box::new(Expression::VariableAccess("a".to_owned())),
 ///                 rhs: Box::new(Expression::Literal(ast::Literal::Numeric(3)))
-///             },
-///             success_block: Block::new(vec![Statement::Expression(Expression::AssignmentOp {
-///                 kind: AssignmentOp::Assign,
-///                 lhs: Box::new(Expression::VariableAccess("b".to_owned())),
-///                 rhs: Box::new(Expression::Literal(ast::Literal::String(
-///                     "success block!".to_owned()
-///                 ))),
-///             }),]),
+///             }),
+///             success_block: Block::new(vec![Statement::Expression(Expression::Assignment(
+///                 AssignmentExpression {
+///                     kind: AssignmentOp::Assign,
+///                     lhs: Box::new(Expression::VariableAccess("b".to_owned())),
+///                     rhs: Box::new(Expression::Literal(ast::Literal::String(
+///                         "success block!".to_owned()
+///                     ))),
+///                 }
+///             )),]),
 ///             else_block: Some(Block::new(vec![Statement::Expression(
-///                 Expression::AssignmentOp {
+///                 Expression::Assignment(AssignmentExpression {
 ///                     kind: AssignmentOp::Assign,
 ///                     lhs: Box::new(Expression::VariableAccess("b".to_owned())),
 ///                     rhs: Box::new(Expression::Literal(ast::Literal::String(
 ///                         "else block!".to_owned()
 ///                     ))),
-///                 }
+///                 })
 ///             ),]))
 ///         },
 ///     ]))
@@ -201,20 +203,22 @@ impl Parser {
 ///             initialiser: Some(Expression::Literal(ast::Literal::Numeric(3)))
 ///         },
 ///         Statement::WhileLoop {
-///             condition: Expression::BinaryOp {
+///             condition: Expression::Binary(BinaryExpression {
 ///                 kind: BinaryOp::NotIdentical,
 ///                 lhs: Box::new(Expression::VariableAccess("a".to_owned())),
 ///                 rhs: Box::new(Expression::Literal(ast::Literal::Numeric(0)))
-///             },
-///             block: Block::new(vec![Statement::Expression(Expression::AssignmentOp {
-///                 kind: AssignmentOp::Assign,
-///                 lhs: Box::new(Expression::VariableAccess("a".to_owned())),
-///                 rhs: Box::new(Expression::BinaryOp {
-///                     kind: BinaryOp::Sub,
-///                     lhs: Box::new(Expression::VariableAccess("a".to_string())),
-///                     rhs: Box::new(Expression::Literal(ast::Literal::Numeric(1))),
-///                 }),
-///             }),]),
+///             }),
+///             block: Block::new(vec![Statement::Expression(Expression::Assignment(
+///                 AssignmentExpression {
+///                     kind: AssignmentOp::Assign,
+///                     lhs: Box::new(Expression::VariableAccess("a".to_owned())),
+///                     rhs: Box::new(Expression::Binary(BinaryExpression {
+///                         kind: BinaryOp::Sub,
+///                         lhs: Box::new(Expression::VariableAccess("a".to_string())),
+///                         rhs: Box::new(Expression::Literal(ast::Literal::Numeric(1))),
+///                     })),
+///                 }
+///             )),]),
 ///         },
 ///     ]))
 /// );
@@ -325,16 +329,16 @@ impl Parser {
             .expect("Expected RHS of binary expression but was <end>");
 
         Some(match op_kind {
-            Op::Assignment(kind) => Expression::AssignmentOp {
+            Op::Assignment(kind) => Expression::Assignment(AssignmentExpression {
                 kind,
                 lhs: Box::new(lhs),
                 rhs: Box::new(rhs),
-            },
-            Op::Binary(kind) => Expression::BinaryOp {
+            }),
+            Op::Binary(kind) => Expression::Binary(BinaryExpression {
                 kind,
                 lhs: Box::new(lhs),
                 rhs: Box::new(rhs),
-            },
+            }),
         })
     }
 

@@ -79,20 +79,9 @@ pub struct Assertion {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Expression {
-    AssignmentOp {
-        kind: AssignmentOp,
-        lhs: Box<Expression>,
-        rhs: Box<Expression>,
-    },
-    BinaryOp {
-        kind: BinaryOp,
-        lhs: Box<Expression>,
-        rhs: Box<Expression>,
-    },
-    UnaryOp {
-        kind: UnaryOp,
-        operand: Box<Expression>,
-    },
+    Assignment(AssignmentExpression),
+    Binary(BinaryExpression),
+    Unary(UnaryExpression),
 
     Literal(Literal),
     PropertyAccess {
@@ -100,6 +89,26 @@ pub enum Expression {
         member_name: IdentifierName,
     },
     VariableAccess(IdentifierName),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AssignmentExpression {
+    pub kind: AssignmentOp,
+    pub lhs: Box<Expression>,
+    pub rhs: Box<Expression>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BinaryExpression {
+    pub kind: BinaryOp,
+    pub lhs: Box<Expression>,
+    pub rhs: Box<Expression>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct UnaryExpression {
+    pub kind: UnaryOp,
+    pub operand: Box<Expression>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

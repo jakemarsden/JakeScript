@@ -66,17 +66,17 @@ impl Interpreter {
 /// ```rust
 /// # use jakescript::ast::*;
 /// # use jakescript::interpreter::*;
-/// let program = Program::new(Block::new(vec![Statement::Expression(
-///     Expression::BinaryOp {
+/// let program = Program::new(Block::new(vec![Statement::Expression(Expression::Binary(
+///     BinaryExpression {
 ///         kind: BinaryOp::Add,
 ///         lhs: Box::new(Expression::Literal(Literal::Numeric(100))),
-///         rhs: Box::new(Expression::BinaryOp {
+///         rhs: Box::new(Expression::Binary(BinaryExpression {
 ///             kind: BinaryOp::Add,
 ///             lhs: Box::new(Expression::Literal(Literal::Numeric(50))),
 ///             rhs: Box::new(Expression::Literal(Literal::Numeric(17))),
-///         }),
+///         })),
 ///     },
-/// )]));
+/// ))]));
 ///
 /// let mut it = Interpreter::default();
 /// assert_eq!(program.eval(&mut it), Ok(Value::Numeric(167)));
@@ -96,11 +96,11 @@ impl Interpreter {
 ///         var_name: "b".to_owned(),
 ///         initialiser: Some(Expression::Literal(Literal::Numeric(50))),
 ///     },
-///     Statement::Expression(Expression::BinaryOp {
+///     Statement::Expression(Expression::Binary(BinaryExpression {
 ///         kind: BinaryOp::Add,
 ///         lhs: Box::new(Expression::VariableAccess("a".to_owned())),
 ///         rhs: Box::new(Expression::VariableAccess("b".to_owned())),
-///     }),
+///     })),
 /// ]));
 ///
 /// let mut it = Interpreter::default();
@@ -195,44 +195,9 @@ impl Eval for Assertion {
 impl Eval for Expression {
     fn eval(&self, it: &mut Interpreter) -> Result<Value> {
         match self {
-            Self::AssignmentOp { kind, lhs, rhs } => {
-                let var_name = match lhs {
-                    box Expression::VariableAccess(ref var_name) => var_name,
-                    lhs => todo!("Expression::eval: assignment_op: lhs={:?}", lhs),
-                };
-                let lhs = it.vm().peek_scope().resolve_variable(var_name)?.clone();
-                let rhs = rhs.eval(it)?;
-                let value = match kind {
-                    AssignmentOp::Assign => rhs,
-                    AssignmentOp::AddAssign => it.add(lhs, rhs),
-                    kind => todo!("Expression::eval: kind={:?}", kind),
-                };
-                it.vm()
-                    .peek_scope_mut()
-                    .set_variable(var_name, value.clone())?;
-                Ok(value)
-            }
-            Self::BinaryOp { kind, lhs, rhs } => {
-                let lhs = lhs.eval(it)?;
-                let rhs = rhs.eval(it)?;
-                Ok(match kind {
-                    BinaryOp::Add => it.add(lhs, rhs),
-                    BinaryOp::Sub => it.sub(lhs, rhs),
-                    BinaryOp::Mul => it.mul(lhs, rhs),
-                    BinaryOp::Div => it.div(lhs, rhs),
-                    BinaryOp::Mod => it.r#mod(lhs, rhs),
-                    BinaryOp::Pow => it.pow(lhs, rhs),
-                    BinaryOp::Identical => it.is_identical(lhs, rhs),
-                    BinaryOp::LessThan => Value::Boolean(it.compare(lhs, rhs).is_lt()),
-                    BinaryOp::LessThanOrEqual => Value::Boolean(it.compare(lhs, rhs).is_le()),
-                    BinaryOp::LogicalAnd => Value::Boolean(lhs.as_boolean() && rhs.as_boolean()),
-                    BinaryOp::LogicalOr => Value::Boolean(lhs.as_boolean() || rhs.as_boolean()),
-                    BinaryOp::MoreThan => Value::Boolean(it.compare(lhs, rhs).is_gt()),
-                    BinaryOp::MoreThanOrEqual => Value::Boolean(it.compare(lhs, rhs).is_ge()),
-                    BinaryOp::NotIdentical => !it.is_identical(lhs, rhs),
-                    kind => todo!("Expression::eval: kind={:?}", kind),
-                })
-            }
+            Self::Assignment(ref node) => node.eval(it),
+            Self::Binary(ref node) => node.eval(it),
+            Self::Unary(ref node) => node.eval(it),
 
             Self::Literal(lit) => Ok(match lit {
                 Literal::Boolean(value) => Value::Boolean(*value),
@@ -240,11 +205,63 @@ impl Eval for Expression {
                 Literal::Numeric(value) => Value::Numeric(*value),
                 Literal::String(value) => Value::String(value.clone()),
             }),
+            Self::PropertyAccess { .. } => {
+                todo!("Expression::eval: {:?}", self)
+            }
             Self::VariableAccess(ref var_name) => {
                 let value = it.vm().peek_scope().resolve_variable(var_name)?;
                 Ok(value.clone())
             }
-            expr => todo!("Expression::eval: expr={:?}", expr),
         }
+    }
+}
+
+impl Eval for AssignmentExpression {
+    fn eval(&self, it: &mut Interpreter) -> Result<Value> {
+        let var_name = match self.lhs.as_ref() {
+            Expression::VariableAccess(ref var_name) => var_name,
+            lhs => todo!("Expression::eval: assignment_op: lhs={:?}", lhs),
+        };
+        let lhs = it.vm().peek_scope().resolve_variable(var_name)?.clone();
+        let rhs = self.rhs.eval(it)?;
+        let value = match self.kind {
+            AssignmentOp::Assign => rhs,
+            AssignmentOp::AddAssign => it.add(lhs, rhs),
+            kind => todo!("Expression::eval: kind={:?}", kind),
+        };
+        it.vm()
+            .peek_scope_mut()
+            .set_variable(var_name, value.clone())?;
+        Ok(value)
+    }
+}
+
+impl Eval for BinaryExpression {
+    fn eval(&self, it: &mut Interpreter) -> Result<Value> {
+        let lhs = self.lhs.eval(it)?;
+        let rhs = self.rhs.eval(it)?;
+        Ok(match self.kind {
+            BinaryOp::Add => it.add(lhs, rhs),
+            BinaryOp::Sub => it.sub(lhs, rhs),
+            BinaryOp::Mul => it.mul(lhs, rhs),
+            BinaryOp::Div => it.div(lhs, rhs),
+            BinaryOp::Mod => it.r#mod(lhs, rhs),
+            BinaryOp::Pow => it.pow(lhs, rhs),
+            BinaryOp::Identical => it.is_identical(lhs, rhs),
+            BinaryOp::LessThan => Value::Boolean(it.compare(lhs, rhs).is_lt()),
+            BinaryOp::LessThanOrEqual => Value::Boolean(it.compare(lhs, rhs).is_le()),
+            BinaryOp::LogicalAnd => Value::Boolean(lhs.as_boolean() && rhs.as_boolean()),
+            BinaryOp::LogicalOr => Value::Boolean(lhs.as_boolean() || rhs.as_boolean()),
+            BinaryOp::MoreThan => Value::Boolean(it.compare(lhs, rhs).is_gt()),
+            BinaryOp::MoreThanOrEqual => Value::Boolean(it.compare(lhs, rhs).is_ge()),
+            BinaryOp::NotIdentical => !it.is_identical(lhs, rhs),
+            kind => todo!("Expression::eval: kind={:?}", kind),
+        })
+    }
+}
+
+impl Eval for UnaryExpression {
+    fn eval(&self, _it: &mut Interpreter) -> Result<Value> {
+        todo!("UnaryExpression::eval: {:?}", self)
     }
 }
