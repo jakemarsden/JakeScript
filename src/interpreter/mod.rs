@@ -131,7 +131,7 @@ impl Eval for Statement {
         match self {
             Self::Assertion(node) => node.eval(it),
             Self::Block(node) => node.eval(it),
-            Self::Expression(expr) => expr.eval(it),
+            Self::Expression(node) => node.eval(it),
             Self::IfStatement(node) => node.eval(it),
             Self::VariableDeclaration {
                 kind,
