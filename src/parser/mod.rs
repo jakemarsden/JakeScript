@@ -35,21 +35,23 @@ impl Parser {
 /// let mut parser = Parser::for_tokens(source);
 /// assert_eq!(
 ///     parser.execute(),
-///     Program(vec![Statement::Expression(Expression::BinaryOp {
-///         kind: BinaryOp::Add,
-///         lhs: Box::new(Expression::BinaryOp {
+///     Program::new(Block::new(vec![Statement::Expression(
+///         Expression::BinaryOp {
 ///             kind: BinaryOp::Add,
-///             lhs: Box::new(Expression::Member(MemberExpression::Literal(
-///                 ast::Literal::Numeric(100)
-///             ))),
+///             lhs: Box::new(Expression::BinaryOp {
+///                 kind: BinaryOp::Add,
+///                 lhs: Box::new(Expression::Member(MemberExpression::Literal(
+///                     ast::Literal::Numeric(100)
+///                 ))),
+///                 rhs: Box::new(Expression::Member(MemberExpression::Literal(
+///                     ast::Literal::Numeric(50)
+///                 ))),
+///             }),
 ///             rhs: Box::new(Expression::Member(MemberExpression::Literal(
-///                 ast::Literal::Numeric(50)
+///                 ast::Literal::Numeric(17)
 ///             ))),
-///         }),
-///         rhs: Box::new(Expression::Member(MemberExpression::Literal(
-///             ast::Literal::Numeric(17)
-///         ))),
-///     }),])
+///         }
+///     ),]))
 /// );
 /// ```
 ///
@@ -76,7 +78,7 @@ impl Parser {
 /// let mut parser = Parser::for_tokens(source);
 /// assert_eq!(
 ///     parser.execute(),
-///     Program(vec![
+///     Program::new(Block::new(vec![
 ///         Statement::VariableDeclaration {
 ///             kind: VariableDeclKind::Let,
 ///             var_name: "a".to_owned(),
@@ -100,7 +102,7 @@ impl Parser {
 ///                 "b".to_owned()
 ///             )))
 ///         })
-///     ])
+///     ]))
 /// );
 /// ```
 ///
@@ -140,7 +142,7 @@ impl Parser {
 /// let mut parser = Parser::for_tokens(source);
 /// assert_eq!(
 ///     parser.execute(),
-///     Program(vec![
+///     Program::new(Block::new(vec![
 ///         Statement::VariableDeclaration {
 ///             kind: VariableDeclKind::Let,
 ///             var_name: "a".to_owned(),
@@ -163,22 +165,24 @@ impl Parser {
 ///                     ast::Literal::Numeric(3)
 ///                 )))
 ///             },
-///             success_block: vec![Statement::Expression(Expression::AssignmentOp {
+///             success_block: Block::new(vec![Statement::Expression(Expression::AssignmentOp {
 ///                 kind: AssignmentOp::Assign,
 ///                 lhs: MemberExpression::Identifier("b".to_owned()),
 ///                 rhs: Box::new(Expression::Member(MemberExpression::Literal(
 ///                     ast::Literal::String("success block!".to_owned())
 ///                 ))),
-///             }),],
-///             else_block: Some(vec![Statement::Expression(Expression::AssignmentOp {
-///                 kind: AssignmentOp::Assign,
-///                 lhs: MemberExpression::Identifier("b".to_owned()),
-///                 rhs: Box::new(Expression::Member(MemberExpression::Literal(
-///                     ast::Literal::String("else block!".to_owned())
-///                 ))),
-///             }),])
+///             }),]),
+///             else_block: Some(Block::new(vec![Statement::Expression(
+///                 Expression::AssignmentOp {
+///                     kind: AssignmentOp::Assign,
+///                     lhs: MemberExpression::Identifier("b".to_owned()),
+///                     rhs: Box::new(Expression::Member(MemberExpression::Literal(
+///                         ast::Literal::String("else block!".to_owned())
+///                     ))),
+///                 }
+///             ),]))
 ///         },
-///     ])
+///     ]))
 /// );
 /// ```
 ///
@@ -210,7 +214,7 @@ impl Parser {
 /// let mut parser = Parser::for_tokens(source);
 /// assert_eq!(
 ///     parser.execute(),
-///     Program(vec![
+///     Program::new(Block::new(vec![
 ///         Statement::VariableDeclaration {
 ///             kind: VariableDeclKind::Let,
 ///             var_name: "a".to_owned(),
@@ -228,7 +232,7 @@ impl Parser {
 ///                     ast::Literal::Numeric(0)
 ///                 )))
 ///             },
-///             block: vec![Statement::Expression(Expression::AssignmentOp {
+///             block: Block::new(vec![Statement::Expression(Expression::AssignmentOp {
 ///                 kind: AssignmentOp::Assign,
 ///                 lhs: MemberExpression::Identifier("a".to_owned()),
 ///                 rhs: Box::new(Expression::BinaryOp {
@@ -240,30 +244,30 @@ impl Parser {
 ///                         ast::Literal::Numeric(1)
 ///                     ))),
 ///                 }),
-///             }),],
+///             }),]),
 ///         },
-///     ])
+///     ]))
 /// );
 /// ```
 impl Parser {
     pub fn execute(mut self) -> Program {
-        let mut block = Vec::new();
+        let mut stmts = Vec::new();
         while let Some(stmt) = self.parse_statement() {
-            block.push(stmt);
+            stmts.push(stmt);
         }
-        Program(block)
+        Program::new(Block::new(stmts))
     }
 
     fn parse_block(&mut self) -> Block {
         self.0
             .consume_exact(&Token::Punctuator(Punctuator::OpenBrace));
-        let mut block = Vec::new();
+        let mut stmts = Vec::new();
         while !matches!(
             self.0.peek(),
             Some(Token::Punctuator(Punctuator::CloseBrace))
         ) {
             if let Some(stmt) = self.parse_statement() {
-                block.push(stmt);
+                stmts.push(stmt);
             } else {
                 // Block not closed before end of input
                 break;
@@ -271,7 +275,7 @@ impl Parser {
         }
         self.0
             .consume_exact(&Token::Punctuator(Punctuator::CloseBrace));
-        block
+        Block::new(stmts)
     }
 
     fn parse_statement(&mut self) -> Option<Statement> {

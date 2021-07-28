@@ -7,24 +7,25 @@ mod common;
 fn add_mul() {
     let source_code = r##"2 + 3 * 4"##;
     let ast = common::parse_from_source_code(source_code);
-    assert_eq!(
-        ast,
-        Program(vec![Statement::Expression(Expression::BinaryOp {
+
+    let expected_ast = Program::new(Block::new(vec![Statement::Expression(
+        Expression::BinaryOp {
             kind: BinaryOp::Add,
             lhs: Box::new(Expression::Member(MemberExpression::Literal(
-                Literal::Numeric(2)
+                Literal::Numeric(2),
             ))),
             rhs: Box::new(Expression::BinaryOp {
                 kind: BinaryOp::Mul,
                 lhs: Box::new(Expression::Member(MemberExpression::Literal(
-                    Literal::Numeric(3)
+                    Literal::Numeric(3),
                 ))),
                 rhs: Box::new(Expression::Member(MemberExpression::Literal(
-                    Literal::Numeric(4)
+                    Literal::Numeric(4),
                 ))),
             }),
-        })])
-    );
+        },
+    )]));
+    assert_eq!(ast, expected_ast);
 
     let result = common::eval(&ast);
     assert_eq!(result, Ok(Value::Numeric(14)));
@@ -34,24 +35,25 @@ fn add_mul() {
 fn mul_add() {
     let source_code = r##"2 * 3 + 4"##;
     let ast = common::parse_from_source_code(source_code);
-    assert_eq!(
-        ast,
-        Program(vec![Statement::Expression(Expression::BinaryOp {
+
+    let expected_ast = Program::new(Block::new(vec![Statement::Expression(
+        Expression::BinaryOp {
             kind: BinaryOp::Add,
             lhs: Box::new(Expression::BinaryOp {
                 kind: BinaryOp::Mul,
                 lhs: Box::new(Expression::Member(MemberExpression::Literal(
-                    Literal::Numeric(2)
+                    Literal::Numeric(2),
                 ))),
                 rhs: Box::new(Expression::Member(MemberExpression::Literal(
-                    Literal::Numeric(3)
+                    Literal::Numeric(3),
                 ))),
             }),
             rhs: Box::new(Expression::Member(MemberExpression::Literal(
-                Literal::Numeric(4)
+                Literal::Numeric(4),
             ))),
-        })])
-    );
+        },
+    )]));
+    assert_eq!(ast, expected_ast);
 
     let result = common::eval(&ast);
     assert_eq!(result, Ok(Value::Numeric(10)));
@@ -63,24 +65,25 @@ fn eq_add() {
 30 === 10 + 20;
 "##;
     let ast = common::parse_from_source_code(source_code);
-    assert_eq!(
-        ast,
-        Program(vec![Statement::Expression(Expression::BinaryOp {
+
+    let expected_ast = Program::new(Block::new(vec![Statement::Expression(
+        Expression::BinaryOp {
             kind: BinaryOp::Identical,
             lhs: Box::new(Expression::Member(MemberExpression::Literal(
-                Literal::Numeric(30)
+                Literal::Numeric(30),
             ))),
             rhs: Box::new(Expression::BinaryOp {
                 kind: BinaryOp::Add,
                 lhs: Box::new(Expression::Member(MemberExpression::Literal(
-                    Literal::Numeric(10)
+                    Literal::Numeric(10),
                 ))),
                 rhs: Box::new(Expression::Member(MemberExpression::Literal(
-                    Literal::Numeric(20)
+                    Literal::Numeric(20),
                 ))),
             }),
-        })])
-    );
+        },
+    )]));
+    assert_eq!(ast, expected_ast);
 
     let result = common::eval(&ast);
     assert_eq!(result, Ok(Value::Boolean(true)));
@@ -92,24 +95,25 @@ fn add_eq() {
 10 + 20 === 30;
 "##;
     let ast = common::parse_from_source_code(source_code);
-    assert_eq!(
-        ast,
-        Program(vec![Statement::Expression(Expression::BinaryOp {
+
+    let expected_ast = Program::new(Block::new(vec![Statement::Expression(
+        Expression::BinaryOp {
             kind: BinaryOp::Identical,
             lhs: Box::new(Expression::BinaryOp {
                 kind: BinaryOp::Add,
                 lhs: Box::new(Expression::Member(MemberExpression::Literal(
-                    Literal::Numeric(10)
+                    Literal::Numeric(10),
                 ))),
                 rhs: Box::new(Expression::Member(MemberExpression::Literal(
-                    Literal::Numeric(20)
+                    Literal::Numeric(20),
                 ))),
             }),
             rhs: Box::new(Expression::Member(MemberExpression::Literal(
-                Literal::Numeric(30)
+                Literal::Numeric(30),
             ))),
-        })])
-    );
+        },
+    )]));
+    assert_eq!(ast, expected_ast);
 
     let result = common::eval(&ast);
     assert_eq!(result, Ok(Value::Boolean(true)));

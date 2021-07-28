@@ -66,21 +66,23 @@ impl Interpreter {
 /// ```rust
 /// # use jakescript::ast::*;
 /// # use jakescript::interpreter::*;
-/// let program = Program(vec![Statement::Expression(Expression::BinaryOp {
-///     kind: BinaryOp::Add,
-///     lhs: Box::new(Expression::Member(MemberExpression::Literal(
-///         Literal::Numeric(100),
-///     ))),
-///     rhs: Box::new(Expression::BinaryOp {
+/// let program = Program::new(Block::new(vec![Statement::Expression(
+///     Expression::BinaryOp {
 ///         kind: BinaryOp::Add,
 ///         lhs: Box::new(Expression::Member(MemberExpression::Literal(
-///             Literal::Numeric(50),
+///             Literal::Numeric(100),
 ///         ))),
-///         rhs: Box::new(Expression::Member(MemberExpression::Literal(
-///             Literal::Numeric(17),
-///         ))),
-///     }),
-/// })]);
+///         rhs: Box::new(Expression::BinaryOp {
+///             kind: BinaryOp::Add,
+///             lhs: Box::new(Expression::Member(MemberExpression::Literal(
+///                 Literal::Numeric(50),
+///             ))),
+///             rhs: Box::new(Expression::Member(MemberExpression::Literal(
+///                 Literal::Numeric(17),
+///             ))),
+///         }),
+///     },
+/// )]));
 ///
 /// let mut it = Interpreter::default();
 /// assert_eq!(program.eval(&mut it), Ok(Value::Numeric(167)));
@@ -89,7 +91,7 @@ impl Interpreter {
 /// ```rust
 /// # use jakescript::ast::*;
 /// # use jakescript::interpreter::*;
-/// let program = Program(vec![
+/// let program = Program::new(Block::new(vec![
 ///     Statement::VariableDeclaration {
 ///         kind: VariableDeclKind::Let,
 ///         var_name: "a".to_owned(),
@@ -113,7 +115,7 @@ impl Interpreter {
 ///             "b".to_owned(),
 ///         ))),
 ///     }),
-/// ]);
+/// ]));
 ///
 /// let mut it = Interpreter::default();
 /// assert_eq!(program.eval(&mut it), Ok(Value::Numeric(150)));
@@ -124,7 +126,7 @@ pub trait Eval {
 
 impl Eval for Program {
     fn eval(&self, it: &mut Interpreter) -> Result<Value> {
-        self.0.eval(it)
+        self.block().eval(it)
     }
 }
 

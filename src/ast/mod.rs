@@ -1,9 +1,55 @@
+use std::iter;
+
 pub type IdentifierName = String;
 
-pub type Block = Vec<Statement>;
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Program(Block);
+
+impl Program {
+    pub fn new(block: Block) -> Self {
+        Self(block)
+    }
+
+    pub fn block(&self) -> &Block {
+        &self.0
+    }
+}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Program(pub Block);
+pub struct Block(Vec<Statement>);
+
+impl Block {
+    pub fn new(stmts: Vec<Statement>) -> Self {
+        Self(stmts)
+    }
+
+    pub fn statements(&self) -> &[Statement] {
+        &self.0
+    }
+
+    pub fn iter(&self) -> impl iter::Iterator<Item = &Statement> {
+        self.statements().iter()
+    }
+}
+
+impl iter::IntoIterator for Block {
+    type Item = Statement;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl iter::FromIterator<Statement> for Block {
+    fn from_iter<T>(iter: T) -> Self
+    where
+        T: IntoIterator<Item = Statement>,
+    {
+        let stmts: Vec<_> = iter.into_iter().collect();
+        Self::new(stmts)
+    }
+}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Statement {
