@@ -69,17 +69,11 @@ impl Interpreter {
 /// let program = Program::new(Block::new(vec![Statement::Expression(
 ///     Expression::BinaryOp {
 ///         kind: BinaryOp::Add,
-///         lhs: Box::new(Expression::Member(MemberExpression::Literal(
-///             Literal::Numeric(100),
-///         ))),
+///         lhs: Box::new(Expression::Literal(Literal::Numeric(100))),
 ///         rhs: Box::new(Expression::BinaryOp {
 ///             kind: BinaryOp::Add,
-///             lhs: Box::new(Expression::Member(MemberExpression::Literal(
-///                 Literal::Numeric(50),
-///             ))),
-///             rhs: Box::new(Expression::Member(MemberExpression::Literal(
-///                 Literal::Numeric(17),
-///             ))),
+///             lhs: Box::new(Expression::Literal(Literal::Numeric(50))),
+///             rhs: Box::new(Expression::Literal(Literal::Numeric(17))),
 ///         }),
 ///     },
 /// )]));
@@ -95,25 +89,17 @@ impl Interpreter {
 ///     Statement::VariableDeclaration {
 ///         kind: VariableDeclKind::Let,
 ///         var_name: "a".to_owned(),
-///         initialiser: Some(Expression::Member(MemberExpression::Literal(
-///             Literal::Numeric(100),
-///         ))),
+///         initialiser: Some(Expression::Literal(Literal::Numeric(100))),
 ///     },
 ///     Statement::VariableDeclaration {
 ///         kind: VariableDeclKind::Let,
 ///         var_name: "b".to_owned(),
-///         initialiser: Some(Expression::Member(MemberExpression::Literal(
-///             Literal::Numeric(50),
-///         ))),
+///         initialiser: Some(Expression::Literal(Literal::Numeric(50))),
 ///     },
 ///     Statement::Expression(Expression::BinaryOp {
 ///         kind: BinaryOp::Add,
-///         lhs: Box::new(Expression::Member(MemberExpression::Identifier(
-///             "a".to_owned(),
-///         ))),
-///         rhs: Box::new(Expression::Member(MemberExpression::Identifier(
-///             "b".to_owned(),
-///         ))),
+///         lhs: Box::new(Expression::VariableAccess("a".to_owned())),
+///         rhs: Box::new(Expression::VariableAccess("b".to_owned())),
 ///     }),
 /// ]));
 ///
@@ -211,7 +197,7 @@ impl Eval for Expression {
         match self {
             Self::AssignmentOp { kind, lhs, rhs } => {
                 let var_name = match lhs {
-                    MemberExpression::Identifier(ref var_name) => var_name,
+                    box Expression::VariableAccess(ref var_name) => var_name,
                     lhs => todo!("Expression::eval: assignment_op: lhs={:?}", lhs),
                 };
                 let lhs = it.vm().peek_scope().resolve_variable(var_name)?.clone();
@@ -247,26 +233,18 @@ impl Eval for Expression {
                     kind => todo!("Expression::eval: kind={:?}", kind),
                 })
             }
-            Self::Member(expr) => expr.eval(it),
-            expr => todo!("Expression::eval: expr={:?}", expr),
-        }
-    }
-}
 
-impl Eval for MemberExpression {
-    fn eval(&self, it: &mut Interpreter) -> Result<Value> {
-        match self {
-            MemberExpression::Identifier(ref name) => {
-                let value = it.vm().peek_scope().resolve_variable(name)?;
-                Ok(value.clone())
-            }
-            MemberExpression::Literal(lit) => Ok(match lit {
+            Self::Literal(lit) => Ok(match lit {
                 Literal::Boolean(value) => Value::Boolean(*value),
                 Literal::Null => Value::Null,
                 Literal::Numeric(value) => Value::Numeric(*value),
                 Literal::String(value) => Value::String(value.clone()),
             }),
-            expr => todo!("MemberExpression::eval: expr={:?}", expr),
+            Self::VariableAccess(ref var_name) => {
+                let value = it.vm().peek_scope().resolve_variable(var_name)?;
+                Ok(value.clone())
+            }
+            expr => todo!("Expression::eval: expr={:?}", expr),
         }
     }
 }

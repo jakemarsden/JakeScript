@@ -11,17 +11,11 @@ fn add_mul() {
     let expected_ast = Program::new(Block::new(vec![Statement::Expression(
         Expression::BinaryOp {
             kind: BinaryOp::Add,
-            lhs: Box::new(Expression::Member(MemberExpression::Literal(
-                Literal::Numeric(2),
-            ))),
+            lhs: Box::new(Expression::Literal(Literal::Numeric(2))),
             rhs: Box::new(Expression::BinaryOp {
                 kind: BinaryOp::Mul,
-                lhs: Box::new(Expression::Member(MemberExpression::Literal(
-                    Literal::Numeric(3),
-                ))),
-                rhs: Box::new(Expression::Member(MemberExpression::Literal(
-                    Literal::Numeric(4),
-                ))),
+                lhs: Box::new(Expression::Literal(Literal::Numeric(3))),
+                rhs: Box::new(Expression::Literal(Literal::Numeric(4))),
             }),
         },
     )]));
@@ -41,16 +35,10 @@ fn mul_add() {
             kind: BinaryOp::Add,
             lhs: Box::new(Expression::BinaryOp {
                 kind: BinaryOp::Mul,
-                lhs: Box::new(Expression::Member(MemberExpression::Literal(
-                    Literal::Numeric(2),
-                ))),
-                rhs: Box::new(Expression::Member(MemberExpression::Literal(
-                    Literal::Numeric(3),
-                ))),
+                lhs: Box::new(Expression::Literal(Literal::Numeric(2))),
+                rhs: Box::new(Expression::Literal(Literal::Numeric(3))),
             }),
-            rhs: Box::new(Expression::Member(MemberExpression::Literal(
-                Literal::Numeric(4),
-            ))),
+            rhs: Box::new(Expression::Literal(Literal::Numeric(4))),
         },
     )]));
     assert_eq!(ast, expected_ast);
@@ -69,17 +57,11 @@ fn eq_add() {
     let expected_ast = Program::new(Block::new(vec![Statement::Expression(
         Expression::BinaryOp {
             kind: BinaryOp::Identical,
-            lhs: Box::new(Expression::Member(MemberExpression::Literal(
-                Literal::Numeric(30),
-            ))),
+            lhs: Box::new(Expression::Literal(Literal::Numeric(30))),
             rhs: Box::new(Expression::BinaryOp {
                 kind: BinaryOp::Add,
-                lhs: Box::new(Expression::Member(MemberExpression::Literal(
-                    Literal::Numeric(10),
-                ))),
-                rhs: Box::new(Expression::Member(MemberExpression::Literal(
-                    Literal::Numeric(20),
-                ))),
+                lhs: Box::new(Expression::Literal(Literal::Numeric(10))),
+                rhs: Box::new(Expression::Literal(Literal::Numeric(20))),
             }),
         },
     )]));
@@ -101,16 +83,10 @@ fn add_eq() {
             kind: BinaryOp::Identical,
             lhs: Box::new(Expression::BinaryOp {
                 kind: BinaryOp::Add,
-                lhs: Box::new(Expression::Member(MemberExpression::Literal(
-                    Literal::Numeric(10),
-                ))),
-                rhs: Box::new(Expression::Member(MemberExpression::Literal(
-                    Literal::Numeric(20),
-                ))),
+                lhs: Box::new(Expression::Literal(Literal::Numeric(10))),
+                rhs: Box::new(Expression::Literal(Literal::Numeric(20))),
             }),
-            rhs: Box::new(Expression::Member(MemberExpression::Literal(
-                Literal::Numeric(30),
-            ))),
+            rhs: Box::new(Expression::Literal(Literal::Numeric(30))),
         },
     )]));
     assert_eq!(ast, expected_ast);

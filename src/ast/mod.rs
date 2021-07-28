@@ -81,7 +81,7 @@ pub struct Assertion {
 pub enum Expression {
     AssignmentOp {
         kind: AssignmentOp,
-        lhs: MemberExpression,
+        lhs: Box<Expression>,
         rhs: Box<Expression>,
     },
     BinaryOp {
@@ -94,17 +94,12 @@ pub enum Expression {
         operand: Box<Expression>,
     },
 
-    Member(MemberExpression),
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum MemberExpression {
-    Identifier(IdentifierName),
     Literal(Literal),
     PropertyAccess {
         base: Box<Expression>,
         member_name: IdentifierName,
     },
+    VariableAccess(IdentifierName),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
