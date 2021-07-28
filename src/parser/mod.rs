@@ -282,8 +282,8 @@ impl Parser {
         match self.0.peek()? {
             Token::Punctuator(Punctuator::OpenBrace) => Some(Statement::Block(self.parse_block())),
             Token::Keyword(Keyword::Assert) => self
-                .parse_assert_statement()
-                .map(|condition| Statement::Assertion { condition }),
+                .parse_assertion()
+                .map(|node| Statement::Assertion(node)),
             Token::Keyword(Keyword::If) => {
                 self.parse_if_statement()
                     .map(|(condition, success_block, else_block)| Statement::If {
@@ -401,12 +401,12 @@ impl Parser {
         }
     }
 
-    fn parse_assert_statement(&mut self) -> Option<Expression> {
+    fn parse_assertion(&mut self) -> Option<Assertion> {
         self.0.consume_exact(&Token::Keyword(Keyword::Assert));
         let condition = self
             .parse_expression()
             .expect("Expected expression but was <end>");
-        Some(condition)
+        Some(Assertion { condition })
     }
 
     fn parse_if_statement(&mut self) -> Option<(Expression, Block, Option<Block>)> {

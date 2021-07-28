@@ -143,15 +143,8 @@ impl Eval for Block {
 impl Eval for Statement {
     fn eval(&self, it: &mut Interpreter) -> Result<Value> {
         match self {
-            Self::Assertion { condition } => {
-                let value = condition.eval(it)?;
-                if value.as_boolean() {
-                    Ok(Value::Undefined)
-                } else {
-                    Err(AssertionFailedError::new(value).into())
-                }
-            }
-            Self::Block(stmts) => stmts.eval(it),
+            Self::Assertion(node) => node.eval(it),
+            Self::Block(node) => node.eval(it),
             Self::Expression(expr) => expr.eval(it),
             Self::If {
                 condition,
@@ -198,6 +191,17 @@ impl Eval for Statement {
                 }
                 Ok(Value::Undefined)
             }
+        }
+    }
+}
+
+impl Eval for Assertion {
+    fn eval(&self, it: &mut Interpreter) -> Result<Value> {
+        let value = self.condition.eval(it)?;
+        if value.as_boolean() {
+            Ok(Value::Undefined)
+        } else {
+            Err(AssertionFailedError::new(value).into())
         }
     }
 }

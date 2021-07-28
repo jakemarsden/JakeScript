@@ -53,9 +53,7 @@ impl iter::FromIterator<Statement> for Block {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Statement {
-    Assertion {
-        condition: Expression,
-    },
+    Assertion(Assertion),
     Block(Block),
     Expression(Expression),
     If {
@@ -72,6 +70,11 @@ pub enum Statement {
         condition: Expression,
         block: Block,
     },
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Assertion {
+    pub condition: Expression,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
