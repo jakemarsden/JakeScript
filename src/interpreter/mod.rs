@@ -237,6 +237,11 @@ impl Eval for AssignmentExpression {
         let value = match self.kind {
             AssignmentOp::Assign => rhs,
             AssignmentOp::AddAssign => it.add(lhs, rhs),
+            AssignmentOp::SubAssign => it.sub(lhs, rhs),
+            AssignmentOp::MulAssign => it.mul(lhs, rhs),
+            AssignmentOp::DivAssign => it.div(lhs, rhs),
+            AssignmentOp::ModAssign => it.r#mod(lhs, rhs),
+            AssignmentOp::PowAssign => it.pow(lhs, rhs),
             kind => todo!("Expression::eval: kind={:?}", kind),
         };
         it.vm()
