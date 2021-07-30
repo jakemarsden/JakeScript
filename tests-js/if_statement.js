@@ -1,13 +1,29 @@
 let a = 42;
-if (a === 42) {
-    assert true;
-} else {
-    assert false;
-}
 
-let b = 10;
-if (b === 42) {
-    assert false;
-} else {
-    assert true;
+let b = null;
+if (a === 42) {
+    b = "success block!";
 }
+assert b === "success block!";
+
+let c = null;
+if (a !== 42) {
+    c = "success block!";
+}
+assert c === null;
+
+let d;
+if (a === 42) {
+    d = "success block!";
+} else {
+    d = "else block!";
+}
+assert d === "success block!";
+
+let e;
+if (a !== 42) {
+    e = "success block!";
+} else {
+    e = "else block!";
+}
+assert e === "else block!";

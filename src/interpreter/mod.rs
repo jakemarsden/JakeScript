@@ -63,63 +63,6 @@ impl Interpreter {
     }
 }
 
-/// ```rust
-/// # use jakescript::ast::*;
-/// # use jakescript::interpreter::*;
-/// let program = Program::new(Block::new(vec![Statement::Expression(Expression::Binary(
-///     BinaryExpression {
-///         kind: BinaryOp::Add,
-///         lhs: Box::new(Expression::Literal(LiteralExpression {
-///             value: Value::Numeric(100),
-///         })),
-///         rhs: Box::new(Expression::Binary(BinaryExpression {
-///             kind: BinaryOp::Add,
-///             lhs: Box::new(Expression::Literal(LiteralExpression {
-///                 value: Value::Numeric(50),
-///             })),
-///             rhs: Box::new(Expression::Literal(LiteralExpression {
-///                 value: Value::Numeric(17),
-///             })),
-///         })),
-///     },
-/// ))]));
-///
-/// let mut it = Interpreter::default();
-/// assert_eq!(program.eval(&mut it), Ok(Value::Numeric(167)));
-/// ```
-///
-/// ```rust
-/// # use jakescript::ast::*;
-/// # use jakescript::interpreter::*;
-/// let program = Program::new(Block::new(vec![
-///     Statement::VariableDeclaration(VariableDeclaration {
-///         kind: VariableDeclarationKind::Let,
-///         var_name: "a".to_owned(),
-///         initialiser: Some(Expression::Literal(LiteralExpression {
-///             value: Value::Numeric(100),
-///         })),
-///     }),
-///     Statement::VariableDeclaration(VariableDeclaration {
-///         kind: VariableDeclarationKind::Let,
-///         var_name: "b".to_owned(),
-///         initialiser: Some(Expression::Literal(LiteralExpression {
-///             value: Value::Numeric(50),
-///         })),
-///     }),
-///     Statement::Expression(Expression::Binary(BinaryExpression {
-///         kind: BinaryOp::Add,
-///         lhs: Box::new(Expression::VariableAccess(VariableAccessExpression {
-///             var_name: "a".to_owned(),
-///         })),
-///         rhs: Box::new(Expression::VariableAccess(VariableAccessExpression {
-///             var_name: "b".to_owned(),
-///         })),
-///     })),
-/// ]));
-///
-/// let mut it = Interpreter::default();
-/// assert_eq!(program.eval(&mut it), Ok(Value::Numeric(150)));
-/// ```
 pub trait Eval: Node {
     fn eval(&self, it: &mut Interpreter) -> Result<Value>;
 }
