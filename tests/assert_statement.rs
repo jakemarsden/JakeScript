@@ -2,6 +2,7 @@
 
 use jakescript::ast::Value;
 use jakescript::interpreter::Error;
+use std::assert_matches::assert_matches;
 
 mod common;
 
