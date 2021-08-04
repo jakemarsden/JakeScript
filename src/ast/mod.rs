@@ -62,6 +62,7 @@ pub enum Statement {
     Assertion(Assertion),
     Block(Block),
     Expression(Expression),
+    FunctionDeclaration(FunctionDeclaration),
     IfStatement(IfStatement),
     VariableDeclaration(VariableDeclaration),
     WhileLoop(WhileLoop),
@@ -92,6 +93,15 @@ pub struct WhileLoop {
 }
 
 impl Node for WhileLoop {}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FunctionDeclaration {
+    pub fn_name: IdentifierName,
+    pub param_names: Vec<IdentifierName>,
+    pub body: Block,
+}
+
+impl Node for FunctionDeclaration {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VariableDeclaration {

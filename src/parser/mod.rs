@@ -54,6 +54,9 @@ impl Parser {
             Token::Punctuator(Punctuator::OpenBrace) => Some(Statement::Block(self.parse_block())),
             Token::Keyword(Keyword::Assert) => self.parse_assertion().map(Statement::Assertion),
             Token::Keyword(Keyword::If) => self.parse_if_statement().map(Statement::IfStatement),
+            Token::Keyword(Keyword::Function) => self
+                .parse_function_declaration()
+                .map(Statement::FunctionDeclaration),
             Token::Keyword(Keyword::Const | Keyword::Let) => self
                 .parse_variable_declaration()
                 .map(Statement::VariableDeclaration),
@@ -125,6 +128,48 @@ impl Parser {
                 rhs: Box::new(rhs),
             }),
         })
+    }
+
+    fn parse_function_declaration(&mut self) -> Option<FunctionDeclaration> {
+        self.0.consume_exact(&Token::Keyword(Keyword::Function));
+        if let Some(Token::Identifier(fn_name)) = self.0.consume() {
+            let param_names = self.parse_parameter_list();
+            let body = self.parse_block();
+            Some(FunctionDeclaration {
+                fn_name,
+                param_names,
+                body,
+            })
+        } else {
+            panic!("Expected function name")
+        }
+    }
+
+    fn parse_parameter_list(&mut self) -> Vec<IdentifierName> {
+        self.0
+            .consume_exact(&Token::Punctuator(Punctuator::OpenParen));
+        if self
+            .0
+            .consume_eq(&Token::Punctuator(Punctuator::CloseParen))
+            .is_some()
+        {
+            return Vec::with_capacity(0);
+        }
+
+        let mut params = Vec::new();
+        loop {
+            if let Some(Token::Identifier(param)) = self.0.consume() {
+                params.push(param)
+            } else {
+                panic!("Expected identifier (parameter name)")
+            }
+            match self.0.consume() {
+                Some(Token::Punctuator(Punctuator::CloseParen)) => break params,
+                Some(Token::Punctuator(Punctuator::Comma)) => continue,
+                Some(token) => panic!("Expected comma or closing parenthesis but was {:?}", token),
+                None => panic!("Expected comma or closing parenthesis but was <end>"),
+            }
+        }
     }
 
     fn parse_variable_declaration(&mut self) -> Option<VariableDeclaration> {
