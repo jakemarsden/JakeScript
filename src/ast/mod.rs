@@ -118,6 +118,7 @@ pub enum Expression {
     Binary(BinaryExpression),
     Unary(UnaryExpression),
     Literal(LiteralExpression),
+    FunctionCall(FunctionCallExpression),
     PropertyAccess(PropertyAccessExpression),
     VariableAccess(VariableAccessExpression),
 }
@@ -156,6 +157,14 @@ pub struct LiteralExpression {
 }
 
 impl Node for LiteralExpression {}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FunctionCallExpression {
+    pub fn_name: IdentifierName,
+    pub arguments: Vec<Expression>,
+}
+
+impl Node for FunctionCallExpression {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PropertyAccessExpression {

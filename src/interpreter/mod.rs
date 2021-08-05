@@ -170,6 +170,7 @@ impl Eval for Expression {
             Self::Unary(ref node) => node.eval(it),
 
             Self::Literal(ref node) => node.eval(it),
+            Self::FunctionCall(ref node) => node.eval(it),
             Self::PropertyAccess(ref node) => node.eval(it),
             Self::VariableAccess(ref node) => node.eval(it),
         }
@@ -234,6 +235,12 @@ impl Eval for UnaryExpression {
 impl Eval for LiteralExpression {
     fn eval(&self, _it: &mut Interpreter) -> Result<Value> {
         Ok(self.value.clone())
+    }
+}
+
+impl Eval for FunctionCallExpression {
+    fn eval(&self, _it: &mut Interpreter) -> Result<Value> {
+        todo!("FunctionCallExpression::eval: {:?}", self)
     }
 }
 

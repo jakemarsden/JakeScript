@@ -96,8 +96,18 @@ impl Parser {
 
     fn parse_primary_expression(&mut self) -> Option<Expression> {
         Some(match self.0.consume()? {
-            Token::Identifier(var_name) => {
-                Expression::VariableAccess(VariableAccessExpression { var_name })
+            Token::Identifier(identifier) => {
+                if self.0.peek() == Some(&Token::Punctuator(Punctuator::OpenParen)) {
+                    let arguments = self.parse_fn_arguments();
+                    Expression::FunctionCall(FunctionCallExpression {
+                        fn_name: identifier,
+                        arguments,
+                    })
+                } else {
+                    Expression::VariableAccess(VariableAccessExpression {
+                        var_name: identifier,
+                    })
+                }
             }
             Token::Literal(literal) => Expression::Literal(LiteralExpression {
                 value: match literal {
@@ -236,6 +246,33 @@ impl Parser {
             match self.0.consume() {
                 Some(Token::Punctuator(Punctuator::Comma)) => {}
                 Some(Token::Punctuator(Punctuator::CloseParen)) => break params,
+                Some(token) => panic!("Expected comma or closing parenthesis but was {:?}", token),
+                None => panic!("Expected comma or closing parenthesis but was <end>"),
+            }
+        }
+    }
+
+    fn parse_fn_arguments(&mut self) -> Vec<Expression> {
+        self.0
+            .consume_exact(&Token::Punctuator(Punctuator::OpenParen));
+        if self
+            .0
+            .consume_eq(&Token::Punctuator(Punctuator::CloseParen))
+            .is_some()
+        {
+            return Vec::with_capacity(0);
+        }
+
+        let mut args = Vec::new();
+        loop {
+            if let Some(arg) = self.parse_expression() {
+                args.push(arg);
+            } else {
+                panic!("Expected expression but was <end>");
+            }
+            match self.0.consume() {
+                Some(Token::Punctuator(Punctuator::Comma)) => {}
+                Some(Token::Punctuator(Punctuator::CloseParen)) => break args,
                 Some(token) => panic!("Expected comma or closing parenthesis but was {:?}", token),
                 None => panic!("Expected comma or closing parenthesis but was <end>"),
             }
