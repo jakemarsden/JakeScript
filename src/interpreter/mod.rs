@@ -142,7 +142,7 @@ impl Eval for WhileLoop {
 
 impl Eval for FunctionDeclaration {
     fn eval(&self, _it: &mut Interpreter) -> Result<Value> {
-        todo!("FunctionDeclaration::eval: {:?}", self)
+        todo!("FunctionDeclaration::eval: {:#?}", self)
     }
 }
 
@@ -240,7 +240,7 @@ impl Eval for LiteralExpression {
 
 impl Eval for FunctionCallExpression {
     fn eval(&self, _it: &mut Interpreter) -> Result<Value> {
-        todo!("FunctionCallExpression::eval: {:?}", self)
+        todo!("FunctionCallExpression::eval: {:#?}", self)
     }
 }
 
