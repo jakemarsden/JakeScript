@@ -181,7 +181,7 @@ impl Eval for AssignmentExpression {
     fn eval(&self, it: &mut Interpreter) -> Result<Value> {
         let var_name = match self.lhs.as_ref() {
             Expression::VariableAccess(node) => &node.var_name,
-            lhs => todo!("Expression::eval: assignment_op: lhs={:?}", lhs),
+            lhs => todo!("Expression::eval: assignment_op: lhs={:#?}", lhs),
         };
         let lhs = it.vm().peek_scope().resolve_variable(var_name)?.clone();
         let rhs = self.rhs.eval(it)?;
@@ -228,7 +228,7 @@ impl Eval for BinaryExpression {
 
 impl Eval for UnaryExpression {
     fn eval(&self, _it: &mut Interpreter) -> Result<Value> {
-        todo!("UnaryExpression::eval: {:?}", self)
+        todo!("UnaryExpression::eval: {:#?}", self)
     }
 }
 
@@ -246,7 +246,7 @@ impl Eval for FunctionCallExpression {
 
 impl Eval for PropertyAccessExpression {
     fn eval(&self, _it: &mut Interpreter) -> Result<Value> {
-        todo!("PropertyExpression::eval: {:?}", self)
+        todo!("PropertyExpression::eval: {:#?}", self)
     }
 }
 
