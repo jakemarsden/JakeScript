@@ -133,7 +133,7 @@ impl Parser {
     fn parse_function_declaration(&mut self) -> Option<FunctionDeclaration> {
         self.0.consume_exact(&Token::Keyword(Keyword::Function));
         if let Some(Token::Identifier(fn_name)) = self.0.consume() {
-            let param_names = self.parse_parameter_list();
+            let param_names = self.parse_fn_parameters();
             let body = self.parse_block();
             Some(FunctionDeclaration {
                 fn_name,
@@ -142,33 +142,6 @@ impl Parser {
             })
         } else {
             panic!("Expected function name")
-        }
-    }
-
-    fn parse_parameter_list(&mut self) -> Vec<IdentifierName> {
-        self.0
-            .consume_exact(&Token::Punctuator(Punctuator::OpenParen));
-        if self
-            .0
-            .consume_eq(&Token::Punctuator(Punctuator::CloseParen))
-            .is_some()
-        {
-            return Vec::with_capacity(0);
-        }
-
-        let mut params = Vec::new();
-        loop {
-            if let Some(Token::Identifier(param)) = self.0.consume() {
-                params.push(param)
-            } else {
-                panic!("Expected identifier (parameter name)")
-            }
-            match self.0.consume() {
-                Some(Token::Punctuator(Punctuator::CloseParen)) => break params,
-                Some(Token::Punctuator(Punctuator::Comma)) => continue,
-                Some(token) => panic!("Expected comma or closing parenthesis but was {:?}", token),
-                None => panic!("Expected comma or closing parenthesis but was <end>"),
-            }
         }
     }
 
@@ -240,6 +213,33 @@ impl Parser {
             .consume_exact(&Token::Punctuator(Punctuator::CloseParen));
         let block = self.parse_block();
         Some(WhileLoop { condition, block })
+    }
+
+    fn parse_fn_parameters(&mut self) -> Vec<IdentifierName> {
+        self.0
+            .consume_exact(&Token::Punctuator(Punctuator::OpenParen));
+        if self
+            .0
+            .consume_eq(&Token::Punctuator(Punctuator::CloseParen))
+            .is_some()
+        {
+            return Vec::with_capacity(0);
+        }
+
+        let mut params = Vec::new();
+        loop {
+            if let Some(Token::Identifier(param)) = self.0.consume() {
+                params.push(param);
+            } else {
+                panic!("Expected identifier (parameter name)");
+            }
+            match self.0.consume() {
+                Some(Token::Punctuator(Punctuator::Comma)) => {}
+                Some(Token::Punctuator(Punctuator::CloseParen)) => break params,
+                Some(token) => panic!("Expected comma or closing parenthesis but was {:?}", token),
+                None => panic!("Expected comma or closing parenthesis but was <end>"),
+            }
+        }
     }
 }
 
