@@ -1,4 +1,4 @@
-use crate::ast::{Value, VariableDeclarationKind};
+use crate::ast::{Block, Value, VariableDeclarationKind};
 use crate::interpreter::error::*;
 use std::mem;
 
@@ -69,6 +69,7 @@ impl CallFrame {
 #[derive(Debug, Default)]
 pub struct ScopeCtx {
     locals: Vec<Variable>,
+    functions: Vec<Function>,
     parent: Option<Box<ScopeCtx>>,
 }
 
@@ -98,6 +99,34 @@ impl ScopeCtx {
             parent.lookup_local(name)
         } else {
             Err(VariableNotDefinedError)
+        }
+    }
+
+    pub fn declare_function(
+        &mut self,
+        name: String,
+        parameters: Vec<String>,
+        body: Block,
+    ) -> Result<(), FunctionAlreadyDefinedError> {
+        if matches!(self.lookup_function(&name), Err(FunctionNotDefinedError)) {
+            self.functions.push(Function {
+                name,
+                parameters,
+                body,
+            });
+            Ok(())
+        } else {
+            Err(FunctionAlreadyDefinedError)
+        }
+    }
+
+    pub fn lookup_function(&self, name: &str) -> Result<&Function, FunctionNotDefinedError> {
+        if let Some(function) = self.functions.iter().find(|function| function.name == name) {
+            Ok(function)
+        } else if let Some(ref parent) = self.parent {
+            parent.lookup_function(name)
+        } else {
+            Err(FunctionNotDefinedError)
         }
     }
 }
@@ -130,5 +159,26 @@ impl Variable {
             }
             VariableDeclarationKind::Const => Err(AssignToConstVariableError),
         }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct Function {
+    name: String,
+    parameters: Vec<String>,
+    body: Block,
+}
+
+impl Function {
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn parameters(&self) -> &[String] {
+        &self.parameters
+    }
+
+    pub fn body(&self) -> &Block {
+        &self.body
     }
 }

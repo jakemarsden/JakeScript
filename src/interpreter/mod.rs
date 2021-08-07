@@ -141,8 +141,13 @@ impl Eval for WhileLoop {
 }
 
 impl Eval for FunctionDeclaration {
-    fn eval(&self, _it: &mut Interpreter) -> Result<Value> {
-        todo!("FunctionDeclaration::eval: {:#?}", self)
+    fn eval(&self, it: &mut Interpreter) -> Result<Value> {
+        it.vm().scope().declare_function(
+            self.fn_name.clone(),
+            self.param_names.clone(),
+            self.body.clone(),
+        )?;
+        Ok(Value::Undefined)
     }
 }
 
@@ -238,8 +243,28 @@ impl Eval for LiteralExpression {
 }
 
 impl Eval for FunctionCallExpression {
-    fn eval(&self, _it: &mut Interpreter) -> Result<Value> {
-        todo!("FunctionCallExpression::eval: {:#?}", self)
+    fn eval(&self, it: &mut Interpreter) -> Result<Value> {
+        let function = it.vm().scope().lookup_function(&self.fn_name)?.clone();
+        if function.parameters().len() != self.arguments.len() {
+            return Err(FunctionArgumentMismatchError.into());
+        }
+
+        it.vm().stack().push_frame();
+
+        // Add function arguments to the scope of the newly-created frame
+        for (idx, argument) in self.arguments.iter().enumerate() {
+            let parameter_name = function.parameters()[idx].clone();
+            let argument_value = argument.eval(it)?;
+            it.vm().scope().init_local(
+                VariableDeclarationKind::Let,
+                parameter_name,
+                argument_value,
+            )?;
+        }
+        function.body().eval(it)?;
+
+        it.vm.stack().pop_frame();
+        Ok(Value::Undefined)
     }
 }
 
