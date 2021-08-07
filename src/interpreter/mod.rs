@@ -112,13 +112,13 @@ impl Eval for IfStatement {
     fn eval(&self, it: &mut Interpreter) -> Result<Value> {
         let condition = self.condition.eval(it)?;
         if condition.as_boolean() {
-            it.vm().push_scope();
+            it.vm().frame().push_scope();
             self.success_block.eval(it)?;
-            it.vm().pop_scope();
+            it.vm.frame().pop_scope()
         } else if let Some(ref else_block) = self.else_block {
-            it.vm().push_scope();
+            it.vm().frame().push_scope();
             else_block.eval(it)?;
-            it.vm().pop_scope();
+            it.vm().frame().pop_scope();
         }
         Ok(Value::Undefined)
     }
@@ -129,9 +129,9 @@ impl Eval for WhileLoop {
         loop {
             let condition = self.condition.eval(it)?;
             if condition.as_boolean() {
-                it.vm().push_scope();
+                it.vm().frame().push_scope();
                 self.block.eval(it)?;
-                it.vm().pop_scope();
+                it.vm().frame().pop_scope();
             } else {
                 break;
             }
@@ -153,11 +153,9 @@ impl Eval for VariableDeclaration {
         } else {
             Value::Undefined
         };
-        it.vm().peek_scope_mut().init_variable(
-            self.kind,
-            self.var_name.to_owned(),
-            initial_value,
-        )?;
+        it.vm()
+            .scope()
+            .init_local(self.kind, self.var_name.to_owned(), initial_value)?;
         Ok(Value::Undefined)
     }
 }
@@ -183,7 +181,7 @@ impl Eval for AssignmentExpression {
             Expression::VariableAccess(node) => &node.var_name,
             lhs => todo!("Expression::eval: assignment_op: lhs={:#?}", lhs),
         };
-        let lhs = it.vm().peek_scope().resolve_variable(var_name)?.clone();
+        let lhs = it.vm().scope().lookup_local(var_name)?.value().clone();
         let rhs = self.rhs.eval(it)?;
         let value = match self.kind {
             AssignmentOp::Assign => rhs,
@@ -196,8 +194,9 @@ impl Eval for AssignmentExpression {
             kind => todo!("Expression::eval: kind={:?}", kind),
         };
         it.vm()
-            .peek_scope_mut()
-            .set_variable(var_name, value.clone())?;
+            .scope()
+            .lookup_local(var_name)?
+            .set_value(value.clone())?;
         Ok(value)
     }
 }
@@ -252,7 +251,7 @@ impl Eval for PropertyAccessExpression {
 
 impl Eval for VariableAccessExpression {
     fn eval(&self, it: &mut Interpreter) -> Result<Value> {
-        let value = it.vm().peek_scope().resolve_variable(&self.var_name)?;
-        Ok(value.clone())
+        let variable = it.vm().scope().lookup_local(&self.var_name)?;
+        Ok(variable.value().clone())
     }
 }

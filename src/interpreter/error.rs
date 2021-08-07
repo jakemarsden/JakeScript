@@ -4,8 +4,8 @@ use std::fmt;
 #[derive(Clone, Debug, PartialEq)]
 pub enum Error {
     AssertionFailed(AssertionFailedError),
+    AssignToConstVariable(AssignToConstVariableError),
     VariableAlreadyDefined(VariableAlreadyDefinedError),
-    VariableIsConst(VariableIsConstError),
     VariableNotDefined(VariableNotDefinedError),
 }
 
@@ -20,8 +20,8 @@ impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         Some(match self {
             Self::AssertionFailed(ref source) => source,
+            Self::AssignToConstVariable(ref source) => source,
             Self::VariableAlreadyDefined(ref source) => source,
-            Self::VariableIsConst(ref source) => source,
             Self::VariableNotDefined(ref source) => source,
         })
     }
@@ -53,19 +53,28 @@ impl From<AssertionFailedError> for Error {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct VariableAlreadyDefinedError {
-    var_name: String,
-}
+pub struct AssignToConstVariableError;
 
-impl VariableAlreadyDefinedError {
-    pub fn new(var_name: String) -> Self {
-        Self { var_name }
+impl fmt::Display for AssignToConstVariableError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str(r#"Cannot assign to a variable declared as "const""#)
     }
 }
 
+impl std::error::Error for AssignToConstVariableError {}
+
+impl From<AssignToConstVariableError> for Error {
+    fn from(source: AssignToConstVariableError) -> Self {
+        Self::AssignToConstVariable(source)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct VariableAlreadyDefinedError;
+
 impl fmt::Display for VariableAlreadyDefinedError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, r#"Variable already defined: "{}""#, self.var_name)
+        f.write_str("A variable with the same name is already defined in the current scope")
     }
 }
 
@@ -78,48 +87,11 @@ impl From<VariableAlreadyDefinedError> for Error {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct VariableIsConstError {
-    var_name: String,
-}
-
-impl VariableIsConstError {
-    pub fn new(var_name: String) -> Self {
-        Self { var_name }
-    }
-}
-
-impl fmt::Display for VariableIsConstError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            r#"Variable is const (cannot be set): "{}""#,
-            self.var_name
-        )
-    }
-}
-
-impl std::error::Error for VariableIsConstError {}
-
-impl From<VariableIsConstError> for Error {
-    fn from(source: VariableIsConstError) -> Self {
-        Self::VariableIsConst(source)
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct VariableNotDefinedError {
-    var_name: String,
-}
-
-impl VariableNotDefinedError {
-    pub fn new(var_name: String) -> Self {
-        Self { var_name }
-    }
-}
+pub struct VariableNotDefinedError;
 
 impl fmt::Display for VariableNotDefinedError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, r#"Variable not defined: "{}""#, self.var_name)
+        f.write_str("Variable not defined in the current scope")
     }
 }
 

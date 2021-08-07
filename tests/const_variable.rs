@@ -25,5 +25,5 @@ a = 20;
 "##;
     let ast = common::parse_from_source_code(source_code);
     let result = common::eval(&ast);
-    assert_matches!(result, Err(Error::VariableIsConst(..)));
+    assert_matches!(result, Err(Error::AssignToConstVariable(..)));
 }
