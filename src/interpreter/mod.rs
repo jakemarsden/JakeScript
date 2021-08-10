@@ -1,5 +1,6 @@
 use crate::ast::*;
 use std::cmp::Ordering;
+use std::mem;
 
 pub use error::*;
 pub use vm::*;
@@ -12,6 +13,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[derive(Default)]
 pub struct Interpreter {
     vm: Vm,
+    execution_state: ExecutionState,
 }
 
 impl Interpreter {
@@ -61,6 +63,41 @@ impl Interpreter {
     pub fn vm(&mut self) -> &mut Vm {
         &mut self.vm
     }
+
+    pub fn execution_state(&self) -> &ExecutionState {
+        &self.execution_state
+    }
+
+    pub fn take_execution_state(&mut self) -> ExecutionState {
+        mem::take(&mut self.execution_state)
+    }
+
+    pub fn set_execution_state(&mut self, execution_state: ExecutionState) {
+        if matches!(self.execution_state, ExecutionState::Advance) {
+            self.execution_state = execution_state;
+        } else {
+            panic!(
+                "Unexpected execution state (expected {:?} but was {:?}): Cannot set to {:?}",
+                ExecutionState::Advance,
+                self.execution_state,
+                execution_state
+            );
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum ExecutionState {
+    Advance,
+    Break,
+    BreakContinue,
+    Return(Value),
+}
+
+impl Default for ExecutionState {
+    fn default() -> Self {
+        Self::Advance
+    }
 }
 
 pub trait Eval: Node {
@@ -77,6 +114,9 @@ impl Eval for Block {
     fn eval(&self, it: &mut Interpreter) -> Result<Value> {
         let mut result = Value::Undefined;
         for stmt in self.iter() {
+            if !matches!(it.execution_state(), ExecutionState::Advance) {
+                break;
+            }
             result = stmt.eval(it)?;
         }
         Ok(result)
@@ -156,8 +196,14 @@ impl Eval for ContinueStatement {
 }
 
 impl Eval for ReturnStatement {
-    fn eval(&self, _it: &mut Interpreter) -> Result<Value> {
-        todo!("ReturnStatement::eval: {:#?}", self)
+    fn eval(&self, it: &mut Interpreter) -> Result<Value> {
+        let value = if let Some(ref expr) = self.expr {
+            expr.eval(it)?
+        } else {
+            Value::Undefined
+        };
+        it.set_execution_state(ExecutionState::Return(value));
+        Ok(Value::Undefined)
     }
 }
 
@@ -285,7 +331,12 @@ impl Eval for FunctionCallExpression {
         function.body().eval(it)?;
 
         it.vm.stack().pop_frame();
-        Ok(Value::Undefined)
+
+        Ok(match it.take_execution_state() {
+            ExecutionState::Advance => Value::Undefined,
+            ExecutionState::Return(value) => value,
+            execution_state => panic!("Unexpected execution state: {:?}", execution_state),
+        })
     }
 }
 
