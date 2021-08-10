@@ -171,12 +171,19 @@ impl Eval for WhileLoop {
     fn eval(&self, it: &mut Interpreter) -> Result<Value> {
         loop {
             let condition = self.condition.eval(it)?;
-            if condition.as_boolean() {
-                it.vm().frame().push_scope();
-                self.block.eval(it)?;
-                it.vm().frame().pop_scope();
-            } else {
+            if !condition.as_boolean() {
                 break;
+            }
+
+            it.vm().frame().push_scope();
+            self.block.eval(it)?;
+            it.vm().frame().pop_scope();
+
+            match it.take_execution_state() {
+                ExecutionState::Advance => {}
+                ExecutionState::Break => break,
+                ExecutionState::BreakContinue => continue,
+                execution_state => panic!("Unexpected execution state: {:?}", execution_state),
             }
         }
         Ok(Value::Undefined)
@@ -184,14 +191,16 @@ impl Eval for WhileLoop {
 }
 
 impl Eval for BreakStatement {
-    fn eval(&self, _it: &mut Interpreter) -> Result<Value> {
-        todo!("BreakStatement::eval: {:#?}", self)
+    fn eval(&self, it: &mut Interpreter) -> Result<Value> {
+        it.set_execution_state(ExecutionState::Break);
+        Ok(Value::Undefined)
     }
 }
 
 impl Eval for ContinueStatement {
-    fn eval(&self, _it: &mut Interpreter) -> Result<Value> {
-        todo!("ContinueStatement::eval: {:#?}", self)
+    fn eval(&self, it: &mut Interpreter) -> Result<Value> {
+        it.set_execution_state(ExecutionState::BreakContinue);
+        Ok(Value::Undefined)
     }
 }
 
