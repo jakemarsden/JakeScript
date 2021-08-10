@@ -120,6 +120,7 @@ impl Parser {
                     Literal::Null => Value::Null,
                     Literal::Numeric(value) => Value::Numeric(value),
                     Literal::String(value) => Value::String(value),
+                    Literal::Undefined => Value::Undefined,
                 },
             }),
             token => todo!("Parser::parse_primary_expression: token={}", token),

@@ -245,6 +245,7 @@ pub enum Literal {
     Null,
     Numeric(i64),
     String(String),
+    Undefined,
 }
 
 impl fmt::Display for Literal {
@@ -254,6 +255,7 @@ impl fmt::Display for Literal {
             Self::Null => write!(f, "null"),
             Self::Numeric(it) => write!(f, "{}", it),
             Self::String(it) => write!(f, r#""{}""#, it),
+            Self::Undefined => write!(f, "undefined"),
         }
     }
 }
