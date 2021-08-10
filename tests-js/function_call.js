@@ -31,5 +31,16 @@ function earlyReturn(arg) {
     }
     assert false;
 }
-earlyReturn(42);
+assert earlyReturn(42) === undefined;
 assert earlyReturn(69) === "nice";
+
+function trailingExpressionIsNotReturned(a, b) {
+    let sum = a + b;
+    sum;
+}
+assert trailingExpressionIsNotReturned(40, 2) === undefined;
+
+function actuallyReturnsUndefined() {
+    return undefined;
+}
+assert actuallyReturnsUndefined() === undefined;
