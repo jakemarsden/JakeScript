@@ -61,8 +61,12 @@ impl iter::FromIterator<Statement> for Block {
 pub enum Statement {
     Assertion(Assertion),
     Block(Block),
+    Break(BreakStatement),
+    Continue(ContinueStatement),
     Expression(Expression),
+    FunctionDeclaration(FunctionDeclaration),
     IfStatement(IfStatement),
+    Return(ReturnStatement),
     VariableDeclaration(VariableDeclaration),
     WhileLoop(WhileLoop),
 }
@@ -94,6 +98,36 @@ pub struct WhileLoop {
 impl Node for WhileLoop {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BreakStatement {
+    // TODO: label
+}
+
+impl Node for BreakStatement {}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ContinueStatement {
+    // TODO: label
+}
+
+impl Node for ContinueStatement {}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ReturnStatement {
+    pub expr: Option<Expression>,
+}
+
+impl Node for ReturnStatement {}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FunctionDeclaration {
+    pub fn_name: IdentifierName,
+    pub param_names: Vec<IdentifierName>,
+    pub body: Block,
+}
+
+impl Node for FunctionDeclaration {}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VariableDeclaration {
     pub kind: VariableDeclarationKind,
     pub var_name: IdentifierName,
@@ -108,6 +142,7 @@ pub enum Expression {
     Binary(BinaryExpression),
     Unary(UnaryExpression),
     Literal(LiteralExpression),
+    FunctionCall(FunctionCallExpression),
     PropertyAccess(PropertyAccessExpression),
     VariableAccess(VariableAccessExpression),
 }
@@ -146,6 +181,14 @@ pub struct LiteralExpression {
 }
 
 impl Node for LiteralExpression {}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FunctionCallExpression {
+    pub fn_name: IdentifierName,
+    pub arguments: Vec<Expression>,
+}
+
+impl Node for FunctionCallExpression {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PropertyAccessExpression {

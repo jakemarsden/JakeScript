@@ -53,7 +53,15 @@ impl Parser {
         match self.0.peek()? {
             Token::Punctuator(Punctuator::OpenBrace) => Some(Statement::Block(self.parse_block())),
             Token::Keyword(Keyword::Assert) => self.parse_assertion().map(Statement::Assertion),
+            Token::Keyword(Keyword::Break) => self.parse_break_statement().map(Statement::Break),
+            Token::Keyword(Keyword::Continue) => {
+                self.parse_continue_statement().map(Statement::Continue)
+            }
             Token::Keyword(Keyword::If) => self.parse_if_statement().map(Statement::IfStatement),
+            Token::Keyword(Keyword::Function) => self
+                .parse_function_declaration()
+                .map(Statement::FunctionDeclaration),
+            Token::Keyword(Keyword::Return) => self.parse_return_statement().map(Statement::Return),
             Token::Keyword(Keyword::Const | Keyword::Let) => self
                 .parse_variable_declaration()
                 .map(Statement::VariableDeclaration),
@@ -93,8 +101,18 @@ impl Parser {
 
     fn parse_primary_expression(&mut self) -> Option<Expression> {
         Some(match self.0.consume()? {
-            Token::Identifier(var_name) => {
-                Expression::VariableAccess(VariableAccessExpression { var_name })
+            Token::Identifier(identifier) => {
+                if self.0.peek() == Some(&Token::Punctuator(Punctuator::OpenParen)) {
+                    let arguments = self.parse_fn_arguments();
+                    Expression::FunctionCall(FunctionCallExpression {
+                        fn_name: identifier,
+                        arguments,
+                    })
+                } else {
+                    Expression::VariableAccess(VariableAccessExpression {
+                        var_name: identifier,
+                    })
+                }
             }
             Token::Literal(literal) => Expression::Literal(LiteralExpression {
                 value: match literal {
@@ -126,6 +144,21 @@ impl Parser {
                 rhs: Box::new(rhs),
             }),
         })
+    }
+
+    fn parse_function_declaration(&mut self) -> Option<FunctionDeclaration> {
+        self.0.consume_exact(&Token::Keyword(Keyword::Function));
+        if let Some(Token::Identifier(fn_name)) = self.0.consume() {
+            let param_names = self.parse_fn_parameters();
+            let body = self.parse_block();
+            Some(FunctionDeclaration {
+                fn_name,
+                param_names,
+                body,
+            })
+        } else {
+            panic!("Expected function name")
+        }
     }
 
     fn parse_variable_declaration(&mut self) -> Option<VariableDeclaration> {
@@ -196,6 +229,92 @@ impl Parser {
             .consume_exact(&Token::Punctuator(Punctuator::CloseParen));
         let block = self.parse_block();
         Some(WhileLoop { condition, block })
+    }
+
+    fn parse_break_statement(&mut self) -> Option<BreakStatement> {
+        self.0.consume_exact(&Token::Keyword(Keyword::Break));
+        self.0
+            .consume_exact(&Token::Punctuator(Punctuator::Semicolon));
+        Some(BreakStatement {})
+    }
+
+    fn parse_continue_statement(&mut self) -> Option<ContinueStatement> {
+        self.0.consume_exact(&Token::Keyword(Keyword::Continue));
+        self.0
+            .consume_exact(&Token::Punctuator(Punctuator::Semicolon));
+        Some(ContinueStatement {})
+    }
+
+    fn parse_return_statement(&mut self) -> Option<ReturnStatement> {
+        self.0.consume_exact(&Token::Keyword(Keyword::Return));
+        Some(
+            if self
+                .0
+                .consume_eq(&Token::Punctuator(Punctuator::Semicolon))
+                .is_some()
+            {
+                ReturnStatement { expr: None }
+            } else {
+                let expr = self
+                    .parse_expression()
+                    .expect("Expected expression but was <end>");
+                ReturnStatement { expr: Some(expr) }
+            },
+        )
+    }
+
+    fn parse_fn_parameters(&mut self) -> Vec<IdentifierName> {
+        self.0
+            .consume_exact(&Token::Punctuator(Punctuator::OpenParen));
+        if self
+            .0
+            .consume_eq(&Token::Punctuator(Punctuator::CloseParen))
+            .is_some()
+        {
+            return Vec::with_capacity(0);
+        }
+
+        let mut params = Vec::new();
+        loop {
+            if let Some(Token::Identifier(param)) = self.0.consume() {
+                params.push(param);
+            } else {
+                panic!("Expected identifier (parameter name)");
+            }
+            match self.0.consume() {
+                Some(Token::Punctuator(Punctuator::Comma)) => {}
+                Some(Token::Punctuator(Punctuator::CloseParen)) => break params,
+                Some(token) => panic!("Expected comma or closing parenthesis but was {:?}", token),
+                None => panic!("Expected comma or closing parenthesis but was <end>"),
+            }
+        }
+    }
+
+    fn parse_fn_arguments(&mut self) -> Vec<Expression> {
+        self.0
+            .consume_exact(&Token::Punctuator(Punctuator::OpenParen));
+        if self
+            .0
+            .consume_eq(&Token::Punctuator(Punctuator::CloseParen))
+            .is_some()
+        {
+            return Vec::with_capacity(0);
+        }
+
+        let mut args = Vec::new();
+        loop {
+            if let Some(arg) = self.parse_expression() {
+                args.push(arg);
+            } else {
+                panic!("Expected expression but was <end>");
+            }
+            match self.0.consume() {
+                Some(Token::Punctuator(Punctuator::Comma)) => {}
+                Some(Token::Punctuator(Punctuator::CloseParen)) => break args,
+                Some(token) => panic!("Expected comma or closing parenthesis but was {:?}", token),
+                None => panic!("Expected comma or closing parenthesis but was <end>"),
+            }
+        }
     }
 }
 

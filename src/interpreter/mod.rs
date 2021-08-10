@@ -1,5 +1,6 @@
 use crate::ast::*;
 use std::cmp::Ordering;
+use std::mem;
 
 pub use error::*;
 pub use vm::*;
@@ -12,6 +13,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[derive(Default)]
 pub struct Interpreter {
     vm: Vm,
+    execution_state: ExecutionState,
 }
 
 impl Interpreter {
@@ -61,6 +63,41 @@ impl Interpreter {
     pub fn vm(&mut self) -> &mut Vm {
         &mut self.vm
     }
+
+    pub fn execution_state(&self) -> &ExecutionState {
+        &self.execution_state
+    }
+
+    pub fn take_execution_state(&mut self) -> ExecutionState {
+        mem::take(&mut self.execution_state)
+    }
+
+    pub fn set_execution_state(&mut self, execution_state: ExecutionState) {
+        if matches!(self.execution_state, ExecutionState::Advance) {
+            self.execution_state = execution_state;
+        } else {
+            panic!(
+                "Unexpected execution state (expected {:?} but was {:?}): Cannot set to {:?}",
+                ExecutionState::Advance,
+                self.execution_state,
+                execution_state
+            );
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum ExecutionState {
+    Advance,
+    Break,
+    BreakContinue,
+    Return(Value),
+}
+
+impl Default for ExecutionState {
+    fn default() -> Self {
+        Self::Advance
+    }
 }
 
 pub trait Eval: Node {
@@ -77,6 +114,9 @@ impl Eval for Block {
     fn eval(&self, it: &mut Interpreter) -> Result<Value> {
         let mut result = Value::Undefined;
         for stmt in self.iter() {
+            if !matches!(it.execution_state(), ExecutionState::Advance) {
+                break;
+            }
             result = stmt.eval(it)?;
         }
         Ok(result)
@@ -88,8 +128,12 @@ impl Eval for Statement {
         match self {
             Self::Assertion(node) => node.eval(it),
             Self::Block(node) => node.eval(it),
+            Self::Break(node) => node.eval(it),
+            Self::Continue(node) => node.eval(it),
             Self::Expression(node) => node.eval(it),
+            Self::FunctionDeclaration(node) => node.eval(it),
             Self::IfStatement(node) => node.eval(it),
+            Self::Return(node) => node.eval(it),
             Self::VariableDeclaration(node) => node.eval(it),
             Self::WhileLoop(node) => node.eval(it),
         }
@@ -111,13 +155,13 @@ impl Eval for IfStatement {
     fn eval(&self, it: &mut Interpreter) -> Result<Value> {
         let condition = self.condition.eval(it)?;
         if condition.as_boolean() {
-            it.vm().push_scope();
+            it.vm().frame().push_scope();
             self.success_block.eval(it)?;
-            it.vm().pop_scope();
+            it.vm.frame().pop_scope()
         } else if let Some(ref else_block) = self.else_block {
-            it.vm().push_scope();
+            it.vm().frame().push_scope();
             else_block.eval(it)?;
-            it.vm().pop_scope();
+            it.vm().frame().pop_scope();
         }
         Ok(Value::Undefined)
     }
@@ -128,13 +172,48 @@ impl Eval for WhileLoop {
         loop {
             let condition = self.condition.eval(it)?;
             if condition.as_boolean() {
-                it.vm().push_scope();
+                it.vm().frame().push_scope();
                 self.block.eval(it)?;
-                it.vm().pop_scope();
+                it.vm().frame().pop_scope();
             } else {
                 break;
             }
         }
+        Ok(Value::Undefined)
+    }
+}
+
+impl Eval for BreakStatement {
+    fn eval(&self, _it: &mut Interpreter) -> Result<Value> {
+        todo!("BreakStatement::eval: {:#?}", self)
+    }
+}
+
+impl Eval for ContinueStatement {
+    fn eval(&self, _it: &mut Interpreter) -> Result<Value> {
+        todo!("ContinueStatement::eval: {:#?}", self)
+    }
+}
+
+impl Eval for ReturnStatement {
+    fn eval(&self, it: &mut Interpreter) -> Result<Value> {
+        let value = if let Some(ref expr) = self.expr {
+            expr.eval(it)?
+        } else {
+            Value::Undefined
+        };
+        it.set_execution_state(ExecutionState::Return(value));
+        Ok(Value::Undefined)
+    }
+}
+
+impl Eval for FunctionDeclaration {
+    fn eval(&self, it: &mut Interpreter) -> Result<Value> {
+        it.vm().scope().declare_function(
+            self.fn_name.clone(),
+            self.param_names.clone(),
+            self.body.clone(),
+        )?;
         Ok(Value::Undefined)
     }
 }
@@ -146,11 +225,9 @@ impl Eval for VariableDeclaration {
         } else {
             Value::Undefined
         };
-        it.vm().peek_scope_mut().init_variable(
-            self.kind,
-            self.var_name.to_owned(),
-            initial_value,
-        )?;
+        it.vm()
+            .scope()
+            .init_local(self.kind, self.var_name.to_owned(), initial_value)?;
         Ok(Value::Undefined)
     }
 }
@@ -163,6 +240,7 @@ impl Eval for Expression {
             Self::Unary(ref node) => node.eval(it),
 
             Self::Literal(ref node) => node.eval(it),
+            Self::FunctionCall(ref node) => node.eval(it),
             Self::PropertyAccess(ref node) => node.eval(it),
             Self::VariableAccess(ref node) => node.eval(it),
         }
@@ -175,7 +253,7 @@ impl Eval for AssignmentExpression {
             Expression::VariableAccess(node) => &node.var_name,
             lhs => todo!("Expression::eval: assignment_op: lhs={:#?}", lhs),
         };
-        let lhs = it.vm().peek_scope().resolve_variable(var_name)?.clone();
+        let lhs = it.vm().scope().lookup_local(var_name)?.value().clone();
         let rhs = self.rhs.eval(it)?;
         let value = match self.kind {
             AssignmentOp::Assign => rhs,
@@ -188,8 +266,9 @@ impl Eval for AssignmentExpression {
             kind => todo!("Expression::eval: kind={:?}", kind),
         };
         it.vm()
-            .peek_scope_mut()
-            .set_variable(var_name, value.clone())?;
+            .scope()
+            .lookup_local(var_name)?
+            .set_value(value.clone())?;
         Ok(value)
     }
 }
@@ -230,6 +309,37 @@ impl Eval for LiteralExpression {
     }
 }
 
+impl Eval for FunctionCallExpression {
+    fn eval(&self, it: &mut Interpreter) -> Result<Value> {
+        let function = it.vm().scope().lookup_function(&self.fn_name)?.clone();
+        if function.parameters().len() != self.arguments.len() {
+            return Err(FunctionArgumentMismatchError.into());
+        }
+
+        it.vm().stack().push_frame();
+
+        // Add function arguments to the scope of the newly-created frame
+        for (idx, argument) in self.arguments.iter().enumerate() {
+            let parameter_name = function.parameters()[idx].clone();
+            let argument_value = argument.eval(it)?;
+            it.vm().scope().init_local(
+                VariableDeclarationKind::Let,
+                parameter_name,
+                argument_value,
+            )?;
+        }
+        function.body().eval(it)?;
+
+        it.vm.stack().pop_frame();
+
+        Ok(match it.take_execution_state() {
+            ExecutionState::Advance => Value::Undefined,
+            ExecutionState::Return(value) => value,
+            execution_state => panic!("Unexpected execution state: {:?}", execution_state),
+        })
+    }
+}
+
 impl Eval for PropertyAccessExpression {
     fn eval(&self, _it: &mut Interpreter) -> Result<Value> {
         todo!("PropertyExpression::eval: {:#?}", self)
@@ -238,7 +348,7 @@ impl Eval for PropertyAccessExpression {
 
 impl Eval for VariableAccessExpression {
     fn eval(&self, it: &mut Interpreter) -> Result<Value> {
-        let value = it.vm().peek_scope().resolve_variable(&self.var_name)?;
-        Ok(value.clone())
+        let variable = it.vm().scope().lookup_local(&self.var_name)?;
+        Ok(variable.value().clone())
     }
 }

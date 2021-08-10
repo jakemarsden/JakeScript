@@ -1,101 +1,184 @@
-use crate::ast::{Value, VariableDeclarationKind};
+use crate::ast::{Block, Value, VariableDeclarationKind};
 use crate::interpreter::error::*;
-use std::collections::HashMap;
 use std::mem;
 
 #[derive(Default)]
 pub struct Vm {
-    scope: ScopeCtx,
+    stack: CallStack,
 }
 
 impl Vm {
-    pub fn peek_scope(&self) -> &ScopeCtx {
-        &self.scope
+    pub fn stack(&mut self) -> &mut CallStack {
+        &mut self.stack
     }
 
-    pub fn peek_scope_mut(&mut self) -> &mut ScopeCtx {
+    pub fn frame(&mut self) -> &mut CallFrame {
+        self.stack().frame()
+    }
+
+    pub fn scope(&mut self) -> &mut ScopeCtx {
+        self.frame().scope()
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct CallStack {
+    frame: CallFrame,
+}
+
+impl CallStack {
+    pub fn frame(&mut self) -> &mut CallFrame {
+        &mut self.frame
+    }
+
+    pub fn push_frame(&mut self) {
+        let new_frame = CallFrame::default();
+        let parent_frame = mem::replace(&mut self.frame, new_frame);
+        self.frame.parent = Some(Box::new(parent_frame));
+    }
+
+    pub fn pop_frame(&mut self) {
+        let parent_frame = self.frame.parent.take();
+        self.frame = *parent_frame.expect("Cannot pop top-level call frame");
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct CallFrame {
+    scope: ScopeCtx,
+    parent: Option<Box<CallFrame>>,
+}
+
+impl CallFrame {
+    pub fn scope(&mut self) -> &mut ScopeCtx {
         &mut self.scope
     }
 
     pub fn push_scope(&mut self) {
-        let mut scope = ScopeCtx::default();
-        mem::swap(&mut self.scope, &mut scope);
-        assert!(self.scope.parent.is_none());
-        self.scope.parent = Some(Box::new(scope));
+        let new_scope = ScopeCtx::default();
+        let parent_scope = mem::replace(&mut self.scope, new_scope);
+        self.scope.parent = Some(Box::new(parent_scope));
     }
 
     pub fn pop_scope(&mut self) {
-        let parent_scope = *self.scope.parent.take().expect("Cannot pop global scope");
-        self.scope = parent_scope;
+        let parent_scope = self.scope.parent.take();
+        self.scope = *parent_scope.expect("Cannot pop top-level scope context");
     }
 }
 
 #[derive(Debug, Default)]
 pub struct ScopeCtx {
-    locals: HashMap<String, Variable>,
+    locals: Vec<Variable>,
+    functions: Vec<Function>,
     parent: Option<Box<ScopeCtx>>,
 }
 
 impl ScopeCtx {
-    pub fn init_variable(
+    pub fn init_local(
         &mut self,
         kind: VariableDeclarationKind,
         name: String,
         initial_value: Value,
     ) -> Result<(), VariableAlreadyDefinedError> {
-        let var = Variable {
-            kind,
-            value: initial_value,
-        };
-        self.locals
-            .try_insert(name, var)
-            .map(|_| ())
-            .map_err(|err| VariableAlreadyDefinedError::new(err.entry.key().to_owned()))
-    }
-
-    pub fn resolve_variable(&self, name: &str) -> Result<&Value, VariableNotDefinedError> {
-        self.lookup_variable(name).map(|var| &var.value)
-    }
-
-    pub fn set_variable(&mut self, name: &str, value: Value) -> Result<(), Error> {
-        let mut var = self.lookup_variable_mut(name)?;
-        match var.kind {
-            VariableDeclarationKind::Let => {
-                var.value = value;
-                Ok(())
-            }
-            VariableDeclarationKind::Const => {
-                Err(VariableIsConstError::new(name.to_owned()).into())
-            }
-        }
-    }
-
-    fn lookup_variable(&self, name: &str) -> Result<&Variable, VariableNotDefinedError> {
-        if let Some(variable) = self.locals.get(name) {
-            Ok(variable)
-        } else if let Some(ref parent) = self.parent {
-            parent.lookup_variable(name)
+        if matches!(self.lookup_local(&name), Err(VariableNotDefinedError)) {
+            self.locals.push(Variable {
+                kind,
+                name,
+                value: initial_value,
+            });
+            Ok(())
         } else {
-            Err(VariableNotDefinedError::new(name.to_owned()))
+            Err(VariableAlreadyDefinedError)
         }
     }
 
-    fn lookup_variable_mut(
-        &mut self,
-        name: &str,
-    ) -> Result<&mut Variable, VariableNotDefinedError> {
-        if let Some(variable) = self.locals.get_mut(name) {
+    pub fn lookup_local(&mut self, name: &str) -> Result<&mut Variable, VariableNotDefinedError> {
+        if let Some(variable) = self.locals.iter_mut().find(|var| var.name == name) {
             Ok(variable)
         } else if let Some(ref mut parent) = self.parent {
-            parent.lookup_variable_mut(name)
+            parent.lookup_local(name)
         } else {
-            Err(VariableNotDefinedError::new(name.to_owned()))
+            Err(VariableNotDefinedError)
+        }
+    }
+
+    pub fn declare_function(
+        &mut self,
+        name: String,
+        parameters: Vec<String>,
+        body: Block,
+    ) -> Result<(), FunctionAlreadyDefinedError> {
+        if matches!(self.lookup_function(&name), Err(FunctionNotDefinedError)) {
+            self.functions.push(Function {
+                name,
+                parameters,
+                body,
+            });
+            Ok(())
+        } else {
+            Err(FunctionAlreadyDefinedError)
+        }
+    }
+
+    pub fn lookup_function(&self, name: &str) -> Result<&Function, FunctionNotDefinedError> {
+        if let Some(function) = self.functions.iter().find(|function| function.name == name) {
+            Ok(function)
+        } else if let Some(ref parent) = self.parent {
+            parent.lookup_function(name)
+        } else {
+            Err(FunctionNotDefinedError)
         }
     }
 }
 
 #[derive(Debug)]
-struct Variable {
+pub struct Variable {
     kind: VariableDeclarationKind,
+    name: String,
     value: Value,
+}
+
+impl Variable {
+    pub fn kind(&self) -> VariableDeclarationKind {
+        self.kind
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn value(&self) -> &Value {
+        &self.value
+    }
+
+    pub fn set_value(&mut self, value: Value) -> Result<(), AssignToConstVariableError> {
+        match self.kind {
+            VariableDeclarationKind::Let => {
+                self.value = value;
+                Ok(())
+            }
+            VariableDeclarationKind::Const => Err(AssignToConstVariableError),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct Function {
+    name: String,
+    parameters: Vec<String>,
+    body: Block,
+}
+
+impl Function {
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn parameters(&self) -> &[String] {
+        &self.parameters
+    }
+
+    pub fn body(&self) -> &Block {
+        &self.body
+    }
 }
