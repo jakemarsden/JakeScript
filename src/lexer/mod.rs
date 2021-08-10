@@ -167,6 +167,8 @@ impl Lexer {
             Token::Punctuator(punctuator)
         } else if let Some(()) = self.parse_null_literal() {
             Token::Literal(Literal::Null)
+        } else if let Some(()) = self.parse_undefined_literal() {
+            Token::Literal(Literal::Undefined)
         } else if let Some(bool_lit) = self.parse_boolean_literal() {
             Token::Literal(Literal::Boolean(bool_lit))
         } else if let Some(numeric_lit) = self.parse_numeric_literal() {
@@ -205,6 +207,14 @@ impl Lexer {
 
     fn parse_null_literal(&mut self) -> Option<()> {
         if self.0.consume_str("null") {
+            Some(())
+        } else {
+            None
+        }
+    }
+
+    fn parse_undefined_literal(&mut self) -> Option<()> {
+        if self.0.consume_str("undefined") {
             Some(())
         } else {
             None

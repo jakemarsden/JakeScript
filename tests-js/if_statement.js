@@ -6,11 +6,11 @@ if (a === 42) {
 }
 assert b === "success block!";
 
-let c = null;
+let c = undefined;
 if (a !== 42) {
     c = "success block!";
 }
-assert c === null;
+assert c === undefined;
 
 let d;
 if (a === 42) {
