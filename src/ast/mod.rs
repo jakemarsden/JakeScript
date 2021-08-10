@@ -61,9 +61,12 @@ impl iter::FromIterator<Statement> for Block {
 pub enum Statement {
     Assertion(Assertion),
     Block(Block),
+    Break(BreakStatement),
+    Continue(ContinueStatement),
     Expression(Expression),
     FunctionDeclaration(FunctionDeclaration),
     IfStatement(IfStatement),
+    Return(ReturnStatement),
     VariableDeclaration(VariableDeclaration),
     WhileLoop(WhileLoop),
 }
@@ -93,6 +96,27 @@ pub struct WhileLoop {
 }
 
 impl Node for WhileLoop {}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BreakStatement {
+    // TODO: label
+}
+
+impl Node for BreakStatement {}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ContinueStatement {
+    // TODO: label
+}
+
+impl Node for ContinueStatement {}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ReturnStatement {
+    pub expr: Option<Expression>,
+}
+
+impl Node for ReturnStatement {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct FunctionDeclaration {

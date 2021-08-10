@@ -53,10 +53,15 @@ impl Parser {
         match self.0.peek()? {
             Token::Punctuator(Punctuator::OpenBrace) => Some(Statement::Block(self.parse_block())),
             Token::Keyword(Keyword::Assert) => self.parse_assertion().map(Statement::Assertion),
+            Token::Keyword(Keyword::Break) => self.parse_break_statement().map(Statement::Break),
+            Token::Keyword(Keyword::Continue) => {
+                self.parse_continue_statement().map(Statement::Continue)
+            }
             Token::Keyword(Keyword::If) => self.parse_if_statement().map(Statement::IfStatement),
             Token::Keyword(Keyword::Function) => self
                 .parse_function_declaration()
                 .map(Statement::FunctionDeclaration),
+            Token::Keyword(Keyword::Return) => self.parse_return_statement().map(Statement::Return),
             Token::Keyword(Keyword::Const | Keyword::Let) => self
                 .parse_variable_declaration()
                 .map(Statement::VariableDeclaration),
@@ -223,6 +228,38 @@ impl Parser {
             .consume_exact(&Token::Punctuator(Punctuator::CloseParen));
         let block = self.parse_block();
         Some(WhileLoop { condition, block })
+    }
+
+    fn parse_break_statement(&mut self) -> Option<BreakStatement> {
+        self.0.consume_exact(&Token::Keyword(Keyword::Break));
+        self.0
+            .consume_exact(&Token::Punctuator(Punctuator::Semicolon));
+        Some(BreakStatement {})
+    }
+
+    fn parse_continue_statement(&mut self) -> Option<ContinueStatement> {
+        self.0.consume_exact(&Token::Keyword(Keyword::Continue));
+        self.0
+            .consume_exact(&Token::Punctuator(Punctuator::Semicolon));
+        Some(ContinueStatement {})
+    }
+
+    fn parse_return_statement(&mut self) -> Option<ReturnStatement> {
+        self.0.consume_exact(&Token::Keyword(Keyword::Return));
+        Some(
+            if self
+                .0
+                .consume_eq(&Token::Punctuator(Punctuator::Semicolon))
+                .is_some()
+            {
+                ReturnStatement { expr: None }
+            } else {
+                let expr = self
+                    .parse_expression()
+                    .expect("Expected expression but was <end>");
+                ReturnStatement { expr: Some(expr) }
+            },
+        )
     }
 
     fn parse_fn_parameters(&mut self) -> Vec<IdentifierName> {

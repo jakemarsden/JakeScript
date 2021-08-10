@@ -88,9 +88,12 @@ impl Eval for Statement {
         match self {
             Self::Assertion(node) => node.eval(it),
             Self::Block(node) => node.eval(it),
+            Self::Break(node) => node.eval(it),
+            Self::Continue(node) => node.eval(it),
             Self::Expression(node) => node.eval(it),
             Self::FunctionDeclaration(node) => node.eval(it),
             Self::IfStatement(node) => node.eval(it),
+            Self::Return(node) => node.eval(it),
             Self::VariableDeclaration(node) => node.eval(it),
             Self::WhileLoop(node) => node.eval(it),
         }
@@ -137,6 +140,24 @@ impl Eval for WhileLoop {
             }
         }
         Ok(Value::Undefined)
+    }
+}
+
+impl Eval for BreakStatement {
+    fn eval(&self, _it: &mut Interpreter) -> Result<Value> {
+        todo!("BreakStatement::eval: {:#?}", self)
+    }
+}
+
+impl Eval for ContinueStatement {
+    fn eval(&self, _it: &mut Interpreter) -> Result<Value> {
+        todo!("ContinueStatement::eval: {:#?}", self)
+    }
+}
+
+impl Eval for ReturnStatement {
+    fn eval(&self, _it: &mut Interpreter) -> Result<Value> {
+        todo!("ReturnStatement::eval: {:#?}", self)
     }
 }
 
