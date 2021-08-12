@@ -158,7 +158,7 @@ impl Eval for IfStatement {
         if condition.as_boolean() {
             it.vm().frame().push_scope();
             self.success_block.eval(it)?;
-            it.vm.frame().pop_scope()
+            it.vm().frame().pop_scope()
         } else if let Some(ref else_block) = self.else_block {
             it.vm().frame().push_scope();
             else_block.eval(it)?;
@@ -350,7 +350,7 @@ impl Eval for FunctionCallExpression {
         function.body().eval(it)?;
 
         it.vm().frame().pop_scope();
-        it.vm.stack().pop_frame();
+        it.vm().stack().pop_frame();
 
         Ok(match it.take_execution_state() {
             ExecutionState::Advance => Value::Undefined,
