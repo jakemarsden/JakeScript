@@ -14,7 +14,8 @@ jobs:
           - nightly
           - nightly-2021-07-28
         os:
-          - ubuntu-latest
+          - ubuntu-20.04
+          - windows-2019
 
     steps:
       - name: Checkout
