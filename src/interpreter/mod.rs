@@ -3,6 +3,7 @@ use std::cmp::Ordering;
 use std::mem;
 
 pub use error::*;
+use std::ops::Deref;
 pub use vm::*;
 
 mod error;
@@ -236,7 +237,7 @@ impl Eval for VariableDeclaration {
         };
         it.vm()
             .scope()
-            .init_local(self.kind, self.var_name.to_owned(), initial_value)?;
+            .declare_variable(self.kind, self.var_name.to_owned(), initial_value)?;
         Ok(Value::Undefined)
     }
 }
@@ -262,7 +263,7 @@ impl Eval for AssignmentExpression {
             Expression::VariableAccess(node) => &node.var_name,
             lhs => todo!("Expression::eval: assignment_op: lhs={:#?}", lhs),
         };
-        let lhs = it.vm().scope().lookup_local(var_name)?.value().clone();
+        let lhs = it.vm().scope().lookup_variable(var_name)?.value().clone();
         let rhs = self.rhs.eval(it)?;
         let value = match self.kind {
             AssignmentOp::Assign => rhs,
@@ -276,7 +277,7 @@ impl Eval for AssignmentExpression {
         };
         it.vm()
             .scope()
-            .lookup_local(var_name)?
+            .lookup_variable(var_name)?
             .set_value(value.clone())?;
         Ok(value)
     }
@@ -320,7 +321,7 @@ impl Eval for LiteralExpression {
 
 impl Eval for FunctionCallExpression {
     fn eval(&self, it: &mut Interpreter) -> Result<Value> {
-        let function = it.vm().scope().lookup_function(&self.fn_name)?.clone();
+        let function = it.vm().scope().lookup_function(&self.fn_name)?;
         if function.parameters().len() != self.arguments.len() {
             return Err(FunctionArgumentMismatchError.into());
         }
@@ -331,7 +332,7 @@ impl Eval for FunctionCallExpression {
         for (idx, argument) in self.arguments.iter().enumerate() {
             let parameter_name = function.parameters()[idx].clone();
             let argument_value = argument.eval(it)?;
-            it.vm().scope().init_local(
+            it.vm().scope().declare_variable(
                 VariableDeclarationKind::Let,
                 parameter_name,
                 argument_value,
@@ -357,7 +358,8 @@ impl Eval for PropertyAccessExpression {
 
 impl Eval for VariableAccessExpression {
     fn eval(&self, it: &mut Interpreter) -> Result<Value> {
-        let variable = it.vm().scope().lookup_local(&self.var_name)?;
-        Ok(variable.value().clone())
+        let variable = it.vm().scope().lookup_variable(&self.var_name)?;
+        let value = variable.value().deref().clone();
+        Ok(value)
     }
 }
