@@ -40,14 +40,14 @@ jobs:
           command: test
           args: -- --nocapture
 
-      - name: Check format
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
-
       - name: Lint
         uses: actions-rs/cargo@v1
         with:
           command: clippy
           args: --all-targets --all-features -- -D warnings
+
+      - name: Check format
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
