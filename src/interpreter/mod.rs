@@ -219,25 +219,28 @@ impl Eval for ReturnStatement {
 
 impl Eval for FunctionDeclaration {
     fn eval(&self, it: &mut Interpreter) -> Result<Value> {
-        it.vm().scope().declare_function(
+        let declared_scope = it.vm().scope().clone();
+        let function = Function::new(
             self.fn_name.clone(),
+            declared_scope,
             self.param_names.clone(),
             self.body.clone(),
-        )?;
+        );
+        it.vm().scope().declare_function(function)?;
         Ok(Value::Undefined)
     }
 }
 
 impl Eval for VariableDeclaration {
     fn eval(&self, it: &mut Interpreter) -> Result<Value> {
-        let initial_value = if let Some(ref initialiser) = self.initialiser {
-            initialiser.eval(it)?
+        let var_name = self.var_name.to_owned();
+        let variable = if let Some(ref initialiser) = self.initialiser {
+            let initial_value = initialiser.eval(it)?;
+            Variable::new(self.kind, var_name, initial_value)
         } else {
-            Value::Undefined
+            Variable::new_unassigned(self.kind, var_name)
         };
-        it.vm()
-            .scope()
-            .declare_variable(self.kind, self.var_name.to_owned(), initial_value)?;
+        it.vm().scope().declare_variable(variable)?;
         Ok(Value::Undefined)
     }
 }
@@ -322,17 +325,17 @@ impl Eval for LiteralExpression {
 impl Eval for FunctionCallExpression {
     fn eval(&self, it: &mut Interpreter) -> Result<Value> {
         let function = it.vm().scope().lookup_function(&self.fn_name)?;
+        let parameters = function.declared_parameters();
 
-        let parameter_count = function.parameters().len();
-        if parameter_count != self.arguments.len() {
+        if parameters.len() != self.arguments.len() {
             return Err(FunctionArgumentMismatchError.into());
         }
-        let mut arguments = Vec::with_capacity(parameter_count);
-        for parameter_idx in 0..parameter_count {
-            let parameter_name = function.parameters()[parameter_idx].clone();
-            let argument_expr = &self.arguments[parameter_idx];
+        let mut argument_variables = Vec::with_capacity(parameters.len());
+        for idx in 0..parameters.len() {
+            let parameter_name = parameters[idx].to_owned();
+            let argument_expr = &self.arguments[idx];
             let argument_value = argument_expr.eval(it)?;
-            arguments.push(Variable::new(
+            argument_variables.push(Variable::new(
                 VariableDeclarationKind::Let,
                 parameter_name,
                 argument_value,
@@ -340,13 +343,13 @@ impl Eval for FunctionCallExpression {
         }
 
         let declared_scope = function.declared_scope().deref().clone();
-        let fn_scope = Scope::new_child_of(
-            ScopeCtx::new(arguments, Vec::with_capacity(0)),
-            declared_scope,
-        );
+        let fn_scope_ctx = ScopeCtx::new(argument_variables, Vec::with_capacity(0));
+        it.vm().stack().push_frame(declared_scope);
+        it.vm().frame().push_scope_ctx(fn_scope_ctx);
 
-        it.vm().stack().push_frame(fn_scope);
         function.body().eval(it)?;
+
+        it.vm().frame().pop_scope();
         it.vm.stack().pop_frame();
 
         Ok(match it.take_execution_state() {
