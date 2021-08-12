@@ -30,3 +30,22 @@ assert fib(4) === 3;
 assert fib(5) === 5;
 assert fib(10) === 55;
 assert fib(12) === 144;
+
+function isEvenByMutualRecursion(n) {
+    if (n === 0) {
+        return true;
+    } else {
+        return isOddByMutualRecursion(n - 1);
+    }
+}
+function isOddByMutualRecursion(n) {
+    if (n === 0) {
+        return false;
+    } else {
+        return isEvenByMutualRecursion(n - 1);
+    }
+}
+assert isEvenByMutualRecursion(3) === false;
+assert isEvenByMutualRecursion(4);
+assert isOddByMutualRecursion(5);
+assert isOddByMutualRecursion(6) === false;
