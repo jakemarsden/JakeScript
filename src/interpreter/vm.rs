@@ -34,8 +34,11 @@ impl CallStack {
         &mut self.frame
     }
 
-    pub fn push_frame(&mut self) {
-        let new_frame = CallFrame::default();
+    pub fn push_frame(&mut self, scope: Scope) {
+        let new_frame = CallFrame {
+            scope,
+            parent: None,
+        };
         let parent_frame = mem::replace(&mut self.frame, new_frame);
         self.frame.parent = Some(Box::new(parent_frame));
     }
@@ -58,7 +61,7 @@ impl CallFrame {
     }
 
     pub fn push_scope(&mut self) {
-        let new_child_scope = Scope::new_child_of(ScopeCtx::default(), &self.scope);
+        let new_child_scope = Scope::new_child_of(ScopeCtx::default(), self.scope.clone());
         self.scope = new_child_scope;
     }
 
@@ -75,16 +78,17 @@ pub struct Scope {
 
 impl Scope {
     pub fn new(ctx: ScopeCtx) -> Self {
-        let parent = None;
         Self {
-            inner: Rc::new(RefCell::new(ScopeInner { ctx, parent })),
+            inner: Rc::new(RefCell::new(ScopeInner { ctx, parent: None })),
         }
     }
 
-    pub fn new_child_of(ctx: ScopeCtx, parent: &Self) -> Self {
-        let parent = Some(Rc::clone(&parent.inner));
+    pub fn new_child_of(ctx: ScopeCtx, parent: Self) -> Self {
         Self {
-            inner: Rc::new(RefCell::new(ScopeInner { ctx, parent })),
+            inner: Rc::new(RefCell::new(ScopeInner {
+                ctx,
+                parent: Some(parent.inner),
+            })),
         }
     }
 

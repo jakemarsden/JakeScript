@@ -322,24 +322,31 @@ impl Eval for LiteralExpression {
 impl Eval for FunctionCallExpression {
     fn eval(&self, it: &mut Interpreter) -> Result<Value> {
         let function = it.vm().scope().lookup_function(&self.fn_name)?;
-        if function.parameters().len() != self.arguments.len() {
+
+        let parameter_count = function.parameters().len();
+        if parameter_count != self.arguments.len() {
             return Err(FunctionArgumentMismatchError.into());
         }
-
-        it.vm().stack().push_frame();
-
-        // Add function arguments to the scope of the newly-created frame
-        for (idx, argument) in self.arguments.iter().enumerate() {
-            let parameter_name = function.parameters()[idx].clone();
-            let argument_value = argument.eval(it)?;
-            it.vm().scope().declare_variable(
+        let mut arguments = Vec::with_capacity(parameter_count);
+        for parameter_idx in 0..parameter_count {
+            let parameter_name = function.parameters()[parameter_idx].clone();
+            let argument_expr = &self.arguments[parameter_idx];
+            let argument_value = argument_expr.eval(it)?;
+            arguments.push(Variable::new(
                 VariableDeclarationKind::Let,
                 parameter_name,
                 argument_value,
-            )?;
+            ))
         }
-        function.body().eval(it)?;
 
+        let declared_scope = function.declared_scope().deref().clone();
+        let fn_scope = Scope::new_child_of(
+            ScopeCtx::new(arguments, Vec::with_capacity(0)),
+            declared_scope,
+        );
+
+        it.vm().stack().push_frame(fn_scope);
+        function.body().eval(it)?;
         it.vm.stack().pop_frame();
 
         Ok(match it.take_execution_state() {

@@ -44,3 +44,13 @@ function actuallyReturnsUndefined() {
     return undefined;
 }
 assert actuallyReturnsUndefined() === undefined;
+
+let n = 10;
+function addOutside(delta) {
+    n += delta;
+}
+assert n === 10;
+addOutside(3);
+addOutside(n);
+addOutside(4);
+assert n === 30;
