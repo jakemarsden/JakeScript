@@ -1,4 +1,4 @@
-use crate::ast::Value;
+use crate::ast::{Expression, Value};
 use std::fmt;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -35,18 +35,23 @@ impl std::error::Error for Error {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct AssertionFailedError {
+    condition: Expression,
     value: Value,
 }
 
 impl AssertionFailedError {
-    pub fn new(value: Value) -> Self {
-        Self { value }
+    pub fn new(condition: Expression, value: Value) -> Self {
+        Self { condition, value }
     }
 }
 
 impl fmt::Display for AssertionFailedError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Assertion failed: {}", self.value)
+        write!(
+            f,
+            "Assertion failed (evaluated to `{}`): {:#?}",
+            self.value, self.condition
+        )
     }
 }
 

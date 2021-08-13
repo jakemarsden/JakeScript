@@ -71,7 +71,7 @@ impl Eval for Assertion {
         if value.is_truthy() {
             Ok(Value::Undefined)
         } else {
-            Err(AssertionFailedError::new(value).into())
+            Err(AssertionFailedError::new(self.condition.clone(), value).into())
         }
     }
 }
