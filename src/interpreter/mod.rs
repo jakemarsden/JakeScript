@@ -4,9 +4,11 @@ use std::mem;
 use std::ops::Deref;
 
 pub use error::*;
+pub use stack::*;
 pub use vm::*;
 
 mod error;
+mod stack;
 mod vm;
 
 pub type Result<T> = std::result::Result<T, Error>;
