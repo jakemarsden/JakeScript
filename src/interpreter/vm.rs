@@ -14,14 +14,6 @@ impl Vm {
     pub fn stack(&mut self) -> &mut CallStack {
         &mut self.stack
     }
-
-    pub fn frame(&mut self) -> &mut CallFrame {
-        self.stack().frame()
-    }
-
-    pub fn scope(&mut self) -> &mut Scope {
-        self.frame().scope()
-    }
 }
 
 #[derive(Debug, Default)]

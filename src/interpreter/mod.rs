@@ -1,9 +1,9 @@
 use crate::ast::*;
 use std::cmp::Ordering;
 use std::mem;
+use std::ops::Deref;
 
 pub use error::*;
-use std::ops::Deref;
 pub use vm::*;
 
 mod error;
@@ -156,13 +156,13 @@ impl Eval for IfStatement {
     fn eval(&self, it: &mut Interpreter) -> Result<Value> {
         let condition = self.condition.eval(it)?;
         if condition.as_boolean() {
-            it.vm().frame().push_scope();
+            it.vm().stack().frame().push_scope();
             self.success_block.eval(it)?;
-            it.vm().frame().pop_scope()
+            it.vm().stack().frame().pop_scope()
         } else if let Some(ref else_block) = self.else_block {
-            it.vm().frame().push_scope();
+            it.vm().stack().frame().push_scope();
             else_block.eval(it)?;
-            it.vm().frame().pop_scope();
+            it.vm().stack().frame().pop_scope();
         }
         Ok(Value::Undefined)
     }
@@ -176,9 +176,9 @@ impl Eval for WhileLoop {
                 break;
             }
 
-            it.vm().frame().push_scope();
+            it.vm().stack().frame().push_scope();
             self.block.eval(it)?;
-            it.vm().frame().pop_scope();
+            it.vm().stack().frame().pop_scope();
 
             match it.take_execution_state() {
                 ExecutionState::Advance => {}
@@ -219,14 +219,14 @@ impl Eval for ReturnStatement {
 
 impl Eval for FunctionDeclaration {
     fn eval(&self, it: &mut Interpreter) -> Result<Value> {
-        let declared_scope = it.vm().scope().clone();
+        let declared_scope = it.vm().stack().frame().scope().clone();
         let function = Function::new(
             self.fn_name.clone(),
             declared_scope,
             self.param_names.clone(),
             self.body.clone(),
         );
-        it.vm().scope().declare_function(function)?;
+        it.vm().stack().frame().scope().declare_function(function)?;
         Ok(Value::Undefined)
     }
 }
@@ -240,7 +240,7 @@ impl Eval for VariableDeclaration {
         } else {
             Variable::new_unassigned(self.kind, var_name)
         };
-        it.vm().scope().declare_variable(variable)?;
+        it.vm().stack().frame().scope().declare_variable(variable)?;
         Ok(Value::Undefined)
     }
 }
@@ -266,7 +266,14 @@ impl Eval for AssignmentExpression {
             Expression::VariableAccess(node) => &node.var_name,
             lhs => todo!("Expression::eval: assignment_op: lhs={:#?}", lhs),
         };
-        let lhs = it.vm().scope().lookup_variable(var_name)?.value().clone();
+        let lhs = it
+            .vm()
+            .stack()
+            .frame()
+            .scope()
+            .lookup_variable(var_name)?
+            .value()
+            .clone();
         let rhs = self.rhs.eval(it)?;
         let value = match self.kind {
             AssignmentOp::Assign => rhs,
@@ -279,6 +286,8 @@ impl Eval for AssignmentExpression {
             kind => todo!("Expression::eval: kind={:?}", kind),
         };
         it.vm()
+            .stack()
+            .frame()
             .scope()
             .lookup_variable(var_name)?
             .set_value(value.clone())?;
@@ -324,7 +333,12 @@ impl Eval for LiteralExpression {
 
 impl Eval for FunctionCallExpression {
     fn eval(&self, it: &mut Interpreter) -> Result<Value> {
-        let function = it.vm().scope().lookup_function(&self.fn_name)?;
+        let function = it
+            .vm()
+            .stack()
+            .frame()
+            .scope()
+            .lookup_function(&self.fn_name)?;
         let parameters = function.declared_parameters();
 
         if parameters.len() != self.arguments.len() {
@@ -345,11 +359,11 @@ impl Eval for FunctionCallExpression {
         let declared_scope = function.declared_scope().deref().clone();
         let fn_scope_ctx = ScopeCtx::new(argument_variables, Vec::with_capacity(0));
         it.vm().stack().push_frame(declared_scope);
-        it.vm().frame().push_scope_ctx(fn_scope_ctx);
+        it.vm().stack().frame().push_scope_ctx(fn_scope_ctx);
 
         function.body().eval(it)?;
 
-        it.vm().frame().pop_scope();
+        it.vm().stack().frame().pop_scope();
         it.vm().stack().pop_frame();
 
         Ok(match it.take_execution_state() {
@@ -368,7 +382,12 @@ impl Eval for PropertyAccessExpression {
 
 impl Eval for VariableAccessExpression {
     fn eval(&self, it: &mut Interpreter) -> Result<Value> {
-        let variable = it.vm().scope().lookup_variable(&self.var_name)?;
+        let variable = it
+            .vm()
+            .stack()
+            .frame()
+            .scope()
+            .lookup_variable(&self.var_name)?;
         let value = variable.value().deref().clone();
         Ok(value)
     }
