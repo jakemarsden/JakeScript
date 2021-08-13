@@ -1,4 +1,5 @@
 use crate::ast::*;
+use std::assert_matches::assert_matches;
 use std::hint::unreachable_unchecked;
 use std::ops::Deref;
 
@@ -185,57 +186,60 @@ impl Eval for Expression {
 
 impl Eval for AssignmentExpression {
     fn eval(&self, it: &mut Interpreter) -> Result<Value> {
-        let var_name = match self.lhs.as_ref() {
-            Expression::VariableAccess(node) => &node.var_name,
-            lhs => todo!("Expression::eval: assignment_op: lhs={:#?}", lhs),
-        };
+        assert_matches!(self.kind.associativity(), Associativity::RightToLeft);
         let rhs = self.rhs.eval(it)?;
-        let lhs = &it
-            .vm()
-            .stack()
-            .frame()
-            .scope()
-            .lookup_variable(var_name)?
-            .value()
-            .clone();
+        let mut lhs = match self.lhs.as_ref() {
+            Expression::VariableAccess(node) => it
+                .vm()
+                .stack()
+                .frame()
+                .scope()
+                .lookup_variable(&node.var_name)?,
+            expr => todo!("AssignmentExpression::eval: lhs={:#?}", expr),
+        };
+
         let value = match self.kind {
             AssignmentOp::Assign => rhs,
-            AssignmentOp::AddAssign => it.add(lhs, &rhs),
-            AssignmentOp::SubAssign => it.sub(lhs, &rhs),
-            AssignmentOp::MulAssign => it.mul(lhs, &rhs),
-            AssignmentOp::DivAssign => it.div(lhs, &rhs),
-            AssignmentOp::ModAssign => it.rem(lhs, &rhs),
-            AssignmentOp::PowAssign => it.pow(lhs, &rhs),
-            kind => todo!("Expression::eval: kind={:?}", kind),
+            AssignmentOp::AddAssign => it.add(lhs.value().deref(), &rhs),
+            AssignmentOp::SubAssign => it.sub(lhs.value().deref(), &rhs),
+            AssignmentOp::MulAssign => it.mul(lhs.value().deref(), &rhs),
+            AssignmentOp::DivAssign => it.div(lhs.value().deref(), &rhs),
+            AssignmentOp::ModAssign => it.rem(lhs.value().deref(), &rhs),
+            AssignmentOp::PowAssign => it.pow(lhs.value().deref(), &rhs),
+            kind => todo!("AssignmentExpression::eval: kind={:?}", kind),
         };
-        it.vm()
-            .stack()
-            .frame()
-            .scope()
-            .lookup_variable(var_name)?
-            .set_value(value.clone())?;
+        lhs.set_value(value.clone())?;
         Ok(value)
     }
 }
 
 impl Eval for BinaryExpression {
     fn eval(&self, it: &mut Interpreter) -> Result<Value> {
-        let lhs = self.lhs.eval(it)?;
         Ok(match self.kind {
-            // Get the boolean ops out of the way first, since the don't let us eval the RHS
+            // Get the boolean ops out of the way first, since they don't let us eval the RHS
             //  up-front (which is more ergonomic for all the other ops)
             BinaryOp::LogicalAnd => {
-                // Do not eval the RHS if LHS is falsy!
-                Value::Boolean(lhs.is_truthy() && self.rhs.eval(it)?.is_truthy())
+                assert_matches!(self.kind.associativity(), Associativity::LeftToRight);
+                Value::Boolean(self.lhs.eval(it)?.is_truthy() && self.rhs.eval(it)?.is_truthy())
             }
             BinaryOp::LogicalOr => {
-                // Do not eval the RHS if LHS is truthy!
-                Value::Boolean(lhs.is_truthy() || self.rhs.eval(it)?.is_truthy())
+                assert_matches!(self.kind.associativity(), Associativity::LeftToRight);
+                Value::Boolean(self.lhs.eval(it)?.is_truthy() || self.rhs.eval(it)?.is_truthy())
             }
 
             kind => {
-                let lhs = &lhs;
-                let rhs = &self.rhs.eval(it)?;
+                let (ref lhs, ref rhs) = match kind.associativity() {
+                    Associativity::LeftToRight => {
+                        let lhs = self.lhs.eval(it)?;
+                        let rhs = self.rhs.eval(it)?;
+                        (lhs, rhs)
+                    }
+                    Associativity::RightToLeft => {
+                        let rhs = self.rhs.eval(it)?;
+                        let lhs = self.lhs.eval(it)?;
+                        (lhs, rhs)
+                    }
+                };
                 match kind {
                     // SAFETY: This match arm is unreachable because the possible values are already
                     //  handled by a previous match arm of the outer match expression

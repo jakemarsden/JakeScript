@@ -269,39 +269,11 @@ pub enum AssignmentOp {
 
 impl Operator for AssignmentOp {
     fn associativity(&self) -> Associativity {
-        match self {
-            Self::Assign
-            | Self::AddAssign
-            | Self::SubAssign
-            | Self::PowAssign
-            | Self::MulAssign
-            | Self::DivAssign
-            | Self::ModAssign
-            | Self::ShiftLeftAssign
-            | Self::ShiftRightAssign
-            | Self::ShiftRightUnsignedAssign
-            | Self::BitwiseAndAssign
-            | Self::BitwiseXOrAssign
-            | Self::BitwiseOrAssign => Associativity::RightToLeft,
-        }
+        Associativity::RightToLeft
     }
 
     fn precedence(&self) -> Precedence {
-        match self {
-            Self::Assign
-            | Self::AddAssign
-            | Self::SubAssign
-            | Self::PowAssign
-            | Self::MulAssign
-            | Self::DivAssign
-            | Self::ModAssign
-            | Self::ShiftLeftAssign
-            | Self::ShiftRightAssign
-            | Self::ShiftRightUnsignedAssign
-            | Self::BitwiseAndAssign
-            | Self::BitwiseXOrAssign
-            | Self::BitwiseOrAssign => Precedence(3),
-        }
+        Precedence(3)
     }
 }
 
@@ -340,22 +312,7 @@ impl Operator for BinaryOp {
     fn associativity(&self) -> Associativity {
         match self {
             Self::Pow => Associativity::RightToLeft,
-            Self::Mul | Self::Div | Self::Mod => Associativity::LeftToRight,
-            Self::Add | Self::Sub => Associativity::LeftToRight,
-            Self::ShiftLeft | Self::ShiftRight | Self::ShiftRightUnsigned => {
-                Associativity::LeftToRight
-            }
-            Self::LessThan | Self::LessThanOrEqual | Self::MoreThan | Self::MoreThanOrEqual => {
-                Associativity::LeftToRight
-            }
-            Self::Equal | Self::NotEqual | Self::Identical | Self::NotIdentical => {
-                Associativity::LeftToRight
-            }
-            Self::BitwiseAnd => Associativity::LeftToRight,
-            Self::BitwiseXOr => Associativity::LeftToRight,
-            Self::BitwiseOr => Associativity::LeftToRight,
-            Self::LogicalAnd => Associativity::LeftToRight,
-            Self::LogicalOr => Associativity::LeftToRight,
+            _ => Associativity::LeftToRight,
         }
     }
 
@@ -393,16 +350,7 @@ pub enum UnaryOp {
 
 impl Operator for UnaryOp {
     fn associativity(&self) -> Associativity {
-        match self {
-            Self::IncrementPostfix
-            | Self::DecrementPostfix
-            | Self::LogicalNot
-            | Self::BitwiseNot
-            | Self::NumericPlus
-            | Self::NumericNegate
-            | Self::IncrementPrefix
-            | Self::DecrementPrefix => Associativity::RightToLeft,
-        }
+        Associativity::RightToLeft
     }
 
     fn precedence(&self) -> Precedence {
