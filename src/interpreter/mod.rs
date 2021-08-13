@@ -1,6 +1,5 @@
 use crate::ast::*;
 use std::cmp::Ordering;
-use std::mem;
 use std::ops::Deref;
 
 pub use error::*;
@@ -16,7 +15,6 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[derive(Default)]
 pub struct Interpreter {
     vm: Vm,
-    execution_state: ExecutionState,
 }
 
 impl Interpreter {
@@ -66,41 +64,6 @@ impl Interpreter {
     pub fn vm(&mut self) -> &mut Vm {
         &mut self.vm
     }
-
-    pub fn execution_state(&self) -> &ExecutionState {
-        &self.execution_state
-    }
-
-    pub fn take_execution_state(&mut self) -> ExecutionState {
-        mem::take(&mut self.execution_state)
-    }
-
-    pub fn set_execution_state(&mut self, execution_state: ExecutionState) {
-        if matches!(self.execution_state, ExecutionState::Advance) {
-            self.execution_state = execution_state;
-        } else {
-            panic!(
-                "Unexpected execution state (expected {:?} but was {:?}): Cannot set to {:?}",
-                ExecutionState::Advance,
-                self.execution_state,
-                execution_state
-            );
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum ExecutionState {
-    Advance,
-    Break,
-    BreakContinue,
-    Return(Value),
-}
-
-impl Default for ExecutionState {
-    fn default() -> Self {
-        Self::Advance
-    }
 }
 
 pub trait Eval: Node {
@@ -117,7 +80,7 @@ impl Eval for Block {
     fn eval(&self, it: &mut Interpreter) -> Result<Value> {
         let mut result = Value::Undefined;
         for stmt in self.iter() {
-            if !matches!(it.execution_state(), ExecutionState::Advance) {
+            if it.vm().execution_state().is_break_or_return() {
                 break;
             }
             result = stmt.eval(it)?;
@@ -182,7 +145,7 @@ impl Eval for WhileLoop {
             self.block.eval(it)?;
             it.vm().stack().frame().pop_scope();
 
-            match it.take_execution_state() {
+            match it.vm().reset_execution_state() {
                 ExecutionState::Advance => {}
                 ExecutionState::Break => break,
                 ExecutionState::BreakContinue => continue,
@@ -195,14 +158,14 @@ impl Eval for WhileLoop {
 
 impl Eval for BreakStatement {
     fn eval(&self, it: &mut Interpreter) -> Result<Value> {
-        it.set_execution_state(ExecutionState::Break);
+        it.vm().set_execution_state(ExecutionState::Break);
         Ok(Value::Undefined)
     }
 }
 
 impl Eval for ContinueStatement {
     fn eval(&self, it: &mut Interpreter) -> Result<Value> {
-        it.set_execution_state(ExecutionState::BreakContinue);
+        it.vm().set_execution_state(ExecutionState::BreakContinue);
         Ok(Value::Undefined)
     }
 }
@@ -214,7 +177,7 @@ impl Eval for ReturnStatement {
         } else {
             Value::Undefined
         };
-        it.set_execution_state(ExecutionState::Return(value));
+        it.vm().set_execution_state(ExecutionState::Return(value));
         Ok(Value::Undefined)
     }
 }
@@ -368,7 +331,7 @@ impl Eval for FunctionCallExpression {
         it.vm().stack().frame().pop_scope();
         it.vm().stack().pop_frame();
 
-        Ok(match it.take_execution_state() {
+        Ok(match it.vm().reset_execution_state() {
             ExecutionState::Advance => Value::Undefined,
             ExecutionState::Return(value) => value,
             execution_state => panic!("Unexpected execution state: {:?}", execution_state),

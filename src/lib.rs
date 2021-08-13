@@ -1,3 +1,5 @@
+#![feature(derive_default_enum)]
+
 pub mod ast;
 pub mod interpreter;
 pub mod lexer;
