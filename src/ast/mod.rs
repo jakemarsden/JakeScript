@@ -1,4 +1,4 @@
-use std::{fmt, iter, ops};
+use std::{fmt, iter};
 
 pub type IdentifierName = String;
 
@@ -205,18 +205,28 @@ pub struct VariableAccessExpression {
 
 impl Node for VariableAccessExpression {}
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Default, Debug, Eq, PartialEq)]
 pub enum Value {
     Boolean(bool),
-    Null,
     Numeric(i64),
     String(String),
+    Null,
+    #[default]
     Undefined,
 }
 
-impl Default for Value {
-    fn default() -> Self {
-        Self::Undefined
+impl Value {
+    pub fn is_truthy(&self) -> bool {
+        match self {
+            Value::Boolean(ref value) => *value,
+            Value::Numeric(ref value) => *value > 0,
+            Value::String(ref value) => !value.is_empty(),
+            Value::Null | Value::Undefined => false,
+        }
+    }
+
+    pub fn is_falsy(&self) -> bool {
+        !self.is_truthy()
     }
 }
 
@@ -224,37 +234,11 @@ impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Boolean(value) => write!(f, "{}", value),
-            Self::Null => write!(f, "null"),
             Self::Numeric(value) => write!(f, "{}", value),
             Self::String(value) => write!(f, r#""{}""#, value),
-            Self::Undefined => write!(f, "undefined"),
+            Self::Null => f.write_str("null"),
+            Self::Undefined => f.write_str("undefined"),
         }
-    }
-}
-
-impl Value {
-    pub fn as_boolean(&self) -> bool {
-        match self {
-            Self::Boolean(value) => *value,
-            Self::Numeric(value) => *value > 0,
-            Self::String(value) => !value.is_empty(),
-            Self::Null | Self::Undefined => false,
-        }
-    }
-
-    pub fn as_numeric(&self) -> i64 {
-        match self {
-            Self::Numeric(value) => *value,
-            value => todo!("Value::as_numeric: {}", value),
-        }
-    }
-}
-
-impl ops::Not for Value {
-    type Output = Self;
-
-    fn not(self) -> Self {
-        Self::Boolean(!self.as_boolean())
     }
 }
 

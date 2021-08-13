@@ -1,5 +1,5 @@
 use crate::ast::*;
-use std::cmp::Ordering;
+use std::hint::unreachable_unchecked;
 use std::ops::Deref;
 
 pub use error::*;
@@ -7,6 +7,7 @@ pub use stack::*;
 pub use vm::*;
 
 mod error;
+mod op;
 mod stack;
 mod vm;
 
@@ -18,49 +19,6 @@ pub struct Interpreter {
 }
 
 impl Interpreter {
-    pub fn add(&self, lhs: Value, rhs: Value) -> Value {
-        Value::Numeric(lhs.as_numeric() + rhs.as_numeric())
-    }
-
-    pub fn sub(&self, lhs: Value, rhs: Value) -> Value {
-        Value::Numeric(lhs.as_numeric() - rhs.as_numeric())
-    }
-
-    pub fn mul(&self, lhs: Value, rhs: Value) -> Value {
-        Value::Numeric(lhs.as_numeric() * rhs.as_numeric())
-    }
-
-    pub fn r#mod(&self, lhs: Value, rhs: Value) -> Value {
-        Value::Numeric(lhs.as_numeric() % rhs.as_numeric())
-    }
-
-    pub fn div(&self, lhs: Value, rhs: Value) -> Value {
-        Value::Numeric(lhs.as_numeric() / rhs.as_numeric())
-    }
-
-    pub fn pow(&self, lhs: Value, rhs: Value) -> Value {
-        let lhs = lhs.as_numeric();
-        let rhs = rhs.as_numeric();
-        assert!(rhs >= i32::MIN as i64 && rhs <= i32::MAX as i64);
-        let result = (lhs as f64).powi(rhs as i32);
-        Value::Numeric(result as i64)
-    }
-
-    pub fn compare(&self, lhs: Value, rhs: Value) -> Ordering {
-        lhs.as_numeric().cmp(&rhs.as_numeric())
-    }
-
-    pub fn is_identical(&self, lhs: Value, rhs: Value) -> Value {
-        Value::Boolean(match (lhs, rhs) {
-            (Value::Boolean(lhs), Value::Boolean(rhs)) => lhs == rhs,
-            (Value::Null, Value::Null) => true,
-            (Value::Numeric(lhs), Value::Numeric(rhs)) => lhs == rhs,
-            (Value::String(lhs), Value::String(rhs)) => lhs == rhs,
-            (Value::Undefined, Value::Undefined) => true,
-            (_, _) => false,
-        })
-    }
-
     pub fn vm(&mut self) -> &mut Vm {
         &mut self.vm
     }
@@ -109,7 +67,7 @@ impl Eval for Statement {
 impl Eval for Assertion {
     fn eval(&self, it: &mut Interpreter) -> Result<Value> {
         let value = self.condition.eval(it)?;
-        if value.as_boolean() {
+        if value.is_truthy() {
             Ok(Value::Undefined)
         } else {
             Err(AssertionFailedError::new(value).into())
@@ -120,7 +78,7 @@ impl Eval for Assertion {
 impl Eval for IfStatement {
     fn eval(&self, it: &mut Interpreter) -> Result<Value> {
         let condition = self.condition.eval(it)?;
-        if condition.as_boolean() {
+        if condition.is_truthy() {
             it.vm().stack().frame().push_scope();
             self.success_block.eval(it)?;
             it.vm().stack().frame().pop_scope()
@@ -137,7 +95,7 @@ impl Eval for WhileLoop {
     fn eval(&self, it: &mut Interpreter) -> Result<Value> {
         loop {
             let condition = self.condition.eval(it)?;
-            if !condition.as_boolean() {
+            if !condition.is_truthy() {
                 break;
             }
 
@@ -231,7 +189,8 @@ impl Eval for AssignmentExpression {
             Expression::VariableAccess(node) => &node.var_name,
             lhs => todo!("Expression::eval: assignment_op: lhs={:#?}", lhs),
         };
-        let lhs = it
+        let rhs = self.rhs.eval(it)?;
+        let lhs = &it
             .vm()
             .stack()
             .frame()
@@ -239,15 +198,14 @@ impl Eval for AssignmentExpression {
             .lookup_variable(var_name)?
             .value()
             .clone();
-        let rhs = self.rhs.eval(it)?;
         let value = match self.kind {
             AssignmentOp::Assign => rhs,
-            AssignmentOp::AddAssign => it.add(lhs, rhs),
-            AssignmentOp::SubAssign => it.sub(lhs, rhs),
-            AssignmentOp::MulAssign => it.mul(lhs, rhs),
-            AssignmentOp::DivAssign => it.div(lhs, rhs),
-            AssignmentOp::ModAssign => it.r#mod(lhs, rhs),
-            AssignmentOp::PowAssign => it.pow(lhs, rhs),
+            AssignmentOp::AddAssign => it.add(lhs, &rhs),
+            AssignmentOp::SubAssign => it.sub(lhs, &rhs),
+            AssignmentOp::MulAssign => it.mul(lhs, &rhs),
+            AssignmentOp::DivAssign => it.div(lhs, &rhs),
+            AssignmentOp::ModAssign => it.rem(lhs, &rhs),
+            AssignmentOp::PowAssign => it.pow(lhs, &rhs),
             kind => todo!("Expression::eval: kind={:?}", kind),
         };
         it.vm()
@@ -263,30 +221,67 @@ impl Eval for AssignmentExpression {
 impl Eval for BinaryExpression {
     fn eval(&self, it: &mut Interpreter) -> Result<Value> {
         let lhs = self.lhs.eval(it)?;
-        let rhs = self.rhs.eval(it)?;
         Ok(match self.kind {
-            BinaryOp::Add => it.add(lhs, rhs),
-            BinaryOp::Sub => it.sub(lhs, rhs),
-            BinaryOp::Mul => it.mul(lhs, rhs),
-            BinaryOp::Div => it.div(lhs, rhs),
-            BinaryOp::Mod => it.r#mod(lhs, rhs),
-            BinaryOp::Pow => it.pow(lhs, rhs),
-            BinaryOp::Identical => it.is_identical(lhs, rhs),
-            BinaryOp::LessThan => Value::Boolean(it.compare(lhs, rhs).is_lt()),
-            BinaryOp::LessThanOrEqual => Value::Boolean(it.compare(lhs, rhs).is_le()),
-            BinaryOp::LogicalAnd => Value::Boolean(lhs.as_boolean() && rhs.as_boolean()),
-            BinaryOp::LogicalOr => Value::Boolean(lhs.as_boolean() || rhs.as_boolean()),
-            BinaryOp::MoreThan => Value::Boolean(it.compare(lhs, rhs).is_gt()),
-            BinaryOp::MoreThanOrEqual => Value::Boolean(it.compare(lhs, rhs).is_ge()),
-            BinaryOp::NotIdentical => !it.is_identical(lhs, rhs),
-            kind => todo!("Expression::eval: kind={:?}", kind),
+            // Get the boolean ops out of the way first, since the don't let us eval the RHS
+            //  up-front (which is more ergonomic for all the other ops)
+            BinaryOp::LogicalAnd => {
+                // Do not eval the RHS if LHS is falsy!
+                Value::Boolean(lhs.is_truthy() && self.rhs.eval(it)?.is_truthy())
+            }
+            BinaryOp::LogicalOr => {
+                // Do not eval the RHS if LHS is truthy!
+                Value::Boolean(lhs.is_truthy() || self.rhs.eval(it)?.is_truthy())
+            }
+
+            kind => {
+                let lhs = &lhs;
+                let rhs = &self.rhs.eval(it)?;
+                match kind {
+                    // SAFETY: This match arm is unreachable because the possible values are already
+                    //  handled by a previous match arm of the outer match expression
+                    BinaryOp::LogicalAnd | BinaryOp::LogicalOr => unsafe {
+                        unreachable_unchecked()
+                    },
+
+                    BinaryOp::Add => it.add(lhs, rhs),
+                    BinaryOp::Div => it.div(lhs, rhs),
+                    BinaryOp::Mod => it.rem(lhs, rhs),
+                    BinaryOp::Mul => it.mul(lhs, rhs),
+                    BinaryOp::Pow => it.pow(lhs, rhs),
+                    BinaryOp::Sub => it.sub(lhs, rhs),
+
+                    BinaryOp::Equal => it.eq(lhs, rhs),
+                    BinaryOp::NotEqual => it.ne(lhs, rhs),
+                    BinaryOp::Identical => it.identical(lhs, rhs),
+                    BinaryOp::NotIdentical => it.not_identical(lhs, rhs),
+
+                    BinaryOp::LessThan => it.lt(lhs, rhs),
+                    BinaryOp::LessThanOrEqual => it.le(lhs, rhs),
+                    BinaryOp::MoreThan => it.gt(lhs, rhs),
+                    BinaryOp::MoreThanOrEqual => it.ge(lhs, rhs),
+
+                    BinaryOp::ShiftLeft => it.bitwise_shl(lhs, rhs),
+                    BinaryOp::ShiftRight => it.bitwise_shr(lhs, rhs),
+                    BinaryOp::ShiftRightUnsigned => it.bitwise_shrr(lhs, rhs),
+
+                    BinaryOp::BitwiseAnd => it.bitwise_and(lhs, rhs),
+                    BinaryOp::BitwiseOr => it.bitwise_or(lhs, rhs),
+                    BinaryOp::BitwiseXOr => it.bitwise_xor(lhs, rhs),
+                }
+            }
         })
     }
 }
 
 impl Eval for UnaryExpression {
-    fn eval(&self, _it: &mut Interpreter) -> Result<Value> {
-        todo!("UnaryExpression::eval: {:#?}", self)
+    fn eval(&self, it: &mut Interpreter) -> Result<Value> {
+        let operand = &self.operand.eval(it)?;
+        Ok(match self.kind {
+            UnaryOp::LogicalNot => it.not(operand),
+            UnaryOp::NumericNegate => it.neg(operand),
+            UnaryOp::NumericPlus => it.plus(operand),
+            kind => todo!("UnaryExpression::eval: kind={:?}", kind),
+        })
     }
 }
 
