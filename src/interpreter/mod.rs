@@ -175,6 +175,7 @@ impl Eval for Expression {
             Self::Assignment(ref node) => node.eval(it),
             Self::Binary(ref node) => node.eval(it),
             Self::Unary(ref node) => node.eval(it),
+            Self::Grouping(ref node) => node.eval(it),
 
             Self::Literal(ref node) => node.eval(it),
             Self::FunctionCall(ref node) => node.eval(it),
@@ -286,6 +287,12 @@ impl Eval for UnaryExpression {
             UnaryOp::NumericPlus => it.plus(operand),
             kind => todo!("UnaryExpression::eval: kind={:?}", kind),
         })
+    }
+}
+
+impl Eval for GroupingExpression {
+    fn eval(&self, it: &mut Interpreter) -> Result<Value> {
+        self.inner.eval(it)
     }
 }
 

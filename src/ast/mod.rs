@@ -141,6 +141,7 @@ pub enum Expression {
     Assignment(AssignmentExpression),
     Binary(BinaryExpression),
     Unary(UnaryExpression),
+    Grouping(GroupingExpression),
     Literal(LiteralExpression),
     FunctionCall(FunctionCallExpression),
     PropertyAccess(PropertyAccessExpression),
@@ -174,6 +175,13 @@ pub struct UnaryExpression {
 }
 
 impl Node for UnaryExpression {}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroupingExpression {
+    pub inner: Box<Expression>,
+}
+
+impl Node for GroupingExpression {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LiteralExpression {

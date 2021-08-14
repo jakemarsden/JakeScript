@@ -21,23 +21,18 @@ let f = 20;
 f **= 3;
 assert f === 8000;
 
-// TODO: Support bracketed expressions (and remove this function).
-function group(x) {
-    return x;
-}
-
 let zz;
-assert group(zz = 20) === 20;
+assert (zz = 20) === 20;
 
 let aa = 20;
-assert group(aa += 10) === 30;
+assert (aa += 10) === 30;
 let bb = 20;
-assert group(bb -= 10) === 10;
+assert (bb -= 10) === 10;
 let cc = 20;
-assert group(cc *= 10) === 200;
+assert (cc *= 10) === 200;
 let dd = 20;
-assert group(dd /= 10) === 2;
+assert (dd /= 10) === 2;
 let ee = 20;
-assert group(ee %= 7) === 6;
+assert (ee %= 7) === 6;
 let ff = 20;
-assert group(ff **= 3) === 8000;
+assert (ff **= 3) === 8000;

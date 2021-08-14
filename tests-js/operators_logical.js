@@ -1,25 +1,19 @@
-// TODO: Support bracketed expressions (and remove this functions). Currently required because the
-//  the `===` operator takes precedence over the `&&` and `||` operators.
-function group(x) {
-    return x;
-}
+assert (true && true) === true;
+assert (true && false) === false;
+assert (false && true) === false;
+assert (false && false) === false;
 
-assert group(true && true) === true;
-assert group(true && false) === false;
-assert group(false && true) === false;
-assert group(false && false) === false;
-
-assert group(true || true) === true;
-assert group(true || false) === true;
-assert group(false || true) === true;
-assert group(false || false) === false;
+assert (true || true) === true;
+assert (true || false) === true;
+assert (false || true) === true;
+assert (false || false) === false;
 
 function assertNotReached() {
     assert false;
 }
 
-assert group(false && assertNotReached()) === false;
-assert group(true || assertNotReached()) === true;
+assert (false && assertNotReached()) === false;
+assert (true || assertNotReached()) === true;
 
 let counter = 0;
 
@@ -34,8 +28,8 @@ function assertSecond(n) {
     return n;
 }
 
-assert group(assertFirst(true) && assertSecond(true)) === true;
-assert group(assertFirst(true) && assertSecond(false)) === false;
-assert group(assertFirst(false) || assertSecond(true)) === true;
-assert group(assertFirst(false) || assertSecond(false)) === false;
+assert (assertFirst(true) && assertSecond(true)) === true;
+assert (assertFirst(true) && assertSecond(false)) === false;
+assert (assertFirst(false) || assertSecond(true)) === true;
+assert (assertFirst(false) || assertSecond(false)) === false;
 assert counter === 8;

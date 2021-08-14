@@ -114,6 +114,14 @@ impl Parser {
                     })
                 }
             }
+            Token::Punctuator(Punctuator::OpenParen) => {
+                let inner = self.parse_expression().expect("Expected expression");
+                self.0
+                    .consume_exact(&Token::Punctuator(Punctuator::CloseParen));
+                Expression::Grouping(GroupingExpression {
+                    inner: Box::new(inner),
+                })
+            }
             Token::Literal(literal) => Expression::Literal(LiteralExpression {
                 value: match literal {
                     Literal::Boolean(value) => Value::Boolean(value),
