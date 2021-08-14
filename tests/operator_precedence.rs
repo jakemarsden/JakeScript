@@ -4,7 +4,7 @@ mod common;
 
 #[test]
 fn add_add() {
-    let source_code = r##"50 + 100 + 17"##;
+    let source_code = r##"50 + 100 + 17;"##;
     let ast = common::parse_from_source_code(source_code);
     let result = common::eval(&ast);
     assert_eq!(result, Ok(Value::Numeric(167)));
@@ -12,7 +12,7 @@ fn add_add() {
 
 #[test]
 fn add_mul() {
-    let source_code = r##"2 + 3 * 4"##;
+    let source_code = r##"2 + 3 * 4;"##;
     let ast = common::parse_from_source_code(source_code);
     let result = common::eval(&ast);
     assert_eq!(result, Ok(Value::Numeric(14)));
@@ -20,7 +20,7 @@ fn add_mul() {
 
 #[test]
 fn mul_add() {
-    let source_code = r##"2 * 3 + 4"##;
+    let source_code = r##"2 * 3 + 4;"##;
     let ast = common::parse_from_source_code(source_code);
     let result = common::eval(&ast);
     assert_eq!(result, Ok(Value::Numeric(10)));

@@ -52,22 +52,37 @@ impl Parser {
     fn parse_statement(&mut self) -> Option<Statement> {
         match self.0.peek()? {
             Token::Punctuator(Punctuator::OpenBrace) => Some(Statement::Block(self.parse_block())),
-            Token::Keyword(Keyword::Assert) => self.parse_assertion().map(Statement::Assertion),
-            Token::Keyword(Keyword::Break) => self.parse_break_statement().map(Statement::Break),
-            Token::Keyword(Keyword::Continue) => {
-                self.parse_continue_statement().map(Statement::Continue)
-            }
             Token::Keyword(Keyword::If) => self.parse_if_statement().map(Statement::IfStatement),
             Token::Keyword(Keyword::Function) => self
                 .parse_function_declaration()
                 .map(Statement::FunctionDeclaration),
-            Token::Keyword(Keyword::Return) => self.parse_return_statement().map(Statement::Return),
-            Token::Keyword(Keyword::Const | Keyword::Let) => self
-                .parse_variable_declaration()
-                .map(Statement::VariableDeclaration),
             Token::Keyword(Keyword::For) => self.parse_for_loop().map(Statement::ForLoop),
             Token::Keyword(Keyword::While) => self.parse_while_loop().map(Statement::WhileLoop),
-            _ => self.parse_expression().map(Statement::Expression),
+
+            token => {
+                let stmt = match token {
+                    Token::Keyword(Keyword::Assert) => {
+                        self.parse_assertion().map(Statement::Assertion)
+                    }
+                    Token::Keyword(Keyword::Break) => {
+                        self.parse_break_statement().map(Statement::Break)
+                    }
+                    Token::Keyword(Keyword::Continue) => {
+                        self.parse_continue_statement().map(Statement::Continue)
+                    }
+                    Token::Keyword(Keyword::Return) => {
+                        self.parse_return_statement().map(Statement::Return)
+                    }
+                    Token::Keyword(Keyword::Const | Keyword::Let) => self
+                        .parse_variable_declaration()
+                        .map(Statement::VariableDeclaration),
+                    _ => self.parse_expression().map(Statement::Expression),
+                };
+                if stmt.is_some() {
+                    self.expect_semicolon();
+                }
+                stmt
+            }
         }
     }
 
@@ -77,25 +92,19 @@ impl Parser {
 
     fn parse_expression_impl(&mut self, min_precedence: Precedence) -> Option<Expression> {
         let mut expression = self.parse_primary_expression()?;
-        loop {
-            match self.0.peek() {
-                Some(&Token::Punctuator(Punctuator::Semicolon)) => {
+        while let Some(&Token::Punctuator(punctuator)) = self.0.peek() {
+            if let Ok(op_kind) = Op::try_from(punctuator) {
+                if op_kind.precedence() > min_precedence {
                     self.0.advance();
+                    expression = self
+                        .parse_secondary_expression(expression, op_kind)
+                        .expect("Expected secondary expression but was <end>");
+                } else {
+                    break;
                 }
-                Some(&Token::Punctuator(punctuator)) => {
-                    if let Ok(op_kind) = Op::try_from(punctuator) {
-                        if op_kind.precedence() > min_precedence {
-                            self.0.advance();
-                            expression = self
-                                .parse_secondary_expression(expression, op_kind)
-                                .expect("Expected secondary expression but was <end>");
-                            continue;
-                        }
-                    }
-                }
-                Some(_) | None => {}
+            } else {
+                break;
             }
-            break;
         }
         Some(expression)
     }
@@ -178,11 +187,14 @@ impl Parser {
         };
 
         if let Some(Token::Identifier(var_name)) = self.0.consume() {
-            let initialiser = match self.0.consume() {
-                Some(Token::Punctuator(Punctuator::Equal)) => Some(
-                    self.parse_expression()
-                        .expect("Expected initialiser or semicolon but was <end>"),
-                ),
+            let initialiser = match self.0.peek() {
+                Some(Token::Punctuator(Punctuator::Equal)) => {
+                    self.0.consume_exact(&Token::Punctuator(Punctuator::Equal));
+                    Some(
+                        self.parse_expression()
+                            .expect("Expected expression but was <end>"),
+                    )
+                }
                 Some(Token::Punctuator(Punctuator::Semicolon)) => None,
                 Some(token) => panic!("Expected initialiser or semicolon but was {}", token),
                 None => panic!("Expected initialiser or semicolon but was <end>"),
@@ -233,42 +245,24 @@ impl Parser {
             .consume_exact(&Token::Punctuator(Punctuator::OpenParen));
 
         let initialiser = match self.0.peek() {
-            Some(Token::Punctuator(Punctuator::Semicolon)) => {
-                // Temporarily consuming semicolon here (see following TODOs)
-                self.0
-                    .consume_exact(&Token::Punctuator(Punctuator::Semicolon));
-                None
-            }
+            Some(Token::Punctuator(Punctuator::Semicolon)) => None,
             Some(_) => Some(
                 self.parse_variable_declaration()
                     .expect("Expected variable declaration but was <end>"),
             ),
             None => panic!("Expected variable declaration or <end>"),
         };
-        // TODO: Fix semicolon consumption! I don't think parse_expression() should be responsible
-        //  for consuming the trailing semicolon as the caller should know what's appropriate, esp.
-        //  in this case.
-        //self.0
-        //    .consume_exact(&Token::Punctuator(Punctuator::Semicolon));
+        self.expect_semicolon();
 
         let condition = match self.0.peek() {
-            Some(Token::Punctuator(Punctuator::Semicolon)) => {
-                // Temporarily consuming semicolon here (see following TODOs)
-                self.0
-                    .consume_exact(&Token::Punctuator(Punctuator::Semicolon));
-                None
-            }
+            Some(Token::Punctuator(Punctuator::Semicolon)) => None,
             Some(_) => Some(
                 self.parse_expression()
                     .expect("Expected expression but was <end>"),
             ),
             None => panic!("Expected expression or semicolon but was <end>"),
         };
-        // TODO: Fix semicolon consumption! I don't think parse_expression() should be responsible
-        //  for consuming the trailing semicolon as the caller should know what's appropriate, esp.
-        //  in this case.
-        //self.0
-        //    .consume_exact(&Token::Punctuator(Punctuator::Semicolon));
+        self.expect_semicolon();
 
         let incrementor = match self.0.peek() {
             Some(Token::Punctuator(Punctuator::CloseParen)) => None,
@@ -305,34 +299,25 @@ impl Parser {
 
     fn parse_break_statement(&mut self) -> Option<BreakStatement> {
         self.0.consume_exact(&Token::Keyword(Keyword::Break));
-        self.0
-            .consume_exact(&Token::Punctuator(Punctuator::Semicolon));
         Some(BreakStatement {})
     }
 
     fn parse_continue_statement(&mut self) -> Option<ContinueStatement> {
         self.0.consume_exact(&Token::Keyword(Keyword::Continue));
-        self.0
-            .consume_exact(&Token::Punctuator(Punctuator::Semicolon));
         Some(ContinueStatement {})
     }
 
     fn parse_return_statement(&mut self) -> Option<ReturnStatement> {
         self.0.consume_exact(&Token::Keyword(Keyword::Return));
-        Some(
-            if self
-                .0
-                .consume_eq(&Token::Punctuator(Punctuator::Semicolon))
-                .is_some()
-            {
-                ReturnStatement { expr: None }
-            } else {
-                let expr = self
-                    .parse_expression()
-                    .expect("Expected expression but was <end>");
-                ReturnStatement { expr: Some(expr) }
-            },
-        )
+        let expr = match self.0.peek() {
+            Some(Token::Punctuator(Punctuator::Semicolon)) => None,
+            Some(_) => Some(
+                self.parse_expression()
+                    .expect("Expected expression but was <end>"),
+            ),
+            None => panic!("Expected expression or semicolon but was <end>"),
+        };
+        Some(ReturnStatement { expr })
     }
 
     fn parse_fn_parameters(&mut self) -> Vec<IdentifierName> {
@@ -387,6 +372,11 @@ impl Parser {
                 None => panic!("Expected comma or closing parenthesis but was <end>"),
             }
         }
+    }
+
+    fn expect_semicolon(&mut self) {
+        self.0
+            .consume_exact(&Token::Punctuator(Punctuator::Semicolon));
     }
 }
 
