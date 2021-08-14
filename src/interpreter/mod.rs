@@ -60,6 +60,7 @@ impl Eval for Statement {
             Self::IfStatement(node) => node.eval(it),
             Self::Return(node) => node.eval(it),
             Self::VariableDeclaration(node) => node.eval(it),
+            Self::ForLoop(node) => node.eval(it),
             Self::WhileLoop(node) => node.eval(it),
         }
     }
@@ -89,6 +90,12 @@ impl Eval for IfStatement {
             it.vm().stack().frame().pop_scope();
         }
         Ok(Value::Undefined)
+    }
+}
+
+impl Eval for ForLoop {
+    fn eval(&self, _it: &mut Interpreter) -> Result<Value> {
+        todo!("ForLoop::eval: {:#?}", self)
     }
 }
 

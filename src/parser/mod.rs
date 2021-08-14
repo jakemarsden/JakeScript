@@ -65,6 +65,7 @@ impl Parser {
             Token::Keyword(Keyword::Const | Keyword::Let) => self
                 .parse_variable_declaration()
                 .map(Statement::VariableDeclaration),
+            Token::Keyword(Keyword::For) => self.parse_for_loop().map(Statement::ForLoop),
             Token::Keyword(Keyword::While) => self.parse_while_loop().map(Statement::WhileLoop),
             _ => self.parse_expression().map(Statement::Expression),
         }
@@ -223,6 +224,69 @@ impl Parser {
             condition,
             success_block,
             else_block,
+        })
+    }
+
+    fn parse_for_loop(&mut self) -> Option<ForLoop> {
+        self.0.consume_exact(&Token::Keyword(Keyword::For));
+        self.0
+            .consume_exact(&Token::Punctuator(Punctuator::OpenParen));
+
+        let initialiser = match self.0.peek() {
+            Some(Token::Punctuator(Punctuator::Semicolon)) => {
+                // Temporarily consuming semicolon here (see following TODOs)
+                self.0
+                    .consume_exact(&Token::Punctuator(Punctuator::Semicolon));
+                None
+            }
+            Some(_) => Some(
+                self.parse_variable_declaration()
+                    .expect("Expected variable declaration but was <end>"),
+            ),
+            None => panic!("Expected variable declaration or <end>"),
+        };
+        // TODO: Fix semicolon consumption! I don't think parse_expression() should be responsible
+        //  for consuming the trailing semicolon as the caller should know what's appropriate, esp.
+        //  in this case.
+        //self.0
+        //    .consume_exact(&Token::Punctuator(Punctuator::Semicolon));
+
+        let condition = match self.0.peek() {
+            Some(Token::Punctuator(Punctuator::Semicolon)) => {
+                // Temporarily consuming semicolon here (see following TODOs)
+                self.0
+                    .consume_exact(&Token::Punctuator(Punctuator::Semicolon));
+                None
+            }
+            Some(_) => Some(
+                self.parse_expression()
+                    .expect("Expected expression but was <end>"),
+            ),
+            None => panic!("Expected expression or semicolon but was <end>"),
+        };
+        // TODO: Fix semicolon consumption! I don't think parse_expression() should be responsible
+        //  for consuming the trailing semicolon as the caller should know what's appropriate, esp.
+        //  in this case.
+        //self.0
+        //    .consume_exact(&Token::Punctuator(Punctuator::Semicolon));
+
+        let incrementor = match self.0.peek() {
+            Some(Token::Punctuator(Punctuator::CloseParen)) => None,
+            Some(_) => Some(
+                self.parse_expression()
+                    .expect("Expected expression but was <end>"),
+            ),
+            None => panic!("Expected expression or close paren but was <end>"),
+        };
+        self.0
+            .consume_exact(&Token::Punctuator(Punctuator::CloseParen));
+
+        let block = self.parse_block();
+        Some(ForLoop {
+            initialiser,
+            condition,
+            incrementor,
+            block,
         })
     }
 

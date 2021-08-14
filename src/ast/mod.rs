@@ -68,6 +68,7 @@ pub enum Statement {
     IfStatement(IfStatement),
     Return(ReturnStatement),
     VariableDeclaration(VariableDeclaration),
+    ForLoop(ForLoop),
     WhileLoop(WhileLoop),
 }
 
@@ -88,6 +89,16 @@ pub struct IfStatement {
 }
 
 impl Node for IfStatement {}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ForLoop {
+    pub initialiser: Option<VariableDeclaration>,
+    pub condition: Option<Expression>,
+    pub incrementor: Option<Expression>,
+    pub block: Block,
+}
+
+impl Node for ForLoop {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct WhileLoop {
