@@ -104,11 +104,21 @@ impl Eval for WhileLoop {
             self.block.eval(it)?;
             it.vm().stack().frame().pop_scope();
 
-            match it.vm().reset_execution_state() {
+            match it.vm().execution_state() {
                 ExecutionState::Advance => {}
-                ExecutionState::Break => break,
-                ExecutionState::BreakContinue => continue,
-                execution_state => panic!("Unexpected execution state: {:?}", execution_state),
+                ExecutionState::Break => {
+                    it.vm().reset_execution_state();
+                    break;
+                }
+                ExecutionState::BreakContinue => {
+                    it.vm().reset_execution_state();
+                    continue;
+                }
+                ExecutionState::Return(_) => {
+                    // Exit the loop but don't reset the execution state yet; the function still
+                    //  needs to see it
+                    break;
+                }
             }
         }
         Ok(Value::Undefined)

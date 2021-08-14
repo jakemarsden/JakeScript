@@ -65,3 +65,24 @@ while (true) {
 }
 assert bcIdx === 2;
 assert bcCount === 4;
+
+function returnInsideWhileLoop() {
+    let riwlCounter = 3;
+    while (riwlCounter -= 1) {
+        return riwlCounter;
+    }
+    assert false;
+}
+assert returnInsideWhileLoop() === 2;
+
+function returnInsideWhileLoop2() {
+    let riwl2Counter = 0;
+    while (true) {
+        if (riwl2Counter >= 10) {
+            return riwl2Counter;
+        }
+        riwl2Counter += 1;
+    }
+    assert false;
+}
+assert returnInsideWhileLoop2() === 10;
