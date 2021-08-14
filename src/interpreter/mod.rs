@@ -94,8 +94,48 @@ impl Eval for IfStatement {
 }
 
 impl Eval for ForLoop {
-    fn eval(&self, _it: &mut Interpreter) -> Result<Value> {
-        todo!("ForLoop::eval: {:#?}", self)
+    fn eval(&self, it: &mut Interpreter) -> Result<Value> {
+        if let Some(ref initialiser) = self.initialiser {
+            it.vm().stack().frame().push_scope();
+            initialiser.eval(it)?;
+        }
+        loop {
+            if let Some(ref condition) = self.condition {
+                let condition = condition.eval(it)?;
+                if !condition.is_truthy() {
+                    break;
+                }
+            }
+
+            it.vm().stack().frame().push_scope();
+            self.block.eval(it)?;
+            it.vm().stack().frame().pop_scope();
+
+            if let Some(ref incrementor) = self.incrementor {
+                incrementor.eval(it)?;
+            }
+
+            match it.vm().execution_state() {
+                ExecutionState::Advance => {}
+                ExecutionState::Break => {
+                    it.vm().reset_execution_state();
+                    break;
+                }
+                ExecutionState::BreakContinue => {
+                    it.vm().reset_execution_state();
+                    continue;
+                }
+                ExecutionState::Return(_) => {
+                    // Exit the loop but don't reset the execution state yet; the function still
+                    //  needs to see it
+                    break;
+                }
+            }
+        }
+        if self.initialiser.is_some() {
+            it.vm().stack().frame().pop_scope();
+        }
+        Ok(Value::Undefined)
     }
 }
 
