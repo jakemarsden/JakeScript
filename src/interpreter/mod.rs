@@ -5,11 +5,12 @@ use std::ops::Deref;
 
 pub use error::*;
 pub use stack::*;
+pub use value::*;
 pub use vm::*;
 
 mod error;
-mod op;
 mod stack;
+mod value;
 mod vm;
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -355,7 +356,13 @@ impl Eval for GroupingExpression {
 
 impl Eval for LiteralExpression {
     fn eval(&self, _it: &mut Interpreter) -> Result<Value> {
-        Ok(self.value.clone())
+        Ok(match self.value {
+            Literal::Boolean(ref value) => Value::Boolean(*value),
+            Literal::Numeric(ref value) => Value::Number(*value),
+            Literal::String(ref value) => Value::String(value.to_owned()),
+            Literal::Null => Value::Null,
+            Literal::Undefined => Value::Undefined,
+        })
     }
 }
 

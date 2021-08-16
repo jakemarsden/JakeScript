@@ -1,5 +1,5 @@
-use crate::ast::Value;
 use crate::interpreter::stack::*;
+use crate::interpreter::value::Value;
 use std::mem;
 
 #[derive(Default)]

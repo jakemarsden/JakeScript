@@ -1,4 +1,4 @@
-use jakescript::ast::*;
+use jakescript::interpreter::Value;
 
 mod common;
 
@@ -7,7 +7,7 @@ fn add_add() {
     let source_code = r##"50 + 100 + 17;"##;
     let ast = common::parse_from_source_code(source_code);
     let result = common::eval(&ast);
-    assert_eq!(result, Ok(Value::Numeric(167)));
+    assert_eq!(result, Ok(Value::Number(167)));
 }
 
 #[test]
@@ -15,7 +15,7 @@ fn add_mul() {
     let source_code = r##"2 + 3 * 4;"##;
     let ast = common::parse_from_source_code(source_code);
     let result = common::eval(&ast);
-    assert_eq!(result, Ok(Value::Numeric(14)));
+    assert_eq!(result, Ok(Value::Number(14)));
 }
 
 #[test]
@@ -23,7 +23,7 @@ fn mul_add() {
     let source_code = r##"2 * 3 + 4;"##;
     let ast = common::parse_from_source_code(source_code);
     let result = common::eval(&ast);
-    assert_eq!(result, Ok(Value::Numeric(10)));
+    assert_eq!(result, Ok(Value::Number(10)));
 }
 
 #[test]

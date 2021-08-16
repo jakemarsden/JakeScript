@@ -1,5 +1,5 @@
-use crate::ast::*;
-use crate::lexer::*;
+use crate::ast::{self, *};
+use crate::lexer::{self, *};
 use crate::util::Stream;
 use std::convert::TryFrom;
 use std::iter::Iterator;
@@ -134,11 +134,11 @@ impl Parser {
             }
             Token::Literal(literal) => Expression::Literal(LiteralExpression {
                 value: match literal {
-                    Literal::Boolean(value) => Value::Boolean(value),
-                    Literal::Null => Value::Null,
-                    Literal::Numeric(value) => Value::Numeric(value),
-                    Literal::String(value) => Value::String(value),
-                    Literal::Undefined => Value::Undefined,
+                    lexer::Literal::Boolean(value) => ast::Literal::Boolean(value),
+                    lexer::Literal::Numeric(value) => ast::Literal::Numeric(value),
+                    lexer::Literal::String(value) => ast::Literal::String(value),
+                    lexer::Literal::Null => ast::Literal::Null,
+                    lexer::Literal::Undefined => ast::Literal::Undefined,
                 },
             }),
             token => todo!("Parser::parse_primary_expression: token={}", token),

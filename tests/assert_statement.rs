@@ -1,7 +1,6 @@
 #![feature(assert_matches)]
 
-use jakescript::ast::Value;
-use jakescript::interpreter::Error;
+use jakescript::interpreter::{Error, Value};
 use std::assert_matches::assert_matches;
 
 mod common;

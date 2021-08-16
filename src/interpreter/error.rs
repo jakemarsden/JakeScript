@@ -1,4 +1,5 @@
-use crate::ast::{Expression, Value};
+use crate::ast::Expression;
+use crate::interpreter::value::Value;
 use std::fmt;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -49,7 +50,7 @@ impl fmt::Display for AssertionFailedError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "Assertion failed (evaluated to `{}`): {:#?}",
+            "Assertion failed (evaluated to `{:?}`): {:#?}",
             self.value, self.condition
         )
     }

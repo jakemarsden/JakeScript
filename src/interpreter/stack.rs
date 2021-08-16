@@ -1,5 +1,6 @@
-use crate::ast::{Block, Value, VariableDeclarationKind};
+use crate::ast::{Block, VariableDeclarationKind};
 use crate::interpreter::error::*;
+use crate::interpreter::value::Value;
 use std::cell::{Ref, RefCell};
 use std::mem;
 use std::ops::Deref;

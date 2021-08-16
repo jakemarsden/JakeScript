@@ -196,7 +196,7 @@ impl Node for GroupingExpression {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LiteralExpression {
-    pub value: Value,
+    pub value: Literal,
 }
 
 impl Node for LiteralExpression {}
@@ -225,40 +225,13 @@ pub struct VariableAccessExpression {
 impl Node for VariableAccessExpression {}
 
 #[derive(Clone, Default, Debug, Eq, PartialEq)]
-pub enum Value {
+pub enum Literal {
     Boolean(bool),
     Numeric(i64),
     String(String),
     Null,
     #[default]
     Undefined,
-}
-
-impl Value {
-    pub fn is_truthy(&self) -> bool {
-        match self {
-            Value::Boolean(ref value) => *value,
-            Value::Numeric(ref value) => *value > 0,
-            Value::String(ref value) => !value.is_empty(),
-            Value::Null | Value::Undefined => false,
-        }
-    }
-
-    pub fn is_falsy(&self) -> bool {
-        !self.is_truthy()
-    }
-}
-
-impl fmt::Display for Value {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Self::Boolean(value) => write!(f, "{}", value),
-            Self::Numeric(value) => write!(f, "{}", value),
-            Self::String(value) => write!(f, r#""{}""#, value),
-            Self::Null => f.write_str("null"),
-            Self::Undefined => f.write_str("undefined"),
-        }
-    }
 }
 
 pub trait Operator {
