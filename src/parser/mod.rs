@@ -132,6 +132,20 @@ impl Parser {
                     inner: Box::new(inner),
                 })
             }
+            Token::Punctuator(Punctuator::OpenBrace) => Expression::Literal(LiteralExpression {
+                value: if self
+                    .0
+                    .consume_eq(&Token::Punctuator(Punctuator::CloseBrace))
+                    .is_some()
+                {
+                    ast::Literal::Object
+                } else {
+                    todo!(
+                        "Parser::parse_primary_expression: Only empty object literals are \
+                         supported"
+                    )
+                },
+            }),
             Token::Literal(literal) => Expression::Literal(LiteralExpression {
                 value: match literal {
                     lexer::Literal::Boolean(value) => ast::Literal::Boolean(value),

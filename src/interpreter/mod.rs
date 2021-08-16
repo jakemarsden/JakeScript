@@ -357,11 +357,15 @@ impl Eval for GroupingExpression {
 }
 
 impl Eval for LiteralExpression {
-    fn eval(&self, _it: &mut Interpreter) -> Result {
+    fn eval(&self, it: &mut Interpreter) -> Result {
         Ok(match self.value {
             Literal::Boolean(ref value) => Value::Boolean(*value),
             Literal::Numeric(ref value) => Value::Number(*value),
             Literal::String(ref value) => Value::String(value.to_owned()),
+            Literal::Object => {
+                let obj_ref = it.vm().heap().allocate_empty_object()?;
+                Value::Reference(obj_ref)
+            }
             Literal::Null => Value::Null,
             Literal::Undefined => Value::Undefined,
         })

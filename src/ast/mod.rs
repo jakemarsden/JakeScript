@@ -229,6 +229,8 @@ pub enum Literal {
     Boolean(bool),
     Numeric(i64),
     String(String),
+    // TODO: Support properties in object literals
+    Object,
     Null,
     #[default]
     Undefined,
