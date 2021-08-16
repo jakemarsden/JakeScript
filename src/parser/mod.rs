@@ -175,6 +175,17 @@ impl Parser {
                 lhs: Box::new(lhs),
                 rhs: Box::new(rhs),
             }),
+            Op::PropertyAccess(PropertyAccessOp::Normal) => {
+                Expression::PropertyAccess(PropertyAccessExpression {
+                    base: Box::new(lhs),
+                    property_name: match rhs {
+                        Expression::VariableAccess(VariableAccessExpression { var_name }) => {
+                            var_name
+                        }
+                        rhs_expr => panic!("Expected property name but was {:#?}", rhs_expr),
+                    },
+                })
+            }
         })
     }
 
@@ -398,6 +409,7 @@ impl Parser {
 enum Op {
     Assignment(AssignmentOp),
     Binary(BinaryOp),
+    PropertyAccess(PropertyAccessOp),
 }
 
 impl Operator for Op {
@@ -405,6 +417,7 @@ impl Operator for Op {
         match self {
             Self::Assignment(op) => op.associativity(),
             Self::Binary(op) => op.associativity(),
+            Self::PropertyAccess(op) => op.associativity(),
         }
     }
 
@@ -412,6 +425,7 @@ impl Operator for Op {
         match self {
             Self::Assignment(op) => op.precedence(),
             Self::Binary(op) => op.precedence(),
+            Self::PropertyAccess(op) => op.precedence(),
         }
     }
 }
@@ -459,6 +473,8 @@ impl TryFrom<Punctuator> for Op {
             Punctuator::Caret => Self::Binary(BinaryOp::BitwiseXOr),
             Punctuator::DoubleAmpersand => Op::Binary(BinaryOp::LogicalAnd),
             Punctuator::DoublePipe => Self::Binary(BinaryOp::LogicalOr),
+
+            Punctuator::Dot => Self::PropertyAccess(PropertyAccessOp::Normal),
 
             _ => return Err(()),
         })

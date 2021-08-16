@@ -1,6 +1,7 @@
 use std::{fmt, iter};
 
 pub type IdentifierName = String;
+pub type IdentifierNameRef = str;
 
 pub trait Node: Clone + fmt::Debug {}
 
@@ -358,6 +359,21 @@ impl Operator for UnaryOp {
             | Self::IncrementPrefix
             | Self::DecrementPrefix => Precedence(17),
         }
+    }
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub enum PropertyAccessOp {
+    Normal,
+}
+
+impl Operator for PropertyAccessOp {
+    fn associativity(&self) -> Associativity {
+        Associativity::LeftToRight
+    }
+
+    fn precedence(&self) -> Precedence {
+        Precedence(20)
     }
 }
 

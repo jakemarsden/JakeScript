@@ -1,3 +1,4 @@
+use crate::ast::{IdentifierName, IdentifierNameRef};
 use crate::interpreter::error::OutOfMemoryError;
 use crate::interpreter::value::Value;
 use std::cell::{Ref, RefCell, RefMut};
@@ -75,6 +76,14 @@ impl Object {
 
     pub fn is_empty(&self) -> bool {
         self.properties.is_empty()
+    }
+
+    pub fn property(&self, property_name: &IdentifierNameRef) -> Option<Value> {
+        self.properties.get(property_name).cloned()
+    }
+
+    pub fn set_property(&mut self, property_name: IdentifierName, value: Value) {
+        self.properties.insert(property_name, value);
     }
 
     pub fn js_equals(&self, other: &Object) -> bool {

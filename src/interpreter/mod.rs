@@ -1,5 +1,6 @@
 use crate::ast::*;
 use std::assert_matches::assert_matches;
+use std::borrow::BorrowMut;
 use std::hint::unreachable_unchecked;
 use std::ops::Deref;
 
@@ -15,7 +16,7 @@ mod stack;
 mod value;
 mod vm;
 
-pub type Result = std::result::Result<Value, Error>;
+pub type Result<T = Value> = std::result::Result<T, Error>;
 
 #[derive(Default)]
 pub struct Interpreter {
@@ -247,30 +248,73 @@ impl Eval for Expression {
 
 impl Eval for AssignmentExpression {
     fn eval(&self, it: &mut Interpreter) -> Result {
-        assert_matches!(self.kind.associativity(), Associativity::RightToLeft);
-        let rhs = self.rhs.eval(it)?;
-        let mut lhs = match self.lhs.as_ref() {
-            Expression::VariableAccess(node) => it
-                .vm()
-                .stack()
-                .frame()
-                .scope()
-                .lookup_variable(&node.var_name)?,
-            expr => todo!("AssignmentExpression::eval: lhs={:#?}", expr),
-        };
+        fn assign<Base>(
+            self_: &AssignmentExpression,
+            it: &mut Interpreter,
+            base: &mut Base,
+            getter: impl FnOnce(&Base) -> Result,
+            setter: impl FnOnce(&mut Base, Value) -> Result<()>,
+        ) -> Result {
+            let rhs = self_.rhs.eval(it)?;
+            let value = match self_.kind {
+                AssignmentOp::Assign => rhs,
+                AssignmentOp::AddAssign => it.add(&getter(base)?, &rhs),
+                AssignmentOp::SubAssign => it.sub(&getter(base)?, &rhs),
+                AssignmentOp::MulAssign => it.mul(&getter(base)?, &rhs),
+                AssignmentOp::DivAssign => it.div(&getter(base)?, &rhs),
+                AssignmentOp::ModAssign => it.rem(&getter(base)?, &rhs),
+                AssignmentOp::PowAssign => it.pow(&getter(base)?, &rhs),
+                kind => todo!("AssignmentExpression::eval: kind={:?}", kind),
+            };
+            setter(base, value.clone())?;
+            Ok(value)
+        }
 
-        let value = match self.kind {
-            AssignmentOp::Assign => rhs,
-            AssignmentOp::AddAssign => it.add(lhs.value().deref(), &rhs),
-            AssignmentOp::SubAssign => it.sub(lhs.value().deref(), &rhs),
-            AssignmentOp::MulAssign => it.mul(lhs.value().deref(), &rhs),
-            AssignmentOp::DivAssign => it.div(lhs.value().deref(), &rhs),
-            AssignmentOp::ModAssign => it.rem(lhs.value().deref(), &rhs),
-            AssignmentOp::PowAssign => it.pow(lhs.value().deref(), &rhs),
-            kind => todo!("AssignmentExpression::eval: kind={:?}", kind),
-        };
-        lhs.set_value(value.clone())?;
-        Ok(value)
+        assert_matches!(self.kind.associativity(), Associativity::RightToLeft);
+        match self.lhs.as_ref() {
+            Expression::VariableAccess(node) => {
+                let mut variable = it
+                    .vm()
+                    .stack()
+                    .frame()
+                    .scope()
+                    .lookup_variable(&node.var_name)?;
+                assign(
+                    self,
+                    it,
+                    &mut variable,
+                    |variable| Ok(variable.value().clone()),
+                    |variable, value| {
+                        variable
+                            .set_value(value)
+                            .map_err(Error::AssignToConstVariable)
+                    },
+                )
+            }
+            Expression::PropertyAccess(node) => {
+                let base_value = node.base.eval(it)?;
+                let base_refr = match base_value {
+                    Value::Reference(ref refr) => refr,
+                    base_value => todo!("AssignmentExpression::eval: base_value={:?}", base_value),
+                };
+                let mut base_obj = it.vm().heap().resolve_mut(base_refr);
+                assign(
+                    self,
+                    it,
+                    base_obj.borrow_mut(),
+                    |base_obj| {
+                        Ok(base_obj
+                            .property(&node.property_name)
+                            .unwrap_or(Value::Undefined))
+                    },
+                    |base_obj, value| {
+                        base_obj.set_property(node.property_name.to_owned(), value);
+                        Ok(())
+                    },
+                )
+            }
+            expr => todo!("AssignmentExpression::eval: lhs={:#?}", expr),
+        }
     }
 }
 
@@ -416,8 +460,15 @@ impl Eval for FunctionCallExpression {
 }
 
 impl Eval for PropertyAccessExpression {
-    fn eval(&self, _it: &mut Interpreter) -> Result {
-        todo!("PropertyExpression::eval: {:#?}", self)
+    fn eval(&self, it: &mut Interpreter) -> Result {
+        let base_value = self.base.eval(it)?;
+        let base_obj = match base_value {
+            Value::Reference(ref base_refr) => it.vm().heap().resolve(base_refr),
+            base_value => todo!("PropertyExpression::eval: base={:?}", base_value),
+        };
+        Ok(base_obj
+            .property(&self.property_name)
+            .unwrap_or(Value::Undefined))
     }
 }
 
