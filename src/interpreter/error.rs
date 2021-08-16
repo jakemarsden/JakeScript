@@ -2,7 +2,7 @@ use crate::ast::Expression;
 use crate::interpreter::value::Value;
 use std::fmt;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum Error {
     AssertionFailed(AssertionFailedError),
     AssignToConstVariable(AssignToConstVariableError),
@@ -34,7 +34,7 @@ impl std::error::Error for Error {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct AssertionFailedError {
     condition: Expression,
     value: Value,
@@ -64,7 +64,7 @@ impl From<AssertionFailedError> for Error {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct AssignToConstVariableError;
 
 impl fmt::Display for AssignToConstVariableError {
@@ -81,7 +81,7 @@ impl From<AssignToConstVariableError> for Error {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct VariableAlreadyDefinedError;
 
 impl fmt::Display for VariableAlreadyDefinedError {
@@ -98,7 +98,7 @@ impl From<VariableAlreadyDefinedError> for Error {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct VariableNotDefinedError;
 
 impl fmt::Display for VariableNotDefinedError {
@@ -115,7 +115,7 @@ impl From<VariableNotDefinedError> for Error {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct FunctionAlreadyDefinedError;
 
 impl fmt::Display for FunctionAlreadyDefinedError {
@@ -132,7 +132,7 @@ impl From<FunctionAlreadyDefinedError> for Error {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct FunctionArgumentMismatchError;
 
 impl fmt::Display for FunctionArgumentMismatchError {
@@ -149,7 +149,7 @@ impl From<FunctionArgumentMismatchError> for Error {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct FunctionNotDefinedError;
 
 impl fmt::Display for FunctionNotDefinedError {

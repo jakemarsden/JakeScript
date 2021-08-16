@@ -2,9 +2,9 @@ use std::{fmt, iter};
 
 pub type IdentifierName = String;
 
-pub trait Node: Clone + fmt::Debug + PartialEq {}
+pub trait Node: Clone + fmt::Debug {}
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Default, Debug)]
 pub struct Program(Block);
 
 impl Program {
@@ -19,7 +19,7 @@ impl Program {
 
 impl Node for Program {}
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Default, Debug)]
 pub struct Block(Vec<Statement>);
 
 impl Block {
@@ -57,7 +57,7 @@ impl iter::FromIterator<Statement> for Block {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum Statement {
     Assertion(Assertion),
     Block(Block),
@@ -74,14 +74,14 @@ pub enum Statement {
 
 impl Node for Statement {}
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct Assertion {
     pub condition: Expression,
 }
 
 impl Node for Assertion {}
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct IfStatement {
     pub condition: Expression,
     pub success_block: Block,
@@ -90,7 +90,7 @@ pub struct IfStatement {
 
 impl Node for IfStatement {}
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct ForLoop {
     pub initialiser: Option<VariableDeclaration>,
     pub condition: Option<Expression>,
@@ -100,7 +100,7 @@ pub struct ForLoop {
 
 impl Node for ForLoop {}
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct WhileLoop {
     pub condition: Expression,
     pub block: Block,
@@ -108,28 +108,28 @@ pub struct WhileLoop {
 
 impl Node for WhileLoop {}
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct BreakStatement {
     // TODO: label
 }
 
 impl Node for BreakStatement {}
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct ContinueStatement {
     // TODO: label
 }
 
 impl Node for ContinueStatement {}
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct ReturnStatement {
     pub expr: Option<Expression>,
 }
 
 impl Node for ReturnStatement {}
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct FunctionDeclaration {
     pub fn_name: IdentifierName,
     pub param_names: Vec<IdentifierName>,
@@ -138,7 +138,7 @@ pub struct FunctionDeclaration {
 
 impl Node for FunctionDeclaration {}
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct VariableDeclaration {
     pub kind: VariableDeclarationKind,
     pub var_name: IdentifierName,
@@ -147,7 +147,7 @@ pub struct VariableDeclaration {
 
 impl Node for VariableDeclaration {}
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum Expression {
     Assignment(AssignmentExpression),
     Binary(BinaryExpression),
@@ -161,7 +161,7 @@ pub enum Expression {
 
 impl Node for Expression {}
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct AssignmentExpression {
     pub kind: AssignmentOp,
     pub lhs: Box<Expression>,
@@ -170,7 +170,7 @@ pub struct AssignmentExpression {
 
 impl Node for AssignmentExpression {}
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct BinaryExpression {
     pub kind: BinaryOp,
     pub lhs: Box<Expression>,
@@ -179,7 +179,7 @@ pub struct BinaryExpression {
 
 impl Node for BinaryExpression {}
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct UnaryExpression {
     pub kind: UnaryOp,
     pub operand: Box<Expression>,
@@ -187,21 +187,21 @@ pub struct UnaryExpression {
 
 impl Node for UnaryExpression {}
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct GroupingExpression {
     pub inner: Box<Expression>,
 }
 
 impl Node for GroupingExpression {}
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct LiteralExpression {
     pub value: Literal,
 }
 
 impl Node for LiteralExpression {}
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct FunctionCallExpression {
     pub fn_name: IdentifierName,
     pub arguments: Vec<Expression>,
@@ -209,7 +209,7 @@ pub struct FunctionCallExpression {
 
 impl Node for FunctionCallExpression {}
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct PropertyAccessExpression {
     pub base: Box<Expression>,
     pub property_name: IdentifierName,
@@ -217,14 +217,14 @@ pub struct PropertyAccessExpression {
 
 impl Node for PropertyAccessExpression {}
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct VariableAccessExpression {
     pub var_name: IdentifierName,
 }
 
 impl Node for VariableAccessExpression {}
 
-#[derive(Clone, Default, Debug, Eq, PartialEq)]
+#[derive(Clone, Default, Debug)]
 pub enum Literal {
     Boolean(bool),
     Numeric(i64),
@@ -239,8 +239,9 @@ pub trait Operator {
     fn precedence(&self) -> Precedence;
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Default, Eq, PartialEq, Debug)]
 pub enum AssignmentOp {
+    #[default]
     Assign,
 
     AddAssign,
@@ -269,7 +270,7 @@ impl Operator for AssignmentOp {
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum BinaryOp {
     Add,
     Div,
@@ -327,7 +328,7 @@ impl Operator for BinaryOp {
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum UnaryOp {
     DecrementPrefix,
     DecrementPostfix,
@@ -358,19 +359,19 @@ impl Operator for UnaryOp {
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum VariableDeclarationKind {
     Const,
     Let,
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum Associativity {
     LeftToRight,
     RightToLeft,
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
 pub struct Precedence(u8);
 
 impl Precedence {

@@ -33,7 +33,7 @@ impl Vm {
     }
 }
 
-#[derive(Clone, Default, Debug, PartialEq)]
+#[derive(Clone, Default, Debug)]
 pub enum ExecutionState {
     #[default]
     Advance,

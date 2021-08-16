@@ -6,7 +6,7 @@ use std::mem;
 use std::ops::Deref;
 use std::rc::Rc;
 
-#[derive(Debug, Default)]
+#[derive(Default, Debug)]
 pub struct CallStack {
     frame: CallFrame,
 }

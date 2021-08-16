@@ -1,6 +1,6 @@
 use std::ops::*;
 
-#[derive(Clone, Default, PartialEq, Debug)]
+#[derive(Clone, Default, Debug)]
 pub enum Value {
     Boolean(bool),
     Number(i64),
