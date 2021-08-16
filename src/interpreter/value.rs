@@ -1,3 +1,4 @@
+use crate::interpreter::heap::Reference;
 use std::ops::*;
 
 #[derive(Clone, Default, Debug)]
@@ -5,6 +6,7 @@ pub enum Value {
     Boolean(bool),
     Number(i64),
     String(String),
+    Reference(Reference),
     Null,
     #[default]
     Undefined,
@@ -16,6 +18,7 @@ impl Value {
             Value::Boolean(ref value) => *value,
             Value::Number(ref value) => *value > 0,
             Value::String(ref value) => !value.is_empty(),
+            Value::Reference(_) => true,
             Value::Null | Value::Undefined => false,
         }
     }
@@ -71,6 +74,7 @@ impl super::Interpreter {
                 let rhs = self.coerce_to_string(rhs);
                 self.identical(lhs, &rhs)
             }
+            Value::Reference(_) => self.identical(lhs, rhs),
             Value::Null | Value::Undefined => {
                 Value::Boolean(matches!(rhs, Value::Null | Value::Undefined))
             }
@@ -86,6 +90,11 @@ impl super::Interpreter {
             (Value::Boolean(ref lhs), Value::Boolean(ref rhs)) => lhs == rhs,
             (Value::Number(ref lhs), Value::Number(ref rhs)) => lhs == rhs,
             (Value::String(ref lhs), Value::String(ref rhs)) => lhs == rhs,
+            (Value::Reference(ref lhs_refr), Value::Reference(ref rhs_refr)) => {
+                let lhs_obj = self.vm().heap().resolve(lhs_refr);
+                let rhs_obj = self.vm().heap().resolve(rhs_refr);
+                lhs_obj.deref().js_equals(rhs_obj.deref())
+            }
             (Value::Null, Value::Null) => true,
             (Value::Undefined, Value::Undefined) => true,
             (_, _) => false,
@@ -165,7 +174,7 @@ impl super::Interpreter {
             Value::Boolean(true) => 1,
             Value::Boolean(false) => 0,
             Value::Number(ref value) => *value,
-            Value::String(_) | Value::Null | Value::Undefined => {
+            Value::String(_) | Value::Reference(_) | Value::Null | Value::Undefined => {
                 todo!("Interpreter::coerce_to_numeric: {:?}", value)
             }
         }
@@ -176,6 +185,10 @@ impl super::Interpreter {
             Value::Boolean(ref value) => value.to_string(),
             Value::Number(ref value) => value.to_string(),
             Value::String(ref value) => value.to_owned(),
+            Value::Reference(ref refr) => {
+                let value = self.vm().heap().resolve(refr);
+                value.deref().js_to_string()
+            }
             Value::Null => "null".to_owned(),
             Value::Undefined => "undefined".to_owned(),
         }

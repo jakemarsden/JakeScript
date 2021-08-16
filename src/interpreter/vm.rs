@@ -1,3 +1,4 @@
+use crate::interpreter::heap::*;
 use crate::interpreter::stack::*;
 use crate::interpreter::value::Value;
 use std::mem;
@@ -5,6 +6,7 @@ use std::mem;
 #[derive(Default)]
 pub struct Vm {
     execution_state: ExecutionState,
+    heap: Heap,
     stack: CallStack,
 }
 
@@ -26,6 +28,10 @@ impl Vm {
 
     pub fn reset_execution_state(&mut self) -> ExecutionState {
         mem::take(&mut self.execution_state)
+    }
+
+    pub fn heap(&mut self) -> &mut Heap {
+        &mut self.heap
     }
 
     pub fn stack(&mut self) -> &mut CallStack {

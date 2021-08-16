@@ -4,11 +4,13 @@ use std::hint::unreachable_unchecked;
 use std::ops::Deref;
 
 pub use error::*;
+pub use heap::*;
 pub use stack::*;
 pub use value::*;
 pub use vm::*;
 
 mod error;
+mod heap;
 mod stack;
 mod value;
 mod vm;

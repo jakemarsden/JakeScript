@@ -9,6 +9,7 @@ pub enum Error {
     FunctionAlreadyDefined(FunctionAlreadyDefinedError),
     FunctionArgumentMismatch(FunctionArgumentMismatchError),
     FunctionNotDefined(FunctionNotDefinedError),
+    OutOfMemory(OutOfMemoryError),
     VariableAlreadyDefined(VariableAlreadyDefinedError),
     VariableNotDefined(VariableNotDefinedError),
 }
@@ -28,6 +29,7 @@ impl std::error::Error for Error {
             Self::FunctionAlreadyDefined(ref source) => source,
             Self::FunctionArgumentMismatch(ref source) => source,
             Self::FunctionNotDefined(ref source) => source,
+            Self::OutOfMemory(ref source) => source,
             Self::VariableAlreadyDefined(ref source) => source,
             Self::VariableNotDefined(ref source) => source,
         })
@@ -163,5 +165,22 @@ impl std::error::Error for FunctionNotDefinedError {}
 impl From<FunctionNotDefinedError> for Error {
     fn from(source: FunctionNotDefinedError) -> Self {
         Self::FunctionNotDefined(source)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct OutOfMemoryError;
+
+impl fmt::Display for OutOfMemoryError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str("Out of memory")
+    }
+}
+
+impl std::error::Error for OutOfMemoryError {}
+
+impl From<OutOfMemoryError> for Error {
+    fn from(source: OutOfMemoryError) -> Self {
+        Self::OutOfMemory(source)
     }
 }
