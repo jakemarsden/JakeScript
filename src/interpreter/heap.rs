@@ -1,6 +1,6 @@
 use crate::interpreter::error::OutOfMemoryError;
 use crate::interpreter::value::Value;
-use std::cell::{RefCell, RefMut};
+use std::cell::{Ref, RefCell, RefMut};
 use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
@@ -18,8 +18,12 @@ impl Heap {
         Ok(Reference::new(obj_idx, new_obj))
     }
 
-    pub fn resolve<'a>(&mut self, refr: &'a Reference) -> RefMut<'a, Object> {
+    pub fn resolve<'a>(&self, refr: &'a Reference) -> Ref<'a, Object> {
         refr.deref()
+    }
+
+    pub fn resolve_mut<'a>(&mut self, refr: &'a Reference) -> RefMut<'a, Object> {
+        refr.deref_mut()
     }
 }
 
@@ -35,7 +39,11 @@ impl Reference {
         Self(idx, Rc::new(RefCell::new(obj)))
     }
 
-    fn deref(&self) -> RefMut<Object> {
+    fn deref(&self) -> Ref<Object> {
+        RefCell::borrow(&self.1)
+    }
+
+    fn deref_mut(&self) -> RefMut<Object> {
         RefCell::borrow_mut(&self.1)
     }
 }
