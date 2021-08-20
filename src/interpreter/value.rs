@@ -33,23 +33,33 @@ impl super::Interpreter {
         if matches!(lhs, Value::String(_)) {
             todo!("Interpreter::add: lhs={:?}, rhs={:?}", lhs, rhs)
         }
-        self.numeric_bin_op(lhs, rhs, Value::Number, i64::add)
+        self.numeric_bin_op(lhs, rhs, Value::Number, |lhs, rhs| {
+            lhs.checked_add(rhs).expect("interpreter::add: Overflow")
+        })
     }
 
     pub fn sub(&mut self, lhs: &Value, rhs: &Value) -> Value {
-        self.numeric_bin_op(lhs, rhs, Value::Number, i64::sub)
+        self.numeric_bin_op(lhs, rhs, Value::Number, |lhs, rhs| {
+            lhs.checked_sub(rhs).expect("interpreter::sub: Overflow")
+        })
     }
 
     pub fn mul(&mut self, lhs: &Value, rhs: &Value) -> Value {
-        self.numeric_bin_op(lhs, rhs, Value::Number, i64::mul)
+        self.numeric_bin_op(lhs, rhs, Value::Number, |lhs, rhs| {
+            lhs.checked_mul(rhs).expect("interpreter::mul: Overflow")
+        })
     }
 
     pub fn div(&mut self, lhs: &Value, rhs: &Value) -> Value {
-        self.numeric_bin_op(lhs, rhs, Value::Number, i64::div)
+        self.numeric_bin_op(lhs, rhs, Value::Number, |lhs, rhs| {
+            lhs.checked_div(rhs).expect("interpreter::div: Overflow")
+        })
     }
 
     pub fn rem(&mut self, lhs: &Value, rhs: &Value) -> Value {
-        self.numeric_bin_op(lhs, rhs, Value::Number, i64::rem)
+        self.numeric_bin_op(lhs, rhs, Value::Number, |lhs, rhs| {
+            lhs.checked_rem(rhs).expect("interpreter::rem: Overflow")
+        })
     }
 
     pub fn pow(&mut self, lhs: &Value, rhs: &Value) -> Value {
@@ -154,7 +164,9 @@ impl super::Interpreter {
     }
 
     pub fn neg(&mut self, operand: &Value) -> Value {
-        self.numeric_uni_op(operand, Value::Number, i64::neg)
+        self.numeric_uni_op(operand, Value::Number, |operand| {
+            operand.checked_neg().expect("interpreter::neg: Overflow")
+        })
     }
 
     pub fn coerce_to_boolean(&mut self, value: &Value) -> Value {
