@@ -94,11 +94,12 @@ pub enum Keyword {
     Var,
     Void,
     While,
+    With,
     Yield,
 }
 
 impl Keyword {
-    pub(crate) const VALUES: [Self; 52] = [
+    pub(crate) const VALUES: [Self; 53] = [
         Self::As,
         Self::Assert,
         Self::Async,
@@ -150,6 +151,7 @@ impl Keyword {
         Self::Var,
         Self::Void,
         Self::While,
+        Self::With,
         Self::Yield,
     ];
 
@@ -219,6 +221,7 @@ impl Keyword {
             Self::Var => "var",
             Self::Void => "void",
             Self::While => "while",
+            Self::With => "with",
             Self::Yield => "yield",
         }
     }
