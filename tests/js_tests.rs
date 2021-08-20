@@ -1,5 +1,6 @@
 use std::fs;
 use std::time::{Duration, Instant};
+use walkdir::WalkDir;
 
 mod common;
 
@@ -9,9 +10,14 @@ fn js_tests() {
     let mut failure_count = 0_usize;
     let mut total_runtime = Duration::ZERO;
 
-    for dir_entry in fs::read_dir("tests-js").unwrap() {
-        let source_file = dir_entry.unwrap().path();
-        let source_code = fs::read_to_string(&source_file).expect("Failed to read source file");
+    for dir_entry in WalkDir::new("tests-js") {
+        let source_file = dir_entry.unwrap();
+        if !matches!(source_file.file_name().to_str(), Some(name) if name.ends_with(".js")) {
+            continue;
+        }
+
+        let source_file = source_file.path();
+        let source_code = fs::read_to_string(source_file).expect("Failed to read source file");
 
         let started_at = Instant::now();
         let ast = common::parse_from_source_code(&source_code);
