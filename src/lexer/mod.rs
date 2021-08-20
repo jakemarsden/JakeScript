@@ -232,24 +232,31 @@ impl Lexer {
     }
 
     fn parse_numeric_literal(&mut self) -> Option<i64> {
-        // FIXME: This is a naieve implementation which doesn't match the spec
+        if !matches!(self.0.peek(), Some(ch) if ch.is_ascii_digit()) {
+            return None;
+        }
+        // FIXME: This is a naive implementation which doesn't match the spec
         let mut content = String::new();
+        let mut original_len = 0;
         for offset in 0.. {
             match self.0.peek_n(offset) {
-                Some(ch) if ch.is_ascii_digit() => content.push(*ch),
+                Some(ch) if ch.is_ascii_digit() => {
+                    content.push(*ch);
+                    original_len += 1;
+                }
+                Some('_') => {
+                    original_len += 1;
+                }
                 Some(_) | None => break,
             }
         }
-        if content.is_empty() {
-            return None;
-        }
-        match self.0.peek_n(content.len()) {
+        match self.0.peek_n(original_len) {
             Some(next_ch) if Self::is_identifier_start(*next_ch) => return None,
             Some(next_ch) if next_ch.is_ascii_digit() => return None,
             Some(_) | None => {}
         }
         if let Ok(value) = i64::from_str(&content) {
-            self.0.advance_n(content.len());
+            self.0.advance_n(original_len);
             Some(value)
         } else {
             todo!("Lexer::parse_numeric_literal: content={}", content)
