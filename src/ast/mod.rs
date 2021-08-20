@@ -67,6 +67,7 @@ pub enum Statement {
     Expression(Expression),
     FunctionDeclaration(FunctionDeclaration),
     IfStatement(IfStatement),
+    Print(PrintStatement),
     Return(ReturnStatement),
     VariableDeclaration(VariableDeclaration),
     ForLoop(ForLoop),
@@ -81,6 +82,14 @@ pub struct Assertion {
 }
 
 impl Node for Assertion {}
+
+#[derive(Clone, Debug)]
+pub struct PrintStatement {
+    pub argument: Expression,
+    pub new_line: bool,
+}
+
+impl Node for PrintStatement {}
 
 #[derive(Clone, Debug)]
 pub struct IfStatement {

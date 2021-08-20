@@ -76,6 +76,8 @@ pub enum Keyword {
     New,
     Of,
     Package,
+    Print,
+    PrintLn,
     Private,
     Protected,
     Public,
@@ -96,7 +98,7 @@ pub enum Keyword {
 }
 
 impl Keyword {
-    pub(crate) const VALUES: [Self; 50] = [
+    pub(crate) const VALUES: [Self; 52] = [
         Self::As,
         Self::Assert,
         Self::Async,
@@ -130,6 +132,8 @@ impl Keyword {
         Self::New,
         Self::Of,
         Self::Package,
+        Self::Print,
+        Self::PrintLn,
         Self::Private,
         Self::Protected,
         Self::Public,
@@ -197,6 +201,8 @@ impl Keyword {
             Self::New => "new",
             Self::Of => "of",
             Self::Package => "package",
+            Self::Print => "print",
+            Self::PrintLn => "println",
             Self::Private => "private",
             Self::Protected => "protected",
             Self::Public => "public",

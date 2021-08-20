@@ -64,6 +64,9 @@ impl Parser {
                     Token::Keyword(Keyword::Assert) => {
                         self.parse_assertion().map(Statement::Assertion)
                     }
+                    Token::Keyword(Keyword::Print | Keyword::PrintLn) => {
+                        self.parse_print_statement().map(Statement::Print)
+                    }
                     Token::Keyword(Keyword::Break) => {
                         self.parse_break_statement().map(Statement::Break)
                     }
@@ -242,6 +245,28 @@ impl Parser {
             .parse_expression()
             .expect("Expected expression but was <end>");
         Some(Assertion { condition })
+    }
+
+    fn parse_print_statement(&mut self) -> Option<PrintStatement> {
+        let new_line = match self.0.consume() {
+            Some(Token::Keyword(Keyword::Print)) => false,
+            Some(Token::Keyword(Keyword::PrintLn)) => true,
+            Some(token) => unreachable!(
+                "Expected `{}` or `{}` but was {}",
+                Keyword::Print,
+                Keyword::PrintLn,
+                token
+            ),
+            None => unreachable!(
+                "Expected `{}` or `{}` but was <end>",
+                Keyword::Print,
+                Keyword::PrintLn
+            ),
+        };
+        let argument = self
+            .parse_expression()
+            .expect("Expected expression but was <end>");
+        Some(PrintStatement { argument, new_line })
     }
 
     fn parse_if_statement(&mut self) -> Option<IfStatement> {

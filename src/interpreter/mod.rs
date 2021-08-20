@@ -62,6 +62,7 @@ impl Eval for Statement {
             Self::Expression(node) => node.eval(it),
             Self::FunctionDeclaration(node) => node.eval(it),
             Self::IfStatement(node) => node.eval(it),
+            Self::Print(node) => node.eval(it),
             Self::Return(node) => node.eval(it),
             Self::VariableDeclaration(node) => node.eval(it),
             Self::ForLoop(node) => node.eval(it),
@@ -78,6 +79,22 @@ impl Eval for Assertion {
         } else {
             Err(AssertionFailedError::new(self.condition.clone(), value).into())
         }
+    }
+}
+
+impl Eval for PrintStatement {
+    fn eval(&self, it: &mut Interpreter) -> Result {
+        let value = self.argument.eval(it)?;
+        if let Value::String(ref string_value) = it.coerce_to_string(&value) {
+            if self.new_line {
+                println!("{}", string_value);
+            } else {
+                print!("{}", string_value);
+            }
+        } else {
+            unreachable!();
+        }
+        Ok(Value::Undefined)
     }
 }
 
