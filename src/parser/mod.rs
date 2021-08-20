@@ -208,29 +208,31 @@ impl Parser {
         let kind = match self.0.consume() {
             Some(Token::Keyword(Keyword::Const)) => VariableDeclarationKind::Const,
             Some(Token::Keyword(Keyword::Let)) => VariableDeclarationKind::Let,
-            token => panic!("Expected variable declaration but was: {:?}", token),
+            token => panic!("Expected variable declaration but was {:?}", token),
         };
 
-        if let Some(Token::Identifier(var_name)) = self.0.consume() {
-            let initialiser = match self.0.peek() {
-                Some(Token::Punctuator(Punctuator::Equal)) => {
-                    self.0.consume_exact(&Token::Punctuator(Punctuator::Equal));
-                    Some(
-                        self.parse_expression()
-                            .expect("Expected expression but was <end>"),
-                    )
-                }
-                Some(Token::Punctuator(Punctuator::Semicolon)) => None,
-                Some(token) => panic!("Expected initialiser or semicolon but was {}", token),
-                None => panic!("Expected initialiser or semicolon but was <end>"),
-            };
-            Some(VariableDeclaration {
-                kind,
-                var_name,
-                initialiser,
-            })
-        } else {
-            panic!("Expected variable name");
+        match self.0.consume() {
+            Some(Token::Identifier(var_name)) => {
+                let initialiser = match self.0.peek() {
+                    Some(Token::Punctuator(Punctuator::Equal)) => {
+                        self.0.consume_exact(&Token::Punctuator(Punctuator::Equal));
+                        Some(
+                            self.parse_expression()
+                                .expect("Expected expression but was <end>"),
+                        )
+                    }
+                    Some(Token::Punctuator(Punctuator::Semicolon)) => None,
+                    Some(token) => panic!("Expected initialiser or semicolon but was {}", token),
+                    None => panic!("Expected initialiser or semicolon but was <end>"),
+                };
+                Some(VariableDeclaration {
+                    kind,
+                    var_name,
+                    initialiser,
+                })
+            }
+            Some(token) => unreachable!("Expected variable name but was {}", token),
+            None => unreachable!("Expected variable name but was <end>"),
         }
     }
 
