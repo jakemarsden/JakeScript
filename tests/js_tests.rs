@@ -43,7 +43,6 @@ fn js_tests() {
                     elapsed_runtime,
                     err
                 );
-                eprintln!("{:#?}", ast);
             }
         }
     }
