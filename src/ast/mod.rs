@@ -6,15 +6,17 @@ pub type IdentifierNameRef = str;
 pub trait Node: Clone + fmt::Debug {}
 
 #[derive(Clone, Default, Debug)]
-pub struct Program(Block);
+pub struct Program {
+    body: Block,
+}
 
 impl Program {
-    pub fn new(block: Block) -> Self {
-        Self(block)
+    pub fn new(body: Block) -> Self {
+        Self { body }
     }
 
-    pub fn block(&self) -> &Block {
-        &self.0
+    pub fn body(&self) -> &Block {
+        &self.body
     }
 }
 

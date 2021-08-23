@@ -35,7 +35,7 @@ pub trait Eval: Node {
 
 impl Eval for Program {
     fn eval(&self, it: &mut Interpreter) -> Result {
-        self.block().eval(it)
+        self.body().eval(it)
     }
 }
 
