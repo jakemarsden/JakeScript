@@ -78,8 +78,8 @@ impl Object {
         self.properties.is_empty()
     }
 
-    pub fn property(&self, property_name: &IdentifierNameRef) -> Option<Value> {
-        self.properties.get(property_name).cloned()
+    pub fn property(&self, property_name: &IdentifierNameRef) -> Option<&Value> {
+        self.properties.get(property_name)
     }
 
     pub fn set_property(&mut self, property_name: IdentifierName, value: Value) {

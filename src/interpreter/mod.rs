@@ -1,6 +1,5 @@
 use crate::ast::*;
 use std::assert_matches::assert_matches;
-use std::borrow::BorrowMut;
 use std::hint::unreachable_unchecked;
 use std::ops::Deref;
 
@@ -271,26 +270,22 @@ impl Eval for Expression {
 
 impl Eval for AssignmentExpression {
     fn eval(&self, it: &mut Interpreter) -> Result {
-        fn assign<Base>(
+        fn compute_new_value(
             self_: &AssignmentExpression,
             it: &mut Interpreter,
-            base: &mut Base,
-            getter: impl FnOnce(&Base) -> Result,
-            setter: impl FnOnce(&mut Base, Value) -> Result<()>,
+            getter: impl FnOnce() -> Result,
         ) -> Result {
             let rhs = self_.rhs.eval(it)?;
-            let value = match self_.kind {
+            Ok(match self_.kind {
                 AssignmentOp::Assign => rhs,
-                AssignmentOp::AddAssign => it.add(&getter(base)?, &rhs),
-                AssignmentOp::SubAssign => it.sub(&getter(base)?, &rhs),
-                AssignmentOp::MulAssign => it.mul(&getter(base)?, &rhs),
-                AssignmentOp::DivAssign => it.div(&getter(base)?, &rhs),
-                AssignmentOp::ModAssign => it.rem(&getter(base)?, &rhs),
-                AssignmentOp::PowAssign => it.pow(&getter(base)?, &rhs),
+                AssignmentOp::AddAssign => it.add(&getter()?, &rhs),
+                AssignmentOp::SubAssign => it.sub(&getter()?, &rhs),
+                AssignmentOp::MulAssign => it.mul(&getter()?, &rhs),
+                AssignmentOp::DivAssign => it.div(&getter()?, &rhs),
+                AssignmentOp::ModAssign => it.rem(&getter()?, &rhs),
+                AssignmentOp::PowAssign => it.pow(&getter()?, &rhs),
                 kind => todo!("AssignmentExpression::eval: kind={:?}", kind),
-            };
-            setter(base, value.clone())?;
-            Ok(value)
+            })
         }
 
         assert_matches!(self.kind.associativity(), Associativity::RightToLeft);
@@ -302,44 +297,29 @@ impl Eval for AssignmentExpression {
                     .frame()
                     .scope()
                     .lookup_variable(node.var_name)?;
-                assign(
-                    self,
-                    it,
-                    &mut variable,
-                    |variable| Ok(variable.value().clone()),
-                    |variable, value| {
-                        variable
-                            .set_value(value)
-                            .map_err(Error::AssignToConstVariable)
-                    },
-                )
+                let new_value = compute_new_value(self, it, || Ok(variable.value().clone()))?;
+                variable.set_value(new_value.clone())?;
+                Ok(new_value)
             }
             Expression::PropertyAccess(node) => {
                 let base_value = node.base.eval(it)?;
-                let base_refr = match base_value {
-                    Value::Reference(ref refr) => refr,
+                let mut base_obj = match base_value {
+                    Value::Reference(ref base_refr) => it.vm().heap().resolve_mut(base_refr),
                     base_value => todo!("AssignmentExpression::eval: base_value={:?}", base_value),
                 };
-                let mut base_obj = it.vm().heap().resolve_mut(base_refr);
                 let property_name = it
                     .vm()
                     .constant_pool()
                     .lookup(node.property_name)
                     .to_owned();
-                assign(
-                    self,
-                    it,
-                    base_obj.borrow_mut(),
-                    |base_obj| {
-                        Ok(base_obj
-                            .property(&property_name)
-                            .unwrap_or(Value::Undefined))
-                    },
-                    |base_obj, value| {
-                        base_obj.set_property(property_name.to_owned(), value);
-                        Ok(())
-                    },
-                )
+                let new_value = compute_new_value(self, it, || {
+                    Ok(base_obj
+                        .property(&property_name)
+                        .cloned()
+                        .unwrap_or_default())
+                })?;
+                base_obj.set_property(property_name, new_value.clone());
+                Ok(new_value)
             }
             expr => todo!("AssignmentExpression::eval: lhs={:#?}", expr),
         }
@@ -495,7 +475,10 @@ impl Eval for PropertyAccessExpression {
             base_value => todo!("PropertyExpression::eval: base={:?}", base_value),
         };
         let property_name = it.vm().constant_pool().lookup(self.property_name);
-        Ok(base_obj.property(property_name).unwrap_or(Value::Undefined))
+        Ok(base_obj
+            .property(property_name)
+            .cloned()
+            .unwrap_or_default())
     }
 }
 
