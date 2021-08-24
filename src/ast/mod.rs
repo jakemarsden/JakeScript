@@ -8,15 +8,20 @@ pub trait Node: Clone + fmt::Debug {}
 #[derive(Clone, Default, Debug)]
 pub struct Program {
     body: Block,
+    constants: Vec<(ConstantId, ConstantValue)>,
 }
 
 impl Program {
-    pub fn new(body: Block) -> Self {
-        Self { body }
+    pub fn new(body: Block, constants: Vec<(ConstantId, ConstantValue)>) -> Self {
+        Self { body, constants }
     }
 
     pub fn body(&self) -> &Block {
         &self.body
+    }
+
+    pub fn constants(&self) -> &[(ConstantId, ConstantValue)] {
+        &self.constants
     }
 }
 
@@ -143,8 +148,8 @@ impl Node for ReturnStatement {}
 
 #[derive(Clone, Debug)]
 pub struct FunctionDeclaration {
-    pub fn_name: IdentifierName,
-    pub param_names: Vec<IdentifierName>,
+    pub fn_name: ConstantId,
+    pub param_names: Vec<ConstantId>,
     pub body: Block,
 }
 
@@ -153,7 +158,7 @@ impl Node for FunctionDeclaration {}
 #[derive(Clone, Debug)]
 pub struct VariableDeclaration {
     pub kind: VariableDeclarationKind,
-    pub var_name: IdentifierName,
+    pub var_name: ConstantId,
     pub initialiser: Option<Expression>,
 }
 
@@ -215,7 +220,7 @@ impl Node for LiteralExpression {}
 
 #[derive(Clone, Debug)]
 pub struct FunctionCallExpression {
-    pub fn_name: IdentifierName,
+    pub fn_name: ConstantId,
     pub arguments: Vec<Expression>,
 }
 
@@ -224,14 +229,14 @@ impl Node for FunctionCallExpression {}
 #[derive(Clone, Debug)]
 pub struct PropertyAccessExpression {
     pub base: Box<Expression>,
-    pub property_name: IdentifierName,
+    pub property_name: ConstantId,
 }
 
 impl Node for PropertyAccessExpression {}
 
 #[derive(Clone, Debug)]
 pub struct VariableAccessExpression {
-    pub var_name: IdentifierName,
+    pub var_name: ConstantId,
 }
 
 impl Node for VariableAccessExpression {}
@@ -240,12 +245,42 @@ impl Node for VariableAccessExpression {}
 pub enum Literal {
     Boolean(bool),
     Numeric(i64),
+    // TODO: Store string literals in the constant pool
     String(String),
     // TODO: Support properties in object literals
     Object,
     Null,
     #[default]
     Undefined,
+}
+
+pub type ConstantValue = String;
+pub type ConstantValueRef = str;
+
+#[derive(Copy, Clone, Eq, PartialEq, Hash)]
+pub struct ConstantId(usize);
+
+impl ConstantId {
+    pub(crate) fn new(idx: usize) -> Self {
+        Self(idx)
+    }
+
+    pub(crate) fn idx(&self) -> usize {
+        self.0
+    }
+}
+
+impl fmt::Display for ConstantId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // Note: 6 includes the 2 chars for the "0x" prefix, so only 4 actual digits are displayed
+        write!(f, "{:#06x}", self.0)
+    }
+}
+
+impl fmt::Debug for ConstantId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(self, f)
+    }
 }
 
 pub trait Operator {

@@ -1,9 +1,8 @@
-use crate::ast::{Block, VariableDeclarationKind};
+use crate::ast::{Block, ConstantId, VariableDeclarationKind};
 use crate::interpreter::error::*;
 use crate::interpreter::value::Value;
 use std::cell::{Ref, RefCell};
 use std::mem;
-use std::ops::Deref;
 use std::rc::Rc;
 
 #[derive(Default, Debug)]
@@ -81,7 +80,7 @@ impl Scope {
         }
     }
 
-    pub fn lookup_variable(&self, name: &str) -> Result<Variable, VariableNotDefinedError> {
+    pub fn lookup_variable(&self, name: ConstantId) -> Result<Variable, VariableNotDefinedError> {
         RefCell::borrow(&self.0)
             .lookup_variable(name)
             .ok_or(VariableNotDefinedError)
@@ -94,7 +93,7 @@ impl Scope {
         RefCell::borrow_mut(&self.0).declare_variable(variable)
     }
 
-    pub fn lookup_function(&self, name: &str) -> Result<Function, FunctionNotDefinedError> {
+    pub fn lookup_function(&self, name: ConstantId) -> Result<Function, FunctionNotDefinedError> {
         RefCell::borrow(&self.0)
             .lookup_function(name)
             .ok_or(FunctionNotDefinedError)
@@ -115,7 +114,7 @@ struct ScopeInner {
 }
 
 impl ScopeInner {
-    fn lookup_variable(&self, name: &str) -> Option<Variable> {
+    fn lookup_variable(&self, name: ConstantId) -> Option<Variable> {
         if let Some(variable) = self.ctx.find_variable(name) {
             Some(variable)
         } else if let Some(ref parent) = self.parent {
@@ -126,7 +125,7 @@ impl ScopeInner {
     }
 
     fn declare_variable(&mut self, variable: Variable) -> Result<(), VariableAlreadyDefinedError> {
-        if self.lookup_variable(variable.name().deref()).is_none() {
+        if self.lookup_variable(variable.name()).is_none() {
             self.ctx.declare_variable(variable);
             Ok(())
         } else {
@@ -134,7 +133,7 @@ impl ScopeInner {
         }
     }
 
-    fn lookup_function(&self, name: &str) -> Option<Function> {
+    fn lookup_function(&self, name: ConstantId) -> Option<Function> {
         if let Some(function) = self.ctx.find_function(name) {
             Some(function)
         } else if let Some(ref parent) = self.parent {
@@ -145,7 +144,7 @@ impl ScopeInner {
     }
 
     fn declare_function(&mut self, function: Function) -> Result<(), FunctionAlreadyDefinedError> {
-        if self.lookup_function(function.name().deref()).is_none() {
+        if self.lookup_function(function.name()).is_none() {
             self.ctx.declare_function(function);
             Ok(())
         } else {
@@ -168,10 +167,10 @@ impl ScopeCtx {
         }
     }
 
-    pub fn find_variable(&self, var_name: &str) -> Option<Variable> {
+    pub fn find_variable(&self, var_name: ConstantId) -> Option<Variable> {
         self.declared_variables
             .iter()
-            .find(|var| var.name().deref() == var_name)
+            .find(|var| var.name() == var_name)
             .cloned()
     }
 
@@ -179,10 +178,10 @@ impl ScopeCtx {
         self.declared_variables.push(variable);
     }
 
-    pub fn find_function(&self, fun_name: &str) -> Option<Function> {
+    pub fn find_function(&self, fun_name: ConstantId) -> Option<Function> {
         self.declared_functions
             .iter()
-            .find(|fun| fun.name().deref() == fun_name)
+            .find(|fun| fun.name() == fun_name)
             .cloned()
     }
 
@@ -195,11 +194,11 @@ impl ScopeCtx {
 pub struct Variable(Rc<RefCell<VariableInner>>);
 
 impl Variable {
-    pub fn new_unassigned(kind: VariableDeclarationKind, name: String) -> Self {
+    pub fn new_unassigned(kind: VariableDeclarationKind, name: ConstantId) -> Self {
         Self::new(kind, name, Value::default())
     }
 
-    pub fn new(kind: VariableDeclarationKind, name: String, initial_value: Value) -> Self {
+    pub fn new(kind: VariableDeclarationKind, name: ConstantId, initial_value: Value) -> Self {
         Self(Rc::new(RefCell::new(VariableInner {
             kind,
             name,
@@ -212,9 +211,9 @@ impl Variable {
         inner.kind
     }
 
-    pub fn name(&self) -> Ref<str> {
+    pub fn name(&self) -> ConstantId {
         let inner = RefCell::borrow(&self.0);
-        Ref::map(inner, |inner| inner.name.as_str())
+        inner.name
     }
 
     pub fn value(&self) -> Ref<Value> {
@@ -237,7 +236,7 @@ impl Variable {
 #[derive(Debug)]
 struct VariableInner {
     kind: VariableDeclarationKind,
-    name: String,
+    name: ConstantId,
     value: Value,
 }
 
@@ -246,32 +245,32 @@ pub struct Function(Rc<RefCell<FunctionInner>>);
 
 impl Function {
     pub fn new(
-        name: String,
+        name: ConstantId,
+        declared_parameters: Vec<ConstantId>,
         declared_scope: Scope,
-        declared_parameters: Vec<String>,
         body: Block,
     ) -> Self {
         Self(Rc::new(RefCell::new(FunctionInner {
             name,
-            declared_scope,
             declared_parameters,
+            declared_scope,
             body,
         })))
     }
 
-    pub fn name(&self) -> Ref<str> {
+    pub fn name(&self) -> ConstantId {
         let inner = RefCell::borrow(&self.0);
-        Ref::map(inner, |inner| inner.name.as_str())
+        inner.name
+    }
+
+    pub fn declared_parameters(&self) -> Ref<[ConstantId]> {
+        let inner = RefCell::borrow(&self.0);
+        Ref::map(inner, |inner| inner.declared_parameters.as_slice())
     }
 
     pub fn declared_scope(&self) -> Ref<Scope> {
         let inner = RefCell::borrow(&self.0);
         Ref::map(inner, |inner| &inner.declared_scope)
-    }
-
-    pub fn declared_parameters(&self) -> Ref<[String]> {
-        let inner = RefCell::borrow(&self.0);
-        Ref::map(inner, |inner| inner.declared_parameters.as_slice())
     }
 
     pub fn body(&self) -> Ref<Block> {
@@ -282,8 +281,8 @@ impl Function {
 
 #[derive(Debug)]
 struct FunctionInner {
-    name: String,
+    name: ConstantId,
+    declared_parameters: Vec<ConstantId>,
     declared_scope: Scope,
-    declared_parameters: Vec<String>,
     body: Block,
 }

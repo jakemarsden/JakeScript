@@ -35,6 +35,12 @@ pub trait Eval: Node {
 
 impl Eval for Program {
     fn eval(&self, it: &mut Interpreter) -> Result {
+        let vm_constant_pool = it.vm().constant_pool();
+        for (constant_id, constant_value) in self.constants() {
+            let allocated_id = vm_constant_pool.allocate(constant_value.to_owned());
+            // TODO: Make this less fragile?
+            assert_eq!(allocated_id, *constant_id);
+        }
         self.body().eval(it)
     }
 }
@@ -223,9 +229,9 @@ impl Eval for FunctionDeclaration {
     fn eval(&self, it: &mut Interpreter) -> Result {
         let declared_scope = it.vm().stack().frame().scope().clone();
         let function = Function::new(
-            self.fn_name.clone(),
-            declared_scope,
+            self.fn_name,
             self.param_names.clone(),
+            declared_scope,
             self.body.clone(),
         );
         it.vm().stack().frame().scope().declare_function(function)?;
@@ -295,7 +301,7 @@ impl Eval for AssignmentExpression {
                     .stack()
                     .frame()
                     .scope()
-                    .lookup_variable(&node.var_name)?;
+                    .lookup_variable(node.var_name)?;
                 assign(
                     self,
                     it,
@@ -315,17 +321,22 @@ impl Eval for AssignmentExpression {
                     base_value => todo!("AssignmentExpression::eval: base_value={:?}", base_value),
                 };
                 let mut base_obj = it.vm().heap().resolve_mut(base_refr);
+                let property_name = it
+                    .vm()
+                    .constant_pool()
+                    .lookup(node.property_name)
+                    .to_owned();
                 assign(
                     self,
                     it,
                     base_obj.borrow_mut(),
                     |base_obj| {
                         Ok(base_obj
-                            .property(&node.property_name)
+                            .property(&property_name)
                             .unwrap_or(Value::Undefined))
                     },
                     |base_obj, value| {
-                        base_obj.set_property(node.property_name.to_owned(), value);
+                        base_obj.set_property(property_name.to_owned(), value);
                         Ok(())
                     },
                 )
@@ -440,7 +451,7 @@ impl Eval for FunctionCallExpression {
             .stack()
             .frame()
             .scope()
-            .lookup_function(&self.fn_name)?;
+            .lookup_function(self.fn_name)?;
         let parameters = function.declared_parameters();
 
         if parameters.len() != self.arguments.len() {
@@ -483,9 +494,8 @@ impl Eval for PropertyAccessExpression {
             Value::Reference(ref base_refr) => it.vm().heap().resolve(base_refr),
             base_value => todo!("PropertyExpression::eval: base={:?}", base_value),
         };
-        Ok(base_obj
-            .property(&self.property_name)
-            .unwrap_or(Value::Undefined))
+        let property_name = it.vm().constant_pool().lookup(self.property_name);
+        Ok(base_obj.property(property_name).unwrap_or(Value::Undefined))
     }
 }
 
@@ -496,7 +506,7 @@ impl Eval for VariableAccessExpression {
             .stack()
             .frame()
             .scope()
-            .lookup_variable(&self.var_name)?;
+            .lookup_variable(self.var_name)?;
         let value = variable.value().deref().clone();
         Ok(value)
     }
