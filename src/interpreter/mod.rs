@@ -46,8 +46,8 @@ impl Eval for Program {
 
 impl Eval for Block {
     fn eval(&self, it: &mut Interpreter) -> Result {
-        let mut result = Value::Undefined;
-        for stmt in self.iter() {
+        let mut result = Value::default();
+        for stmt in self.statements() {
             if it.vm().execution_state().is_break_or_return() {
                 break;
             }
@@ -61,7 +61,6 @@ impl Eval for Statement {
     fn eval(&self, it: &mut Interpreter) -> Result {
         match self {
             Self::Assertion(node) => node.eval(it),
-            Self::Block(node) => node.eval(it),
             Self::Break(node) => node.eval(it),
             Self::Continue(node) => node.eval(it),
             Self::Expression(node) => node.eval(it),

@@ -72,7 +72,6 @@ impl Parser {
 
     fn parse_statement(&mut self) -> Option<Statement> {
         match self.tokens.peek()? {
-            Token::Punctuator(Punctuator::OpenBrace) => Some(Statement::Block(self.parse_block())),
             Token::Keyword(Keyword::If) => self.parse_if_statement().map(Statement::IfStatement),
             Token::Keyword(Keyword::Function) => self
                 .parse_function_declaration()

@@ -1,4 +1,4 @@
-use std::{fmt, iter};
+use std::fmt;
 
 pub type IdentifierName = String;
 pub type IdentifierNameRef = str;
@@ -38,37 +38,13 @@ impl Block {
     pub fn statements(&self) -> &[Statement] {
         &self.0
     }
-
-    pub fn iter(&self) -> impl iter::Iterator<Item = &Statement> {
-        self.statements().iter()
-    }
 }
 
 impl Node for Block {}
 
-impl iter::IntoIterator for Block {
-    type Item = Statement;
-    type IntoIter = std::vec::IntoIter<Self::Item>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
-    }
-}
-
-impl iter::FromIterator<Statement> for Block {
-    fn from_iter<T>(iter: T) -> Self
-    where
-        T: IntoIterator<Item = Statement>,
-    {
-        let stmts: Vec<_> = iter.into_iter().collect();
-        Self::new(stmts)
-    }
-}
-
 #[derive(Clone, Debug)]
 pub enum Statement {
     Assertion(Assertion),
-    Block(Block),
     Break(BreakStatement),
     Continue(ContinueStatement),
     Expression(Expression),
