@@ -1,4 +1,5 @@
 #![feature(assert_matches)]
+#![feature(associated_type_defaults)]
 #![feature(derive_default_enum)]
 
 pub mod ast;

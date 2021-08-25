@@ -29,11 +29,15 @@ impl Interpreter {
 }
 
 pub trait Eval: Node {
-    fn eval(&self, it: &mut Interpreter) -> Result;
+    type Output = ();
+
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output>;
 }
 
 impl Eval for Program {
-    fn eval(&self, it: &mut Interpreter) -> Result {
+    type Output = Value;
+
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let vm_constant_pool = it.vm().constant_pool();
         for (constant_id, constant_value) in self.constants() {
             let allocated_id = vm_constant_pool.allocate(constant_value.to_owned());
@@ -45,25 +49,30 @@ impl Eval for Program {
 }
 
 impl Eval for Block {
+    type Output = Value;
+
     fn eval(&self, it: &mut Interpreter) -> Result {
         let mut result = Value::default();
         for stmt in self.statements() {
             if it.vm().execution_state().is_break_or_return() {
                 break;
             }
-            result = stmt.eval(it)?;
+            result = match stmt {
+                Statement::Expression(expr) => expr.eval(it),
+                stmt => stmt.eval(it).map(|()| Value::default()),
+            }?;
         }
         Ok(result)
     }
 }
 
 impl Eval for Statement {
-    fn eval(&self, it: &mut Interpreter) -> Result {
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         match self {
             Self::Assertion(node) => node.eval(it),
             Self::Break(node) => node.eval(it),
             Self::Continue(node) => node.eval(it),
-            Self::Expression(node) => node.eval(it),
+            Self::Expression(node) => node.eval(it).map(|_| ()),
             Self::FunctionDeclaration(node) => node.eval(it),
             Self::IfStatement(node) => node.eval(it),
             Self::Print(node) => node.eval(it),
@@ -76,10 +85,10 @@ impl Eval for Statement {
 }
 
 impl Eval for Assertion {
-    fn eval(&self, it: &mut Interpreter) -> Result {
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let value = self.condition.eval(it)?;
         if value.is_truthy(it) {
-            Ok(Value::Undefined)
+            Ok(())
         } else {
             Err(AssertionFailedError::new(self.condition.clone(), value).into())
         }
@@ -87,7 +96,7 @@ impl Eval for Assertion {
 }
 
 impl Eval for PrintStatement {
-    fn eval(&self, it: &mut Interpreter) -> Result {
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let value = self.argument.eval(it)?;
         if let Value::String(ref string_value) = value.coerce_to_string(it) {
             if self.new_line {
@@ -98,12 +107,12 @@ impl Eval for PrintStatement {
         } else {
             unreachable!();
         }
-        Ok(Value::Undefined)
+        Ok(())
     }
 }
 
 impl Eval for IfStatement {
-    fn eval(&self, it: &mut Interpreter) -> Result {
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let condition = self.condition.eval(it)?;
         if condition.is_truthy(it) {
             it.vm().stack().frame().push_scope();
@@ -114,12 +123,12 @@ impl Eval for IfStatement {
             else_block.eval(it)?;
             it.vm().stack().frame().pop_scope();
         }
-        Ok(Value::Undefined)
+        Ok(())
     }
 }
 
 impl Eval for ForLoop {
-    fn eval(&self, it: &mut Interpreter) -> Result {
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         if let Some(ref initialiser) = self.initialiser {
             it.vm().stack().frame().push_scope();
             initialiser.eval(it)?;
@@ -160,12 +169,12 @@ impl Eval for ForLoop {
         if self.initialiser.is_some() {
             it.vm().stack().frame().pop_scope();
         }
-        Ok(Value::Undefined)
+        Ok(())
     }
 }
 
 impl Eval for WhileLoop {
-    fn eval(&self, it: &mut Interpreter) -> Result {
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         loop {
             let condition = self.condition.eval(it)?;
             if condition.is_falsy(it) {
@@ -193,38 +202,38 @@ impl Eval for WhileLoop {
                 }
             }
         }
-        Ok(Value::Undefined)
+        Ok(())
     }
 }
 
 impl Eval for BreakStatement {
-    fn eval(&self, it: &mut Interpreter) -> Result {
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         it.vm().set_execution_state(ExecutionState::Break);
-        Ok(Value::Undefined)
+        Ok(())
     }
 }
 
 impl Eval for ContinueStatement {
-    fn eval(&self, it: &mut Interpreter) -> Result {
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         it.vm().set_execution_state(ExecutionState::BreakContinue);
-        Ok(Value::Undefined)
+        Ok(())
     }
 }
 
 impl Eval for ReturnStatement {
-    fn eval(&self, it: &mut Interpreter) -> Result {
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let value = if let Some(ref expr) = self.expr {
             expr.eval(it)?
         } else {
             Value::Undefined
         };
         it.vm().set_execution_state(ExecutionState::Return(value));
-        Ok(Value::Undefined)
+        Ok(())
     }
 }
 
 impl Eval for FunctionDeclaration {
-    fn eval(&self, it: &mut Interpreter) -> Result {
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let declared_scope = it.vm().stack().frame().scope().clone();
         let function = Function::new(
             self.fn_name,
@@ -233,12 +242,12 @@ impl Eval for FunctionDeclaration {
             self.body.clone(),
         );
         it.vm().stack().frame().scope().declare_function(function)?;
-        Ok(Value::Undefined)
+        Ok(())
     }
 }
 
 impl Eval for VariableDeclaration {
-    fn eval(&self, it: &mut Interpreter) -> Result {
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let var_name = self.var_name.to_owned();
         let variable = if let Some(ref initialiser) = self.initialiser {
             let initial_value = initialiser.eval(it)?;
@@ -247,12 +256,14 @@ impl Eval for VariableDeclaration {
             Variable::new_unassigned(self.kind, var_name)
         };
         it.vm().stack().frame().scope().declare_variable(variable)?;
-        Ok(Value::Undefined)
+        Ok(())
     }
 }
 
 impl Eval for Expression {
-    fn eval(&self, it: &mut Interpreter) -> Result {
+    type Output = Value;
+
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         match self {
             Self::Assignment(ref node) => node.eval(it),
             Self::Binary(ref node) => node.eval(it),
@@ -268,7 +279,9 @@ impl Eval for Expression {
 }
 
 impl Eval for AssignmentExpression {
-    fn eval(&self, it: &mut Interpreter) -> Result {
+    type Output = Value;
+
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         fn compute_new_value(
             self_: &AssignmentExpression,
             it: &mut Interpreter,
@@ -326,7 +339,9 @@ impl Eval for AssignmentExpression {
 }
 
 impl Eval for BinaryExpression {
-    fn eval(&self, it: &mut Interpreter) -> Result {
+    type Output = Value;
+
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         Ok(match self.kind {
             // Get the boolean ops out of the way first, since they don't let us eval the RHS
             //  up-front (which is more ergonomic for all the other ops)
@@ -390,7 +405,9 @@ impl Eval for BinaryExpression {
 }
 
 impl Eval for UnaryExpression {
-    fn eval(&self, it: &mut Interpreter) -> Result {
+    type Output = Value;
+
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let operand = &self.operand.eval(it)?;
         Ok(match self.kind {
             UnaryOp::LogicalNot => Value::not(it, operand),
@@ -402,13 +419,17 @@ impl Eval for UnaryExpression {
 }
 
 impl Eval for GroupingExpression {
-    fn eval(&self, it: &mut Interpreter) -> Result {
+    type Output = Value;
+
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         self.inner.eval(it)
     }
 }
 
 impl Eval for LiteralExpression {
-    fn eval(&self, it: &mut Interpreter) -> Result {
+    type Output = Value;
+
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         Ok(match self.value {
             Literal::Boolean(ref value) => Value::Boolean(*value),
             Literal::Numeric(ref value) => Value::Number(*value),
@@ -424,7 +445,9 @@ impl Eval for LiteralExpression {
 }
 
 impl Eval for FunctionCallExpression {
-    fn eval(&self, it: &mut Interpreter) -> Result {
+    type Output = Value;
+
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let function = it
             .vm()
             .stack()
@@ -467,7 +490,9 @@ impl Eval for FunctionCallExpression {
 }
 
 impl Eval for PropertyAccessExpression {
-    fn eval(&self, it: &mut Interpreter) -> Result {
+    type Output = Value;
+
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let base_value = self.base.eval(it)?;
         let base_obj = match base_value {
             Value::Reference(ref base_refr) => it.vm().heap().resolve(base_refr),
@@ -482,14 +507,16 @@ impl Eval for PropertyAccessExpression {
 }
 
 impl Eval for VariableAccessExpression {
-    fn eval(&self, it: &mut Interpreter) -> Result {
+    type Output = Value;
+
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let variable = it
             .vm()
             .stack()
             .frame()
             .scope()
             .lookup_variable(self.var_name)?;
-        let value = variable.value().deref().clone();
+        let value = variable.value().clone();
         Ok(value)
     }
 }
