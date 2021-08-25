@@ -79,7 +79,7 @@ impl Eval for Statement {
 impl Eval for Assertion {
     fn eval(&self, it: &mut Interpreter) -> Result {
         let value = self.condition.eval(it)?;
-        if value.is_truthy() {
+        if value.is_truthy(it) {
             Ok(Value::Undefined)
         } else {
             Err(AssertionFailedError::new(self.condition.clone(), value).into())
@@ -90,7 +90,7 @@ impl Eval for Assertion {
 impl Eval for PrintStatement {
     fn eval(&self, it: &mut Interpreter) -> Result {
         let value = self.argument.eval(it)?;
-        if let Value::String(ref string_value) = it.coerce_to_string(&value) {
+        if let Value::String(ref string_value) = value.coerce_to_string(it) {
             if self.new_line {
                 println!("{}", string_value);
             } else {
@@ -106,7 +106,7 @@ impl Eval for PrintStatement {
 impl Eval for IfStatement {
     fn eval(&self, it: &mut Interpreter) -> Result {
         let condition = self.condition.eval(it)?;
-        if condition.is_truthy() {
+        if condition.is_truthy(it) {
             it.vm().stack().frame().push_scope();
             self.success_block.eval(it)?;
             it.vm().stack().frame().pop_scope()
@@ -128,7 +128,7 @@ impl Eval for ForLoop {
         loop {
             if let Some(ref condition) = self.condition {
                 let condition = condition.eval(it)?;
-                if !condition.is_truthy() {
+                if condition.is_falsy(it) {
                     break;
                 }
             }
@@ -169,7 +169,7 @@ impl Eval for WhileLoop {
     fn eval(&self, it: &mut Interpreter) -> Result {
         loop {
             let condition = self.condition.eval(it)?;
-            if !condition.is_truthy() {
+            if condition.is_falsy(it) {
                 break;
             }
 
@@ -278,12 +278,12 @@ impl Eval for AssignmentExpression {
             let rhs = self_.rhs.eval(it)?;
             Ok(match self_.kind {
                 AssignmentOp::Assign => rhs,
-                AssignmentOp::AddAssign => it.add(&getter()?, &rhs),
-                AssignmentOp::SubAssign => it.sub(&getter()?, &rhs),
-                AssignmentOp::MulAssign => it.mul(&getter()?, &rhs),
-                AssignmentOp::DivAssign => it.div(&getter()?, &rhs),
-                AssignmentOp::ModAssign => it.rem(&getter()?, &rhs),
-                AssignmentOp::PowAssign => it.pow(&getter()?, &rhs),
+                AssignmentOp::AddAssign => Value::add(it, &getter()?, &rhs),
+                AssignmentOp::SubAssign => Value::sub(it, &getter()?, &rhs),
+                AssignmentOp::MulAssign => Value::mul(it, &getter()?, &rhs),
+                AssignmentOp::DivAssign => Value::div(it, &getter()?, &rhs),
+                AssignmentOp::ModAssign => Value::rem(it, &getter()?, &rhs),
+                AssignmentOp::PowAssign => Value::pow(it, &getter()?, &rhs),
                 kind => todo!("AssignmentExpression::eval: kind={:?}", kind),
             })
         }
@@ -333,11 +333,11 @@ impl Eval for BinaryExpression {
             //  up-front (which is more ergonomic for all the other ops)
             BinaryOp::LogicalAnd => {
                 assert_matches!(self.kind.associativity(), Associativity::LeftToRight);
-                Value::Boolean(self.lhs.eval(it)?.is_truthy() && self.rhs.eval(it)?.is_truthy())
+                Value::Boolean(self.lhs.eval(it)?.is_truthy(it) && self.rhs.eval(it)?.is_truthy(it))
             }
             BinaryOp::LogicalOr => {
                 assert_matches!(self.kind.associativity(), Associativity::LeftToRight);
-                Value::Boolean(self.lhs.eval(it)?.is_truthy() || self.rhs.eval(it)?.is_truthy())
+                Value::Boolean(self.lhs.eval(it)?.is_truthy(it) || self.rhs.eval(it)?.is_truthy(it))
             }
 
             kind => {
@@ -360,30 +360,30 @@ impl Eval for BinaryExpression {
                         unreachable_unchecked()
                     },
 
-                    BinaryOp::Add => it.add(lhs, rhs),
-                    BinaryOp::Div => it.div(lhs, rhs),
-                    BinaryOp::Mod => it.rem(lhs, rhs),
-                    BinaryOp::Mul => it.mul(lhs, rhs),
-                    BinaryOp::Pow => it.pow(lhs, rhs),
-                    BinaryOp::Sub => it.sub(lhs, rhs),
+                    BinaryOp::Add => Value::add(it, lhs, rhs),
+                    BinaryOp::Div => Value::div(it, lhs, rhs),
+                    BinaryOp::Mod => Value::rem(it, lhs, rhs),
+                    BinaryOp::Mul => Value::mul(it, lhs, rhs),
+                    BinaryOp::Pow => Value::pow(it, lhs, rhs),
+                    BinaryOp::Sub => Value::sub(it, lhs, rhs),
 
-                    BinaryOp::Equal => it.eq(lhs, rhs),
-                    BinaryOp::NotEqual => it.ne(lhs, rhs),
-                    BinaryOp::Identical => it.identical(lhs, rhs),
-                    BinaryOp::NotIdentical => it.not_identical(lhs, rhs),
+                    BinaryOp::Equal => Value::eq(it, lhs, rhs),
+                    BinaryOp::NotEqual => Value::ne(it, lhs, rhs),
+                    BinaryOp::Identical => Value::identical(it, lhs, rhs),
+                    BinaryOp::NotIdentical => Value::not_identical(it, lhs, rhs),
 
-                    BinaryOp::LessThan => it.lt(lhs, rhs),
-                    BinaryOp::LessThanOrEqual => it.le(lhs, rhs),
-                    BinaryOp::MoreThan => it.gt(lhs, rhs),
-                    BinaryOp::MoreThanOrEqual => it.ge(lhs, rhs),
+                    BinaryOp::LessThan => Value::lt(it, lhs, rhs),
+                    BinaryOp::LessThanOrEqual => Value::le(it, lhs, rhs),
+                    BinaryOp::MoreThan => Value::gt(it, lhs, rhs),
+                    BinaryOp::MoreThanOrEqual => Value::ge(it, lhs, rhs),
 
-                    BinaryOp::ShiftLeft => it.bitwise_shl(lhs, rhs),
-                    BinaryOp::ShiftRight => it.bitwise_shr(lhs, rhs),
-                    BinaryOp::ShiftRightUnsigned => it.bitwise_shrr(lhs, rhs),
+                    BinaryOp::ShiftLeft => Value::bitwise_shl(it, lhs, rhs),
+                    BinaryOp::ShiftRight => Value::bitwise_shr(it, lhs, rhs),
+                    BinaryOp::ShiftRightUnsigned => Value::bitwise_shrr(it, lhs, rhs),
 
-                    BinaryOp::BitwiseAnd => it.bitwise_and(lhs, rhs),
-                    BinaryOp::BitwiseOr => it.bitwise_or(lhs, rhs),
-                    BinaryOp::BitwiseXOr => it.bitwise_xor(lhs, rhs),
+                    BinaryOp::BitwiseAnd => Value::bitwise_and(it, lhs, rhs),
+                    BinaryOp::BitwiseOr => Value::bitwise_or(it, lhs, rhs),
+                    BinaryOp::BitwiseXOr => Value::bitwise_xor(it, lhs, rhs),
                 }
             }
         })
@@ -394,9 +394,9 @@ impl Eval for UnaryExpression {
     fn eval(&self, it: &mut Interpreter) -> Result {
         let operand = &self.operand.eval(it)?;
         Ok(match self.kind {
-            UnaryOp::LogicalNot => it.not(operand),
-            UnaryOp::NumericNegate => it.neg(operand),
-            UnaryOp::NumericPlus => it.plus(operand),
+            UnaryOp::LogicalNot => Value::not(it, operand),
+            UnaryOp::NumericNegate => Value::neg(it, operand),
+            UnaryOp::NumericPlus => Value::plus(it, operand),
             kind => todo!("UnaryExpression::eval: kind={:?}", kind),
         })
     }

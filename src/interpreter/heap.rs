@@ -35,6 +35,14 @@ impl Heap {
 #[derive(Clone)]
 pub struct Reference(usize, Rc<RefCell<Object>>);
 
+impl Eq for Reference {}
+
+impl PartialEq for Reference {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+
 impl Reference {
     fn new(idx: usize, obj: Object) -> Self {
         Self(idx, Rc::new(RefCell::new(obj)))

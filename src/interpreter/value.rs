@@ -1,4 +1,5 @@
 use crate::interpreter::heap::Reference;
+use crate::interpreter::Interpreter;
 use std::ops::*;
 
 #[derive(Clone, Default, Debug)]
@@ -13,220 +14,240 @@ pub enum Value {
 }
 
 impl Value {
-    pub fn is_truthy(&self) -> bool {
-        match self {
-            Value::Boolean(ref value) => *value,
-            Value::Number(ref value) => *value > 0,
-            Value::String(ref value) => !value.is_empty(),
-            Value::Reference(_) => true,
-            Value::Null | Value::Undefined => false,
+    pub fn add(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Self {
+        if matches!(lhs, Self::String(_) | Self::Reference(_)) {
+            todo!("Value::add: {:?} + {:?}", lhs, rhs)
+        }
+        match numeric_bin_op(it, lhs, rhs, i64::checked_add) {
+            Some(result) => Self::Number(result),
+            None => todo!("Value::add: {:?} + {:?} => Overflow", lhs, rhs),
         }
     }
 
-    pub fn is_falsy(&self) -> bool {
-        !self.is_truthy()
-    }
-}
-
-impl super::Interpreter {
-    pub fn add(&mut self, lhs: &Value, rhs: &Value) -> Value {
-        if matches!(lhs, Value::String(_)) {
-            todo!("Interpreter::add: lhs={:?}, rhs={:?}", lhs, rhs)
-        }
-        self.numeric_bin_op(lhs, rhs, Value::Number, |lhs, rhs| {
-            lhs.checked_add(rhs).expect("interpreter::add: Overflow")
-        })
-    }
-
-    pub fn sub(&mut self, lhs: &Value, rhs: &Value) -> Value {
-        self.numeric_bin_op(lhs, rhs, Value::Number, |lhs, rhs| {
-            lhs.checked_sub(rhs).expect("interpreter::sub: Overflow")
-        })
-    }
-
-    pub fn mul(&mut self, lhs: &Value, rhs: &Value) -> Value {
-        self.numeric_bin_op(lhs, rhs, Value::Number, |lhs, rhs| {
-            lhs.checked_mul(rhs).expect("interpreter::mul: Overflow")
-        })
-    }
-
-    pub fn div(&mut self, lhs: &Value, rhs: &Value) -> Value {
-        self.numeric_bin_op(lhs, rhs, Value::Number, |lhs, rhs| {
-            lhs.checked_div(rhs).expect("interpreter::div: Overflow")
-        })
-    }
-
-    pub fn rem(&mut self, lhs: &Value, rhs: &Value) -> Value {
-        self.numeric_bin_op(lhs, rhs, Value::Number, |lhs, rhs| {
-            lhs.checked_rem(rhs).expect("interpreter::rem: Overflow")
-        })
-    }
-
-    pub fn pow(&mut self, lhs: &Value, rhs: &Value) -> Value {
-        self.numeric_bin_op(lhs, rhs, Value::Number, |lhs, rhs| {
-            assert!(rhs >= (i32::MIN as i64));
-            assert!(rhs <= (i32::MAX as i64));
-            (lhs as f64).powi(rhs as i32) as i64
-        })
-    }
-
-    pub fn eq(&mut self, lhs: &Value, rhs: &Value) -> Value {
-        match lhs {
-            Value::Boolean(_) => {
-                let rhs = self.coerce_to_boolean(rhs);
-                self.identical(lhs, &rhs)
-            }
-            Value::Number(_) => {
-                let rhs = self.coerce_to_numeric(rhs);
-                self.identical(lhs, &rhs)
-            }
-            Value::String(_) => {
-                let rhs = self.coerce_to_string(rhs);
-                self.identical(lhs, &rhs)
-            }
-            Value::Reference(_) => self.identical(lhs, rhs),
-            Value::Null | Value::Undefined => {
-                Value::Boolean(matches!(rhs, Value::Null | Value::Undefined))
-            }
+    pub fn sub(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Self {
+        match numeric_bin_op(it, lhs, rhs, i64::checked_sub) {
+            Some(result) => Self::Number(result),
+            None => todo!("Value::sub: {:?} - {:?} => Overflow", lhs, rhs),
         }
     }
 
-    pub fn ne(&mut self, lhs: &Value, rhs: &Value) -> Value {
-        Value::Boolean(self.eq(lhs, rhs).is_falsy())
+    pub fn mul(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Self {
+        match numeric_bin_op(it, lhs, rhs, i64::checked_mul) {
+            Some(result) => Self::Number(result),
+            None => todo!("Value::mul: {:?} * {:?} => Overflow", lhs, rhs),
+        }
     }
 
-    pub fn identical(&mut self, lhs: &Value, rhs: &Value) -> Value {
-        Value::Boolean(match (lhs, rhs) {
-            (Value::Boolean(ref lhs), Value::Boolean(ref rhs)) => lhs == rhs,
-            (Value::Number(ref lhs), Value::Number(ref rhs)) => lhs == rhs,
-            (Value::String(ref lhs), Value::String(ref rhs)) => lhs == rhs,
-            (Value::Reference(ref lhs_refr), Value::Reference(ref rhs_refr)) => {
-                let lhs_obj = self.vm().heap().resolve(lhs_refr);
-                let rhs_obj = self.vm().heap().resolve(rhs_refr);
-                lhs_obj.deref().js_equals(rhs_obj.deref())
+    pub fn div(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Self {
+        match numeric_bin_op(it, lhs, rhs, i64::checked_div) {
+            Some(result) => Self::Number(result),
+            None => todo!("Value::div: {:?} / {:?} => Overflow", lhs, rhs),
+        }
+    }
+
+    pub fn rem(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Self {
+        match numeric_bin_op(it, lhs, rhs, i64::checked_rem) {
+            Some(result) => Self::Number(result),
+            None => todo!("Value::rem: {:?} % {:?} => Overflow", lhs, rhs),
+        }
+    }
+
+    pub fn pow(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Self {
+        match numeric_bin_op(it, lhs, rhs, checked_pow) {
+            Some(result) => Self::Number(result),
+            None => todo!("Value::pow: {:?} ** {:?} => Overflow", lhs, rhs),
+        }
+    }
+
+    pub fn identical(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Self {
+        let result = match (lhs, rhs) {
+            (Self::Boolean(lhs), Self::Boolean(rhs)) => lhs == rhs,
+            (Self::Number(lhs), Self::Number(rhs)) => lhs == rhs,
+            (Self::String(lhs), Self::String(rhs)) => lhs == rhs,
+            (Self::Reference(lhs_ref), Self::Reference(rhs_ref)) => {
+                lhs_ref == rhs_ref || {
+                    let lhs_obj = it.vm().heap().resolve(lhs_ref);
+                    let rhs_obj = it.vm().heap().resolve(rhs_ref);
+                    lhs_obj.js_equals(rhs_obj.deref())
+                }
             }
-            (Value::Null, Value::Null) => true,
-            (Value::Undefined, Value::Undefined) => true,
+            (Self::Null, Self::Null) => true,
+            (Self::Undefined, Self::Undefined) => true,
             (_, _) => false,
-        })
+        };
+        Self::Boolean(result)
     }
 
-    pub fn not_identical(&mut self, lhs: &Value, rhs: &Value) -> Value {
-        Value::Boolean(self.identical(lhs, rhs).is_falsy())
+    pub fn not_identical(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Self {
+        let identical = Self::identical(it, lhs, rhs);
+        Self::not(it, &identical)
     }
 
-    pub fn lt(&mut self, lhs: &Value, rhs: &Value) -> Value {
-        self.numeric_bin_op(lhs, rhs, Value::Boolean, |lhs, rhs| lhs < rhs)
+    pub fn eq(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Self {
+        match lhs {
+            Self::Boolean(_) => {
+                let rhs = rhs.coerce_to_boolean(it);
+                Self::identical(it, lhs, &rhs)
+            }
+            Self::Number(_) => {
+                let rhs = rhs.coerce_to_number(it);
+                Self::identical(it, lhs, &rhs)
+            }
+            Self::String(_) => {
+                let rhs = rhs.coerce_to_string(it);
+                Self::identical(it, lhs, &rhs)
+            }
+            Self::Reference(_) => Self::identical(it, lhs, rhs),
+            Self::Null | Self::Undefined => {
+                Self::Boolean(matches!(rhs, Self::Null | Self::Undefined))
+            }
+        }
     }
 
-    pub fn le(&mut self, lhs: &Value, rhs: &Value) -> Value {
-        self.numeric_bin_op(lhs, rhs, Value::Boolean, |lhs, rhs| lhs <= rhs)
+    pub fn ne(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Self {
+        let eq = Self::identical(it, lhs, rhs);
+        Self::not(it, &eq)
     }
 
-    pub fn gt(&mut self, lhs: &Value, rhs: &Value) -> Value {
-        self.numeric_bin_op(lhs, rhs, Value::Boolean, |lhs, rhs| lhs > rhs)
+    pub fn lt(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Self {
+        Self::Boolean(numeric_bin_op(it, lhs, rhs, |lhs, rhs| lhs < rhs))
     }
 
-    pub fn ge(&mut self, lhs: &Value, rhs: &Value) -> Value {
-        self.numeric_bin_op(lhs, rhs, Value::Boolean, |lhs, rhs| lhs >= rhs)
+    pub fn le(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Self {
+        Self::Boolean(numeric_bin_op(it, lhs, rhs, |lhs, rhs| lhs <= rhs))
     }
 
-    pub fn bitwise_and(&mut self, lhs: &Value, rhs: &Value) -> Value {
-        self.numeric_bin_op(lhs, rhs, Value::Number, i64::bitand)
+    pub fn gt(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Self {
+        Self::Boolean(numeric_bin_op(it, lhs, rhs, |lhs, rhs| lhs > rhs))
     }
 
-    pub fn bitwise_or(&mut self, lhs: &Value, rhs: &Value) -> Value {
-        self.numeric_bin_op(lhs, rhs, Value::Number, i64::bitor)
+    pub fn ge(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Self {
+        Self::Boolean(numeric_bin_op(it, lhs, rhs, |lhs, rhs| lhs >= rhs))
     }
 
-    pub fn bitwise_xor(&mut self, lhs: &Value, rhs: &Value) -> Value {
-        self.numeric_bin_op(lhs, rhs, Value::Number, i64::bitxor)
+    pub fn bitwise_and(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Self {
+        Self::Number(numeric_bin_op(it, lhs, rhs, i64::bitand))
     }
 
-    pub fn bitwise_shl(&mut self, lhs: &Value, rhs: &Value) -> Value {
-        self.numeric_bin_op(lhs, rhs, Value::Number, i64::shl)
+    pub fn bitwise_or(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Self {
+        Self::Number(numeric_bin_op(it, lhs, rhs, i64::bitor))
     }
 
-    pub fn bitwise_shr(&mut self, lhs: &Value, rhs: &Value) -> Value {
+    pub fn bitwise_xor(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Self {
+        Self::Number(numeric_bin_op(it, lhs, rhs, i64::bitxor))
+    }
+
+    pub fn bitwise_shl(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Self {
+        Self::Number(numeric_bin_op(it, lhs, rhs, i64::shl))
+    }
+
+    pub fn bitwise_shr(_it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Self {
         todo!("Interpreter::bitwise_shr: lhs={:?}, rhs={:?}", lhs, rhs)
     }
 
-    pub fn bitwise_shrr(&mut self, lhs: &Value, rhs: &Value) -> Value {
+    pub fn bitwise_shrr(_it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Self {
         todo!("Interpreter::bitwise_shrr: lhs={:?}, rhs={:?}", lhs, rhs)
     }
 
-    pub fn not(&mut self, operand: &Value) -> Value {
-        Value::Boolean(operand.is_falsy())
+    pub fn plus(it: &mut Interpreter, operand: &Self) -> Self {
+        Self::Number(numeric_uni_op(it, operand, |operand| operand))
     }
 
-    pub fn plus(&mut self, operand: &Value) -> Value {
-        self.numeric_uni_op(operand, Value::Number, |operand| operand)
+    pub fn neg(it: &mut Interpreter, operand: &Self) -> Self {
+        match numeric_uni_op(it, operand, i64::checked_neg) {
+            Some(result) => Self::Number(result),
+            None => todo!("Value::neg: -{:?} => Overflow", operand),
+        }
     }
 
-    pub fn neg(&mut self, operand: &Value) -> Value {
-        self.numeric_uni_op(operand, Value::Number, |operand| {
-            operand.checked_neg().expect("interpreter::neg: Overflow")
-        })
+    pub fn not(it: &mut Interpreter, operand: &Self) -> Self {
+        Self::Boolean(boolean_uni_op(it, operand, bool::not))
     }
 
-    pub fn coerce_to_boolean(&mut self, value: &Value) -> Value {
-        Value::Boolean(value.is_truthy())
+    pub fn is_truthy(&self, it: &mut Interpreter) -> bool {
+        self.coerce_to_boolean_impl(it)
     }
 
-    pub fn coerce_to_numeric(&mut self, value: &Value) -> Value {
-        Value::Number(self.coerce_to_numeric_impl(value))
+    pub fn is_falsy(&self, it: &mut Interpreter) -> bool {
+        !self.coerce_to_boolean_impl(it)
     }
 
-    pub fn coerce_to_string(&mut self, value: &Value) -> Value {
-        Value::String(self.coerce_to_string_impl(value))
+    pub fn coerce_to_boolean(&self, it: &mut Interpreter) -> Self {
+        Self::Boolean(self.coerce_to_boolean_impl(it))
     }
 
-    fn coerce_to_numeric_impl(&mut self, value: &Value) -> i64 {
-        match value {
-            Value::Boolean(true) => 1,
-            Value::Boolean(false) => 0,
-            Value::Number(ref value) => *value,
-            Value::String(_) | Value::Reference(_) | Value::Null | Value::Undefined => {
-                todo!("Interpreter::coerce_to_numeric: {:?}", value)
+    fn coerce_to_boolean_impl(&self, _it: &mut Interpreter) -> bool {
+        match self {
+            Self::Boolean(value) => *value,
+            Self::Number(value) => *value > 0,
+            Self::String(value) => !value.is_empty(),
+            Self::Reference(_) => true,
+            Self::Null | Self::Undefined => false,
+        }
+    }
+
+    pub fn coerce_to_number(&self, it: &mut Interpreter) -> Self {
+        Self::Number(self.coerce_to_number_impl(it))
+    }
+
+    fn coerce_to_number_impl(&self, _it: &mut Interpreter) -> i64 {
+        match self {
+            Self::Boolean(true) => 1,
+            Self::Boolean(false) => 0,
+            Self::Number(value) => *value,
+            Self::String(_) | Self::Reference(_) | Self::Null | Self::Undefined => {
+                todo!("Value::coerce_to_number: {:?}", self)
             }
         }
     }
 
-    fn coerce_to_string_impl(&mut self, value: &Value) -> String {
-        match value {
-            Value::Boolean(ref value) => value.to_string(),
-            Value::Number(ref value) => value.to_string(),
-            Value::String(ref value) => value.to_owned(),
-            Value::Reference(ref refr) => {
-                let value = self.vm().heap().resolve(refr);
-                value.deref().js_to_string()
+    pub fn coerce_to_string(&self, it: &mut Interpreter) -> Self {
+        Self::String(self.coerce_to_string_impl(it))
+    }
+
+    fn coerce_to_string_impl(&self, it: &mut Interpreter) -> String {
+        match self {
+            Self::Boolean(value) => value.to_string(),
+            Self::Number(value) => value.to_string(),
+            Self::String(value) => value.to_owned(),
+            Self::Reference(obj_ref) => {
+                let obj = it.vm().heap().resolve(obj_ref);
+                obj.js_to_string()
             }
-            Value::Null => "null".to_owned(),
-            Value::Undefined => "undefined".to_owned(),
+            Self::Null => "null".to_owned(),
+            Self::Undefined => "undefined".to_owned(),
         }
     }
+}
 
-    #[inline]
-    fn numeric_uni_op<R>(
-        &mut self,
-        operand: &Value,
-        to_value: impl FnOnce(R) -> Value,
-        op: impl FnOnce(i64) -> R,
-    ) -> Value {
-        let operand = self.coerce_to_numeric_impl(operand);
-        to_value(op(operand))
+fn checked_pow(lhs: i64, rhs: i64) -> Option<i64> {
+    if rhs >= (i32::MIN as i64) && rhs <= (i32::MAX as i64) {
+        Some((lhs as f64).powi(rhs as i32) as i64)
+    } else {
+        None
     }
+}
 
-    #[inline]
-    fn numeric_bin_op<R>(
-        &mut self,
-        lhs: &Value,
-        rhs: &Value,
-        to_value: impl FnOnce(R) -> Value,
-        op: impl FnOnce(i64, i64) -> R,
-    ) -> Value {
-        let lhs = self.coerce_to_numeric_impl(lhs);
-        let rhs = self.coerce_to_numeric_impl(rhs);
-        to_value(op(lhs, rhs))
-    }
+#[inline]
+fn boolean_uni_op<R>(it: &mut Interpreter, operand: &Value, op: impl FnOnce(bool) -> R) -> R {
+    let operand = operand.coerce_to_boolean_impl(it);
+    op(operand)
+}
+
+#[inline]
+fn numeric_uni_op<R>(it: &mut Interpreter, operand: &Value, op: impl FnOnce(i64) -> R) -> R {
+    let operand = operand.coerce_to_number_impl(it);
+    op(operand)
+}
+
+#[inline]
+fn numeric_bin_op<R>(
+    it: &mut Interpreter,
+    lhs: &Value,
+    rhs: &Value,
+    op: impl FnOnce(i64, i64) -> R,
+) -> R {
+    let lhs = lhs.coerce_to_number_impl(it);
+    let rhs = rhs.coerce_to_number_impl(it);
+    op(lhs, rhs)
 }
