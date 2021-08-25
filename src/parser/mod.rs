@@ -36,16 +36,16 @@ impl Parser {
         Program::new(Block::new(stmts), self.constants)
     }
 
-    fn alloc_or_get_identifier_constant(&mut self, identifier: IdentifierName) -> ConstantId {
+    fn alloc_or_get_constant(&mut self, value: ConstantValue) -> ConstantId {
         if let Some((id, _value)) = self
             .constants
             .iter()
-            .find(|(_idx, value)| identifier.as_str() == value)
+            .find(|(_id, existing_value)| value.as_str() == existing_value)
         {
             *id
         } else {
             let id = ConstantId::new(self.constants.len());
-            self.constants.push((id, identifier));
+            self.constants.push((id, value));
             id
         }
     }
@@ -136,7 +136,7 @@ impl Parser {
     fn parse_primary_expression(&mut self) -> Option<Expression> {
         Some(match self.tokens.consume()? {
             Token::Identifier(identifier) => {
-                let identifier = self.alloc_or_get_identifier_constant(identifier);
+                let identifier = self.alloc_or_get_constant(identifier);
                 if self.tokens.peek() == Some(&Token::Punctuator(Punctuator::OpenParen)) {
                     let arguments = self.parse_fn_arguments();
                     Expression::FunctionCall(FunctionCallExpression {
@@ -218,11 +218,11 @@ impl Parser {
         self.tokens
             .consume_exact(&Token::Keyword(Keyword::Function));
         if let Some(Token::Identifier(fn_name)) = self.tokens.consume() {
-            let fn_name = self.alloc_or_get_identifier_constant(fn_name);
+            let fn_name = self.alloc_or_get_constant(fn_name);
             let param_names = self
                 .parse_fn_parameters()
                 .into_iter()
-                .map(|param_name| self.alloc_or_get_identifier_constant(param_name))
+                .map(|param_name| self.alloc_or_get_constant(param_name))
                 .collect();
             let body = self.parse_block();
             Some(FunctionDeclaration {
@@ -244,7 +244,7 @@ impl Parser {
 
         match self.tokens.consume() {
             Some(Token::Identifier(var_name)) => {
-                let var_name = self.alloc_or_get_identifier_constant(var_name);
+                let var_name = self.alloc_or_get_constant(var_name);
                 let initialiser = match self.tokens.peek() {
                     Some(Token::Punctuator(Punctuator::Equal)) => {
                         self.tokens
