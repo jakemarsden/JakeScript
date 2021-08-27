@@ -6,9 +6,9 @@ use std::fmt;
 pub enum Error {
     AssertionFailed(AssertionFailedError),
     AssignToConstVariable(AssignToConstVariableError),
-    FunctionAlreadyDefined(FunctionAlreadyDefinedError),
     FunctionArgumentMismatch(FunctionArgumentMismatchError),
     FunctionNotDefined(FunctionNotDefinedError),
+    NotCallable(NotCallableError),
     OutOfMemory(OutOfMemoryError),
     VariableAlreadyDefined(VariableAlreadyDefinedError),
     VariableNotDefined(VariableNotDefinedError),
@@ -26,9 +26,9 @@ impl std::error::Error for Error {
         Some(match self {
             Self::AssertionFailed(ref source) => source,
             Self::AssignToConstVariable(ref source) => source,
-            Self::FunctionAlreadyDefined(ref source) => source,
             Self::FunctionArgumentMismatch(ref source) => source,
             Self::FunctionNotDefined(ref source) => source,
+            Self::NotCallable(ref source) => source,
             Self::OutOfMemory(ref source) => source,
             Self::VariableAlreadyDefined(ref source) => source,
             Self::VariableNotDefined(ref source) => source,
@@ -118,23 +118,6 @@ impl From<VariableNotDefinedError> for Error {
 }
 
 #[derive(Clone, Debug)]
-pub struct FunctionAlreadyDefinedError;
-
-impl fmt::Display for FunctionAlreadyDefinedError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str("Function already defined in the current scope")
-    }
-}
-
-impl std::error::Error for FunctionAlreadyDefinedError {}
-
-impl From<FunctionAlreadyDefinedError> for Error {
-    fn from(source: FunctionAlreadyDefinedError) -> Self {
-        Self::FunctionAlreadyDefined(source)
-    }
-}
-
-#[derive(Clone, Debug)]
 pub struct FunctionArgumentMismatchError;
 
 impl fmt::Display for FunctionArgumentMismatchError {
@@ -165,6 +148,23 @@ impl std::error::Error for FunctionNotDefinedError {}
 impl From<FunctionNotDefinedError> for Error {
     fn from(source: FunctionNotDefinedError) -> Self {
         Self::FunctionNotDefined(source)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct NotCallableError;
+
+impl fmt::Display for NotCallableError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str("Object or primitive not callable")
+    }
+}
+
+impl std::error::Error for NotCallableError {}
+
+impl From<NotCallableError> for Error {
+    fn from(source: NotCallableError) -> Self {
+        Self::NotCallable(source)
     }
 }
 

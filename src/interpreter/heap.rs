@@ -1,5 +1,6 @@
-use crate::ast::{IdentifierName, IdentifierNameRef};
+use crate::ast::{Block, ConstantId, IdentifierName, IdentifierNameRef};
 use crate::interpreter::error::OutOfMemoryError;
+use crate::interpreter::stack::Scope;
 use crate::interpreter::value::Value;
 use std::cell::{Ref, RefCell, RefMut};
 use std::collections::HashMap;
@@ -13,9 +14,23 @@ pub struct Heap {
 
 impl Heap {
     pub fn allocate_empty_object(&mut self) -> Result<Reference, OutOfMemoryError> {
+        self.allocate_object(|| Object::new(HashMap::default(), None))
+    }
+
+    pub fn allocate_callable_object(
+        &mut self,
+        callable: Callable,
+    ) -> Result<Reference, OutOfMemoryError> {
+        self.allocate_object(|| Object::new(HashMap::default(), Some(callable)))
+    }
+
+    fn allocate_object(
+        &mut self,
+        constructor: impl FnOnce() -> Object,
+    ) -> Result<Reference, OutOfMemoryError> {
         let obj_idx = self.next_obj_idx;
         self.next_obj_idx = self.next_obj_idx.checked_add(1).ok_or(OutOfMemoryError)?;
-        let new_obj = Object::new();
+        let new_obj = constructor();
         Ok(Reference::new(obj_idx, new_obj))
     }
 
@@ -73,12 +88,14 @@ impl fmt::Debug for Reference {
 #[derive(Debug)]
 pub struct Object {
     properties: HashMap<String, Value>,
+    callable: Option<Callable>,
 }
 
 impl Object {
-    fn new() -> Self {
+    fn new(properties: HashMap<String, Value>, callable: Option<Callable>) -> Self {
         Self {
-            properties: HashMap::new(),
+            properties,
+            callable,
         }
     }
 
@@ -94,11 +111,44 @@ impl Object {
         self.properties.insert(property_name, value);
     }
 
+    pub fn callable(&self) -> Option<&Callable> {
+        self.callable.as_ref()
+    }
+
     pub fn js_equals(&self, other: &Object) -> bool {
         todo!("Object::js_equals: {:?} == {:?}", self, other)
     }
 
     pub fn js_to_string(&self) -> String {
         todo!("Object::js_to_string: {:?}", self)
+    }
+}
+
+#[derive(Debug)]
+pub struct Callable {
+    declared_parameters: Vec<ConstantId>,
+    declared_scope: Scope,
+    body: Block,
+}
+
+impl Callable {
+    pub fn new(declared_parameters: Vec<ConstantId>, declared_scope: Scope, body: Block) -> Self {
+        Self {
+            declared_parameters,
+            declared_scope,
+            body,
+        }
+    }
+
+    pub fn declared_parameters(&self) -> &[ConstantId] {
+        &self.declared_parameters
+    }
+
+    pub fn declared_scope(&self) -> &Scope {
+        &self.declared_scope
+    }
+
+    pub fn body(&self) -> &Block {
+        &self.body
     }
 }

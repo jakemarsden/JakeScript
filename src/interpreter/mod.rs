@@ -235,13 +235,14 @@ impl Eval for ReturnStatement {
 impl Eval for FunctionDeclaration {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let declared_scope = it.vm().stack().frame().scope().clone();
-        let function = Function::new(
+        let callable = Callable::new(self.param_names.clone(), declared_scope, self.body.clone());
+        let fn_obj_ref = it.vm().heap().allocate_callable_object(callable)?;
+        let variable = Variable::new(
+            VariableDeclarationKind::Var,
             self.fn_name,
-            self.param_names.clone(),
-            declared_scope,
-            self.body.clone(),
+            Value::Reference(fn_obj_ref),
         );
-        it.vm().stack().frame().scope().declare_function(function)?;
+        it.vm().stack().frame().scope().declare_variable(variable)?;
         Ok(())
     }
 }
@@ -448,20 +449,31 @@ impl Eval for FunctionCallExpression {
     type Output = Value;
 
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        let function = it
+        let variable = it
             .vm()
             .stack()
             .frame()
             .scope()
-            .lookup_function(self.fn_name)?;
-        let parameters = function.declared_parameters();
+            .lookup_variable(self.fn_name)?;
+        let fn_obj_ref = if let Value::Reference(fn_obj_ref) = variable.value().deref() {
+            fn_obj_ref.clone()
+        } else {
+            return Err(Error::NotCallable(NotCallableError));
+        };
+        let fn_obj = it.vm().heap().resolve(&fn_obj_ref);
+        let function = if let Some(callable) = fn_obj.callable() {
+            callable
+        } else {
+            return Err(Error::NotCallable(NotCallableError));
+        };
 
+        let parameters = function.declared_parameters();
         if parameters.len() != self.arguments.len() {
             return Err(FunctionArgumentMismatchError.into());
         }
         let mut argument_variables = Vec::with_capacity(parameters.len());
-        for idx in 0..parameters.len() {
-            let parameter_name = parameters[idx].to_owned();
+        for (idx, parameter_name) in parameters.iter().enumerate() {
+            let parameter_name = *parameter_name;
             let argument_expr = &self.arguments[idx];
             let argument_value = argument_expr.eval(it)?;
             argument_variables.push(Variable::new(
@@ -472,12 +484,11 @@ impl Eval for FunctionCallExpression {
         }
 
         let declared_scope = function.declared_scope().deref().clone();
-        let fn_scope_ctx = ScopeCtx::new(argument_variables, Vec::with_capacity(0));
+        let fn_scope_ctx = ScopeCtx::new(argument_variables);
+
         it.vm().stack().push_frame(declared_scope);
         it.vm().stack().frame().push_scope_ctx(fn_scope_ctx);
-
         function.body().eval(it)?;
-
         it.vm().stack().frame().pop_scope();
         it.vm().stack().pop_frame();
 

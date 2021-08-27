@@ -403,6 +403,7 @@ impl Operator for PropertyAccessOp {
 pub enum VariableDeclarationKind {
     Const,
     Let,
+    Var,
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
