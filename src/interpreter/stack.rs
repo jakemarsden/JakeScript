@@ -177,7 +177,7 @@ impl Variable {
     pub fn set_value(&mut self, value: Value) -> Result<(), AssignToConstVariableError> {
         let mut inner = RefCell::borrow_mut(&self.0);
         match inner.kind {
-            VariableDeclarationKind::Let => {
+            VariableDeclarationKind::Let | VariableDeclarationKind::Var => {
                 (*inner).value = value;
                 Ok(())
             }
