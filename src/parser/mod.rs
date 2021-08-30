@@ -136,16 +136,17 @@ impl Parser {
         Some(match self.tokens.consume()? {
             Token::Identifier(identifier) => {
                 let identifier = self.alloc_or_get_constant(identifier);
+                let var_expr = Expression::VariableAccess(VariableAccessExpression {
+                    var_name: identifier,
+                });
                 if self.tokens.peek() == Some(&Token::Punctuator(Punctuator::OpenParen)) {
                     let arguments = self.parse_fn_arguments();
                     Expression::FunctionCall(FunctionCallExpression {
-                        fn_name: identifier,
+                        function: Box::new(var_expr),
                         arguments,
                     })
                 } else {
-                    Expression::VariableAccess(VariableAccessExpression {
-                        var_name: identifier,
-                    })
+                    var_expr
                 }
             }
             Token::Punctuator(Punctuator::OpenParen) => {
@@ -205,6 +206,9 @@ impl Parser {
                     property_name: match rhs {
                         Expression::VariableAccess(VariableAccessExpression { var_name }) => {
                             var_name
+                        }
+                        Expression::FunctionCall(expr) => {
+                            todo!("Parser::parse_secondary_expression: {:?}", expr)
                         }
                         rhs_expr => panic!("Expected property name but was {:#?}", rhs_expr),
                     },

@@ -449,14 +449,8 @@ impl Eval for FunctionCallExpression {
     type Output = Value;
 
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        let variable = it
-            .vm()
-            .stack()
-            .frame()
-            .scope()
-            .lookup_variable(self.fn_name)?;
-        let fn_obj_ref = if let Value::Reference(fn_obj_ref) = variable.value().deref() {
-            fn_obj_ref.clone()
+        let fn_obj_ref = if let Value::Reference(fn_obj_ref) = self.function.eval(it)? {
+            fn_obj_ref
         } else {
             return Err(Error::NotCallable(NotCallableError));
         };

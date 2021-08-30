@@ -196,7 +196,7 @@ impl Node for LiteralExpression {}
 
 #[derive(Clone, Debug)]
 pub struct FunctionCallExpression {
-    pub fn_name: ConstantId,
+    pub function: Box<Expression>,
     pub arguments: Vec<Expression>,
 }
 
