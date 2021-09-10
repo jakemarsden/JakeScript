@@ -1,7 +1,6 @@
 use crate::ast::{self, *};
 use crate::lexer::{self, *};
 use crate::util::Stream;
-use std::convert::TryFrom;
 use std::iter::Iterator;
 
 pub struct Parser {
@@ -116,7 +115,7 @@ impl Parser {
     fn parse_expression_impl(&mut self, min_precedence: Precedence) -> Option<Expression> {
         let mut expression = self.parse_primary_expression()?;
         while let Some(&Token::Punctuator(punctuator)) = self.tokens.peek() {
-            if let Ok(op_kind) = Op::try_from(punctuator) {
+            if let Some(op_kind) = Op::try_parse(punctuator, Position::Postfix) {
                 if op_kind.precedence() > min_precedence {
                     self.tokens.advance();
                     expression = self
@@ -171,6 +170,22 @@ impl Parser {
                     )
                 },
             }),
+            Token::Punctuator(punc) => {
+                if let Some(op_kind) = UnaryOp::try_parse(punc, Position::Prefix) {
+                    let operand = self
+                        .parse_expression()
+                        .expect("Expected expression but was <end>");
+                    Expression::Unary(UnaryExpression {
+                        kind: op_kind,
+                        operand: Box::new(operand),
+                    })
+                } else {
+                    todo!(
+                        "Parser::parse_primary_expression: token={}",
+                        Token::Punctuator(punc)
+                    )
+                }
+            }
             Token::Literal(literal) => Expression::Literal(LiteralExpression {
                 value: match literal {
                     lexer::Literal::Boolean(value) => ast::Literal::Boolean(value),
@@ -185,22 +200,34 @@ impl Parser {
     }
 
     fn parse_secondary_expression(&mut self, lhs: Expression, op_kind: Op) -> Option<Expression> {
-        let rhs = self
-            .parse_expression_impl(op_kind.precedence())
-            .expect("Expected RHS of binary expression but was <end>");
-
         Some(match op_kind {
             Op::Assignment(kind) => Expression::Assignment(AssignmentExpression {
                 kind,
                 lhs: Box::new(lhs),
-                rhs: Box::new(rhs),
+                rhs: Box::new(
+                    self.parse_expression_impl(op_kind.precedence())
+                        .expect("Expected right-hand-side of assignment expression but was <end>"),
+                ),
             }),
             Op::Binary(kind) => Expression::Binary(BinaryExpression {
                 kind,
                 lhs: Box::new(lhs),
-                rhs: Box::new(rhs),
+                rhs: Box::new(
+                    self.parse_expression_impl(op_kind.precedence())
+                        .expect("Expected right-hand-side of binary expression but was <end>"),
+                ),
             }),
-            Op::PropertyAccess(PropertyAccessOp::Normal) => {
+            Op::Unary(kind) => Expression::Unary(UnaryExpression {
+                kind,
+                operand: Box::new(lhs),
+            }),
+            Op::Grouping => Expression::Grouping(GroupingExpression {
+                inner: Box::new(lhs),
+            }),
+            Op::PropertyAccess => {
+                let rhs = self
+                    .parse_expression_impl(op_kind.precedence())
+                    .expect("Expected right-hand-side of property access expression but was <end>");
                 Expression::PropertyAccess(PropertyAccessExpression {
                     base: Box::new(lhs),
                     property_name: match rhs {
@@ -470,78 +497,135 @@ impl Parser {
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-enum Op {
-    Assignment(AssignmentOp),
-    Binary(BinaryOp),
-    PropertyAccess(PropertyAccessOp),
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+enum Position {
+    Prefix,
+    Postfix,
 }
 
-impl Operator for Op {
-    fn associativity(&self) -> Associativity {
-        match self {
-            Self::Assignment(op) => op.associativity(),
-            Self::Binary(op) => op.associativity(),
-            Self::PropertyAccess(op) => op.associativity(),
-        }
-    }
+trait TryParse {
+    fn try_parse(punc: Punctuator, pos: Position) -> Option<Self>
+    where
+        Self: Sized;
+}
 
-    fn precedence(&self) -> Precedence {
-        match self {
-            Self::Assignment(op) => op.precedence(),
-            Self::Binary(op) => op.precedence(),
-            Self::PropertyAccess(op) => op.precedence(),
-        }
+impl TryParse for Op {
+    fn try_parse(punc: Punctuator, pos: Position) -> Option<Self> {
+        Some(if let Some(op) = AssignmentOp::try_parse(punc, pos) {
+            Self::Assignment(op)
+        } else if let Some(op) = BinaryOp::try_parse(punc, pos) {
+            Self::Binary(op)
+        } else if let Some(op) = UnaryOp::try_parse(punc, pos) {
+            Self::Unary(op)
+        } else if GroupingOp::try_parse(punc, pos).is_some() {
+            Self::Grouping
+        } else if PropertyAccessOp::try_parse(punc, pos).is_some() {
+            Self::PropertyAccess
+        } else {
+            return None;
+        })
     }
 }
 
-impl TryFrom<Punctuator> for Op {
-    type Error = ();
+impl TryParse for AssignmentOp {
+    fn try_parse(punc: Punctuator, pos: Position) -> Option<Self> {
+        if pos != Position::Postfix {
+            return None;
+        }
+        Some(match punc {
+            Punctuator::Equal => Self::Assign,
 
-    fn try_from(punc: Punctuator) -> Result<Self, Self::Error> {
-        Ok(match punc {
-            Punctuator::Equal => Self::Assignment(AssignmentOp::Assign),
-            Punctuator::PlusEqual => Self::Assignment(AssignmentOp::AddAssign),
-            Punctuator::SlashEqual => Self::Assignment(AssignmentOp::DivAssign),
-            Punctuator::PercentEqual => Self::Assignment(AssignmentOp::ModAssign),
-            Punctuator::AsteriskEqual => Self::Assignment(AssignmentOp::MulAssign),
-            Punctuator::DoubleAsteriskEqual => Self::Assignment(AssignmentOp::PowAssign),
-            Punctuator::MinusEqual => Self::Assignment(AssignmentOp::SubAssign),
-            Punctuator::DoubleLessThanEqual => Self::Assignment(AssignmentOp::ShiftLeftAssign),
-            Punctuator::DoubleMoreThanEqual => Self::Assignment(AssignmentOp::ShiftRightAssign),
-            Punctuator::TripleMoreThanEqual => {
-                Self::Assignment(AssignmentOp::ShiftRightUnsignedAssign)
-            }
-            Punctuator::AmpersandEqual => Self::Assignment(AssignmentOp::BitwiseAndAssign),
-            Punctuator::PipeEqual => Self::Assignment(AssignmentOp::BitwiseOrAssign),
-            Punctuator::CaretEqual => Self::Assignment(AssignmentOp::BitwiseXOrAssign),
+            Punctuator::PlusEqual => Self::AddAssign,
+            Punctuator::SlashEqual => Self::DivAssign,
+            Punctuator::PercentEqual => Self::ModAssign,
+            Punctuator::AsteriskEqual => Self::MulAssign,
+            Punctuator::DoubleAsteriskEqual => Self::PowAssign,
+            Punctuator::MinusEqual => Self::SubAssign,
 
-            Punctuator::Plus => Self::Binary(BinaryOp::Add),
-            Punctuator::Slash => Self::Binary(BinaryOp::Div),
-            Punctuator::Percent => Self::Binary(BinaryOp::Mod),
-            Punctuator::Asterisk => Self::Binary(BinaryOp::Mul),
-            Punctuator::DoubleAsterisk => Self::Binary(BinaryOp::Pow),
-            Punctuator::Minus => Self::Binary(BinaryOp::Sub),
-            Punctuator::DoubleEqual => Self::Binary(BinaryOp::Equal),
-            Punctuator::BangEqual => Self::Binary(BinaryOp::NotEqual),
-            Punctuator::TripleEqual => Self::Binary(BinaryOp::Identical),
-            Punctuator::BangDoubleEqual => Self::Binary(BinaryOp::NotIdentical),
-            Punctuator::LessThan => Self::Binary(BinaryOp::LessThan),
-            Punctuator::LessThanEqual => Self::Binary(BinaryOp::LessThanOrEqual),
-            Punctuator::MoreThan => Self::Binary(BinaryOp::MoreThan),
-            Punctuator::MoreThanEqual => Self::Binary(BinaryOp::MoreThanOrEqual),
-            Punctuator::DoubleLessThan => Self::Binary(BinaryOp::ShiftLeft),
-            Punctuator::DoubleMoreThan => Self::Binary(BinaryOp::ShiftRight),
-            Punctuator::TripleMoreThan => Self::Binary(BinaryOp::ShiftRightUnsigned),
-            Punctuator::Ampersand => Self::Binary(BinaryOp::BitwiseAnd),
-            Punctuator::Pipe => Self::Binary(BinaryOp::BitwiseOr),
-            Punctuator::Caret => Self::Binary(BinaryOp::BitwiseXOr),
-            Punctuator::DoubleAmpersand => Op::Binary(BinaryOp::LogicalAnd),
-            Punctuator::DoublePipe => Self::Binary(BinaryOp::LogicalOr),
+            Punctuator::DoubleLessThanEqual => Self::ShiftLeftAssign,
+            Punctuator::DoubleMoreThanEqual => Self::ShiftRightAssign,
+            Punctuator::TripleMoreThanEqual => Self::ShiftRightUnsignedAssign,
 
-            Punctuator::Dot => Self::PropertyAccess(PropertyAccessOp::Normal),
+            Punctuator::AmpersandEqual => Self::BitwiseAndAssign,
+            Punctuator::PipeEqual => Self::BitwiseOrAssign,
+            Punctuator::CaretEqual => Self::BitwiseXOrAssign,
 
-            _ => return Err(()),
+            _ => return None,
+        })
+    }
+}
+
+impl TryParse for BinaryOp {
+    fn try_parse(punc: Punctuator, pos: Position) -> Option<Self> {
+        if pos != Position::Postfix {
+            return None;
+        }
+        Some(match punc {
+            Punctuator::Plus => Self::Add,
+            Punctuator::Slash => Self::Div,
+            Punctuator::Percent => Self::Mod,
+            Punctuator::Asterisk => Self::Mul,
+            Punctuator::DoubleAsterisk => Self::Pow,
+            Punctuator::Minus => Self::Sub,
+
+            Punctuator::DoubleEqual => Self::Equal,
+            Punctuator::BangEqual => Self::NotEqual,
+            Punctuator::TripleEqual => Self::Identical,
+            Punctuator::BangDoubleEqual => Self::NotIdentical,
+
+            Punctuator::LessThan => Self::LessThan,
+            Punctuator::LessThanEqual => Self::LessThanOrEqual,
+            Punctuator::MoreThan => Self::MoreThan,
+            Punctuator::MoreThanEqual => Self::MoreThanOrEqual,
+
+            Punctuator::DoubleLessThan => Self::ShiftLeft,
+            Punctuator::DoubleMoreThan => Self::ShiftRight,
+            Punctuator::TripleMoreThan => Self::ShiftRightUnsigned,
+
+            Punctuator::Ampersand => Self::BitwiseAnd,
+            Punctuator::Pipe => Self::BitwiseOr,
+            Punctuator::Caret => Self::BitwiseXOr,
+
+            Punctuator::DoubleAmpersand => Self::LogicalAnd,
+            Punctuator::DoublePipe => Self::LogicalOr,
+
+            _ => return None,
+        })
+    }
+}
+
+impl TryParse for UnaryOp {
+    fn try_parse(punc: Punctuator, pos: Position) -> Option<Self> {
+        Some(match (punc, pos) {
+            (Punctuator::DoubleMinus, Position::Prefix) => Self::DecrementPrefix,
+            (Punctuator::DoubleMinus, Position::Postfix) => Self::DecrementPostfix,
+            (Punctuator::DoublePlus, Position::Prefix) => Self::IncrementPrefix,
+            (Punctuator::DoublePlus, Position::Postfix) => Self::IncrementPostfix,
+
+            (Punctuator::Tilde, Position::Prefix) => Self::BitwiseNot,
+            (Punctuator::Bang, Position::Prefix) => Self::LogicalNot,
+            (Punctuator::Minus, Position::Prefix) => Self::NumericNegate,
+            (Punctuator::Plus, Position::Prefix) => Self::NumericPlus,
+
+            (_, _) => return None,
+        })
+    }
+}
+
+impl TryParse for GroupingOp {
+    fn try_parse(punc: Punctuator, pos: Position) -> Option<Self> {
+        Some(match (punc, pos) {
+            (Punctuator::OpenParen, Position::Prefix) => Self,
+            (_, _) => return None,
+        })
+    }
+}
+
+impl TryParse for PropertyAccessOp {
+    fn try_parse(punc: Punctuator, pos: Position) -> Option<Self> {
+        Some(match (punc, pos) {
+            (Punctuator::Dot, Position::Postfix) => Self,
+            (_, _) => return None,
         })
     }
 }

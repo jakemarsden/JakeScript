@@ -125,6 +125,10 @@ impl Value {
         Self::Boolean(numeric_bin_op(it, lhs, rhs, |lhs, rhs| lhs >= rhs))
     }
 
+    pub fn bitwise_not(it: &mut Interpreter, operand: &Self) -> Self {
+        Self::Number(numeric_uni_op(it, operand, i64::not))
+    }
+
     pub fn bitwise_and(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Self {
         Self::Number(numeric_bin_op(it, lhs, rhs, i64::bitand))
     }

@@ -411,6 +411,7 @@ impl Eval for UnaryExpression {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let operand = &self.operand.eval(it)?;
         Ok(match self.kind {
+            UnaryOp::BitwiseNot => Value::bitwise_not(it, operand),
             UnaryOp::LogicalNot => Value::not(it, operand),
             UnaryOp::NumericNegate => Value::neg(it, operand),
             UnaryOp::NumericPlus => Value::plus(it, operand),

@@ -264,6 +264,37 @@ pub trait Operator {
     fn precedence(&self) -> Precedence;
 }
 
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub enum Op {
+    Assignment(AssignmentOp),
+    Binary(BinaryOp),
+    Unary(UnaryOp),
+    Grouping,
+    PropertyAccess,
+}
+
+impl Operator for Op {
+    fn associativity(&self) -> Associativity {
+        match self {
+            Op::Assignment(kind) => kind.associativity(),
+            Op::Binary(kind) => kind.associativity(),
+            Op::Unary(kind) => kind.associativity(),
+            Op::Grouping => GroupingOp.associativity(),
+            Op::PropertyAccess => PropertyAccessOp.associativity(),
+        }
+    }
+
+    fn precedence(&self) -> Precedence {
+        match self {
+            Op::Assignment(kind) => kind.precedence(),
+            Op::Binary(kind) => kind.precedence(),
+            Op::Unary(kind) => kind.precedence(),
+            Op::Grouping => GroupingOp.precedence(),
+            Op::PropertyAccess => PropertyAccessOp.precedence(),
+        }
+    }
+}
+
 #[derive(Copy, Clone, Default, Eq, PartialEq, Debug)]
 pub enum AssignmentOp {
     #[default]
@@ -385,9 +416,20 @@ impl Operator for UnaryOp {
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
-pub enum PropertyAccessOp {
-    Normal,
+pub struct GroupingOp;
+
+impl Operator for GroupingOp {
+    fn associativity(&self) -> Associativity {
+        Associativity::LeftToRight
+    }
+
+    fn precedence(&self) -> Precedence {
+        Precedence(21)
+    }
 }
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub struct PropertyAccessOp;
 
 impl Operator for PropertyAccessOp {
     fn associativity(&self) -> Associativity {
