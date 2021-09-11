@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="fmt-clippy-test" type="Multirun" separateTabs="false" reuseTabsWithFailures="false" startOneByOne="true" markFailedProcess="true" hideSuccessProcess="false" delayTime="0.0">
+  <configuration default="false" name="fmt-clippy-test" type="Multirun" separateTabs="false" reuseTabsWithFailures="true" startOneByOne="true" markFailedProcess="true" hideSuccessProcess="false" delayTime="0.0">
     <runConfiguration name="fmt" type="Cargo" />
     <runConfiguration name="clippy-check" type="Cargo" />
     <runConfiguration name="test" type="Cargo" />
