@@ -411,11 +411,83 @@ impl Eval for UnaryExpression {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let operand = &self.operand.eval(it)?;
         Ok(match self.kind {
+            UnaryOp::IncrementPrefix
+            | UnaryOp::IncrementPostfix
+            | UnaryOp::DecrementPrefix
+            | UnaryOp::DecrementPostfix => {
+                fn compute(
+                    self_: &UnaryExpression,
+                    it: &mut Interpreter,
+                    getter: impl FnOnce() -> Result,
+                ) -> Result<(Value, Value)> {
+                    const ONE: Value = Value::Number(1);
+                    let old_value = getter()?;
+
+                    // The new value to assign to the variable or property
+                    let new_value = match self_.kind {
+                        UnaryOp::IncrementPrefix | UnaryOp::IncrementPostfix => {
+                            Value::add(it, &old_value, &ONE)
+                        }
+                        UnaryOp::DecrementPrefix | UnaryOp::DecrementPostfix => {
+                            Value::sub(it, &old_value, &ONE)
+                        }
+                        _ => unreachable!("{:?}", self_.kind),
+                    };
+                    // The value to use as the result of the expression
+                    let result_value = match self_.kind {
+                        UnaryOp::IncrementPrefix | UnaryOp::DecrementPrefix => new_value.clone(),
+                        UnaryOp::IncrementPostfix | UnaryOp::DecrementPostfix => old_value,
+                        _ => unreachable!("{:?}", self_.kind),
+                    };
+                    Ok((new_value, result_value))
+                }
+
+                assert_matches!(self.kind.associativity(), Associativity::RightToLeft);
+                match self.operand.as_ref() {
+                    Expression::VariableAccess(node) => {
+                        let mut variable = it
+                            .vm()
+                            .stack()
+                            .frame()
+                            .scope()
+                            .lookup_variable(node.var_name)?;
+                        let (new_value, result_value) =
+                            compute(self, it, || Ok(variable.value().clone()))?;
+                        variable.set_value(new_value)?;
+                        result_value
+                    }
+                    Expression::PropertyAccess(node) => {
+                        let base_value = node.base.eval(it)?;
+                        let mut base_obj = match base_value {
+                            Value::Reference(ref base_refr) => {
+                                it.vm().heap().resolve_mut(base_refr)
+                            }
+                            base_value => {
+                                todo!("AssignmentExpression::eval: base_value={:?}", base_value)
+                            }
+                        };
+                        let property_name = it
+                            .vm()
+                            .constant_pool()
+                            .lookup(node.property_name)
+                            .to_owned();
+                        let (new_value, result_value) = compute(self, it, || {
+                            Ok(base_obj
+                                .property(&property_name)
+                                .cloned()
+                                .unwrap_or_default())
+                        })?;
+                        base_obj.set_property(property_name, new_value);
+                        result_value
+                    }
+                    _ => todo!("UnaryExpression::eval: self={:#?}", self),
+                }
+            }
+
             UnaryOp::BitwiseNot => Value::bitwise_not(it, operand),
             UnaryOp::LogicalNot => Value::not(it, operand),
             UnaryOp::NumericNegate => Value::neg(it, operand),
             UnaryOp::NumericPlus => Value::plus(it, operand),
-            kind => todo!("UnaryExpression::eval: kind={:?}", kind),
         })
     }
 }

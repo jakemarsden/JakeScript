@@ -29,3 +29,12 @@ assert 1 + (2 ** (3 * 4)) === 4097;
 assert (1 + 2 ** 3 * 4) === 33;
 assert ((1 + 2 ** 3 * 4)) === 33;
 assert (((1 + 2 ** 3 * 4))) === 33;
+
+let a = 10;
+assert a++ * 2 === 20;
+assert a === 11;
+assert a-- * 2 === 22;
+assert a === 10;
+assert ++a * 2 === 22;
+assert a === 11;
+assert --a * 2 === 20;

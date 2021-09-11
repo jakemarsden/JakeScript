@@ -13,3 +13,19 @@ assert numericPlus === 20;
 let numericNegate = 20;
 assert (-numericNegate) === 0 - 20;
 assert numericNegate === 20;
+
+let prefixIncrement = 20;
+assert (++prefixIncrement) === 21;
+assert prefixIncrement === 21;
+
+let prefixDecrement = 20;
+assert (--prefixDecrement) === 19;
+assert prefixDecrement === 19;
+
+let postfixIncrement = 20;
+assert (postfixIncrement++) === 20;
+assert postfixIncrement === 21;
+
+let postfixDecrement = 20;
+assert (postfixDecrement--) === 20;
+assert postfixDecrement === 19;
