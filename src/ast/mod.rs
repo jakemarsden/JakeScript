@@ -270,6 +270,7 @@ pub enum Op {
     Binary(BinaryOp),
     Unary(UnaryOp),
     Grouping,
+    FunctionCall,
     PropertyAccess,
 }
 
@@ -280,6 +281,7 @@ impl Operator for Op {
             Op::Binary(kind) => kind.associativity(),
             Op::Unary(kind) => kind.associativity(),
             Op::Grouping => GroupingOp.associativity(),
+            Op::FunctionCall => FunctionCallOp.associativity(),
             Op::PropertyAccess => PropertyAccessOp.associativity(),
         }
     }
@@ -290,6 +292,7 @@ impl Operator for Op {
             Op::Binary(kind) => kind.precedence(),
             Op::Unary(kind) => kind.precedence(),
             Op::Grouping => GroupingOp.precedence(),
+            Op::FunctionCall => FunctionCallOp.precedence(),
             Op::PropertyAccess => PropertyAccessOp.precedence(),
         }
     }
@@ -425,6 +428,19 @@ impl Operator for GroupingOp {
 
     fn precedence(&self) -> Precedence {
         Precedence(21)
+    }
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub struct FunctionCallOp;
+
+impl Operator for FunctionCallOp {
+    fn associativity(&self) -> Associativity {
+        Associativity::LeftToRight
+    }
+
+    fn precedence(&self) -> Precedence {
+        Precedence(20)
     }
 }
 

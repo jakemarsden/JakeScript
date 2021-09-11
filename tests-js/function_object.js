@@ -10,15 +10,15 @@ f.answer = 42;
 f.functionAsProperty = g;
 assert f() === "Hello";
 assert f.answer === 42;
-// TODO: assert f.functionAsProperty() === "world";
+assert f.functionAsProperty() === "world";
 
 let f2 = f;
 assert f2() === "Hello";
 assert f2.answer === 42;
-// TODO: assert f2.functionAsProperty() === "world";
+assert f2.functionAsProperty() === "world";
 assert f() === "Hello";
 assert f.answer === 42;
-// TODO: assert f.functionAsProperty() === "world";
+assert f.functionAsProperty() === "world";
 
 function h() {
     return "computer";
@@ -27,4 +27,4 @@ function h() {
 f.answer += 1295;
 f.functionAsProperty = h;
 assert f2.answer === 1337;
-// TODO: assert f2.functionAsProperty() === "computer";
+assert f2.functionAsProperty() === "computer";

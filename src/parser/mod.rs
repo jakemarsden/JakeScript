@@ -134,27 +134,8 @@ impl Parser {
     fn parse_primary_expression(&mut self) -> Option<Expression> {
         Some(match self.tokens.consume()? {
             Token::Identifier(identifier) => {
-                let identifier = self.alloc_or_get_constant(identifier);
-                let var_expr = Expression::VariableAccess(VariableAccessExpression {
-                    var_name: identifier,
-                });
-                if self.tokens.peek() == Some(&Token::Punctuator(Punctuator::OpenParen)) {
-                    let arguments = self.parse_fn_arguments();
-                    Expression::FunctionCall(FunctionCallExpression {
-                        function: Box::new(var_expr),
-                        arguments,
-                    })
-                } else {
-                    var_expr
-                }
-            }
-            Token::Punctuator(Punctuator::OpenParen) => {
-                let inner = self.parse_expression().expect("Expected expression");
-                self.tokens
-                    .consume_exact(&Token::Punctuator(Punctuator::CloseParen));
-                Expression::Grouping(GroupingExpression {
-                    inner: Box::new(inner),
-                })
+                let var_name = self.alloc_or_get_constant(identifier);
+                Expression::VariableAccess(VariableAccessExpression { var_name })
             }
             Token::Punctuator(Punctuator::OpenBrace) => Expression::Literal(LiteralExpression {
                 value: if self
@@ -178,6 +159,13 @@ impl Parser {
                     Expression::Unary(UnaryExpression {
                         kind: op_kind,
                         operand: Box::new(operand),
+                    })
+                } else if GroupingOp::try_parse(punc, Position::Prefix).is_some() {
+                    let inner = self.parse_expression().expect("Expected expression");
+                    self.tokens
+                        .consume_exact(&Token::Punctuator(Punctuator::CloseParen));
+                    Expression::Grouping(GroupingExpression {
+                        inner: Box::new(inner),
                     })
                 } else {
                     todo!(
@@ -224,6 +212,10 @@ impl Parser {
             Op::Grouping => Expression::Grouping(GroupingExpression {
                 inner: Box::new(lhs),
             }),
+            Op::FunctionCall => Expression::FunctionCall(FunctionCallExpression {
+                function: Box::new(lhs),
+                arguments: self.parse_fn_arguments(false),
+            }),
             Op::PropertyAccess => {
                 let rhs = self
                     .parse_expression_impl(op_kind.precedence())
@@ -233,9 +225,6 @@ impl Parser {
                     property_name: match rhs {
                         Expression::VariableAccess(VariableAccessExpression { var_name }) => {
                             var_name
-                        }
-                        Expression::FunctionCall(expr) => {
-                            todo!("Parser::parse_secondary_expression: {:?}", expr)
                         }
                         rhs_expr => panic!("Expected property name but was {:#?}", rhs_expr),
                     },
@@ -464,9 +453,11 @@ impl Parser {
         }
     }
 
-    fn parse_fn_arguments(&mut self) -> Vec<Expression> {
-        self.tokens
-            .consume_exact(&Token::Punctuator(Punctuator::OpenParen));
+    fn parse_fn_arguments(&mut self, consume_open_paren: bool) -> Vec<Expression> {
+        if consume_open_paren {
+            self.tokens
+                .consume_exact(&Token::Punctuator(Punctuator::OpenParen));
+        }
         if self
             .tokens
             .consume_eq(&Token::Punctuator(Punctuator::CloseParen))
@@ -519,6 +510,8 @@ impl TryParse for Op {
             Self::Unary(op)
         } else if GroupingOp::try_parse(punc, pos).is_some() {
             Self::Grouping
+        } else if FunctionCallOp::try_parse(punc, pos).is_some() {
+            Self::FunctionCall
         } else if PropertyAccessOp::try_parse(punc, pos).is_some() {
             Self::PropertyAccess
         } else {
@@ -614,18 +607,18 @@ impl TryParse for UnaryOp {
 
 impl TryParse for GroupingOp {
     fn try_parse(punc: Punctuator, pos: Position) -> Option<Self> {
-        Some(match (punc, pos) {
-            (Punctuator::OpenParen, Position::Prefix) => Self,
-            (_, _) => return None,
-        })
+        matches!((punc, pos), (Punctuator::OpenParen, Position::Prefix)).then_some(Self)
+    }
+}
+
+impl TryParse for FunctionCallOp {
+    fn try_parse(punc: Punctuator, pos: Position) -> Option<Self> {
+        matches!((punc, pos), (Punctuator::OpenParen, Position::Postfix)).then_some(Self)
     }
 }
 
 impl TryParse for PropertyAccessOp {
     fn try_parse(punc: Punctuator, pos: Position) -> Option<Self> {
-        Some(match (punc, pos) {
-            (Punctuator::Dot, Position::Postfix) => Self,
-            (_, _) => return None,
-        })
+        matches!((punc, pos), (Punctuator::Dot, Position::Postfix)).then_some(Self)
     }
 }
