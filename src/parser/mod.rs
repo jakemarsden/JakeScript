@@ -154,14 +154,16 @@ impl Parser {
             Token::Punctuator(punc) => {
                 if let Some(op_kind) = UnaryOp::try_parse(punc, Position::Prefix) {
                     let operand = self
-                        .parse_expression()
+                        .parse_expression_impl(op_kind.precedence())
                         .expect("Expected expression but was <end>");
                     Expression::Unary(UnaryExpression {
                         kind: op_kind,
                         operand: Box::new(operand),
                     })
                 } else if GroupingOp::try_parse(punc, Position::Prefix).is_some() {
-                    let inner = self.parse_expression().expect("Expected expression");
+                    let inner = self
+                        .parse_expression()
+                        .expect("Expected expression but was <end>");
                     self.tokens
                         .consume_exact(&Token::Punctuator(Punctuator::CloseParen));
                     Expression::Grouping(GroupingExpression {
