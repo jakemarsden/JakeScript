@@ -60,7 +60,7 @@ impl Parser {
             if let Some(stmt) = self.parse_statement() {
                 stmts.push(stmt);
             } else {
-                // Block not closed before end of input
+                // Block not closed before end of input.
                 break;
             }
         }

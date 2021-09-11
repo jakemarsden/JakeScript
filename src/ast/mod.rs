@@ -103,14 +103,14 @@ impl Node for WhileLoop {}
 
 #[derive(Clone, Debug)]
 pub struct BreakStatement {
-    // TODO: label
+    // TODO: Support labels.
 }
 
 impl Node for BreakStatement {}
 
 #[derive(Clone, Debug)]
 pub struct ContinueStatement {
-    // TODO: label
+    // TODO: Support labels.
 }
 
 impl Node for ContinueStatement {}
@@ -221,9 +221,9 @@ impl Node for VariableAccessExpression {}
 pub enum Literal {
     Boolean(bool),
     Numeric(i64),
-    // TODO: Store string literals in the constant pool
+    // TODO: Store string literals in the constant pool.
     String(String),
-    // TODO: Support properties in object literals
+    // TODO: Support properties in object literals.
     Object,
     Null,
     #[default]
@@ -248,7 +248,7 @@ impl ConstantId {
 
 impl fmt::Display for ConstantId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        // Note: 6 includes the 2 chars for the "0x" prefix, so only 4 actual digits are displayed
+        // Note: 6 includes the 2 chars for the "0x" prefix, so only 4 actual digits are displayed.
         write!(f, "{:#06x}", self.0)
     }
 }

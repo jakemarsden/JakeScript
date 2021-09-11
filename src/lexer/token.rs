@@ -1,7 +1,7 @@
 use std::fmt;
 use std::str::FromStr;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Token {
     Identifier(String),
     Keyword(Keyword),
@@ -39,11 +39,12 @@ impl fmt::Display for Token {
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+// TODO: Some variants should only be _contextually_ disallowed as identifiers, i.e. in certain
+//  circumstances they should be allowed as identifiers.
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum Keyword {
-    // TODO: Some of these are only _contextually_ disallowed as identifiers, and under certain
-    // conditions _can_ be used as identifiers.
     As,
+    // TODO: Remove from the language once no longer needed to support unit tests.
     Assert,
     Async,
     Await,
@@ -76,7 +77,9 @@ pub enum Keyword {
     New,
     Of,
     Package,
+    // TODO: Remove from the language once no longer needed to support unit tests.
     Print,
+    // TODO: Remove from the language once no longer needed to support unit tests.
     PrintLn,
     Private,
     Protected,
@@ -246,9 +249,9 @@ impl FromStr for Keyword {
     }
 }
 
-// TODO: Support RegEx literals
-// TODO: Support decimal numeric literals
-#[derive(Clone, Debug, Eq, PartialEq)]
+// TODO: Support RegEx literals.
+// TODO: Support decimal numeric literals.
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Literal {
     Boolean(bool),
     Null,
@@ -269,7 +272,7 @@ impl fmt::Display for Literal {
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum Punctuator {
     Ampersand,
     AmpersandEqual,
@@ -465,13 +468,13 @@ impl FromStr for Punctuator {
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum CommentKind {
     MultiLine,
     SingleLine,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub struct BadKeywordError;
 
 impl fmt::Display for BadKeywordError {
@@ -482,7 +485,7 @@ impl fmt::Display for BadKeywordError {
 
 impl std::error::Error for BadKeywordError {}
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub struct BadPunctuatorError;
 
 impl fmt::Display for BadPunctuatorError {

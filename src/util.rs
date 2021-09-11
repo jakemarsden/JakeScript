@@ -89,7 +89,7 @@ impl Stream<char> {
     }
 
     pub(crate) fn consume_while_string(&mut self, condition: impl Fn(&char) -> bool) -> String {
-        // Optimisation: check first char outside of the loop to avoid alloc on mismatch
+        // Optimisation: Check first char outside of the loop to avoid alloc on mismatch.
         if let Some(ch0) = self.consume_if(|ch| condition(ch)) {
             let mut out = String::new();
             out.push(ch0);

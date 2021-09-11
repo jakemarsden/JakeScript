@@ -62,8 +62,8 @@ const ZWNBSP: char = '\u{FEFF}';
 
 impl Lexer {
     fn is_whitespace(ch: char) -> bool {
-        // FIXME: or USP, which is any other code point classified in the "Space_Separator"
-        // category, which is different from looking at the Unicode "White_Space" property
+        // FIXME: Return `true` for USP (any other code point classified in the "Space_Separator"
+        //  category, which is not the same as the Unicode "White_Space" property).
         matches!(ch, TAB | VT | FF | SP | NBSP | ZWNBSP)
     }
 
@@ -72,22 +72,22 @@ impl Lexer {
     }
 
     fn is_identifier_start(ch: char) -> bool {
-        // TODO: Handle Unicode escape sequence
+        // TODO: Handle Unicode escape sequence.
         Self::is_unicode_start(ch) || matches!(ch, '$' | '_')
     }
 
     fn is_identifier_part(ch: char) -> bool {
-        // TODO: Handle Unicode escape sequence
+        // TODO: Handle Unicode escape sequence.
         Self::is_unicode_continue(ch) || matches!(ch, '$' | ZWNJ | ZWJ)
     }
 
     fn is_unicode_start(ch: char) -> bool {
-        // FIXME: Actually check for characters with the Unicode "ID_Start" property
+        // FIXME: Check for characters with the Unicode "ID_Start" property.
         ch.is_ascii_alphabetic()
     }
 
     fn is_unicode_continue(ch: char) -> bool {
-        // FIXME: Actually check for characters with the Unicode "ID_Continue" property
+        // FIXME: Check for characters with the Unicode "ID_Continue" property.
         ch.is_ascii_alphabetic() || ch.is_ascii_digit() || ch == '_'
     }
 
@@ -182,7 +182,7 @@ impl Lexer {
                 Token::Identifier(ident_name_or_keyword)
             }
         } else {
-            // TODO: Parse template tokens
+            // TODO: Parse template tokens.
             return None;
         })
     }
@@ -235,7 +235,7 @@ impl Lexer {
         if !matches!(self.0.peek(), Some(ch) if ch.is_ascii_digit()) {
             return None;
         }
-        // FIXME: This is a naive implementation which doesn't match the spec
+        // FIXME: This is a naive implementation which doesn't match the spec.
         let mut content = String::new();
         let mut original_len = 0;
         for offset in 0.. {
@@ -277,13 +277,13 @@ impl Lexer {
         if self.0.peek() != Some(&qt) {
             return None;
         }
-        // Optimisation: avoid alloc for empty string literals
+        // Optimisation: Avoid allocating for empty string literals.
         if self.0.peek_n(1) == Some(&qt) {
             self.0.consume_exact(&qt);
             self.0.consume_exact(&qt);
             return Some(String::with_capacity(0));
         }
-        // FIXME: This is a naieve implementation which doesn't match the spec
+        // FIXME: This is a naive implementation which doesn't match the spec.
         let mut content = String::new();
         let mut escaped = false;
         let mut raw_content_len = 0;

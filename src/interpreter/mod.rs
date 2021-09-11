@@ -51,7 +51,7 @@ impl Eval for Program {
 impl Eval for Block {
     type Output = Value;
 
-    fn eval(&self, it: &mut Interpreter) -> Result {
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let mut result = Value::default();
         for stmt in self.statements() {
             if it.vm().execution_state().is_break_or_return() {
@@ -160,8 +160,8 @@ impl Eval for ForLoop {
                     continue;
                 }
                 ExecutionState::Return(_) => {
-                    // Exit the loop but don't reset the execution state yet; the function still
-                    //  needs to see it
+                    // Exit the loop, but don't reset the execution state just yet so that it can be
+                    // handled by an outer `FunctionCallExpression`.
                     break;
                 }
             }
@@ -196,8 +196,8 @@ impl Eval for WhileLoop {
                     continue;
                 }
                 ExecutionState::Return(_) => {
-                    // Exit the loop but don't reset the execution state yet; the function still
-                    //  needs to see it
+                    // Exit the loop, but don't reset the execution state just yet so that it can be
+                    // handled by an outer `FunctionCallExpression`.
                     break;
                 }
             }
@@ -345,7 +345,7 @@ impl Eval for BinaryExpression {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         Ok(match self.kind {
             // Get the boolean ops out of the way first, since they don't let us eval the RHS
-            //  up-front (which is more ergonomic for all the other ops)
+            // up-front (which is more ergonomic for all the other ops).
             BinaryOp::LogicalAnd => {
                 assert_matches!(self.kind.associativity(), Associativity::LeftToRight);
                 Value::Boolean(self.lhs.eval(it)?.is_truthy(it) && self.rhs.eval(it)?.is_truthy(it))
@@ -369,8 +369,8 @@ impl Eval for BinaryExpression {
                     }
                 };
                 match kind {
-                    // SAFETY: This match arm is unreachable because the possible values are already
-                    //  handled by a previous match arm of the outer match expression
+                    // Safety: Unreachable because the possible values are already handled by
+                    // previous match arms in the outer match expression.
                     BinaryOp::LogicalAnd | BinaryOp::LogicalOr => unsafe {
                         unreachable_unchecked()
                     },

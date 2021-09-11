@@ -30,7 +30,7 @@ impl CallStack {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Default, Debug)]
 pub struct CallFrame {
     scope: Scope,
     parent: Option<Box<CallFrame>>,
