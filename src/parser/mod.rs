@@ -185,6 +185,13 @@ impl Parser {
                     lexer::Literal::Undefined => ast::Literal::Undefined,
                 },
             }),
+            Token::Keyword(Keyword::Function) => {
+                let param_names = self.parse_fn_parameters();
+                let body = self.parse_block();
+                Expression::Literal(LiteralExpression {
+                    value: ast::Literal::AnonFunction { param_names, body },
+                })
+            }
             token => todo!("Parser::parse_primary_expression: token={}", token),
         })
     }
@@ -240,11 +247,7 @@ impl Parser {
             .consume_exact(&Token::Keyword(Keyword::Function));
         if let Some(Token::Identifier(fn_name)) = self.tokens.consume() {
             let fn_name = self.alloc_or_get_constant(fn_name);
-            let param_names = self
-                .parse_fn_parameters()
-                .into_iter()
-                .map(|param_name| self.alloc_or_get_constant(param_name))
-                .collect();
+            let param_names = self.parse_fn_parameters();
             let body = self.parse_block();
             Some(FunctionDeclaration {
                 fn_name,
@@ -428,7 +431,7 @@ impl Parser {
         Some(ReturnStatement { expr })
     }
 
-    fn parse_fn_parameters(&mut self) -> Vec<IdentifierName> {
+    fn parse_fn_parameters(&mut self) -> Vec<ConstantId> {
         self.tokens
             .consume_exact(&Token::Punctuator(Punctuator::OpenParen));
         if self
@@ -442,7 +445,8 @@ impl Parser {
         let mut params = Vec::new();
         loop {
             if let Some(Token::Identifier(param)) = self.tokens.consume() {
-                params.push(param);
+                let param_constant_id = self.alloc_or_get_constant(param);
+                params.push(param_constant_id);
             } else {
                 panic!("Expected identifier (parameter name)");
             }

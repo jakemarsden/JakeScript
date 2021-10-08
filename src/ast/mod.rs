@@ -225,6 +225,10 @@ pub enum Literal {
     String(String),
     // TODO: Support properties in object literals.
     Object,
+    AnonFunction {
+        param_names: Vec<ConstantId>,
+        body: Block,
+    },
     Null,
     #[default]
     Undefined,

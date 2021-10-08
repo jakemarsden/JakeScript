@@ -512,6 +512,18 @@ impl Eval for LiteralExpression {
                 let obj_ref = it.vm().heap().allocate_empty_object()?;
                 Value::Reference(obj_ref)
             }
+            Literal::AnonFunction {
+                ref param_names,
+                ref body,
+            } => {
+                let declared_scope = it.vm().stack().frame().scope().clone();
+                let fn_obj_ref = it.vm().heap().allocate_callable_object(Callable::new(
+                    param_names.clone(),
+                    declared_scope,
+                    body.clone(),
+                ))?;
+                Value::Reference(fn_obj_ref)
+            }
             Literal::Null => Value::Null,
             Literal::Undefined => Value::Undefined,
         })
