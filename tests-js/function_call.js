@@ -27,7 +27,7 @@ function earlyReturn(arg) {
         let nice = "nice";
         if (arg === 69) {
             return nice;
-	}
+        }
     }
     assert false;
 }
