@@ -15,12 +15,19 @@ pub enum Value {
 
 impl Value {
     pub fn add(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Self {
-        if matches!(lhs, Self::String(_) | Self::Reference(_)) {
-            todo!("Value::add: {:?} + {:?}", lhs, rhs)
-        }
-        match numeric_bin_op(it, lhs, rhs, i64::checked_add) {
-            Some(result) => Self::Number(result),
-            None => todo!("Value::add: {:?} + {:?} => Overflow", lhs, rhs),
+        match lhs {
+            Value::String(ref lhs) => {
+                let rhs = rhs.coerce_to_string_impl(it);
+                let mut result = String::with_capacity(lhs.len() + rhs.len());
+                result.push_str(lhs);
+                result.push_str(&rhs);
+                Value::String(result)
+            }
+            Value::Reference(_) => todo!("Value::add: {:?} + {:?}", lhs, rhs),
+            _ => match numeric_bin_op(it, lhs, rhs, i64::checked_add) {
+                Some(result) => Self::Number(result),
+                None => todo!("Value::add: {:?} + {:?} => Overflow", lhs, rhs),
+            },
         }
     }
 
