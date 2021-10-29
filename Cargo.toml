@@ -2,8 +2,7 @@
 name = "jakescript"
 version = "0.1.0"
 authors = ["Jake Marsden <jakemarsdenjm@gmail.com>"]
-edition = "2018"
-resolver = "2"
+edition = "2021"
 publish = false
 
 [[bin]]
