@@ -8,28 +8,62 @@ assert (true || false) === true;
 assert (false || true) === true;
 assert (false || false) === false;
 
+assert ("lhs" && "rhs") === "rhs";
+assert ("lhs" && "") === "";
+assert ("" && "rhs") === "";
+assert ("" && "") === "";
+
+assert ("lhs" || "rhs") === "lhs";
+assert ("lhs" || "") === "lhs";
+assert ("" || "rhs") === "rhs";
+assert ("" || "") === "";
+
 function assertNotReached() {
     assert false;
 }
 
 assert (false && assertNotReached()) === false;
 assert (true || assertNotReached()) === true;
+assert ("" && assertNotReached()) === "";
+assert ("lhs" || assertNotReached()) === "lhs";
 
 let counter = 0;
 
-function assertFirst(n) {
-    assert counter % 2 === 0;
+function condition(n, value) {
     counter += 1;
-    return n;
-}
-function assertSecond(n) {
-    assert counter % 2 === 1;
-    counter += 1;
-    return n;
+    assert counter === n;
+    return value;
 }
 
-assert (assertFirst(true) && assertSecond(true)) === true;
-assert (assertFirst(true) && assertSecond(false)) === false;
-assert (assertFirst(false) || assertSecond(true)) === true;
-assert (assertFirst(false) || assertSecond(false)) === false;
-assert counter === 8;
+function checkAndReset(expected) {
+    assert counter === expected;
+    counter = 0;
+}
+
+assert (condition(1, true) && condition(2, true)) === true;
+checkAndReset(2);
+assert (condition(1, true) && condition(2, false)) === false;
+checkAndReset(2);
+assert (condition(1, false) && assertNotReached()) === false;
+checkAndReset(1);
+assert (condition(1, false) && assertNotReached()) === false;
+checkAndReset(1);
+
+assert (condition(1, true) || assertNotReached()) === true;
+checkAndReset(1);
+assert (condition(1, true) || assertNotReached()) === true;
+checkAndReset(1);
+assert (condition(1, false) || condition(2, true)) === true;
+checkAndReset(2);
+assert (condition(1, false) || condition(2, false)) === false;
+checkAndReset(2);
+
+assert (condition(1, 1) && condition(2, 2) && condition(3, 3) && condition(4, 4) && condition(5, 5)) === 5;
+checkAndReset(5);
+assert (condition(1, 1) && condition(2, 2) && condition(3, 3) && condition(4, 4) && condition(5, 0) && assertNotReached()) === 0;
+checkAndReset(5);
+
+assert (condition(1, 0) || condition(2, 0) || condition(3, 0) || condition(4, 0) || condition(5, 0)) === 0;
+checkAndReset(5);
+assert (condition(1, 0) || condition(2, 0) || condition(3, 0) || condition(4, 0) || condition(5, 5) || assertNotReached()) === 5;
+checkAndReset(5);

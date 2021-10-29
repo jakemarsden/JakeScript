@@ -364,11 +364,21 @@ impl Eval for BinaryExpression {
             // up-front (which is more ergonomic for all the other ops).
             BinaryOp::LogicalAnd => {
                 assert_matches!(self.kind.associativity(), Associativity::LeftToRight);
-                Value::Boolean(self.lhs.eval(it)?.is_truthy(it) && self.rhs.eval(it)?.is_truthy(it))
+                let lhs = self.lhs.eval(it)?;
+                if lhs.is_truthy(it) {
+                    self.rhs.eval(it)?
+                } else {
+                    lhs
+                }
             }
             BinaryOp::LogicalOr => {
                 assert_matches!(self.kind.associativity(), Associativity::LeftToRight);
-                Value::Boolean(self.lhs.eval(it)?.is_truthy(it) || self.rhs.eval(it)?.is_truthy(it))
+                let lhs = self.lhs.eval(it)?;
+                if lhs.is_falsy(it) {
+                    self.rhs.eval(it)?
+                } else {
+                    lhs
+                }
             }
 
             kind => {

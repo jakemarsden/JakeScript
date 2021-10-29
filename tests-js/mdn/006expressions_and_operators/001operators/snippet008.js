@@ -10,6 +10,6 @@ assert a1 === true;
 assert a2 === false;
 assert a3 === false;
 assert a4 === false;
-// FIXME: assert a5 === "Dog";
+assert a5 === "Dog";
 assert a6 === false;
 assert a7 === false;
