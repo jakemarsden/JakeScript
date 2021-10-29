@@ -23,7 +23,10 @@ pub struct Interpreter {
 }
 
 impl Interpreter {
-    pub fn vm(&mut self) -> &mut Vm {
+    pub fn vm(&self) -> &Vm {
+        &self.vm
+    }
+    pub fn vm_mut(&mut self) -> &mut Vm {
         &mut self.vm
     }
 }
@@ -38,7 +41,7 @@ impl Eval for Program {
     type Output = Value;
 
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        let vm_constant_pool = it.vm().constant_pool();
+        let vm_constant_pool = it.vm_mut().constant_pool_mut();
         for (constant_id, constant_value) in self.constants() {
             let allocated_id = vm_constant_pool.allocate(constant_value.to_owned());
             // TODO: Make this less fragile?
@@ -115,13 +118,13 @@ impl Eval for IfStatement {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let condition = self.condition.eval(it)?;
         if condition.is_truthy(it) {
-            it.vm().stack().frame().push_scope();
+            it.vm_mut().stack_mut().frame_mut().push_scope();
             self.success_block.eval(it)?;
-            it.vm().stack().frame().pop_scope()
+            it.vm_mut().stack_mut().frame_mut().pop_scope()
         } else if let Some(ref else_block) = self.else_block {
-            it.vm().stack().frame().push_scope();
+            it.vm_mut().stack_mut().frame_mut().push_scope();
             else_block.eval(it)?;
-            it.vm().stack().frame().pop_scope();
+            it.vm_mut().stack_mut().frame_mut().pop_scope();
         }
         Ok(())
     }
@@ -130,7 +133,7 @@ impl Eval for IfStatement {
 impl Eval for ForLoop {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         if let Some(ref initialiser) = self.initialiser {
-            it.vm().stack().frame().push_scope();
+            it.vm_mut().stack_mut().frame_mut().push_scope();
             initialiser.eval(it)?;
         }
         loop {
@@ -141,9 +144,9 @@ impl Eval for ForLoop {
                 }
             }
 
-            it.vm().stack().frame().push_scope();
+            it.vm_mut().stack_mut().frame_mut().push_scope();
             self.block.eval(it)?;
-            it.vm().stack().frame().pop_scope();
+            it.vm_mut().stack_mut().frame_mut().pop_scope();
 
             if let Some(ref incrementor) = self.incrementor {
                 incrementor.eval(it)?;
@@ -152,11 +155,11 @@ impl Eval for ForLoop {
             match it.vm().execution_state() {
                 ExecutionState::Advance => {}
                 ExecutionState::Break => {
-                    it.vm().reset_execution_state();
+                    it.vm_mut().reset_execution_state();
                     break;
                 }
                 ExecutionState::BreakContinue => {
-                    it.vm().reset_execution_state();
+                    it.vm_mut().reset_execution_state();
                     continue;
                 }
                 ExecutionState::Return(_) => {
@@ -167,7 +170,7 @@ impl Eval for ForLoop {
             }
         }
         if self.initialiser.is_some() {
-            it.vm().stack().frame().pop_scope();
+            it.vm_mut().stack_mut().frame_mut().pop_scope();
         }
         Ok(())
     }
@@ -181,18 +184,18 @@ impl Eval for WhileLoop {
                 break;
             }
 
-            it.vm().stack().frame().push_scope();
+            it.vm_mut().stack_mut().frame_mut().push_scope();
             self.block.eval(it)?;
-            it.vm().stack().frame().pop_scope();
+            it.vm_mut().stack_mut().frame_mut().pop_scope();
 
             match it.vm().execution_state() {
                 ExecutionState::Advance => {}
                 ExecutionState::Break => {
-                    it.vm().reset_execution_state();
+                    it.vm_mut().reset_execution_state();
                     break;
                 }
                 ExecutionState::BreakContinue => {
-                    it.vm().reset_execution_state();
+                    it.vm_mut().reset_execution_state();
                     continue;
                 }
                 ExecutionState::Return(_) => {
@@ -208,14 +211,15 @@ impl Eval for WhileLoop {
 
 impl Eval for BreakStatement {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        it.vm().set_execution_state(ExecutionState::Break);
+        it.vm_mut().set_execution_state(ExecutionState::Break);
         Ok(())
     }
 }
 
 impl Eval for ContinueStatement {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        it.vm().set_execution_state(ExecutionState::BreakContinue);
+        it.vm_mut()
+            .set_execution_state(ExecutionState::BreakContinue);
         Ok(())
     }
 }
@@ -227,7 +231,8 @@ impl Eval for ReturnStatement {
         } else {
             Value::Undefined
         };
-        it.vm().set_execution_state(ExecutionState::Return(value));
+        it.vm_mut()
+            .set_execution_state(ExecutionState::Return(value));
         Ok(())
     }
 }
@@ -236,13 +241,17 @@ impl Eval for FunctionDeclaration {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let declared_scope = it.vm().stack().frame().scope().clone();
         let callable = Callable::new(self.param_names.clone(), declared_scope, self.body.clone());
-        let fn_obj_ref = it.vm().heap().allocate_callable_object(callable)?;
+        let fn_obj_ref = it.vm_mut().heap_mut().allocate_callable_object(callable)?;
         let variable = Variable::new(
             VariableDeclarationKind::Var,
             self.fn_name,
             Value::Reference(fn_obj_ref),
         );
-        it.vm().stack().frame().scope().declare_variable(variable)?;
+        it.vm_mut()
+            .stack_mut()
+            .frame_mut()
+            .scope_mut()
+            .declare_variable(variable)?;
         Ok(())
     }
 }
@@ -256,7 +265,11 @@ impl Eval for VariableDeclaration {
         } else {
             Variable::new_unassigned(self.kind, var_name)
         };
-        it.vm().stack().frame().scope().declare_variable(variable)?;
+        it.vm_mut()
+            .stack_mut()
+            .frame_mut()
+            .scope_mut()
+            .declare_variable(variable)?;
         Ok(())
     }
 }
@@ -317,7 +330,9 @@ impl Eval for AssignmentExpression {
             Expression::PropertyAccess(node) => {
                 let base_value = node.base.eval(it)?;
                 let mut base_obj = match base_value {
-                    Value::Reference(ref base_refr) => it.vm().heap().resolve_mut(base_refr),
+                    Value::Reference(ref base_refr) => {
+                        it.vm_mut().heap_mut().resolve_mut(base_refr)
+                    }
                     base_value => todo!("AssignmentExpression::eval: base_value={:?}", base_value),
                 };
                 let property_name = it
@@ -460,7 +475,7 @@ impl Eval for UnaryExpression {
                         let base_value = node.base.eval(it)?;
                         let mut base_obj = match base_value {
                             Value::Reference(ref base_refr) => {
-                                it.vm().heap().resolve_mut(base_refr)
+                                it.vm_mut().heap_mut().resolve_mut(base_refr)
                             }
                             base_value => {
                                 todo!("AssignmentExpression::eval: base_value={:?}", base_value)
@@ -509,7 +524,7 @@ impl Eval for LiteralExpression {
             Literal::Numeric(ref value) => Value::Number(*value),
             Literal::String(ref value) => Value::String(value.to_owned()),
             Literal::Object => {
-                let obj_ref = it.vm().heap().allocate_empty_object()?;
+                let obj_ref = it.vm_mut().heap_mut().allocate_empty_object()?;
                 Value::Reference(obj_ref)
             }
             Literal::AnonFunction {
@@ -517,11 +532,14 @@ impl Eval for LiteralExpression {
                 ref body,
             } => {
                 let declared_scope = it.vm().stack().frame().scope().clone();
-                let fn_obj_ref = it.vm().heap().allocate_callable_object(Callable::new(
-                    param_names.clone(),
-                    declared_scope,
-                    body.clone(),
-                ))?;
+                let fn_obj_ref = it
+                    .vm_mut()
+                    .heap_mut()
+                    .allocate_callable_object(Callable::new(
+                        param_names.clone(),
+                        declared_scope,
+                        body.clone(),
+                    ))?;
                 Value::Reference(fn_obj_ref)
             }
             Literal::Null => Value::Null,
@@ -565,13 +583,16 @@ impl Eval for FunctionCallExpression {
         let declared_scope = function.declared_scope().deref().clone();
         let fn_scope_ctx = ScopeCtx::new(argument_variables);
 
-        it.vm().stack().push_frame(declared_scope);
-        it.vm().stack().frame().push_scope_ctx(fn_scope_ctx);
+        it.vm_mut().stack_mut().push_frame(declared_scope);
+        it.vm_mut()
+            .stack_mut()
+            .frame_mut()
+            .push_scope_ctx(fn_scope_ctx);
         function.body().eval(it)?;
-        it.vm().stack().frame().pop_scope();
-        it.vm().stack().pop_frame();
+        it.vm_mut().stack_mut().frame_mut().pop_scope();
+        it.vm_mut().stack_mut().pop_frame();
 
-        Ok(match it.vm().reset_execution_state() {
+        Ok(match it.vm_mut().reset_execution_state() {
             ExecutionState::Advance => Value::Undefined,
             ExecutionState::Return(value) => value,
             execution_state => panic!("Unexpected execution state: {:?}", execution_state),

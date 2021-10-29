@@ -37,7 +37,6 @@ impl Heap {
     pub fn resolve<'a>(&self, refr: &'a Reference) -> Ref<'a, Object> {
         refr.deref()
     }
-
     pub fn resolve_mut<'a>(&mut self, refr: &'a Reference) -> RefMut<'a, Object> {
         refr.deref_mut()
     }
@@ -66,7 +65,6 @@ impl Reference {
     fn deref(&self) -> Ref<Object> {
         RefCell::borrow(&self.1)
     }
-
     fn deref_mut(&self) -> RefMut<Object> {
         RefCell::borrow_mut(&self.1)
     }

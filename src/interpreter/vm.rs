@@ -32,15 +32,24 @@ impl Vm {
         mem::take(&mut self.execution_state)
     }
 
-    pub fn constant_pool(&mut self) -> &mut ConstantPool {
+    pub fn constant_pool(&self) -> &ConstantPool {
+        &self.constant_pool
+    }
+    pub fn constant_pool_mut(&mut self) -> &mut ConstantPool {
         &mut self.constant_pool
     }
 
-    pub fn heap(&mut self) -> &mut Heap {
+    pub fn heap(&self) -> &Heap {
+        &self.heap
+    }
+    pub fn heap_mut(&mut self) -> &mut Heap {
         &mut self.heap
     }
 
-    pub fn stack(&mut self) -> &mut CallStack {
+    pub fn stack(&self) -> &CallStack {
+        &self.stack
+    }
+    pub fn stack_mut(&mut self) -> &mut CallStack {
         &mut self.stack
     }
 }

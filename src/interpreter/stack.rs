@@ -11,7 +11,10 @@ pub struct CallStack {
 }
 
 impl CallStack {
-    pub fn frame(&mut self) -> &mut CallFrame {
+    pub fn frame(&self) -> &CallFrame {
+        &self.frame
+    }
+    pub fn frame_mut(&mut self) -> &mut CallFrame {
         &mut self.frame
     }
 
@@ -37,7 +40,10 @@ pub struct CallFrame {
 }
 
 impl CallFrame {
-    pub fn scope(&mut self) -> &mut Scope {
+    pub fn scope(&self) -> &Scope {
+        &self.scope
+    }
+    pub fn scope_mut(&mut self) -> &mut Scope {
         &mut self.scope
     }
 
