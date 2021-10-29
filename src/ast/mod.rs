@@ -145,6 +145,7 @@ pub enum Expression {
     Assignment(AssignmentExpression),
     Binary(BinaryExpression),
     Unary(UnaryExpression),
+    Ternary(TernaryExpression),
     Grouping(GroupingExpression),
     Literal(LiteralExpression),
     FunctionCall(FunctionCallExpression),
@@ -179,6 +180,15 @@ pub struct UnaryExpression {
 }
 
 impl Node for UnaryExpression {}
+
+#[derive(Clone, Debug)]
+pub struct TernaryExpression {
+    pub condition: Box<Expression>,
+    pub lhs: Box<Expression>,
+    pub rhs: Box<Expression>,
+}
+
+impl Node for TernaryExpression {}
 
 #[derive(Clone, Debug)]
 pub struct GroupingExpression {
@@ -273,6 +283,7 @@ pub enum Op {
     Assignment(AssignmentOp),
     Binary(BinaryOp),
     Unary(UnaryOp),
+    Ternary,
     Grouping,
     FunctionCall,
     PropertyAccess,
@@ -284,6 +295,7 @@ impl Operator for Op {
             Op::Assignment(kind) => kind.associativity(),
             Op::Binary(kind) => kind.associativity(),
             Op::Unary(kind) => kind.associativity(),
+            Op::Ternary => TernaryOp.associativity(),
             Op::Grouping => GroupingOp.associativity(),
             Op::FunctionCall => FunctionCallOp.associativity(),
             Op::PropertyAccess => PropertyAccessOp.associativity(),
@@ -295,6 +307,7 @@ impl Operator for Op {
             Op::Assignment(kind) => kind.precedence(),
             Op::Binary(kind) => kind.precedence(),
             Op::Unary(kind) => kind.precedence(),
+            Op::Ternary => TernaryOp.precedence(),
             Op::Grouping => GroupingOp.precedence(),
             Op::FunctionCall => FunctionCallOp.precedence(),
             Op::PropertyAccess => PropertyAccessOp.precedence(),
@@ -419,6 +432,19 @@ impl Operator for UnaryOp {
             | Self::IncrementPrefix
             | Self::DecrementPrefix => Precedence(17),
         }
+    }
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub struct TernaryOp;
+
+impl Operator for TernaryOp {
+    fn associativity(&self) -> Associativity {
+        Associativity::RightToLeft
+    }
+
+    fn precedence(&self) -> Precedence {
+        Precedence(4)
     }
 }
 

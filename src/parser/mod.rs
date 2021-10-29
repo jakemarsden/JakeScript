@@ -218,6 +218,28 @@ impl Parser {
                 kind,
                 operand: Box::new(lhs),
             }),
+            Op::Ternary => {
+                let condition = lhs;
+                let lhs = self.parse_expression_impl(op_kind.precedence()).expect(
+                    "Expected left-hand-side expression of ternary expression but was <end>",
+                );
+                match self.tokens.consume() {
+                    Some(Token::Punctuator(Punctuator::Colon)) => {}
+                    Some(token) => panic!(
+                        "Expected colon between ternary expressions but was {}",
+                        token
+                    ),
+                    None => panic!("Expected colon between ternary expressions but was <end>"),
+                }
+                let rhs = self.parse_expression_impl(op_kind.precedence()).expect(
+                    "Expected right-hand-side expression of ternary expression but was <end>",
+                );
+                Expression::Ternary(TernaryExpression {
+                    condition: Box::new(condition),
+                    lhs: Box::new(lhs),
+                    rhs: Box::new(rhs),
+                })
+            }
             Op::Grouping => Expression::Grouping(GroupingExpression {
                 inner: Box::new(lhs),
             }),
@@ -515,6 +537,8 @@ impl TryParse for Op {
             Self::Binary(op)
         } else if let Some(op) = UnaryOp::try_parse(punc, pos) {
             Self::Unary(op)
+        } else if TernaryOp::try_parse(punc, pos).is_some() {
+            Self::Ternary
         } else if GroupingOp::try_parse(punc, pos).is_some() {
             Self::Grouping
         } else if FunctionCallOp::try_parse(punc, pos).is_some() {
@@ -609,6 +633,12 @@ impl TryParse for UnaryOp {
 
             (_, _) => return None,
         })
+    }
+}
+
+impl TryParse for TernaryOp {
+    fn try_parse(punc: Punctuator, pos: Position) -> Option<Self> {
+        matches!((punc, pos), (Punctuator::Question, Position::Postfix)).then_some(Self)
     }
 }
 

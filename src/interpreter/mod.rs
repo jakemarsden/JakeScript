@@ -282,6 +282,7 @@ impl Eval for Expression {
             Self::Assignment(ref node) => node.eval(it),
             Self::Binary(ref node) => node.eval(it),
             Self::Unary(ref node) => node.eval(it),
+            Self::Ternary(ref node) => node.eval(it),
             Self::Grouping(ref node) => node.eval(it),
 
             Self::Literal(ref node) => node.eval(it),
@@ -504,6 +505,19 @@ impl Eval for UnaryExpression {
             UnaryOp::NumericNegate => Value::neg(it, operand),
             UnaryOp::NumericPlus => Value::plus(it, operand),
         })
+    }
+}
+
+impl Eval for TernaryExpression {
+    type Output = Value;
+
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
+        let condition = self.condition.eval(it)?;
+        if condition.is_truthy(it) {
+            self.lhs.eval(it)
+        } else {
+            self.rhs.eval(it)
+        }
     }
 }
 
