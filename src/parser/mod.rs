@@ -95,7 +95,7 @@ impl Parser {
                     Token::Keyword(Keyword::Return) => {
                         self.parse_return_statement().map(Statement::Return)
                     }
-                    Token::Keyword(Keyword::Const | Keyword::Let) => self
+                    Token::Keyword(Keyword::Const | Keyword::Let | Keyword::Var) => self
                         .parse_variable_declaration()
                         .map(Statement::VariableDeclaration),
                     _ => self.parse_expression().map(Statement::Expression),
@@ -263,6 +263,7 @@ impl Parser {
         let kind = match self.tokens.consume() {
             Some(Token::Keyword(Keyword::Const)) => VariableDeclarationKind::Const,
             Some(Token::Keyword(Keyword::Let)) => VariableDeclarationKind::Let,
+            Some(Token::Keyword(Keyword::Var)) => VariableDeclarationKind::Var,
             token => panic!("Expected variable declaration but was {:?}", token),
         };
 

@@ -4,6 +4,12 @@ for (let i = 0; i <= 10; i += 1) {
 }
 assert counter === 55;
 
+let counterWithVar = 0;
+for (var varI = 0; varI <= 10; varI += 1) {
+    counterWithVar += varI;
+}
+assert counterWithVar === 55;
+
 let noInitCounter = 0;
 let noInitI = 5;
 for (; noInitI > 0; noInitI -= 1) {
