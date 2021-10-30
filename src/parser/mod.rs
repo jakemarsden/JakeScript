@@ -10,17 +10,12 @@ pub struct Parser {
 
 impl Parser {
     pub fn for_lexer(source: Lexer) -> Self {
-        Self::new(source)
-    }
-
-    pub fn for_tokens(source: Vec<Token>) -> Self {
-        Self::new(source.into_iter())
+        Self::new(source.tokens())
     }
 
     fn new(source: impl Iterator<Item = Token>) -> Self {
-        let tokens = Stream::new(source.filter(Token::is_significant));
         Self {
-            tokens,
+            tokens: Stream::new(source),
             constants: ConstantPool::default(),
         }
     }

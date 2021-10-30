@@ -1,5 +1,34 @@
+use crate::lexer::{CR, LF, LS, PS};
 use std::fmt;
 use std::str::FromStr;
+
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub enum Element {
+    Token(Token),
+    Comment(String, CommentKind),
+    LineTerminator(LineTerminator),
+    Whitespace(char),
+}
+
+impl Element {
+    pub fn token(self) -> Option<Token> {
+        match self {
+            Self::Token(token) => Some(token),
+            Self::Comment(..) | Self::LineTerminator(..) | Self::Whitespace(..) => None,
+        }
+    }
+}
+
+impl fmt::Display for Element {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Token(token) => write!(f, "Token<{}>", token),
+            Self::Comment(content, kind) => write!(f, "Comment<{}, {}>", kind, content),
+            Self::LineTerminator(content) => write!(f, "LineTerminator<{}>", content),
+            Self::Whitespace(content) => write!(f, "Whitespace<{}>", content),
+        }
+    }
+}
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Token {
@@ -7,21 +36,6 @@ pub enum Token {
     Keyword(Keyword),
     Literal(Literal),
     Punctuator(Punctuator),
-
-    Comment(String, CommentKind),
-    LineTerminator,
-    Whitespace(char),
-}
-
-impl Token {
-    pub fn is_significant(&self) -> bool {
-        match self {
-            Self::Identifier(..) | Self::Keyword(..) | Self::Literal(..) | Self::Punctuator(..) => {
-                true
-            }
-            Self::Comment(..) | Self::LineTerminator | Self::Whitespace(..) => false,
-        }
-    }
 }
 
 impl fmt::Display for Token {
@@ -31,10 +45,6 @@ impl fmt::Display for Token {
             Self::Keyword(it) => write!(f, "Keyword<{}>", it),
             Self::Literal(it) => write!(f, "Literal<{}>", it),
             Self::Punctuator(it) => write!(f, "Punctuator<{}>", it),
-
-            Self::Comment(it, kind) => write!(f, "Comment({:?})<{}>", kind, it),
-            Self::LineTerminator => write!(f, "LineTerminator"),
-            Self::Whitespace(it) => write!(f, "Whitespace<{}>", it),
         }
     }
 }
@@ -472,6 +482,53 @@ impl FromStr for Punctuator {
 pub enum CommentKind {
     MultiLine,
     SingleLine,
+}
+
+impl fmt::Display for CommentKind {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str(match self {
+            Self::MultiLine => "MultiLine",
+            Self::SingleLine => "SingleLine",
+        })
+    }
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub enum LineTerminator {
+    /// Carriage return
+    Cr,
+    /// Line feed
+    Lf,
+    /// Carriage return + line feed
+    Crlf,
+    /// Line separator
+    Ls,
+    /// Paragraph separator
+    Ps,
+}
+
+impl LineTerminator {
+    pub fn into_chars(self: LineTerminator) -> (char, Option<char>) {
+        match self {
+            Self::Cr => (CR, None),
+            Self::Lf => (LF, None),
+            Self::Crlf => (CR, Some(super::LF)),
+            Self::Ls => (LS, None),
+            Self::Ps => (PS, None),
+        }
+    }
+}
+
+impl fmt::Display for LineTerminator {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str(match self {
+            Self::Cr => "CR",
+            Self::Lf => "LF",
+            Self::Crlf => "CRLF",
+            Self::Ls => "LS",
+            Self::Ps => "PS",
+        })
+    }
 }
 
 #[derive(Clone, Eq, PartialEq, Debug)]

@@ -17,17 +17,17 @@ impl Lexer {
         Self(Stream::new(source))
     }
 
-    pub fn significant(self) -> impl Iterator<Item = Token> {
-        self.filter(Token::is_significant)
+    pub fn tokens(self) -> impl Iterator<Item = Token> {
+        self.filter_map(Element::token)
     }
 }
 
 impl Iterator for Lexer {
-    type Item = Token;
+    type Item = Element;
 
     fn next(&mut self) -> Option<Self::Item> {
         let ch = *self.0.peek()?;
-        Some(if let Some(token) = self.parse_token() {
+        Some(if let Some(token) = self.parse_element() {
             token
         } else {
             todo!("Lexer::next: ch={}", ch)
@@ -95,21 +95,28 @@ impl Lexer {
         self.0.consume_if(|ch| Self::is_whitespace(*ch))
     }
 
-    fn parse_line_terminator_sequence(&mut self) -> Option<(char, Option<char>)> {
+    fn parse_line_terminator_sequence(&mut self) -> Option<LineTerminator> {
         match self.0.peek() {
-            Some(ch @ (&LF | &LS | &PS)) => {
-                let ch = *ch;
-                self.0.consume_exact(&ch);
-                Some((ch, None))
-            }
-            Some(&CR) if self.0.peek_n(1) != Some(&LF) => {
-                self.0.consume_exact(&CR);
-                Some((CR, None))
-            }
             Some(&CR) if self.0.peek_n(1) == Some(&LF) => {
                 self.0.consume_exact(&CR);
                 self.0.consume_exact(&LF);
-                Some((CR, Some(LF)))
+                Some(LineTerminator::Crlf)
+            }
+            Some(&CR) => {
+                self.0.consume_exact(&CR);
+                Some(LineTerminator::Cr)
+            }
+            Some(&LF) => {
+                self.0.consume_exact(&LF);
+                Some(LineTerminator::Lf)
+            }
+            Some(&LS) => {
+                self.0.consume_exact(&LS);
+                Some(LineTerminator::Ls)
+            }
+            Some(&PS) => {
+                self.0.consume_exact(&PS);
+                Some(LineTerminator::Ps)
             }
             Some(_) | None => None,
         }
@@ -156,14 +163,22 @@ impl Lexer {
         }
     }
 
-    fn parse_token(&mut self) -> Option<Token> {
+    fn parse_element(&mut self) -> Option<Element> {
         Some(if let Some(whitespace) = self.parse_whitespace() {
-            Token::Whitespace(whitespace)
-        } else if let Some(..) = self.parse_line_terminator_sequence() {
-            Token::LineTerminator
+            Element::Whitespace(whitespace)
+        } else if let Some(content) = self.parse_line_terminator_sequence() {
+            Element::LineTerminator(content)
         } else if let Some((content, kind)) = self.parse_comment() {
-            Token::Comment(content, kind)
-        } else if let Some(punctuator) = self.parse_punctuator() {
+            Element::Comment(content, kind)
+        } else if let Some(token) = self.parse_token() {
+            Element::Token(token)
+        } else {
+            return None;
+        })
+    }
+
+    fn parse_token(&mut self) -> Option<Token> {
+        Some(if let Some(punctuator) = self.parse_punctuator() {
             Token::Punctuator(punctuator)
         } else if let Some(()) = self.parse_null_literal() {
             Token::Literal(Literal::Null)
@@ -318,7 +333,7 @@ mod test {
     fn tokenise_keywords() {
         for keyword in Keyword::VALUES {
             let mut lexer = Lexer::for_str(keyword.to_str());
-            assert_eq!(lexer.next(), Some(Token::Keyword(keyword)));
+            assert_eq!(lexer.next(), Some(Element::Token(Token::Keyword(keyword))));
             assert_eq!(lexer.next(), None);
         }
     }
@@ -327,7 +342,10 @@ mod test {
     fn tokenise_punctuators() {
         for punctuator in Punctuator::VALUES {
             let mut lexer = Lexer::for_str(punctuator.to_str());
-            assert_eq!(lexer.next(), Some(Token::Punctuator(punctuator)));
+            assert_eq!(
+                lexer.next(),
+                Some(Element::Token(Token::Punctuator(punctuator)))
+            );
             assert_eq!(lexer.next(), None);
         }
     }
@@ -338,7 +356,9 @@ mod test {
             let mut lexer = Lexer::for_str(source);
             assert_eq!(
                 lexer.next(),
-                Some(Token::Literal(Literal::String(expected.to_owned())))
+                Some(Element::Token(Token::Literal(Literal::String(
+                    expected.to_owned()
+                ))))
             );
             assert_eq!(lexer.next(), None);
         }
