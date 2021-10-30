@@ -1,6 +1,6 @@
-use crate::util::Stream;
-use std::iter::Iterator;
-use std::str::FromStr;
+use crate::util::{IntoPeekableNth, PeekableNth};
+use std::iter::{FilterMap, Iterator};
+use std::str::{Chars, FromStr};
 
 pub use error::*;
 pub use token::*;
@@ -8,18 +8,22 @@ pub use token::*;
 mod error;
 mod token;
 
-pub struct Lexer(Stream<char>);
+pub type Tokens<I> = FilterMap<I, fn(Element) -> Option<Token>>;
 
-impl Lexer {
-    pub fn for_str(source: &str) -> Self {
+pub struct Lexer<I: Iterator<Item = char>>(PeekableNth<I>);
+
+impl<'a> Lexer<Chars<'a>> {
+    pub fn for_str(source: &'a str) -> Self {
         Self::for_chars(source.chars())
     }
+}
 
-    pub fn for_chars(source: impl Iterator<Item = char>) -> Self {
-        Self(Stream::new(source))
+impl<I: Iterator<Item = char>> Lexer<I> {
+    pub fn for_chars(source: I) -> Self {
+        Self(source.peekable_nth())
     }
 
-    pub fn tokens(self) -> impl Iterator<Item = Token> {
+    pub fn tokens(self) -> Tokens<Self> {
         self.filter_map(Element::token)
     }
 
@@ -165,25 +169,25 @@ impl Lexer {
     }
 
     fn parse_line_terminator(&mut self) -> Option<LineTerminator> {
-        match self.0.peek() {
-            Some(&CR) if self.0.peek_n(1) == Some(&LF) => {
+        match self.0.peek().cloned() {
+            Some(CR) if self.0.peek_n(1) == Some(&LF) => {
                 self.0.consume_exact(&CR);
                 self.0.consume_exact(&LF);
                 Some(LineTerminator::Crlf)
             }
-            Some(&CR) => {
+            Some(CR) => {
                 self.0.consume_exact(&CR);
                 Some(LineTerminator::Cr)
             }
-            Some(&LF) => {
+            Some(LF) => {
                 self.0.consume_exact(&LF);
                 Some(LineTerminator::Lf)
             }
-            Some(&LS) => {
+            Some(LS) => {
                 self.0.consume_exact(&LS);
                 Some(LineTerminator::Ls)
             }
-            Some(&PS) => {
+            Some(PS) => {
                 self.0.consume_exact(&PS);
                 Some(LineTerminator::Ps)
             }
@@ -227,7 +231,7 @@ impl Lexer {
     }
 }
 
-impl Iterator for Lexer {
+impl<I: Iterator<Item = char>> Iterator for Lexer<I> {
     type Item = Element;
 
     fn next(&mut self) -> Option<Self::Item> {

@@ -1,27 +1,33 @@
 use crate::ast::{self, *};
 use crate::lexer::{self, *};
-use crate::util::Stream;
+use crate::util::{IntoPeekableNth, PeekableNth};
 use std::iter::Iterator;
 
-pub struct Parser {
-    tokens: Stream<Token>,
+pub struct Parser<I: Iterator<Item = Token>> {
+    tokens: PeekableNth<I>,
     constants: ConstantPool,
 }
 
-impl Parser {
-    pub fn for_lexer(source: Lexer) -> Self {
-        Self::new(source.tokens())
-    }
-
-    fn new(source: impl Iterator<Item = Token>) -> Self {
-        Self {
-            tokens: Stream::new(source),
-            constants: ConstantPool::default(),
-        }
+impl<I: Iterator<Item = char>> Parser<Tokens<Lexer<I>>> {
+    pub fn for_lexer(source: Lexer<I>) -> Self {
+        Self::for_tokens(source.tokens())
     }
 }
 
-impl Parser {
+impl<I: Iterator<Item = Element>> Parser<Tokens<I>> {
+    pub fn for_elements(source: I) -> Self {
+        Self::for_tokens(source.filter_map(Element::token))
+    }
+}
+
+impl<I: Iterator<Item = Token>> Parser<I> {
+    pub fn for_tokens(source: I) -> Self {
+        Self {
+            tokens: source.peekable_nth(),
+            constants: ConstantPool::default(),
+        }
+    }
+
     pub fn execute(mut self) -> Program {
         let mut stmts = Vec::new();
         while let Some(stmt) = self.parse_statement() {
