@@ -22,141 +22,6 @@ impl Lexer {
     pub fn tokens(self) -> impl Iterator<Item = Token> {
         self.filter_map(Element::token)
     }
-}
-
-impl Iterator for Lexer {
-    type Item = Element;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let ch = *self.0.peek()?;
-        self.parse_element()
-            .or_else(|| todo!("Lexer::next: ch={}", ch))
-    }
-}
-
-/// CHARACTER TABULATION
-const TAB: char = '\u{0009}';
-/// LINE FEED (LF)
-const LF: char = '\u{000A}';
-/// LINE TABULATION
-const VT: char = '\u{000B}';
-/// FORM FEED (FF)
-const FF: char = '\u{000C}';
-/// CARRIAGE RETURN (CR)
-const CR: char = '\u{000D}';
-/// SPACE
-const SP: char = '\u{0020}';
-/// NO-BREAK SPACE
-const NBSP: char = '\u{00A0}';
-/// ZERO WIDTH NON-JOINER
-const ZWNJ: char = '\u{200C}';
-/// ZERO WIDTH JOINER
-const ZWJ: char = '\u{200D}';
-/// LINE SEPARATOR
-const LS: char = '\u{2028}';
-/// PARAGRAPH SEPARATOR
-const PS: char = '\u{2029}';
-/// ZERO WIDTH NO-BREAK SPACE
-const ZWNBSP: char = '\u{FEFF}';
-
-impl Lexer {
-    fn is_whitespace(ch: char) -> bool {
-        // FIXME: Return `true` for USP (any other code point classified in the "Space_Separator"
-        //  category, which is not the same as the Unicode "White_Space" property).
-        matches!(ch, TAB | VT | FF | SP | NBSP | ZWNBSP)
-    }
-
-    fn is_line_terminator(ch: char) -> bool {
-        matches!(ch, LF | CR | LS | PS)
-    }
-
-    fn is_identifier_start(ch: char) -> bool {
-        // TODO: Handle Unicode escape sequence.
-        Self::is_unicode_start(ch) || matches!(ch, '$' | '_')
-    }
-
-    fn is_identifier_part(ch: char) -> bool {
-        // TODO: Handle Unicode escape sequence.
-        Self::is_unicode_continue(ch) || matches!(ch, '$' | ZWNJ | ZWJ)
-    }
-
-    fn is_unicode_start(ch: char) -> bool {
-        // FIXME: Check for characters with the Unicode "ID_Start" property.
-        ch.is_ascii_alphabetic()
-    }
-
-    fn is_unicode_continue(ch: char) -> bool {
-        // FIXME: Check for characters with the Unicode "ID_Continue" property.
-        ch.is_ascii_alphabetic() || ch.is_ascii_digit() || ch == '_'
-    }
-
-    fn parse_whitespace(&mut self) -> Option<char> {
-        self.0.consume_if(|ch| Self::is_whitespace(*ch))
-    }
-
-    fn parse_line_terminator(&mut self) -> Option<LineTerminator> {
-        match self.0.peek() {
-            Some(&CR) if self.0.peek_n(1) == Some(&LF) => {
-                self.0.consume_exact(&CR);
-                self.0.consume_exact(&LF);
-                Some(LineTerminator::Crlf)
-            }
-            Some(&CR) => {
-                self.0.consume_exact(&CR);
-                Some(LineTerminator::Cr)
-            }
-            Some(&LF) => {
-                self.0.consume_exact(&LF);
-                Some(LineTerminator::Lf)
-            }
-            Some(&LS) => {
-                self.0.consume_exact(&LS);
-                Some(LineTerminator::Ls)
-            }
-            Some(&PS) => {
-                self.0.consume_exact(&PS);
-                Some(LineTerminator::Ps)
-            }
-            Some(_) | None => None,
-        }
-    }
-
-    fn parse_comment(&mut self) -> Option<Comment> {
-        self.parse_single_line_comment()
-            .map(Comment::SingleLine)
-            .or_else(|| self.parse_multi_line_comment().map(Comment::MultiLine))
-    }
-
-    fn parse_single_line_comment(&mut self) -> Option<String> {
-        if self.0.consume_str("//") {
-            let content = self
-                .0
-                .consume_until_string(|ch| Self::is_line_terminator(*ch));
-            Some(content)
-        } else {
-            None
-        }
-    }
-
-    fn parse_multi_line_comment(&mut self) -> Option<String> {
-        if !self.0.peek_str("/*") {
-            return None;
-        }
-        let mut content = String::new();
-        for offset in 2.. {
-            let ch = *self.0.peek_n(offset)?;
-            if ch == '*' && self.0.peek_n(offset + 1) == Some(&'/') {
-                break;
-            }
-            content.push(ch);
-        }
-        self.0.consume_exact(&'/');
-        self.0.consume_exact(&'*');
-        self.0.advance_n(content.len());
-        self.0.consume_exact(&'*');
-        self.0.consume_exact(&'/');
-        Some(content)
-    }
 
     fn parse_element(&mut self) -> Option<Element> {
         self.parse_whitespace()
@@ -172,24 +37,6 @@ impl Lexer {
             .map(Token::Punctuator)
             .or_else(|| self.parse_literal().map(Token::Literal))
             .or_else(|| self.parse_keyword_or_identifier())
-    }
-
-    fn parse_keyword_or_identifier(&mut self) -> Option<Token> {
-        let ident_or_keyword = self.parse_identifier_name()?;
-        Some(if let Ok(keyword) = Keyword::from_str(&ident_or_keyword) {
-            Token::Keyword(keyword)
-        } else {
-            Token::Identifier(ident_or_keyword)
-        })
-    }
-
-    fn parse_identifier_name(&mut self) -> Option<String> {
-        let ch0 = self.0.consume_if(|ch| Self::is_identifier_start(*ch))?;
-        let mut content = self
-            .0
-            .consume_while_string(|ch| Self::is_identifier_part(*ch));
-        content.insert(0, ch0);
-        Some(content)
     }
 
     fn parse_punctuator(&mut self) -> Option<Punctuator> {
@@ -243,7 +90,7 @@ impl Lexer {
             }
         }
         match self.0.peek_n(original_len) {
-            Some(next_ch) if Self::is_identifier_start(*next_ch) => return None,
+            Some(next_ch) if is_identifier_start(*next_ch) => return None,
             Some(next_ch) if next_ch.is_ascii_digit() => return None,
             Some(_) | None => {}
         }
@@ -277,7 +124,7 @@ impl Lexer {
         let mut raw_content_len = 0;
         for offset in 1.. {
             match self.0.peek_n(offset) {
-                Some(ch) if Self::is_line_terminator(*ch) => return None,
+                Some(ch) if is_line_terminator(*ch) => return None,
                 None => return None,
                 Some(ch) if !escaped && *ch == qt => break,
                 Some('\\') if !escaped => {
@@ -296,6 +143,153 @@ impl Lexer {
         self.0.consume_exact(&qt);
         Some(content)
     }
+
+    fn parse_keyword_or_identifier(&mut self) -> Option<Token> {
+        let ident_or_keyword = self.parse_identifier_name()?;
+        Some(if let Ok(keyword) = Keyword::from_str(&ident_or_keyword) {
+            Token::Keyword(keyword)
+        } else {
+            Token::Identifier(ident_or_keyword)
+        })
+    }
+
+    fn parse_identifier_name(&mut self) -> Option<String> {
+        let ch0 = self.0.consume_if(|ch| is_identifier_start(*ch))?;
+        let mut content = self.0.consume_while_string(|ch| is_identifier_part(*ch));
+        content.insert(0, ch0);
+        Some(content)
+    }
+
+    fn parse_whitespace(&mut self) -> Option<char> {
+        self.0.consume_if(|ch| is_whitespace(*ch))
+    }
+
+    fn parse_line_terminator(&mut self) -> Option<LineTerminator> {
+        match self.0.peek() {
+            Some(&CR) if self.0.peek_n(1) == Some(&LF) => {
+                self.0.consume_exact(&CR);
+                self.0.consume_exact(&LF);
+                Some(LineTerminator::Crlf)
+            }
+            Some(&CR) => {
+                self.0.consume_exact(&CR);
+                Some(LineTerminator::Cr)
+            }
+            Some(&LF) => {
+                self.0.consume_exact(&LF);
+                Some(LineTerminator::Lf)
+            }
+            Some(&LS) => {
+                self.0.consume_exact(&LS);
+                Some(LineTerminator::Ls)
+            }
+            Some(&PS) => {
+                self.0.consume_exact(&PS);
+                Some(LineTerminator::Ps)
+            }
+            Some(_) | None => None,
+        }
+    }
+
+    fn parse_comment(&mut self) -> Option<Comment> {
+        self.parse_single_line_comment()
+            .map(Comment::SingleLine)
+            .or_else(|| self.parse_multi_line_comment().map(Comment::MultiLine))
+    }
+
+    fn parse_single_line_comment(&mut self) -> Option<String> {
+        if self.0.consume_str("//") {
+            let content = self.0.consume_until_string(|ch| is_line_terminator(*ch));
+            Some(content)
+        } else {
+            None
+        }
+    }
+
+    fn parse_multi_line_comment(&mut self) -> Option<String> {
+        if !self.0.peek_str("/*") {
+            return None;
+        }
+        let mut content = String::new();
+        for offset in 2.. {
+            let ch = *self.0.peek_n(offset)?;
+            if ch == '*' && self.0.peek_n(offset + 1) == Some(&'/') {
+                break;
+            }
+            content.push(ch);
+        }
+        self.0.consume_exact(&'/');
+        self.0.consume_exact(&'*');
+        self.0.advance_n(content.len());
+        self.0.consume_exact(&'*');
+        self.0.consume_exact(&'/');
+        Some(content)
+    }
+}
+
+impl Iterator for Lexer {
+    type Item = Element;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let ch = *self.0.peek()?;
+        self.parse_element()
+            .or_else(|| todo!("Lexer::next: ch={}", ch))
+    }
+}
+
+/// CHARACTER TABULATION
+const TAB: char = '\u{0009}';
+/// LINE FEED (LF)
+const LF: char = '\u{000A}';
+/// LINE TABULATION
+const VT: char = '\u{000B}';
+/// FORM FEED (FF)
+const FF: char = '\u{000C}';
+/// CARRIAGE RETURN (CR)
+const CR: char = '\u{000D}';
+/// SPACE
+const SP: char = '\u{0020}';
+/// NO-BREAK SPACE
+const NBSP: char = '\u{00A0}';
+/// ZERO WIDTH NON-JOINER
+const ZWNJ: char = '\u{200C}';
+/// ZERO WIDTH JOINER
+const ZWJ: char = '\u{200D}';
+/// LINE SEPARATOR
+const LS: char = '\u{2028}';
+/// PARAGRAPH SEPARATOR
+const PS: char = '\u{2029}';
+/// ZERO WIDTH NO-BREAK SPACE
+const ZWNBSP: char = '\u{FEFF}';
+
+fn is_whitespace(ch: char) -> bool {
+    // FIXME: Return `true` for USP (any other code point classified in the "Space_Separator"
+    //  category, which is not the same as the Unicode "White_Space" property).
+    matches!(ch, TAB | VT | FF | SP | NBSP | ZWNBSP)
+}
+
+fn is_line_terminator(ch: char) -> bool {
+    matches!(ch, LF | CR | LS | PS)
+}
+
+fn is_identifier_start(ch: char) -> bool {
+    // TODO: Handle Unicode escape sequence.
+    is_unicode_start(ch) || matches!(ch, '$' | '_')
+}
+
+fn is_identifier_part(ch: char) -> bool {
+    // TODO: Handle Unicode escape sequence.
+    is_unicode_continue(ch) || matches!(ch, '$' | ZWNJ | ZWJ)
+}
+
+fn is_unicode_start(ch: char) -> bool {
+    // FIXME: Check for characters with the Unicode "ID_Start" property.
+    ch.is_ascii_alphabetic()
+}
+
+fn is_unicode_continue(ch: char) -> bool {
+    // FIXME: Check for characters with the Unicode "ID_Continue" property.
+    ch.is_ascii_alphabetic() || ch.is_ascii_digit() || ch == '_'
 }
 
 #[cfg(test)]
