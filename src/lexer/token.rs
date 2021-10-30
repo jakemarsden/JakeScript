@@ -1,3 +1,4 @@
+use crate::lexer::error::*;
 use crate::lexer::{CR, LF, LS, PS};
 use std::fmt;
 use std::str::FromStr;
@@ -5,7 +6,7 @@ use std::str::FromStr;
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Element {
     Token(Token),
-    Comment(String, CommentKind),
+    Comment(Comment),
     LineTerminator(LineTerminator),
     Whitespace(char),
 }
@@ -23,7 +24,7 @@ impl fmt::Display for Element {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Token(token) => write!(f, "Token<{}>", token),
-            Self::Comment(content, kind) => write!(f, "Comment<{}, {}>", kind, content),
+            Self::Comment(content) => write!(f, "Comment<{}>", content),
             Self::LineTerminator(content) => write!(f, "LineTerminator<{}>", content),
             Self::Whitespace(content) => write!(f, "Whitespace<{}>", content),
         }
@@ -168,20 +169,7 @@ impl Keyword {
         Self::Yield,
     ];
 
-    pub fn is_future_reserved_word(&self, strict_mode: bool) -> bool {
-        match self {
-            Self::Enum => true,
-            Self::Implements
-            | Self::Interface
-            | Self::Package
-            | Self::Private
-            | Self::Protected
-            | Self::Public => strict_mode,
-            _ => false,
-        }
-    }
-
-    pub fn to_str(&self) -> &'static str {
+    pub fn into_str(self) -> &'static str {
         match self {
             Self::As => "as",
             Self::Assert => "assert",
@@ -242,7 +230,7 @@ impl Keyword {
 
 impl fmt::Display for Keyword {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(self.to_str())
+        f.write_str(self.into_str())
     }
 }
 
@@ -250,12 +238,11 @@ impl FromStr for Keyword {
     type Err = BadKeywordError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        for value in Self::VALUES {
-            if value.to_str() == s {
-                return Ok(value);
-            }
-        }
-        Err(BadKeywordError)
+        Self::VALUES
+            .iter()
+            .find(|value| value.into_str() == s)
+            .cloned()
+            .ok_or(BadKeywordError)
     }
 }
 
@@ -264,9 +251,9 @@ impl FromStr for Keyword {
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Literal {
     Boolean(bool),
-    Null,
     Numeric(i64),
     String(String),
+    Null,
     Undefined,
 }
 
@@ -274,10 +261,10 @@ impl fmt::Display for Literal {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Boolean(it) => write!(f, "{}", it),
-            Self::Null => write!(f, "null"),
             Self::Numeric(it) => write!(f, "{}", it),
-            Self::String(it) => write!(f, r#""{}""#, it),
-            Self::Undefined => write!(f, "undefined"),
+            Self::String(it) => write!(f, "\"{}\"", it),
+            Self::Null => f.write_str("null"),
+            Self::Undefined => f.write_str("undefined"),
         }
     }
 }
@@ -400,8 +387,8 @@ impl Punctuator {
         Self::Tilde,
     ];
 
-    pub fn to_str(&self) -> &'static str {
-        match *self {
+    pub fn into_str(self) -> &'static str {
+        match self {
             Self::Ampersand => "&",
             Self::AmpersandEqual => "&=",
             Self::Asterisk => "*",
@@ -461,7 +448,7 @@ impl Punctuator {
 
 impl fmt::Display for Punctuator {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(self.to_str())
+        f.write_str(self.into_str())
     }
 }
 
@@ -469,27 +456,26 @@ impl FromStr for Punctuator {
     type Err = BadPunctuatorError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        for value in Self::VALUES {
-            if value.to_str() == s {
-                return Ok(value);
-            }
-        }
-        Err(BadPunctuatorError)
+        Self::VALUES
+            .iter()
+            .find(|value| value.into_str() == s)
+            .cloned()
+            .ok_or(BadPunctuatorError)
     }
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
-pub enum CommentKind {
-    MultiLine,
-    SingleLine,
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub enum Comment {
+    SingleLine(String),
+    MultiLine(String),
 }
 
-impl fmt::Display for CommentKind {
+impl fmt::Display for Comment {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(match self {
-            Self::MultiLine => "MultiLine",
-            Self::SingleLine => "SingleLine",
-        })
+        match self {
+            Self::SingleLine(content) => write!(f, "SingleLine<{}>", content),
+            Self::MultiLine(content) => write!(f, "MultiLine<{}>", content),
+        }
     }
 }
 
@@ -530,25 +516,3 @@ impl fmt::Display for LineTerminator {
         })
     }
 }
-
-#[derive(Clone, Eq, PartialEq, Debug)]
-pub struct BadKeywordError;
-
-impl fmt::Display for BadKeywordError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str("bad keyword")
-    }
-}
-
-impl std::error::Error for BadKeywordError {}
-
-#[derive(Clone, Eq, PartialEq, Debug)]
-pub struct BadPunctuatorError;
-
-impl fmt::Display for BadPunctuatorError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str("bad punctuator")
-    }
-}
-
-impl std::error::Error for BadPunctuatorError {}

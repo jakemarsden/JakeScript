@@ -2,8 +2,10 @@ use crate::util::Stream;
 use std::iter::Iterator;
 use std::str::FromStr;
 
+pub use error::*;
 pub use token::*;
 
+mod error;
 mod token;
 
 pub struct Lexer(Stream<char>);
@@ -27,11 +29,8 @@ impl Iterator for Lexer {
 
     fn next(&mut self) -> Option<Self::Item> {
         let ch = *self.0.peek()?;
-        Some(if let Some(token) = self.parse_element() {
-            token
-        } else {
-            todo!("Lexer::next: ch={}", ch)
-        })
+        self.parse_element()
+            .or_else(|| todo!("Lexer::next: ch={}", ch))
     }
 }
 
@@ -95,7 +94,7 @@ impl Lexer {
         self.0.consume_if(|ch| Self::is_whitespace(*ch))
     }
 
-    fn parse_line_terminator_sequence(&mut self) -> Option<LineTerminator> {
+    fn parse_line_terminator(&mut self) -> Option<LineTerminator> {
         match self.0.peek() {
             Some(&CR) if self.0.peek_n(1) == Some(&LF) => {
                 self.0.consume_exact(&CR);
@@ -122,14 +121,21 @@ impl Lexer {
         }
     }
 
-    fn parse_comment(&mut self) -> Option<(String, CommentKind)> {
-        if let Some(content) = self.parse_multi_line_comment() {
-            return Some((content, CommentKind::MultiLine));
+    fn parse_comment(&mut self) -> Option<Comment> {
+        self.parse_single_line_comment()
+            .map(Comment::SingleLine)
+            .or_else(|| self.parse_multi_line_comment().map(Comment::MultiLine))
+    }
+
+    fn parse_single_line_comment(&mut self) -> Option<String> {
+        if self.0.consume_str("//") {
+            let content = self
+                .0
+                .consume_until_string(|ch| Self::is_line_terminator(*ch));
+            Some(content)
+        } else {
+            None
         }
-        if let Some(content) = self.parse_single_line_comment() {
-            return Some((content, CommentKind::SingleLine));
-        }
-        None
     }
 
     fn parse_multi_line_comment(&mut self) -> Option<String> {
@@ -152,53 +158,28 @@ impl Lexer {
         Some(content)
     }
 
-    fn parse_single_line_comment(&mut self) -> Option<String> {
-        if self.0.consume_str("//") {
-            Some(
-                self.0
-                    .consume_until_string(|ch| Self::is_line_terminator(*ch)),
-            )
-        } else {
-            None
-        }
-    }
-
     fn parse_element(&mut self) -> Option<Element> {
-        Some(if let Some(whitespace) = self.parse_whitespace() {
-            Element::Whitespace(whitespace)
-        } else if let Some(content) = self.parse_line_terminator_sequence() {
-            Element::LineTerminator(content)
-        } else if let Some((content, kind)) = self.parse_comment() {
-            Element::Comment(content, kind)
-        } else if let Some(token) = self.parse_token() {
-            Element::Token(token)
-        } else {
-            return None;
-        })
+        self.parse_whitespace()
+            .map(Element::Whitespace)
+            .or_else(|| self.parse_line_terminator().map(Element::LineTerminator))
+            .or_else(|| self.parse_comment().map(Element::Comment))
+            .or_else(|| self.parse_token().map(Element::Token))
     }
 
     fn parse_token(&mut self) -> Option<Token> {
-        Some(if let Some(punctuator) = self.parse_punctuator() {
-            Token::Punctuator(punctuator)
-        } else if let Some(()) = self.parse_null_literal() {
-            Token::Literal(Literal::Null)
-        } else if let Some(()) = self.parse_undefined_literal() {
-            Token::Literal(Literal::Undefined)
-        } else if let Some(bool_lit) = self.parse_boolean_literal() {
-            Token::Literal(Literal::Boolean(bool_lit))
-        } else if let Some(numeric_lit) = self.parse_numeric_literal() {
-            Token::Literal(Literal::Numeric(numeric_lit))
-        } else if let Some(string_lit) = self.parse_string_literal() {
-            Token::Literal(Literal::String(string_lit))
-        } else if let Some(ident_name_or_keyword) = self.parse_identifier_name() {
-            if let Ok(keyword) = Keyword::from_str(&ident_name_or_keyword) {
-                Token::Keyword(keyword)
-            } else {
-                Token::Identifier(ident_name_or_keyword)
-            }
+        // TODO: Parse template tokens.
+        self.parse_punctuator()
+            .map(Token::Punctuator)
+            .or_else(|| self.parse_literal().map(Token::Literal))
+            .or_else(|| self.parse_keyword_or_identifier())
+    }
+
+    fn parse_keyword_or_identifier(&mut self) -> Option<Token> {
+        let ident_or_keyword = self.parse_identifier_name()?;
+        Some(if let Ok(keyword) = Keyword::from_str(&ident_or_keyword) {
+            Token::Keyword(keyword)
         } else {
-            // TODO: Parse template tokens.
-            return None;
+            Token::Identifier(ident_or_keyword)
         })
     }
 
@@ -212,38 +193,34 @@ impl Lexer {
     }
 
     fn parse_punctuator(&mut self) -> Option<Punctuator> {
-        for punctuator in Punctuator::VALUES_IN_LEXICAL_ORDER {
-            if self.0.consume_str(punctuator.to_str()) {
-                return Some(punctuator);
-            }
-        }
-        None
+        Punctuator::VALUES_IN_LEXICAL_ORDER
+            .iter()
+            .find(|punctuator| self.0.consume_str(punctuator.into_str()))
+            .cloned()
+    }
+
+    fn parse_literal(&mut self) -> Option<Literal> {
+        self.parse_null_literal()
+            .map(|()| Literal::Null)
+            .or_else(|| self.parse_undefined_literal().map(|()| Literal::Undefined))
+            .or_else(|| self.parse_boolean_literal().map(Literal::Boolean))
+            .or_else(|| self.parse_numeric_literal().map(Literal::Numeric))
+            .or_else(|| self.parse_string_literal().map(Literal::String))
     }
 
     fn parse_null_literal(&mut self) -> Option<()> {
-        if self.0.consume_str("null") {
-            Some(())
-        } else {
-            None
-        }
+        self.0.consume_str("null").then_some(())
     }
 
     fn parse_undefined_literal(&mut self) -> Option<()> {
-        if self.0.consume_str("undefined") {
-            Some(())
-        } else {
-            None
-        }
+        self.0.consume_str("undefined").then_some(())
     }
 
     fn parse_boolean_literal(&mut self) -> Option<bool> {
-        if self.0.consume_str("true") {
-            Some(true)
-        } else if self.0.consume_str("false") {
-            Some(false)
-        } else {
-            None
-        }
+        self.0
+            .consume_str("true")
+            .then_some(true)
+            .or_else(|| self.0.consume_str("false").then_some(false))
     }
 
     fn parse_numeric_literal(&mut self) -> Option<i64> {
@@ -279,13 +256,9 @@ impl Lexer {
     }
 
     fn parse_string_literal(&mut self) -> Option<String> {
-        if let Some(content) = self.parse_quoted_literal('"') {
-            return Some(content);
-        }
-        if let Some(content) = self.parse_quoted_literal('\'') {
-            return Some(content);
-        }
-        None
+        ['"', '\'']
+            .into_iter()
+            .find_map(|qt| self.parse_quoted_literal(qt))
     }
 
     fn parse_quoted_literal(&mut self, qt: char) -> Option<String> {
@@ -332,7 +305,7 @@ mod test {
     #[test]
     fn tokenise_keywords() {
         for keyword in Keyword::VALUES {
-            let mut lexer = Lexer::for_str(keyword.to_str());
+            let mut lexer = Lexer::for_str(keyword.into_str());
             assert_eq!(lexer.next(), Some(Element::Token(Token::Keyword(keyword))));
             assert_eq!(lexer.next(), None);
         }
@@ -341,7 +314,7 @@ mod test {
     #[test]
     fn tokenise_punctuators() {
         for punctuator in Punctuator::VALUES {
-            let mut lexer = Lexer::for_str(punctuator.to_str());
+            let mut lexer = Lexer::for_str(punctuator.into_str());
             assert_eq!(
                 lexer.next(),
                 Some(Element::Token(Token::Punctuator(punctuator)))
