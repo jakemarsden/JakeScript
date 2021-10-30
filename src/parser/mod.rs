@@ -115,7 +115,7 @@ impl Parser {
     fn parse_expression_impl(&mut self, min_precedence: Precedence) -> Option<Expression> {
         let mut expression = self.parse_primary_expression()?;
         while let Some(&Token::Punctuator(punctuator)) = self.tokens.peek() {
-            if let Some(op_kind) = Op::try_parse(punctuator, Position::Postfix) {
+            if let Some(op_kind) = Operator::try_parse(punctuator, Position::Postfix) {
                 if op_kind.precedence() > min_precedence {
                     self.tokens.advance();
                     expression = self
@@ -152,7 +152,7 @@ impl Parser {
                 },
             }),
             Token::Punctuator(punc) => {
-                if let Some(op_kind) = UnaryOp::try_parse(punc, Position::Prefix) {
+                if let Some(op_kind) = UnaryOperator::try_parse(punc, Position::Prefix) {
                     let operand = self
                         .parse_expression_impl(op_kind.precedence())
                         .expect("Expected expression but was <end>");
@@ -196,9 +196,13 @@ impl Parser {
         })
     }
 
-    fn parse_secondary_expression(&mut self, lhs: Expression, op_kind: Op) -> Option<Expression> {
+    fn parse_secondary_expression(
+        &mut self,
+        lhs: Expression,
+        op_kind: Operator,
+    ) -> Option<Expression> {
         Some(match op_kind {
-            Op::Assignment(kind) => Expression::Assignment(AssignmentExpression {
+            Operator::Assignment(kind) => Expression::Assignment(AssignmentExpression {
                 kind,
                 lhs: Box::new(lhs),
                 rhs: Box::new(
@@ -206,7 +210,7 @@ impl Parser {
                         .expect("Expected right-hand-side of assignment expression but was <end>"),
                 ),
             }),
-            Op::Binary(kind) => Expression::Binary(BinaryExpression {
+            Operator::Binary(kind) => Expression::Binary(BinaryExpression {
                 kind,
                 lhs: Box::new(lhs),
                 rhs: Box::new(
@@ -214,11 +218,11 @@ impl Parser {
                         .expect("Expected right-hand-side of binary expression but was <end>"),
                 ),
             }),
-            Op::Unary(kind) => Expression::Unary(UnaryExpression {
+            Operator::Unary(kind) => Expression::Unary(UnaryExpression {
                 kind,
                 operand: Box::new(lhs),
             }),
-            Op::Ternary => {
+            Operator::Ternary => {
                 let condition = lhs;
                 let lhs = self.parse_expression_impl(op_kind.precedence()).expect(
                     "Expected left-hand-side expression of ternary expression but was <end>",
@@ -240,14 +244,14 @@ impl Parser {
                     rhs: Box::new(rhs),
                 })
             }
-            Op::Grouping => Expression::Grouping(GroupingExpression {
+            Operator::Grouping => Expression::Grouping(GroupingExpression {
                 inner: Box::new(lhs),
             }),
-            Op::FunctionCall => Expression::FunctionCall(FunctionCallExpression {
+            Operator::FunctionCall => Expression::FunctionCall(FunctionCallExpression {
                 function: Box::new(lhs),
                 arguments: self.parse_fn_arguments(false),
             }),
-            Op::PropertyAccess => {
+            Operator::PropertyAccess => {
                 let rhs = self
                     .parse_expression_impl(op_kind.precedence())
                     .expect("Expected right-hand-side of property access expression but was <end>");
@@ -540,13 +544,13 @@ trait TryParse {
         Self: Sized;
 }
 
-impl TryParse for Op {
+impl TryParse for Operator {
     fn try_parse(punc: Punctuator, pos: Position) -> Option<Self> {
-        Some(if let Some(op) = AssignmentOp::try_parse(punc, pos) {
+        Some(if let Some(op) = AssignmentOperator::try_parse(punc, pos) {
             Self::Assignment(op)
-        } else if let Some(op) = BinaryOp::try_parse(punc, pos) {
+        } else if let Some(op) = BinaryOperator::try_parse(punc, pos) {
             Self::Binary(op)
-        } else if let Some(op) = UnaryOp::try_parse(punc, pos) {
+        } else if let Some(op) = UnaryOperator::try_parse(punc, pos) {
             Self::Unary(op)
         } else if TernaryOp::try_parse(punc, pos).is_some() {
             Self::Ternary
@@ -562,7 +566,7 @@ impl TryParse for Op {
     }
 }
 
-impl TryParse for AssignmentOp {
+impl TryParse for AssignmentOperator {
     fn try_parse(punc: Punctuator, pos: Position) -> Option<Self> {
         if pos != Position::Postfix {
             return None;
@@ -590,7 +594,7 @@ impl TryParse for AssignmentOp {
     }
 }
 
-impl TryParse for BinaryOp {
+impl TryParse for BinaryOperator {
     fn try_parse(punc: Punctuator, pos: Position) -> Option<Self> {
         if pos != Position::Postfix {
             return None;
@@ -629,7 +633,7 @@ impl TryParse for BinaryOp {
     }
 }
 
-impl TryParse for UnaryOp {
+impl TryParse for UnaryOperator {
     fn try_parse(punc: Punctuator, pos: Position) -> Option<Self> {
         Some(match (punc, pos) {
             (Punctuator::DoubleMinus, Position::Prefix) => Self::DecrementPrefix,

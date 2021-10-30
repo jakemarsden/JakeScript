@@ -146,9 +146,10 @@ pub enum Expression {
     Unary(UnaryExpression),
     Ternary(TernaryExpression),
     Grouping(GroupingExpression),
-    Literal(LiteralExpression),
     FunctionCall(FunctionCallExpression),
     PropertyAccess(PropertyAccessExpression),
+
+    Literal(LiteralExpression),
     VariableAccess(VariableAccessExpression),
 }
 
@@ -156,7 +157,7 @@ impl Node for Expression {}
 
 #[derive(Clone, Debug)]
 pub struct AssignmentExpression {
-    pub kind: AssignmentOp,
+    pub kind: AssignmentOperator,
     pub lhs: Box<Expression>,
     pub rhs: Box<Expression>,
 }
@@ -165,7 +166,7 @@ impl Node for AssignmentExpression {}
 
 #[derive(Clone, Debug)]
 pub struct BinaryExpression {
-    pub kind: BinaryOp,
+    pub kind: BinaryOperator,
     pub lhs: Box<Expression>,
     pub rhs: Box<Expression>,
 }
@@ -174,7 +175,7 @@ impl Node for BinaryExpression {}
 
 #[derive(Clone, Debug)]
 pub struct UnaryExpression {
-    pub kind: UnaryOp,
+    pub kind: UnaryOperator,
     pub operand: Box<Expression>,
 }
 
@@ -272,50 +273,50 @@ impl fmt::Debug for ConstantId {
     }
 }
 
-pub trait Operator {
+pub trait Op {
     fn associativity(&self) -> Associativity;
     fn precedence(&self) -> Precedence;
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
-pub enum Op {
-    Assignment(AssignmentOp),
-    Binary(BinaryOp),
-    Unary(UnaryOp),
+pub enum Operator {
+    Assignment(AssignmentOperator),
+    Binary(BinaryOperator),
+    Unary(UnaryOperator),
     Ternary,
     Grouping,
     FunctionCall,
     PropertyAccess,
 }
 
-impl Operator for Op {
+impl Op for Operator {
     fn associativity(&self) -> Associativity {
         match self {
-            Op::Assignment(kind) => kind.associativity(),
-            Op::Binary(kind) => kind.associativity(),
-            Op::Unary(kind) => kind.associativity(),
-            Op::Ternary => TernaryOp.associativity(),
-            Op::Grouping => GroupingOp.associativity(),
-            Op::FunctionCall => FunctionCallOp.associativity(),
-            Op::PropertyAccess => PropertyAccessOp.associativity(),
+            Self::Assignment(kind) => kind.associativity(),
+            Self::Binary(kind) => kind.associativity(),
+            Self::Unary(kind) => kind.associativity(),
+            Self::Ternary => TernaryOp.associativity(),
+            Self::Grouping => GroupingOp.associativity(),
+            Self::FunctionCall => FunctionCallOp.associativity(),
+            Self::PropertyAccess => PropertyAccessOp.associativity(),
         }
     }
 
     fn precedence(&self) -> Precedence {
         match self {
-            Op::Assignment(kind) => kind.precedence(),
-            Op::Binary(kind) => kind.precedence(),
-            Op::Unary(kind) => kind.precedence(),
-            Op::Ternary => TernaryOp.precedence(),
-            Op::Grouping => GroupingOp.precedence(),
-            Op::FunctionCall => FunctionCallOp.precedence(),
-            Op::PropertyAccess => PropertyAccessOp.precedence(),
+            Self::Assignment(kind) => kind.precedence(),
+            Self::Binary(kind) => kind.precedence(),
+            Self::Unary(kind) => kind.precedence(),
+            Self::Ternary => TernaryOp.precedence(),
+            Self::Grouping => GroupingOp.precedence(),
+            Self::FunctionCall => FunctionCallOp.precedence(),
+            Self::PropertyAccess => PropertyAccessOp.precedence(),
         }
     }
 }
 
 #[derive(Copy, Clone, Default, Eq, PartialEq, Debug)]
-pub enum AssignmentOp {
+pub enum AssignmentOperator {
     #[default]
     Assign,
 
@@ -335,7 +336,7 @@ pub enum AssignmentOp {
     BitwiseXOrAssign,
 }
 
-impl Operator for AssignmentOp {
+impl Op for AssignmentOperator {
     fn associativity(&self) -> Associativity {
         Associativity::RightToLeft
     }
@@ -346,7 +347,7 @@ impl Operator for AssignmentOp {
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
-pub enum BinaryOp {
+pub enum BinaryOperator {
     Add,
     Div,
     Mod,
@@ -376,7 +377,7 @@ pub enum BinaryOp {
     LogicalOr,
 }
 
-impl Operator for BinaryOp {
+impl Op for BinaryOperator {
     fn associativity(&self) -> Associativity {
         match self {
             Self::Pow => Associativity::RightToLeft,
@@ -404,7 +405,7 @@ impl Operator for BinaryOp {
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
-pub enum UnaryOp {
+pub enum UnaryOperator {
     DecrementPrefix,
     DecrementPostfix,
     IncrementPrefix,
@@ -416,7 +417,7 @@ pub enum UnaryOp {
     NumericPlus,
 }
 
-impl Operator for UnaryOp {
+impl Op for UnaryOperator {
     fn associativity(&self) -> Associativity {
         Associativity::RightToLeft
     }
@@ -437,7 +438,7 @@ impl Operator for UnaryOp {
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub struct TernaryOp;
 
-impl Operator for TernaryOp {
+impl Op for TernaryOp {
     fn associativity(&self) -> Associativity {
         Associativity::RightToLeft
     }
@@ -450,7 +451,7 @@ impl Operator for TernaryOp {
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub struct GroupingOp;
 
-impl Operator for GroupingOp {
+impl Op for GroupingOp {
     fn associativity(&self) -> Associativity {
         Associativity::LeftToRight
     }
@@ -463,7 +464,7 @@ impl Operator for GroupingOp {
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub struct FunctionCallOp;
 
-impl Operator for FunctionCallOp {
+impl Op for FunctionCallOp {
     fn associativity(&self) -> Associativity {
         Associativity::LeftToRight
     }
@@ -476,7 +477,7 @@ impl Operator for FunctionCallOp {
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub struct PropertyAccessOp;
 
-impl Operator for PropertyAccessOp {
+impl Op for PropertyAccessOp {
     fn associativity(&self) -> Associativity {
         Associativity::LeftToRight
     }

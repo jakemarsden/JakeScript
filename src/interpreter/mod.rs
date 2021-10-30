@@ -285,10 +285,10 @@ impl Eval for Expression {
             Self::Unary(ref node) => node.eval(it),
             Self::Ternary(ref node) => node.eval(it),
             Self::Grouping(ref node) => node.eval(it),
-
-            Self::Literal(ref node) => node.eval(it),
             Self::FunctionCall(ref node) => node.eval(it),
             Self::PropertyAccess(ref node) => node.eval(it),
+
+            Self::Literal(ref node) => node.eval(it),
             Self::VariableAccess(ref node) => node.eval(it),
         }
     }
@@ -305,13 +305,13 @@ impl Eval for AssignmentExpression {
         ) -> Result {
             let rhs = self_.rhs.eval(it)?;
             Ok(match self_.kind {
-                AssignmentOp::Assign => rhs,
-                AssignmentOp::AddAssign => Value::add(it, &getter()?, &rhs),
-                AssignmentOp::SubAssign => Value::sub(it, &getter()?, &rhs),
-                AssignmentOp::MulAssign => Value::mul(it, &getter()?, &rhs),
-                AssignmentOp::DivAssign => Value::div(it, &getter()?, &rhs),
-                AssignmentOp::ModAssign => Value::rem(it, &getter()?, &rhs),
-                AssignmentOp::PowAssign => Value::pow(it, &getter()?, &rhs),
+                AssignmentOperator::Assign => rhs,
+                AssignmentOperator::AddAssign => Value::add(it, &getter()?, &rhs),
+                AssignmentOperator::SubAssign => Value::sub(it, &getter()?, &rhs),
+                AssignmentOperator::MulAssign => Value::mul(it, &getter()?, &rhs),
+                AssignmentOperator::DivAssign => Value::div(it, &getter()?, &rhs),
+                AssignmentOperator::ModAssign => Value::rem(it, &getter()?, &rhs),
+                AssignmentOperator::PowAssign => Value::pow(it, &getter()?, &rhs),
                 kind => todo!("AssignmentExpression::eval: kind={:?}", kind),
             })
         }
@@ -363,22 +363,18 @@ impl Eval for BinaryExpression {
         Ok(match self.kind {
             // Get the boolean ops out of the way first, since they don't let us eval the RHS
             // up-front (which is more ergonomic for all the other ops).
-            BinaryOp::LogicalAnd => {
+            BinaryOperator::LogicalAnd => {
                 assert_matches!(self.kind.associativity(), Associativity::LeftToRight);
-                let lhs = self.lhs.eval(it)?;
-                if lhs.is_truthy(it) {
-                    self.rhs.eval(it)?
-                } else {
-                    lhs
+                match self.lhs.eval(it)? {
+                    lhs if lhs.is_truthy(it) => self.rhs.eval(it)?,
+                    lhs => lhs,
                 }
             }
-            BinaryOp::LogicalOr => {
+            BinaryOperator::LogicalOr => {
                 assert_matches!(self.kind.associativity(), Associativity::LeftToRight);
-                let lhs = self.lhs.eval(it)?;
-                if lhs.is_falsy(it) {
-                    self.rhs.eval(it)?
-                } else {
-                    lhs
+                match self.lhs.eval(it)? {
+                    lhs if lhs.is_falsy(it) => self.rhs.eval(it)?,
+                    lhs => lhs,
                 }
             }
 
@@ -398,34 +394,34 @@ impl Eval for BinaryExpression {
                 match kind {
                     // Safety: Unreachable because the possible values are already handled by
                     // previous match arms in the outer match expression.
-                    BinaryOp::LogicalAnd | BinaryOp::LogicalOr => unsafe {
+                    BinaryOperator::LogicalAnd | BinaryOperator::LogicalOr => unsafe {
                         unreachable_unchecked()
                     },
 
-                    BinaryOp::Add => Value::add(it, lhs, rhs),
-                    BinaryOp::Div => Value::div(it, lhs, rhs),
-                    BinaryOp::Mod => Value::rem(it, lhs, rhs),
-                    BinaryOp::Mul => Value::mul(it, lhs, rhs),
-                    BinaryOp::Pow => Value::pow(it, lhs, rhs),
-                    BinaryOp::Sub => Value::sub(it, lhs, rhs),
+                    BinaryOperator::Add => Value::add(it, lhs, rhs),
+                    BinaryOperator::Div => Value::div(it, lhs, rhs),
+                    BinaryOperator::Mod => Value::rem(it, lhs, rhs),
+                    BinaryOperator::Mul => Value::mul(it, lhs, rhs),
+                    BinaryOperator::Pow => Value::pow(it, lhs, rhs),
+                    BinaryOperator::Sub => Value::sub(it, lhs, rhs),
 
-                    BinaryOp::Equal => Value::eq(it, lhs, rhs),
-                    BinaryOp::NotEqual => Value::ne(it, lhs, rhs),
-                    BinaryOp::Identical => Value::identical(it, lhs, rhs),
-                    BinaryOp::NotIdentical => Value::not_identical(it, lhs, rhs),
+                    BinaryOperator::Equal => Value::eq(it, lhs, rhs),
+                    BinaryOperator::NotEqual => Value::ne(it, lhs, rhs),
+                    BinaryOperator::Identical => Value::identical(it, lhs, rhs),
+                    BinaryOperator::NotIdentical => Value::not_identical(it, lhs, rhs),
 
-                    BinaryOp::LessThan => Value::lt(it, lhs, rhs),
-                    BinaryOp::LessThanOrEqual => Value::le(it, lhs, rhs),
-                    BinaryOp::MoreThan => Value::gt(it, lhs, rhs),
-                    BinaryOp::MoreThanOrEqual => Value::ge(it, lhs, rhs),
+                    BinaryOperator::LessThan => Value::lt(it, lhs, rhs),
+                    BinaryOperator::LessThanOrEqual => Value::le(it, lhs, rhs),
+                    BinaryOperator::MoreThan => Value::gt(it, lhs, rhs),
+                    BinaryOperator::MoreThanOrEqual => Value::ge(it, lhs, rhs),
 
-                    BinaryOp::ShiftLeft => Value::bitwise_shl(it, lhs, rhs),
-                    BinaryOp::ShiftRight => Value::bitwise_shr(it, lhs, rhs),
-                    BinaryOp::ShiftRightUnsigned => Value::bitwise_shrr(it, lhs, rhs),
+                    BinaryOperator::ShiftLeft => Value::bitwise_shl(it, lhs, rhs),
+                    BinaryOperator::ShiftRight => Value::bitwise_shr(it, lhs, rhs),
+                    BinaryOperator::ShiftRightUnsigned => Value::bitwise_shrr(it, lhs, rhs),
 
-                    BinaryOp::BitwiseAnd => Value::bitwise_and(it, lhs, rhs),
-                    BinaryOp::BitwiseOr => Value::bitwise_or(it, lhs, rhs),
-                    BinaryOp::BitwiseXOr => Value::bitwise_xor(it, lhs, rhs),
+                    BinaryOperator::BitwiseAnd => Value::bitwise_and(it, lhs, rhs),
+                    BinaryOperator::BitwiseOr => Value::bitwise_or(it, lhs, rhs),
+                    BinaryOperator::BitwiseXOr => Value::bitwise_xor(it, lhs, rhs),
                 }
             }
         })
@@ -438,10 +434,10 @@ impl Eval for UnaryExpression {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let operand = &self.operand.eval(it)?;
         Ok(match self.kind {
-            UnaryOp::IncrementPrefix
-            | UnaryOp::IncrementPostfix
-            | UnaryOp::DecrementPrefix
-            | UnaryOp::DecrementPostfix => {
+            UnaryOperator::IncrementPrefix
+            | UnaryOperator::IncrementPostfix
+            | UnaryOperator::DecrementPrefix
+            | UnaryOperator::DecrementPostfix => {
                 fn compute(
                     self_: &UnaryExpression,
                     it: &mut Interpreter,
@@ -452,18 +448,22 @@ impl Eval for UnaryExpression {
 
                     // The new value to assign to the variable or property
                     let new_value = match self_.kind {
-                        UnaryOp::IncrementPrefix | UnaryOp::IncrementPostfix => {
+                        UnaryOperator::IncrementPrefix | UnaryOperator::IncrementPostfix => {
                             Value::add(it, &old_value, &ONE)
                         }
-                        UnaryOp::DecrementPrefix | UnaryOp::DecrementPostfix => {
+                        UnaryOperator::DecrementPrefix | UnaryOperator::DecrementPostfix => {
                             Value::sub(it, &old_value, &ONE)
                         }
                         _ => unreachable!("{:?}", self_.kind),
                     };
                     // The value to use as the result of the expression
                     let result_value = match self_.kind {
-                        UnaryOp::IncrementPrefix | UnaryOp::DecrementPrefix => new_value.clone(),
-                        UnaryOp::IncrementPostfix | UnaryOp::DecrementPostfix => old_value,
+                        UnaryOperator::IncrementPrefix | UnaryOperator::DecrementPrefix => {
+                            new_value.clone()
+                        }
+                        UnaryOperator::IncrementPostfix | UnaryOperator::DecrementPostfix => {
+                            old_value
+                        }
                         _ => unreachable!("{:?}", self_.kind),
                     };
                     Ok((new_value, result_value))
@@ -511,10 +511,10 @@ impl Eval for UnaryExpression {
                 }
             }
 
-            UnaryOp::BitwiseNot => Value::bitwise_not(it, operand),
-            UnaryOp::LogicalNot => Value::not(it, operand),
-            UnaryOp::NumericNegate => Value::neg(it, operand),
-            UnaryOp::NumericPlus => Value::plus(it, operand),
+            UnaryOperator::BitwiseNot => Value::bitwise_not(it, operand),
+            UnaryOperator::LogicalNot => Value::not(it, operand),
+            UnaryOperator::NumericNegate => Value::neg(it, operand),
+            UnaryOperator::NumericPlus => Value::plus(it, operand),
         })
     }
 }
