@@ -286,33 +286,44 @@ impl Parser {
             Some(Token::Keyword(Keyword::Const)) => VariableDeclarationKind::Const,
             Some(Token::Keyword(Keyword::Let)) => VariableDeclarationKind::Let,
             Some(Token::Keyword(Keyword::Var)) => VariableDeclarationKind::Var,
-            token => panic!("Expected variable declaration but was {:?}", token),
+            Some(token) => panic!("Expected variable declaration but was {}", token),
+            None => panic!("Expected variable declaration but was <end>"),
         };
+        let mut entries = Vec::default();
+        loop {
+            let entry = self.parse_variable_declaration_entry();
+            entries.push(entry);
 
-        match self.tokens.consume() {
-            Some(Token::Identifier(var_name)) => {
-                let var_name = self.alloc_or_get_constant(var_name);
-                let initialiser = match self.tokens.peek() {
-                    Some(Token::Punctuator(Punctuator::Equal)) => {
-                        self.tokens
-                            .consume_exact(&Token::Punctuator(Punctuator::Equal));
-                        Some(
-                            self.parse_expression()
-                                .expect("Expected expression but was <end>"),
-                        )
-                    }
-                    Some(Token::Punctuator(Punctuator::Semicolon)) => None,
-                    Some(token) => panic!("Expected initialiser or semicolon but was {}", token),
-                    None => panic!("Expected initialiser or semicolon but was <end>"),
-                };
-                Some(VariableDeclaration {
-                    kind,
-                    var_name,
-                    initialiser,
-                })
+            match self.tokens.peek() {
+                Some(Token::Punctuator(Punctuator::Comma)) => {
+                    self.tokens.consume();
+                }
+                Some(Token::Punctuator(Punctuator::Semicolon)) => break,
+                Some(token) => panic!("Expected comma or semicolon but was {}", token),
+                None => panic!("Expected comma or semicolon but was <end>"),
             }
+        }
+        Some(VariableDeclaration { kind, entries })
+    }
+
+    fn parse_variable_declaration_entry(&mut self) -> VariableDeclarationEntry {
+        let var_name = match self.tokens.consume() {
+            Some(Token::Identifier(var_name)) => self.alloc_or_get_constant(var_name),
             Some(token) => unreachable!("Expected variable name but was {}", token),
             None => unreachable!("Expected variable name but was <end>"),
+        };
+        let initialiser = if let Some(Token::Punctuator(Punctuator::Equal)) = self.tokens.peek() {
+            self.tokens.consume();
+            let expr = self
+                .parse_expression()
+                .expect("Expected expression but was <end>");
+            Some(expr)
+        } else {
+            None
+        };
+        VariableDeclarationEntry {
+            var_name,
+            initialiser,
         }
     }
 

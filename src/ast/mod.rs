@@ -134,8 +134,7 @@ impl Node for FunctionDeclaration {}
 #[derive(Clone, Debug)]
 pub struct VariableDeclaration {
     pub kind: VariableDeclarationKind,
-    pub var_name: ConstantId,
-    pub initialiser: Option<Expression>,
+    pub entries: Vec<VariableDeclarationEntry>,
 }
 
 impl Node for VariableDeclaration {}
@@ -492,6 +491,12 @@ pub enum VariableDeclarationKind {
     Const,
     Let,
     Var,
+}
+
+#[derive(Clone, Debug)]
+pub struct VariableDeclarationEntry {
+    pub var_name: ConstantId,
+    pub initialiser: Option<Expression>,
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]

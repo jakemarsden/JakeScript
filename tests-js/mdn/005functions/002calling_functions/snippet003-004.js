@@ -7,12 +7,7 @@ function factorial(n) {
   }
 }
 
-// TODO: Declare multiple variables in one statement
-var a;
-var b;
-var c;
-var d;
-var e;
+var a, b, c, d, e;
 a = factorial(1); // a gets the value 1
 b = factorial(2); // b gets the value 2
 c = factorial(3); // c gets the value 6

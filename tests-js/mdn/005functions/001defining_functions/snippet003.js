@@ -7,9 +7,7 @@ var mycar = {};
 mycar.make = 'Honda';
 mycar.model = 'Accord';
 mycar.year = 1998;
-// TODO: Declare multiple variables in one statement
-var x;
-var y;
+var x, y;
 
 x = mycar.make; // x gets the value "Honda"
 assert x === "Honda";

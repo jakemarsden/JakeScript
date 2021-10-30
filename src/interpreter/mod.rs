@@ -258,18 +258,19 @@ impl Eval for FunctionDeclaration {
 
 impl Eval for VariableDeclaration {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        let var_name = self.var_name.to_owned();
-        let variable = if let Some(ref initialiser) = self.initialiser {
-            let initial_value = initialiser.eval(it)?;
-            Variable::new(self.kind, var_name, initial_value)
-        } else {
-            Variable::new_unassigned(self.kind, var_name)
-        };
-        it.vm_mut()
-            .stack_mut()
-            .frame_mut()
-            .scope_mut()
-            .declare_variable(variable)?;
+        for entry in &self.entries {
+            let variable = if let Some(ref initialiser) = entry.initialiser {
+                let initial_value = initialiser.eval(it)?;
+                Variable::new(self.kind, entry.var_name, initial_value)
+            } else {
+                Variable::new_unassigned(self.kind, entry.var_name)
+            };
+            it.vm_mut()
+                .stack_mut()
+                .frame_mut()
+                .scope_mut()
+                .declare_variable(variable)?;
+        }
         Ok(())
     }
 }

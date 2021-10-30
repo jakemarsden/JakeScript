@@ -1,8 +1,7 @@
 // The following variables are defined in the global scope
-// TODO: Declare multiple variables in one statement
-var num1 = 20;
-var num2 = 3;
-var name = 'Chamakh';
+var num1 = 20,
+    num2 = 3,
+    name = 'Chamakh';
 
 // This function is defined in the global scope
 function multiply() {
@@ -14,10 +13,9 @@ assert result1 === 60;
 
 // A nested function example
 function getScore() {
-  // TODO: Declare multiple variables in one statement
   // FIXME: Should not count as a duplicate declaration
-  var num1_ = 2;
-  var num2_ = 3;
+  var num1_ = 2,
+      num2_ = 3;
 
   function add() {
     return name + ' scored ' + (num1_ + num2_);
