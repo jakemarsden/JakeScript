@@ -1,4 +1,4 @@
-use crate::ast::{ConstantId, ConstantValue, ConstantValueRef};
+use crate::ast::ConstantPool;
 use crate::interpreter::heap::*;
 use crate::interpreter::stack::*;
 use crate::interpreter::value::Value;
@@ -35,8 +35,9 @@ impl Vm {
     pub fn constant_pool(&self) -> &ConstantPool {
         &self.constant_pool
     }
-    pub fn constant_pool_mut(&mut self) -> &mut ConstantPool {
-        &mut self.constant_pool
+
+    pub fn set_constant_pool(&mut self, constant_pool: ConstantPool) {
+        self.constant_pool = constant_pool;
     }
 
     pub fn heap(&self) -> &Heap {
@@ -70,29 +71,5 @@ impl ExecutionState {
 
     pub fn is_break_or_return(&self) -> bool {
         matches!(self, Self::Break | Self::BreakContinue | Self::Return(_))
-    }
-}
-
-#[derive(Default)]
-pub struct ConstantPool {
-    constants: Vec<ConstantValue>,
-}
-
-impl ConstantPool {
-    pub fn allocate(&mut self, value: ConstantValue) -> ConstantId {
-        if !self.constants.contains(&value) {
-            let idx = self.constants.len();
-            self.constants.push(value);
-            ConstantId::new(idx)
-        } else {
-            panic!(r#"Already present in the constant pool: "{}""#, value)
-        }
-    }
-
-    pub fn lookup(&self, id: ConstantId) -> &ConstantValueRef {
-        match self.constants.get(id.idx()) {
-            Some(value) => value,
-            None => panic!("Invalid constant ID: {}", id),
-        }
     }
 }

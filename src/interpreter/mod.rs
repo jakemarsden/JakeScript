@@ -41,12 +41,7 @@ impl Eval for Program {
     type Output = Value;
 
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        let vm_constant_pool = it.vm_mut().constant_pool_mut();
-        for (constant_id, constant_value) in self.constants() {
-            let allocated_id = vm_constant_pool.allocate(constant_value.to_owned());
-            // TODO: Make this less fragile?
-            assert_eq!(allocated_id, *constant_id);
-        }
+        it.vm_mut().set_constant_pool(self.constants().to_owned());
         self.body().eval(it)
     }
 }

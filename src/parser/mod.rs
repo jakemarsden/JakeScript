@@ -5,7 +5,7 @@ use std::iter::Iterator;
 
 pub struct Parser {
     tokens: Stream<Token>,
-    constants: Vec<(ConstantId, ConstantValue)>,
+    constants: ConstantPool,
 }
 
 impl Parser {
@@ -17,11 +17,11 @@ impl Parser {
         Self::new(source.into_iter())
     }
 
-    pub fn new(source: impl Iterator<Item = Token>) -> Self {
+    fn new(source: impl Iterator<Item = Token>) -> Self {
         let tokens = Stream::new(source.filter(Token::is_significant));
         Self {
             tokens,
-            constants: Vec::default(),
+            constants: ConstantPool::default(),
         }
     }
 }
@@ -33,20 +33,6 @@ impl Parser {
             stmts.push(stmt);
         }
         Program::new(Block::new(stmts), self.constants)
-    }
-
-    fn alloc_or_get_constant(&mut self, value: ConstantValue) -> ConstantId {
-        if let Some((id, _value)) = self
-            .constants
-            .iter()
-            .find(|(_id, existing_value)| value.as_str() == existing_value)
-        {
-            *id
-        } else {
-            let id = ConstantId::new(self.constants.len());
-            self.constants.push((id, value));
-            id
-        }
     }
 
     fn parse_block(&mut self) -> Block {
@@ -134,7 +120,7 @@ impl Parser {
     fn parse_primary_expression(&mut self) -> Option<Expression> {
         Some(match self.tokens.consume()? {
             Token::Identifier(identifier) => {
-                let var_name = self.alloc_or_get_constant(identifier);
+                let var_name = self.constants.allocate_if_absent(identifier);
                 Expression::VariableAccess(VariableAccessExpression { var_name })
             }
             Token::Punctuator(Punctuator::OpenBrace) => Expression::Literal(LiteralExpression {
@@ -272,7 +258,7 @@ impl Parser {
         self.tokens
             .consume_exact(&Token::Keyword(Keyword::Function));
         if let Some(Token::Identifier(fn_name)) = self.tokens.consume() {
-            let fn_name = self.alloc_or_get_constant(fn_name);
+            let fn_name = self.constants.allocate_if_absent(fn_name);
             let param_names = self.parse_fn_parameters();
             let body = self.parse_block();
             Some(FunctionDeclaration {
@@ -312,7 +298,7 @@ impl Parser {
 
     fn parse_variable_declaration_entry(&mut self) -> VariableDeclarationEntry {
         let var_name = match self.tokens.consume() {
-            Some(Token::Identifier(var_name)) => self.alloc_or_get_constant(var_name),
+            Some(Token::Identifier(var_name)) => self.constants.allocate_if_absent(var_name),
             Some(token) => unreachable!("Expected variable name but was {}", token),
             None => unreachable!("Expected variable name but was <end>"),
         };
@@ -483,7 +469,7 @@ impl Parser {
         let mut params = Vec::new();
         loop {
             if let Some(Token::Identifier(param)) = self.tokens.consume() {
-                let param_constant_id = self.alloc_or_get_constant(param);
+                let param_constant_id = self.constants.allocate_if_absent(param);
                 params.push(param_constant_id);
             } else {
                 panic!("Expected identifier (parameter name)");

@@ -8,11 +8,11 @@ pub trait Node: Clone + fmt::Debug {}
 #[derive(Clone, Default, Debug)]
 pub struct Program {
     body: Block,
-    constants: Vec<(ConstantId, ConstantValue)>,
+    constants: ConstantPool,
 }
 
 impl Program {
-    pub fn new(body: Block, constants: Vec<(ConstantId, ConstantValue)>) -> Self {
+    pub fn new(body: Block, constants: ConstantPool) -> Self {
         Self { body, constants }
     }
 
@@ -20,7 +20,7 @@ impl Program {
         &self.body
     }
 
-    pub fn constants(&self) -> &[(ConstantId, ConstantValue)] {
+    pub fn constants(&self) -> &ConstantPool {
         &self.constants
     }
 }
@@ -251,11 +251,11 @@ pub type ConstantValueRef = str;
 pub struct ConstantId(usize);
 
 impl ConstantId {
-    pub(crate) fn new(idx: usize) -> Self {
+    fn new(idx: usize) -> Self {
         Self(idx)
     }
 
-    pub(crate) fn idx(&self) -> usize {
+    fn idx(&self) -> usize {
         self.0
     }
 }
@@ -270,6 +270,35 @@ impl fmt::Display for ConstantId {
 impl fmt::Debug for ConstantId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Display::fmt(self, f)
+    }
+}
+
+#[derive(Clone, Default, Debug)]
+pub struct ConstantPool {
+    constants: Vec<ConstantValue>,
+}
+
+impl ConstantPool {
+    pub fn lookup(&self, id: ConstantId) -> &ConstantValueRef {
+        match self.constants.get(id.idx()) {
+            Some(value) => value,
+            None => panic!("Invalid constant ID: {}", id),
+        }
+    }
+
+    pub fn allocate_if_absent(&mut self, value: ConstantValue) -> ConstantId {
+        if let Some((idx, _existing)) = self
+            .constants
+            .iter()
+            .enumerate()
+            .find(|(_idx, existing)| existing.as_str() == value.as_str())
+        {
+            ConstantId::new(idx)
+        } else {
+            let idx = self.constants.len();
+            self.constants.push(value);
+            ConstantId::new(idx)
+        }
     }
 }
 
