@@ -5,6 +5,9 @@ assert binaryNot === 20;
 let logicalNot = true;
 assert (!logicalNot) === false;
 assert logicalNot === true;
+assert (!!logicalNot) === true;
+assert (!!!logicalNot) === false;
+assert logicalNot === true;
 
 let numericPlus = 20;
 assert (+numericPlus) === 20;

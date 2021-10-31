@@ -149,7 +149,7 @@ mod test {
     use super::*;
 
     #[test]
-    fn main() {
+    fn peek() {
         let mut iter = "Hello, world!".chars().peekable_nth();
 
         assert_eq!(iter.peek_nth(4), Some(&'o'));
@@ -171,16 +171,24 @@ mod test {
     fn collect_while() {
         let mut iter = "Hello, world!".chars().peekable_nth();
 
-        let hello: Vec<_> = iter.collect_while(|ch| *ch != ',');
+        let hello: Vec<_> = iter.collect_while(|ch| ch.is_ascii_alphabetic());
         assert_eq!(hello, ['H', 'e', 'l', 'l', 'o']);
         assert_eq!(iter.next(), Some(','));
 
-        let space: Vec<_> = iter.collect_while(|ch| !ch.is_ascii_alphabetic());
+        let empty: Vec<_> = iter.collect_while(|_| false);
+        assert_eq!(empty, []);
+        assert_eq!(iter.peek(), Some(&' '));
+
+        let space: Vec<_> = iter.collect_until(|ch| ch.is_ascii_alphabetic());
         assert_eq!(space, [' ']);
         assert_eq!(iter.peek(), Some(&'w'));
 
         let world: String = iter.collect_while(|_| true);
         assert_eq!(world, "world!");
+        assert_eq!(iter.peek(), None);
+
+        let empty: String = iter.collect_while(|_| true);
+        assert_eq!(empty, "");
         assert_eq!(iter.peek(), None);
     }
 }
