@@ -3,6 +3,7 @@
 #![feature(associated_type_defaults)]
 #![feature(bool_to_option)]
 #![feature(derive_default_enum)]
+#![feature(iter_advance_by)]
 
 pub mod ast;
 pub mod interpreter;

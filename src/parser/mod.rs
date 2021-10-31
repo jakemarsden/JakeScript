@@ -37,8 +37,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
     }
 
     fn parse_block(&mut self) -> Block {
-        self.tokens
-            .consume_exact(&Token::Punctuator(Punctuator::OpenBrace));
+        self.expect_punctuator(Punctuator::OpenBrace);
         let mut stmts = Vec::new();
         while !matches!(
             self.tokens.peek(),
@@ -47,12 +46,10 @@ impl<I: Iterator<Item = Token>> Parser<I> {
             if let Some(stmt) = self.parse_statement() {
                 stmts.push(stmt);
             } else {
-                // Block not closed before end of input.
-                break;
+                panic!("Block not closed before end of input");
             }
         }
-        self.tokens
-            .consume_exact(&Token::Punctuator(Punctuator::CloseBrace));
+        self.expect_punctuator(Punctuator::CloseBrace);
         Block::new(stmts)
     }
 
@@ -88,7 +85,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
                     _ => self.parse_expression().map(Statement::Expression),
                 };
                 if stmt.is_some() {
-                    self.expect_semicolon();
+                    self.expect_punctuator(Punctuator::Semicolon);
                 }
                 stmt
             }
@@ -104,7 +101,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         while let Some(&Token::Punctuator(punctuator)) = self.tokens.peek() {
             if let Some(op_kind) = Operator::try_parse(punctuator, Position::Postfix) {
                 if op_kind.precedence() > min_precedence {
-                    self.tokens.advance();
+                    self.tokens.next().unwrap();
                     expression = self
                         .parse_secondary_expression(expression, op_kind)
                         .expect("Expected secondary expression but was <end>");
@@ -119,7 +116,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
     }
 
     fn parse_primary_expression(&mut self) -> Option<Expression> {
-        Some(match self.tokens.consume()? {
+        Some(match self.tokens.next()? {
             Token::Identifier(identifier) => {
                 let var_name = self.constants.allocate_if_absent(identifier);
                 Expression::VariableAccess(VariableAccessExpression { var_name })
@@ -127,7 +124,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
             Token::Punctuator(Punctuator::OpenBrace) => Expression::Literal(LiteralExpression {
                 value: if self
                     .tokens
-                    .consume_eq(&Token::Punctuator(Punctuator::CloseBrace))
+                    .next_if_eq(&Token::Punctuator(Punctuator::CloseBrace))
                     .is_some()
                 {
                     ast::Literal::Object
@@ -151,8 +148,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
                     let inner = self
                         .parse_expression()
                         .expect("Expected expression but was <end>");
-                    self.tokens
-                        .consume_exact(&Token::Punctuator(Punctuator::CloseParen));
+                    self.expect_punctuator(Punctuator::CloseParen);
                     Expression::Grouping(GroupingExpression {
                         inner: Box::new(inner),
                     })
@@ -214,7 +210,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
                 let lhs = self.parse_expression_impl(op_kind.precedence()).expect(
                     "Expected left-hand-side expression of ternary expression but was <end>",
                 );
-                match self.tokens.consume() {
+                match self.tokens.next() {
                     Some(Token::Punctuator(Punctuator::Colon)) => {}
                     Some(token) => panic!(
                         "Expected colon between ternary expressions but was {}",
@@ -256,9 +252,8 @@ impl<I: Iterator<Item = Token>> Parser<I> {
     }
 
     fn parse_function_declaration(&mut self) -> Option<FunctionDeclaration> {
-        self.tokens
-            .consume_exact(&Token::Keyword(Keyword::Function));
-        if let Some(Token::Identifier(fn_name)) = self.tokens.consume() {
+        self.expect_keyword(Keyword::Function);
+        if let Some(Token::Identifier(fn_name)) = self.tokens.next() {
             let fn_name = self.constants.allocate_if_absent(fn_name);
             let param_names = self.parse_fn_parameters();
             let body = self.parse_block();
@@ -273,21 +268,21 @@ impl<I: Iterator<Item = Token>> Parser<I> {
     }
 
     fn parse_variable_declaration(&mut self) -> Option<VariableDeclaration> {
-        let kind = match self.tokens.consume() {
+        let kind = match self.tokens.next() {
             Some(Token::Keyword(Keyword::Const)) => VariableDeclarationKind::Const,
             Some(Token::Keyword(Keyword::Let)) => VariableDeclarationKind::Let,
             Some(Token::Keyword(Keyword::Var)) => VariableDeclarationKind::Var,
             Some(token) => panic!("Expected variable declaration but was {}", token),
             None => panic!("Expected variable declaration but was <end>"),
         };
-        let mut entries = Vec::default();
+        let mut entries = Vec::new();
         loop {
             let entry = self.parse_variable_declaration_entry();
             entries.push(entry);
 
             match self.tokens.peek() {
                 Some(Token::Punctuator(Punctuator::Comma)) => {
-                    self.tokens.consume();
+                    self.tokens.next().unwrap();
                 }
                 Some(Token::Punctuator(Punctuator::Semicolon)) => break,
                 Some(token) => panic!("Expected comma or semicolon but was {}", token),
@@ -298,13 +293,13 @@ impl<I: Iterator<Item = Token>> Parser<I> {
     }
 
     fn parse_variable_declaration_entry(&mut self) -> VariableDeclarationEntry {
-        let var_name = match self.tokens.consume() {
+        let var_name = match self.tokens.next() {
             Some(Token::Identifier(var_name)) => self.constants.allocate_if_absent(var_name),
             Some(token) => unreachable!("Expected variable name but was {}", token),
             None => unreachable!("Expected variable name but was <end>"),
         };
         let initialiser = if let Some(Token::Punctuator(Punctuator::Equal)) = self.tokens.peek() {
-            self.tokens.consume();
+            self.tokens.next().unwrap();
             let expr = self
                 .parse_expression()
                 .expect("Expected expression but was <end>");
@@ -319,7 +314,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
     }
 
     fn parse_assertion(&mut self) -> Option<Assertion> {
-        self.tokens.consume_exact(&Token::Keyword(Keyword::Assert));
+        self.expect_keyword(Keyword::Assert);
         let condition = self
             .parse_expression()
             .expect("Expected expression but was <end>");
@@ -327,7 +322,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
     }
 
     fn parse_print_statement(&mut self) -> Option<PrintStatement> {
-        let new_line = match self.tokens.consume() {
+        let new_line = match self.tokens.next() {
             Some(Token::Keyword(Keyword::Print)) => false,
             Some(Token::Keyword(Keyword::PrintLn)) => true,
             Some(token) => unreachable!(
@@ -349,18 +344,16 @@ impl<I: Iterator<Item = Token>> Parser<I> {
     }
 
     fn parse_if_statement(&mut self) -> Option<IfStatement> {
-        self.tokens.consume_exact(&Token::Keyword(Keyword::If));
-        self.tokens
-            .consume_exact(&Token::Punctuator(Punctuator::OpenParen));
+        self.expect_keyword(Keyword::If);
+        self.expect_punctuator(Punctuator::OpenParen);
         let condition = self
             .parse_expression()
             .expect("Expected expression but was <end>");
-        self.tokens
-            .consume_exact(&Token::Punctuator(Punctuator::CloseParen));
+        self.expect_punctuator(Punctuator::CloseParen);
         let success_block = self.parse_block();
         let else_block = if self
             .tokens
-            .consume_eq(&Token::Keyword(Keyword::Else))
+            .next_if_eq(&Token::Keyword(Keyword::Else))
             .is_some()
         {
             Some(self.parse_block())
@@ -375,9 +368,8 @@ impl<I: Iterator<Item = Token>> Parser<I> {
     }
 
     fn parse_for_loop(&mut self) -> Option<ForLoop> {
-        self.tokens.consume_exact(&Token::Keyword(Keyword::For));
-        self.tokens
-            .consume_exact(&Token::Punctuator(Punctuator::OpenParen));
+        self.expect_keyword(Keyword::For);
+        self.expect_punctuator(Punctuator::OpenParen);
 
         let initialiser = match self.tokens.peek() {
             Some(Token::Punctuator(Punctuator::Semicolon)) => None,
@@ -387,7 +379,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
             ),
             None => panic!("Expected variable declaration or <end>"),
         };
-        self.expect_semicolon();
+        self.expect_punctuator(Punctuator::Semicolon);
 
         let condition = match self.tokens.peek() {
             Some(Token::Punctuator(Punctuator::Semicolon)) => None,
@@ -397,7 +389,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
             ),
             None => panic!("Expected expression or semicolon but was <end>"),
         };
-        self.expect_semicolon();
+        self.expect_punctuator(Punctuator::Semicolon);
 
         let incrementor = match self.tokens.peek() {
             Some(Token::Punctuator(Punctuator::CloseParen)) => None,
@@ -407,8 +399,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
             ),
             None => panic!("Expected expression or close paren but was <end>"),
         };
-        self.tokens
-            .consume_exact(&Token::Punctuator(Punctuator::CloseParen));
+        self.expect_punctuator(Punctuator::CloseParen);
 
         let block = self.parse_block();
         Some(ForLoop {
@@ -420,31 +411,28 @@ impl<I: Iterator<Item = Token>> Parser<I> {
     }
 
     fn parse_while_loop(&mut self) -> Option<WhileLoop> {
-        self.tokens.consume_exact(&Token::Keyword(Keyword::While));
-        self.tokens
-            .consume_exact(&Token::Punctuator(Punctuator::OpenParen));
+        self.expect_keyword(Keyword::While);
+        self.expect_punctuator(Punctuator::OpenParen);
         let condition = self
             .parse_expression()
             .expect("Expected expression but was <end>");
-        self.tokens
-            .consume_exact(&Token::Punctuator(Punctuator::CloseParen));
+        self.expect_punctuator(Punctuator::CloseParen);
         let block = self.parse_block();
         Some(WhileLoop { condition, block })
     }
 
     fn parse_break_statement(&mut self) -> Option<BreakStatement> {
-        self.tokens.consume_exact(&Token::Keyword(Keyword::Break));
+        self.expect_keyword(Keyword::Break);
         Some(BreakStatement {})
     }
 
     fn parse_continue_statement(&mut self) -> Option<ContinueStatement> {
-        self.tokens
-            .consume_exact(&Token::Keyword(Keyword::Continue));
+        self.expect_keyword(Keyword::Continue);
         Some(ContinueStatement {})
     }
 
     fn parse_return_statement(&mut self) -> Option<ReturnStatement> {
-        self.tokens.consume_exact(&Token::Keyword(Keyword::Return));
+        self.expect_keyword(Keyword::Return);
         let expr = match self.tokens.peek() {
             Some(Token::Punctuator(Punctuator::Semicolon)) => None,
             Some(_) => Some(
@@ -457,11 +445,10 @@ impl<I: Iterator<Item = Token>> Parser<I> {
     }
 
     fn parse_fn_parameters(&mut self) -> Vec<ConstantId> {
-        self.tokens
-            .consume_exact(&Token::Punctuator(Punctuator::OpenParen));
+        self.expect_punctuator(Punctuator::OpenParen);
         if self
             .tokens
-            .consume_eq(&Token::Punctuator(Punctuator::CloseParen))
+            .next_if_eq(&Token::Punctuator(Punctuator::CloseParen))
             .is_some()
         {
             return Vec::with_capacity(0);
@@ -469,13 +456,15 @@ impl<I: Iterator<Item = Token>> Parser<I> {
 
         let mut params = Vec::new();
         loop {
-            if let Some(Token::Identifier(param)) = self.tokens.consume() {
-                let param_constant_id = self.constants.allocate_if_absent(param);
-                params.push(param_constant_id);
-            } else {
-                panic!("Expected identifier (parameter name)");
+            match self.tokens.next() {
+                Some(Token::Identifier(param)) => {
+                    let param_constant_id = self.constants.allocate_if_absent(param);
+                    params.push(param_constant_id);
+                }
+                Some(token) => panic!("Expected function parameter identifier but was {}", token),
+                None => panic!("Expected function parameter identifier but was <end>"),
             }
-            match self.tokens.consume() {
+            match self.tokens.next() {
                 Some(Token::Punctuator(Punctuator::Comma)) => {}
                 Some(Token::Punctuator(Punctuator::CloseParen)) => break params,
                 Some(token) => panic!("Expected comma or closing parenthesis but was {:?}", token),
@@ -486,12 +475,11 @@ impl<I: Iterator<Item = Token>> Parser<I> {
 
     fn parse_fn_arguments(&mut self, consume_open_paren: bool) -> Vec<Expression> {
         if consume_open_paren {
-            self.tokens
-                .consume_exact(&Token::Punctuator(Punctuator::OpenParen));
+            self.expect_punctuator(Punctuator::OpenParen);
         }
         if self
             .tokens
-            .consume_eq(&Token::Punctuator(Punctuator::CloseParen))
+            .next_if_eq(&Token::Punctuator(Punctuator::CloseParen))
             .is_some()
         {
             return Vec::with_capacity(0);
@@ -504,7 +492,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
             } else {
                 panic!("Expected expression but was <end>");
             }
-            match self.tokens.consume() {
+            match self.tokens.next() {
                 Some(Token::Punctuator(Punctuator::Comma)) => {}
                 Some(Token::Punctuator(Punctuator::CloseParen)) => break args,
                 Some(token) => panic!("Expected comma or closing parenthesis but was {:?}", token),
@@ -513,9 +501,12 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         }
     }
 
-    fn expect_semicolon(&mut self) {
-        self.tokens
-            .consume_exact(&Token::Punctuator(Punctuator::Semicolon));
+    fn expect_keyword(&mut self, keyword: Keyword) {
+        self.tokens.next_exact(&Token::Keyword(keyword));
+    }
+
+    fn expect_punctuator(&mut self, punctuator: Punctuator) {
+        self.tokens.next_exact(&Token::Punctuator(punctuator));
     }
 }
 

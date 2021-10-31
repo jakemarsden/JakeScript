@@ -46,7 +46,7 @@ impl<I: Iterator<Item = char>> Lexer<I> {
     fn parse_punctuator(&mut self) -> Option<Punctuator> {
         Punctuator::VALUES_IN_LEXICAL_ORDER
             .iter()
-            .find(|punctuator| self.0.consume_str(punctuator.into_str()))
+            .find(|punctuator| self.0.try_consume_str(punctuator.into_str()))
             .cloned()
     }
 
@@ -60,18 +60,18 @@ impl<I: Iterator<Item = char>> Lexer<I> {
     }
 
     fn parse_null_literal(&mut self) -> Option<()> {
-        self.0.consume_str("null").then_some(())
+        self.0.try_consume_str("null").then_some(())
     }
 
     fn parse_undefined_literal(&mut self) -> Option<()> {
-        self.0.consume_str("undefined").then_some(())
+        self.0.try_consume_str("undefined").then_some(())
     }
 
     fn parse_boolean_literal(&mut self) -> Option<bool> {
         self.0
-            .consume_str("true")
+            .try_consume_str("true")
             .then_some(true)
-            .or_else(|| self.0.consume_str("false").then_some(false))
+            .or_else(|| self.0.try_consume_str("false").then_some(false))
     }
 
     fn parse_numeric_literal(&mut self) -> Option<i64> {
@@ -82,7 +82,7 @@ impl<I: Iterator<Item = char>> Lexer<I> {
         let mut content = String::new();
         let mut original_len = 0;
         for offset in 0.. {
-            match self.0.peek_n(offset) {
+            match self.0.peek_nth(offset) {
                 Some(ch) if ch.is_ascii_digit() => {
                     content.push(*ch);
                     original_len += 1;
@@ -93,13 +93,13 @@ impl<I: Iterator<Item = char>> Lexer<I> {
                 Some(_) | None => break,
             }
         }
-        match self.0.peek_n(original_len) {
+        match self.0.peek_nth(original_len) {
             Some(next_ch) if is_identifier_start(*next_ch) => return None,
             Some(next_ch) if next_ch.is_ascii_digit() => return None,
             Some(_) | None => {}
         }
         if let Ok(value) = i64::from_str(&content) {
-            self.0.advance_n(original_len);
+            self.0.advance_by(original_len).unwrap();
             Some(value)
         } else {
             todo!("Lexer::parse_numeric_literal: content={}", content)
@@ -117,9 +117,9 @@ impl<I: Iterator<Item = char>> Lexer<I> {
             return None;
         }
         // Optimisation: Avoid allocating for empty string literals.
-        if self.0.peek_n(1) == Some(&qt) {
-            self.0.consume_exact(&qt);
-            self.0.consume_exact(&qt);
+        if self.0.peek_nth(1) == Some(&qt) {
+            self.0.next_exact(&qt);
+            self.0.next_exact(&qt);
             return Some(String::with_capacity(0));
         }
         // FIXME: This is a naive implementation which doesn't match the spec.
@@ -127,7 +127,7 @@ impl<I: Iterator<Item = char>> Lexer<I> {
         let mut escaped = false;
         let mut raw_content_len = 0;
         for offset in 1.. {
-            match self.0.peek_n(offset) {
+            match self.0.peek_nth(offset) {
                 Some(ch) if is_line_terminator(*ch) => return None,
                 None => return None,
                 Some(ch) if !escaped && *ch == qt => break,
@@ -142,9 +142,9 @@ impl<I: Iterator<Item = char>> Lexer<I> {
                 }
             }
         }
-        self.0.consume_exact(&qt);
-        self.0.advance_n(raw_content_len);
-        self.0.consume_exact(&qt);
+        self.0.next_exact(&qt);
+        self.0.advance_by(raw_content_len).unwrap();
+        self.0.next_exact(&qt);
         Some(content)
     }
 
@@ -158,37 +158,37 @@ impl<I: Iterator<Item = char>> Lexer<I> {
     }
 
     fn parse_identifier_name(&mut self) -> Option<String> {
-        let ch0 = self.0.consume_if(|ch| is_identifier_start(*ch))?;
-        let mut content = self.0.consume_while_string(|ch| is_identifier_part(*ch));
+        let ch0 = self.0.next_if(|ch| is_identifier_start(*ch))?;
+        let mut content: String = self.0.collect_while(|ch| is_identifier_part(*ch));
         content.insert(0, ch0);
         Some(content)
     }
 
     fn parse_whitespace(&mut self) -> Option<char> {
-        self.0.consume_if(|ch| is_whitespace(*ch))
+        self.0.next_if(|ch| is_whitespace(*ch))
     }
 
     fn parse_line_terminator(&mut self) -> Option<LineTerminator> {
         match self.0.peek().cloned() {
-            Some(CR) if self.0.peek_n(1) == Some(&LF) => {
-                self.0.consume_exact(&CR);
-                self.0.consume_exact(&LF);
+            Some(CR) if self.0.peek_nth(1) == Some(&LF) => {
+                self.0.next_exact(&CR);
+                self.0.next_exact(&LF);
                 Some(LineTerminator::Crlf)
             }
             Some(CR) => {
-                self.0.consume_exact(&CR);
+                self.0.next_exact(&CR);
                 Some(LineTerminator::Cr)
             }
             Some(LF) => {
-                self.0.consume_exact(&LF);
+                self.0.next_exact(&LF);
                 Some(LineTerminator::Lf)
             }
             Some(LS) => {
-                self.0.consume_exact(&LS);
+                self.0.next_exact(&LS);
                 Some(LineTerminator::Ls)
             }
             Some(PS) => {
-                self.0.consume_exact(&PS);
+                self.0.next_exact(&PS);
                 Some(LineTerminator::Ps)
             }
             Some(_) | None => None,
@@ -202,8 +202,8 @@ impl<I: Iterator<Item = char>> Lexer<I> {
     }
 
     fn parse_single_line_comment(&mut self) -> Option<String> {
-        if self.0.consume_str("//") {
-            let content = self.0.consume_until_string(|ch| is_line_terminator(*ch));
+        if self.0.try_consume_str("//") {
+            let content = self.0.collect_until(|ch| is_line_terminator(*ch));
             Some(content)
         } else {
             None
@@ -211,22 +211,25 @@ impl<I: Iterator<Item = char>> Lexer<I> {
     }
 
     fn parse_multi_line_comment(&mut self) -> Option<String> {
-        if !self.0.peek_str("/*") {
+        if self.0.peek() != Some(&'/') || self.0.peek_nth(1) != Some(&'*') {
             return None;
         }
         let mut content = String::new();
         for offset in 2.. {
-            let ch = *self.0.peek_n(offset)?;
-            if ch == '*' && self.0.peek_n(offset + 1) == Some(&'/') {
+            let ch = match self.0.peek_nth(offset) {
+                Some(ch) => *ch,
+                None => panic!("Multi-line comment not closed before end of input"),
+            };
+            if ch == '*' && self.0.peek_nth(offset + 1) == Some(&'/') {
                 break;
             }
             content.push(ch);
         }
-        self.0.consume_exact(&'/');
-        self.0.consume_exact(&'*');
-        self.0.advance_n(content.len());
-        self.0.consume_exact(&'*');
-        self.0.consume_exact(&'/');
+        self.0.next_exact(&'/');
+        self.0.next_exact(&'*');
+        self.0.advance_by(content.len()).unwrap();
+        self.0.next_exact(&'*');
+        self.0.next_exact(&'/');
         Some(content)
     }
 }
