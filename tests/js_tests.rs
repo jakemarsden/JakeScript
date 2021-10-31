@@ -20,7 +20,8 @@ fn js_tests() {
         let source_code = fs::read_to_string(source_file).expect("Failed to read source file");
 
         let started_at = Instant::now();
-        let ast = common::parse_from_source_code(&source_code);
+        let ast =
+            common::parse_from_source_code(&source_code).expect("Failed to parse source code");
         let result = common::eval(&ast);
 
         let elapsed_runtime = started_at.elapsed();

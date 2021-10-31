@@ -105,6 +105,61 @@ impl<I: Iterator> PeekableNth<I> {
     }
 }
 
+impl<T, E, I: Iterator<Item = Result<T, E>>> PeekableNth<I> {
+    pub fn try_peek(&mut self) -> Result<Option<&T>, E>
+    where
+        E: Clone + 'static,
+    {
+        self.try_peek_nth(0)
+    }
+
+    pub fn try_peek_nth(&mut self, offset: usize) -> Result<Option<&T>, E>
+    where
+        E: Clone + 'static,
+    {
+        self.peek_nth(offset).map(clone_if_err).transpose()
+    }
+
+    pub fn try_next(&mut self) -> Result<Option<T>, E> {
+        self.next().transpose()
+    }
+
+    pub fn try_next_if(&mut self, condition: impl FnOnce(&T) -> bool) -> Result<Option<T>, E>
+    where
+        E: Clone + fmt::Debug + 'static,
+    {
+        Ok(match self.try_peek()? {
+            Some(next) if condition(next) => Some(self.next().unwrap().unwrap()),
+            Some(_) | None => None,
+        })
+    }
+
+    pub fn try_next_if_eq<U>(&mut self, expected: &U) -> Result<Option<T>, E>
+    where
+        U: ?Sized,
+        T: PartialEq<U>,
+        E: Clone + fmt::Debug + 'static,
+    {
+        self.try_next_if(|next| next == expected)
+    }
+
+    pub fn try_next_exact<U>(&mut self, expected: &U) -> Result<(), E>
+    where
+        T: PartialEq<U> + fmt::Debug,
+        U: fmt::Debug,
+        E: Clone + fmt::Debug + 'static,
+    {
+        match self.try_peek()? {
+            Some(actual) if actual == expected => {
+                self.next().unwrap().unwrap();
+                Ok(())
+            }
+            Some(actual) => unreachable!("expected {:?} but was {:?}", expected, actual),
+            None => unreachable!("expected {:?} but was <end>", expected),
+        }
+    }
+}
+
 impl<I: Iterator<Item = char>> PeekableNth<I> {
     pub fn try_consume_str(&mut self, expected: &str) -> bool {
         self.try_consume_all(expected.chars())
@@ -143,6 +198,17 @@ impl<I: DoubleEndedIterator> DoubleEndedIterator for PeekableNth<I> {
 impl<I: ExactSizeIterator> ExactSizeIterator for PeekableNth<I> {}
 
 impl<I: FusedIterator> FusedIterator for PeekableNth<I> {}
+
+#[inline]
+fn clone_if_err<T, E>(self_: &Result<T, E>) -> Result<&T, E>
+where
+    E: Clone,
+{
+    match self_ {
+        Ok(value) => Ok(value),
+        Err(err) => Err(err.clone()),
+    }
+}
 
 #[cfg(test)]
 mod test {

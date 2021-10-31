@@ -16,7 +16,7 @@ fn main() {
     let mut it = Interpreter::default();
 
     let parse_start_time = Instant::now();
-    let ast = parser.execute();
+    let ast = parser.execute().expect("Failed to parse program");
     let parse_runtime = parse_start_time.elapsed();
     println!("Parsed in {:?}", parse_runtime);
 

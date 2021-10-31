@@ -1,4 +1,4 @@
-use crate::lexer::error::*;
+use crate::lexer::error::{BadKeywordError, BadPunctuatorError};
 use crate::lexer::{CR, LF, LS, PS};
 use std::fmt;
 use std::str::FromStr;

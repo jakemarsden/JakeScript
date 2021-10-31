@@ -32,13 +32,13 @@ fn assertion_fails_for_falsy_expression() {
 }
 
 fn assertion_passes(source_code: &str) {
-    let ast = common::parse_from_source_code(source_code);
+    let ast = common::parse_from_source_code(source_code).unwrap();
     let result = common::eval(&ast);
     assert_matches!(result, Ok(Value::Undefined))
 }
 
 fn assertion_fails(source_code: &str) {
-    let ast = common::parse_from_source_code(source_code);
+    let ast = common::parse_from_source_code(source_code).unwrap();
     let result = common::eval(&ast);
     assert_matches!(result, Err(Error::AssertionFailed(..)));
 }

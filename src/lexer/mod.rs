@@ -1,5 +1,5 @@
 use crate::iter::{IntoPeekableNth, PeekableNth};
-use std::iter::{FilterMap, Iterator};
+use std::iter::FilterMap;
 use std::str::{Chars, FromStr};
 
 pub use error::*;
@@ -8,9 +8,9 @@ pub use token::*;
 mod error;
 mod token;
 
-pub type Tokens<I> = FilterMap<I, fn(Element) -> Option<Token>>;
+pub type Tokens<I> = FilterMap<I, fn(LexResult<Element>) -> Option<LexResult<Token>>>;
 
-pub struct Lexer<I: Iterator<Item = char>>(PeekableNth<I>);
+pub struct Lexer<I: Iterator<Item = char>>(PeekableNth<I>, State);
 
 impl<'a> Lexer<Chars<'a>> {
     pub fn for_str(source: &'a str) -> Self {
@@ -20,19 +20,35 @@ impl<'a> Lexer<Chars<'a>> {
 
 impl<I: Iterator<Item = char>> Lexer<I> {
     pub fn for_chars(source: I) -> Self {
-        Self(source.peekable_nth())
+        Self(source.peekable_nth(), State::default())
     }
 
     pub fn tokens(self) -> Tokens<Self> {
-        self.filter_map(Element::token)
+        self.filter_map(|result| match result {
+            Ok(elem) => elem.token().map(Ok),
+            Err(err) => Some(Err(err)),
+        })
     }
 
-    fn parse_element(&mut self) -> Option<Element> {
-        self.parse_whitespace()
+    fn state(&self) -> State {
+        self.1
+    }
+
+    fn set_state(&mut self, state: State) {
+        self.1 = state;
+    }
+
+    fn parse_element(&mut self) -> LexResult<Element> {
+        Ok(self
+            .parse_whitespace()
             .map(Element::Whitespace)
             .or_else(|| self.parse_line_terminator().map(Element::LineTerminator))
             .or_else(|| self.parse_comment().map(Element::Comment))
             .or_else(|| self.parse_token().map(Element::Token))
+            .unwrap_or_else(|| match self.0.peek() {
+                Some(ch) => todo!("Lexer::parse_element: ch={}", ch),
+                None => todo!("Lexer::parse_element: ch=<end>"),
+            }))
     }
 
     fn parse_token(&mut self) -> Option<Token> {
@@ -235,13 +251,33 @@ impl<I: Iterator<Item = char>> Lexer<I> {
 }
 
 impl<I: Iterator<Item = char>> Iterator for Lexer<I> {
-    type Item = Element;
+    type Item = LexResult<Element>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let ch = *self.0.peek()?;
-        self.parse_element()
-            .or_else(|| todo!("Lexer::next: ch={}", ch))
+        match self.state() {
+            State::Normal => {
+                if self.0.peek().is_some() {
+                    let result = self.parse_element();
+                    if result.is_err() {
+                        self.set_state(State::Error);
+                    }
+                    Some(result)
+                } else {
+                    self.set_state(State::End);
+                    None
+                }
+            }
+            State::End | State::Error => None,
+        }
     }
+}
+
+#[derive(Copy, Clone, Default, Eq, PartialEq, Debug)]
+enum State {
+    #[default]
+    Normal,
+    Error,
+    End,
 }
 
 /// CHARACTER TABULATION
@@ -302,25 +338,29 @@ fn is_unicode_continue(ch: char) -> bool {
 #[cfg(test)]
 mod test {
     use super::*;
+    use std::assert_matches::assert_matches;
 
     #[test]
     fn tokenise_keywords() {
-        for keyword in Keyword::VALUES {
-            let mut lexer = Lexer::for_str(keyword.into_str());
-            assert_eq!(lexer.next(), Some(Element::Token(Token::Keyword(keyword))));
-            assert_eq!(lexer.next(), None);
+        for expected in Keyword::VALUES {
+            let mut lexer = Lexer::for_str(expected.into_str());
+            assert_matches!(
+                lexer.next(),
+                Some(Ok(Element::Token(Token::Keyword(actual)))) if actual == expected
+            );
+            assert_matches!(lexer.next(), None);
         }
     }
 
     #[test]
     fn tokenise_punctuators() {
-        for punctuator in Punctuator::VALUES {
-            let mut lexer = Lexer::for_str(punctuator.into_str());
-            assert_eq!(
+        for expected in Punctuator::VALUES {
+            let mut lexer = Lexer::for_str(expected.into_str());
+            assert_matches!(
                 lexer.next(),
-                Some(Element::Token(Token::Punctuator(punctuator)))
+                Some(Ok(Element::Token(Token::Punctuator(actual)))) if actual == expected
             );
-            assert_eq!(lexer.next(), None);
+            assert_matches!(lexer.next(), None);
         }
     }
 
@@ -328,13 +368,13 @@ mod test {
     fn tokenise_string_literal() {
         fn check_valid(source: &str, expected: &str) {
             let mut lexer = Lexer::for_str(source);
-            assert_eq!(
+            assert_matches!(
                 lexer.next(),
-                Some(Element::Token(Token::Literal(Literal::String(
-                    expected.to_owned()
-                ))))
+                Some(Ok(Element::Token(Token::Literal(Literal::String(
+                    actual
+                ))))) if actual == expected
             );
-            assert_eq!(lexer.next(), None);
+            assert_matches!(lexer.next(), None);
         }
 
         check_valid(r#""""#, r#""#);
