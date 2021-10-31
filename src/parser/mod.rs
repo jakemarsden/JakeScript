@@ -1,6 +1,6 @@
 use crate::ast::{self, *};
+use crate::iter::{IntoPeekableNth, PeekableNth};
 use crate::lexer::{self, *};
-use crate::util::{IntoPeekableNth, PeekableNth};
 use std::iter::Iterator;
 
 pub struct Parser<I: Iterator<Item = Token>> {

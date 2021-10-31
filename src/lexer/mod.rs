@@ -1,4 +1,4 @@
-use crate::util::{IntoPeekableNth, PeekableNth};
+use crate::iter::{IntoPeekableNth, PeekableNth};
 use std::iter::{FilterMap, Iterator};
 use std::str::{Chars, FromStr};
 

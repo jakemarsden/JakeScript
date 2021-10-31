@@ -1,7 +1,7 @@
 use std::fmt;
 use std::iter::FusedIterator;
 
-pub(crate) trait IntoPeekableNth: Iterator {
+pub trait IntoPeekableNth: Iterator {
     fn peekable_nth(self) -> PeekableNth<Self>
     where
         Self: Sized;
@@ -13,7 +13,7 @@ impl<I: Iterator> IntoPeekableNth for I {
     }
 }
 
-pub(crate) struct PeekableNth<I: Iterator> {
+pub struct PeekableNth<I: Iterator> {
     source: I,
     buf: Vec<I::Item>,
 }
@@ -27,11 +27,11 @@ impl<I: Iterator> PeekableNth<I> {
         }
     }
 
-    pub(crate) fn peek(&mut self) -> Option<&I::Item> {
+    pub fn peek(&mut self) -> Option<&I::Item> {
         self.peek_nth(0)
     }
 
-    pub(crate) fn peek_nth(&mut self, offset: usize) -> Option<&I::Item> {
+    pub fn peek_nth(&mut self, offset: usize) -> Option<&I::Item> {
         while self.buf.len() <= offset {
             let item = self.source.next()?;
             self.buf.push(item);
@@ -39,7 +39,7 @@ impl<I: Iterator> PeekableNth<I> {
         Some(self.buf.get(offset).unwrap())
     }
 
-    pub(crate) fn next_if(&mut self, condition: impl FnOnce(&I::Item) -> bool) -> Option<I::Item> {
+    pub fn next_if(&mut self, condition: impl FnOnce(&I::Item) -> bool) -> Option<I::Item> {
         if condition(self.peek()?) {
             Some(self.next().unwrap())
         } else {
@@ -47,7 +47,7 @@ impl<I: Iterator> PeekableNth<I> {
         }
     }
 
-    pub(crate) fn next_if_eq<T>(&mut self, expected: &T) -> Option<I::Item>
+    pub fn next_if_eq<T>(&mut self, expected: &T) -> Option<I::Item>
     where
         T: ?Sized,
         I::Item: PartialEq<T>,
@@ -55,7 +55,7 @@ impl<I: Iterator> PeekableNth<I> {
         self.next_if(|next| next == expected)
     }
 
-    pub(crate) fn next_exact<T>(&mut self, expected: &T) -> I::Item
+    pub fn next_exact<T>(&mut self, expected: &T) -> I::Item
     where
         T: ?Sized + fmt::Debug,
         I::Item: PartialEq<T> + fmt::Debug,
@@ -67,14 +67,14 @@ impl<I: Iterator> PeekableNth<I> {
         }
     }
 
-    pub(crate) fn collect_until<B>(&mut self, condition: impl Fn(&I::Item) -> bool) -> B
+    pub fn collect_until<B>(&mut self, condition: impl Fn(&I::Item) -> bool) -> B
     where
         B: FromIterator<I::Item>,
     {
         self.collect_while(|next| !condition(next))
     }
 
-    pub(crate) fn collect_while<B>(&mut self, condition: impl Fn(&I::Item) -> bool) -> B
+    pub fn collect_while<B>(&mut self, condition: impl Fn(&I::Item) -> bool) -> B
     where
         B: FromIterator<I::Item>,
     {
@@ -106,7 +106,7 @@ impl<I: Iterator> PeekableNth<I> {
 }
 
 impl<I: Iterator<Item = char>> PeekableNth<I> {
-    pub(crate) fn try_consume_str(&mut self, expected: &str) -> bool {
+    pub fn try_consume_str(&mut self, expected: &str) -> bool {
         self.try_consume_all(expected.chars())
     }
 }
