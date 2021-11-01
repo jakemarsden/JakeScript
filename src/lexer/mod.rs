@@ -1,4 +1,5 @@
 use crate::iter::{IntoPeekableNth, PeekableNth};
+use error::LexicalErrorKind::*;
 use std::io;
 use std::iter::{FilterMap, Map};
 use std::str::{Chars, FromStr};
@@ -56,10 +57,8 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
         } else if let Some(it) = self.parse_token()? {
             Element::Token(it)
         } else {
-            match self.0.try_peek()? {
-                Some(ch) => todo!("Lexer::parse_element: ch={}", ch),
-                None => todo!("Lexer::parse_element: ch=<end>"),
-            }
+            let ch = self.0.try_peek().unwrap().unwrap();
+            todo!("Lexer::parse_element: ch={}", ch)
         })
     }
 
@@ -143,7 +142,7 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
             self.0.advance_by(original_len).unwrap();
             Ok(Some(value))
         } else {
-            todo!("Lexer::parse_numeric_literal: content={}", content)
+            panic!("Lexer::parse_numeric_literal: content={}", content)
         }
     }
 
@@ -168,25 +167,51 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
         // FIXME: This is a naive implementation which doesn't match the spec.
         let mut content = String::new();
         let mut escaped = false;
-        let mut raw_content_len = 0;
+        let mut escape_count = 0;
         for offset in 1.. {
-            match self.0.try_peek_nth(offset)? {
-                Some(ch) if is_line_terminator(*ch) => return Ok(None),
-                None => return Ok(None),
-                Some(ch) if !escaped && *ch == qt => break,
-                Some('\\') if !escaped => {
-                    escaped = true;
-                    raw_content_len += 1;
+            let ch = if let Some(ch) = self.0.try_peek_nth(offset)? {
+                ch
+            } else {
+                return Err(LexicalError::new(UnclosedStringLiteral));
+            };
+            match (ch, escaped) {
+                (ch, _) if is_line_terminator(*ch) => {
+                    return Err(LexicalError::new(UnclosedStringLiteral))
                 }
-                Some(ch) => {
+                ('\\', false) => {
+                    escaped = true;
+                    escape_count += 1;
+                }
+                ('\\', true) => {
+                    content.push('\\');
+                    escaped = false;
+                }
+                (ch, false) if *ch == qt => break,
+                (ch, true) if *ch == qt => {
                     content.push(*ch);
                     escaped = false;
-                    raw_content_len += 1;
+                }
+                ('n', true) => {
+                    content.push('\n');
+                    escaped = false;
+                }
+                ('r', true) => {
+                    content.push('\r');
+                    escaped = false;
+                }
+                ('t', true) => {
+                    content.push('\t');
+                    escaped = false;
+                }
+
+                (_, true) => return Err(LexicalError::new(IllegalStringLiteralEscapeSequence)),
+                (ch, false) => {
+                    content.push(*ch);
                 }
             }
         }
         self.0.try_next_exact(&qt)?;
-        self.0.advance_by(raw_content_len).unwrap();
+        self.0.advance_by(content.len() + escape_count).unwrap();
         self.0.try_next_exact(&qt)?;
         Ok(Some(content))
     }
@@ -267,7 +292,7 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
         for offset in 2.. {
             let ch = match self.0.try_peek_nth(offset)? {
                 Some(ch) => *ch,
-                None => panic!("Multi-line comment not closed before end of input"),
+                None => return Err(LexicalError::new(UnclosedComment)),
             };
             if ch == '*' && self.0.try_peek_nth(offset + 1)? == Some(&'/') {
                 break;
@@ -418,14 +443,57 @@ mod test {
         );
         check_valid(r#""hello, back\\slash""#, r#"hello, back\slash"#);
         check_valid(r#""hello, \\\"\"\\\\""#, r#"hello, \""\\"#);
+        check_valid(r#""hello,\n\r\tworld""#, "hello,\n\r\tworld");
 
         check_valid(r#"''"#, r#""#);
         check_valid(r#"'hello, world!'"#, r#"hello, world!"#);
         check_valid(
-            r#"'hello, \"escaped quotes\"!'"#,
-            r#"hello, "escaped quotes"!"#,
+            r#"'hello, \'escaped quotes\'!'"#,
+            r#"hello, 'escaped quotes'!"#,
         );
         check_valid(r#"'hello, back\\slash'"#, r#"hello, back\slash"#);
-        check_valid(r#"'hello, \\\"\"\\\\'"#, r#"hello, \""\\"#);
+        check_valid(r#"'hello, \\\'\'\\\\'"#, r#"hello, \''\\"#);
+        check_valid(r#"'hello,\n\r\tworld'"#, "hello,\n\r\tworld");
+    }
+
+    #[test]
+    fn tokenise_unclosed_string_literal() {
+        let source_code = r#"'hello, world!"#;
+        let mut lexer = Lexer::for_str(source_code);
+        assert_matches!(lexer.next(), Some(Err(err)) if err.kind() == Some(UnclosedStringLiteral));
+        assert_matches!(lexer.next(), None);
+
+        let source_code = "'hello, world!\nClosed on the next line'";
+        let mut lexer = Lexer::for_str(source_code);
+        assert_matches!(lexer.next(), Some(Err(err)) if err.kind() == Some(UnclosedStringLiteral));
+        assert_matches!(lexer.next(), None);
+    }
+
+    #[test]
+    fn tokenise_illegal_string_literal_escape_sequence() {
+        let source_code = r#""\z""#;
+        let mut lexer = Lexer::for_str(source_code);
+        assert_matches!(lexer.next(), Some(Err(err)) if err.kind() == Some(IllegalStringLiteralEscapeSequence));
+        assert_matches!(lexer.next(), None);
+
+        // Can't escape single quote inside double quoted string literal
+        let source_code = r#""\'""#;
+        let mut lexer = Lexer::for_str(source_code);
+        assert_matches!(lexer.next(), Some(Err(err)) if err.kind() == Some(IllegalStringLiteralEscapeSequence));
+        assert_matches!(lexer.next(), None);
+
+        // Can't escape double quote inside single quoted string literal
+        let source_code = r#"'\"'"#;
+        let mut lexer = Lexer::for_str(source_code);
+        assert_matches!(lexer.next(), Some(Err(err)) if err.kind() == Some(IllegalStringLiteralEscapeSequence));
+        assert_matches!(lexer.next(), None);
+    }
+
+    #[test]
+    fn tokenise_unclosed_multi_line_comment() {
+        let source_code = "/* abc";
+        let mut lexer = Lexer::for_str(source_code);
+        assert_matches!(lexer.next(), Some(Err(err)) if err.kind() == Some(UnclosedComment));
+        assert_matches!(lexer.next(), None);
     }
 }

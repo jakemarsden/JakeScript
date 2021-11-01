@@ -51,11 +51,19 @@ impl From<io::Error> for LexicalError {
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
-pub enum LexicalErrorKind {}
+pub enum LexicalErrorKind {
+    IllegalStringLiteralEscapeSequence,
+    UnclosedComment,
+    UnclosedStringLiteral,
+}
 
 impl fmt::Display for LexicalErrorKind {
-    fn fmt(&self, _: &mut fmt::Formatter) -> fmt::Result {
-        todo!("LexicalErrorKind::fmt: {:?}", self)
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str(match self {
+            Self::IllegalStringLiteralEscapeSequence => "Illegal escape sequence in string literal",
+            Self::UnclosedComment => "Unclosed comment",
+            Self::UnclosedStringLiteral => "Unclosed string literal",
+        })
     }
 }
 
