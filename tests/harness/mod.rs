@@ -1,26 +1,29 @@
-use ansi_term::Color;
+use ansi_term::{Color, Style};
 use jakescript::interpreter::{self, Eval, Interpreter};
 use jakescript::lexer::Lexer;
 use jakescript::parser::{self, Parser};
 use std::path::Path;
 use std::time::{Duration, Instant};
-use std::{fmt, fs, io};
+use std::{fmt, fs, io, process};
 use utf8_chars::BufReadCharsExt;
 
-pub fn exec_source_file(source_path: &Path) -> TestResult {
+pub fn exec_source_file(source_path: &Path) -> TestCaseReport {
     let source_name = source_path.display().to_string();
     let mut buf = match fs::File::open(source_path) {
         Ok(file) => io::BufReader::new(file),
-        Err(err) => return TestResult::read_error(source_name, err),
+        Err(err) => return TestCaseReport::read_error(source_name, err),
     };
     return exec(source_name, Lexer::for_chars_fallible(buf.chars()));
 }
 
-pub fn exec_source_code(source_code: &str) -> TestResult {
+pub fn exec_source_code(source_code: &str) -> TestCaseReport {
     exec("untitled".to_owned(), Lexer::for_str(source_code))
 }
 
-fn exec<I: Iterator<Item = io::Result<char>>>(source_name: String, source: Lexer<I>) -> TestResult {
+fn exec<I: Iterator<Item = io::Result<char>>>(
+    source_name: String,
+    source: Lexer<I>,
+) -> TestCaseReport {
     let parser = Parser::for_lexer(source);
     let mut interpreter = Interpreter::default();
 
@@ -28,38 +31,67 @@ fn exec<I: Iterator<Item = io::Result<char>>>(source_name: String, source: Lexer
 
     let ast = match parser.execute() {
         Ok(ast) => ast,
-        Err(reason) => return TestResult::parser_error(source_name, started_at.elapsed(), reason),
+        Err(reason) => {
+            return TestCaseReport::parser_error(source_name, started_at.elapsed(), reason);
+        }
     };
 
     let result = match ast.eval(&mut interpreter) {
         Ok(result) => result,
-        Err(err) => return TestResult::interpreter_error(source_name, started_at.elapsed(), err),
+        Err(err) => {
+            return TestCaseReport::interpreter_error(source_name, started_at.elapsed(), err)
+        }
     };
 
-    TestResult::pass(source_name, started_at.elapsed(), result)
+    TestCaseReport::pass(source_name, started_at.elapsed(), result)
 }
 
 #[derive(Debug)]
-pub enum TestOutput {
+pub enum TestCaseResult {
     Pass(interpreter::Value),
     ParserError(parser::ParseError),
     InterpreterError(interpreter::Error),
     ReadError(io::Error),
 }
 
-#[derive(Debug)]
-pub struct TestResult {
-    source_name: String,
-    runtime: Duration,
-    output: TestOutput,
+impl TestCaseResult {
+    pub fn is_pass(&self) -> bool {
+        match self {
+            Self::Pass(..) => true,
+            Self::ParserError(..) | Self::InterpreterError(..) | Self::ReadError(..) => false,
+        }
+    }
+
+    pub fn success_value(&self) -> Option<&interpreter::Value> {
+        match self {
+            Self::Pass(value) => Some(value),
+            Self::ParserError(..) | Self::InterpreterError(..) | Self::ReadError(..) => None,
+        }
+    }
+
+    pub fn failure_reason(&self) -> Option<&dyn std::error::Error> {
+        match self {
+            Self::Pass(..) => None,
+            Self::ParserError(reason) => Some(reason),
+            Self::InterpreterError(reason) => Some(reason),
+            Self::ReadError(reason) => Some(reason),
+        }
+    }
 }
 
-impl TestResult {
+#[derive(Debug)]
+pub struct TestCaseReport {
+    source_name: String,
+    runtime: Duration,
+    result: TestCaseResult,
+}
+
+impl TestCaseReport {
     pub fn pass(source_name: String, runtime: Duration, value: interpreter::Value) -> Self {
         Self {
             source_name,
             runtime,
-            output: TestOutput::Pass(value),
+            result: TestCaseResult::Pass(value),
         }
     }
 
@@ -71,7 +103,7 @@ impl TestResult {
         Self {
             source_name,
             runtime,
-            output: TestOutput::ParserError(reason),
+            result: TestCaseResult::ParserError(reason),
         }
     }
 
@@ -83,7 +115,7 @@ impl TestResult {
         Self {
             source_name,
             runtime,
-            output: TestOutput::InterpreterError(reason),
+            result: TestCaseResult::InterpreterError(reason),
         }
     }
 
@@ -91,7 +123,7 @@ impl TestResult {
         Self {
             source_name,
             runtime: Duration::ZERO,
-            output: TestOutput::ReadError(reason),
+            result: TestCaseResult::ReadError(reason),
         }
     }
 
@@ -103,39 +135,48 @@ impl TestResult {
         self.runtime
     }
 
-    pub fn output(&self) -> &TestOutput {
-        &self.output
-    }
-
     pub fn is_pass(&self) -> bool {
-        match self.output() {
-            TestOutput::Pass(..) => true,
-            TestOutput::ParserError(..)
-            | TestOutput::InterpreterError(..)
-            | TestOutput::ReadError(..) => false,
-        }
+        self.result().is_pass()
     }
 
     pub fn success_value(&self) -> Option<&interpreter::Value> {
-        match self.output() {
-            TestOutput::Pass(value) => Some(value),
-            TestOutput::ParserError(..)
-            | TestOutput::InterpreterError(..)
-            | TestOutput::ReadError(..) => None,
-        }
+        self.result().success_value()
     }
 
     pub fn failure_reason(&self) -> Option<&dyn std::error::Error> {
-        match self.output() {
-            TestOutput::Pass(..) => None,
-            TestOutput::ParserError(reason) => Some(reason),
-            TestOutput::InterpreterError(reason) => Some(reason),
-            TestOutput::ReadError(reason) => Some(reason),
+        self.result().failure_reason()
+    }
+
+    pub fn result(&self) -> &TestCaseResult {
+        &self.result
+    }
+
+    pub fn into_result(self) -> TestCaseResult {
+        self.result
+    }
+
+    /// See also: [`Self::report()`].
+    pub fn print_report(&self) {
+        if self.is_pass() {
+            println!("     {}", self);
+        } else {
+            eprintln!("     {}", self);
         }
     }
 }
 
-impl fmt::Display for TestResult {
+impl process::Termination for TestCaseReport {
+    fn report(self) -> i32 {
+        self.print_report();
+        if self.is_pass() {
+            process::ExitCode::SUCCESS.report()
+        } else {
+            process::ExitCode::FAILURE.report()
+        }
+    }
+}
+
+impl fmt::Display for TestCaseReport {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         const TICK: char = '\u{2714}';
         const CROSS: char = '\u{274C}';
@@ -155,5 +196,129 @@ impl fmt::Display for TestResult {
             msg.push_str(&format!(": {}", failure_reason));
         }
         f.write_str(&msg)
+    }
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub enum TestSuiteSummary {
+    Success(usize, Duration),
+    Failure(usize, usize, Duration),
+}
+
+impl TestSuiteSummary {
+    pub fn is_success(&self) -> bool {
+        match self {
+            Self::Success(..) => true,
+            Self::Failure(..) => false,
+        }
+    }
+
+    pub fn success_count(&self) -> usize {
+        match self {
+            Self::Success(success_count, _) | Self::Failure(success_count, _, _) => *success_count,
+        }
+    }
+
+    pub fn failure_count(&self) -> usize {
+        match self {
+            Self::Success(_, _) => 0,
+            Self::Failure(_, failure_count, _) => *failure_count,
+        }
+    }
+
+    pub fn total_count(&self) -> usize {
+        self.success_count() + self.failure_count()
+    }
+
+    pub fn total_runtime(&self) -> Duration {
+        match self {
+            Self::Success(_, total_runtime) | Self::Failure(_, _, total_runtime) => *total_runtime,
+        }
+    }
+
+    /// See also: [`Self::report()`].
+    pub fn print_report(&self) {
+        if self.is_success() {
+            println!("     {}", self);
+        } else {
+            eprintln!("     {}", self);
+        }
+    }
+}
+
+impl process::Termination for TestSuiteSummary {
+    fn report(self) -> i32 {
+        self.print_report();
+        if self.is_success() {
+            process::ExitCode::SUCCESS.report()
+        } else {
+            process::ExitCode::FAILURE.report()
+        }
+    }
+}
+
+impl fmt::Display for TestSuiteSummary {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let success_count_style = Color::Green.bold();
+        let failure_count_style = match self.is_success() {
+            true => Style::default().bold(),
+            false => Color::Red.bold(),
+        };
+        write!(
+            f,
+            "JavaScript test suite: {} and {} in {:?}",
+            success_count_style.paint(format!("{} passed", self.success_count())),
+            failure_count_style.paint(format!("{} failed", self.failure_count())),
+            self.total_runtime(),
+        )
+    }
+}
+
+impl From<&[TestCaseReport]> for TestSuiteSummary {
+    fn from(test_cases: &[TestCaseReport]) -> Self {
+        let success_count = test_cases.iter().filter(|case| case.is_pass()).count();
+        let failure_count = test_cases.iter().filter(|case| !case.is_pass()).count();
+        let total_runtime = test_cases.iter().map(TestCaseReport::runtime).sum();
+        match failure_count {
+            0 => Self::Success(success_count, total_runtime),
+            _ => Self::Failure(success_count, failure_count, total_runtime),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct TestSuiteReport {
+    test_cases: Vec<TestCaseReport>,
+    summary: TestSuiteSummary,
+}
+
+impl TestSuiteReport {
+    pub fn cases(&self) -> &[TestCaseReport] {
+        &self.test_cases
+    }
+
+    pub fn summary(&self) -> &TestSuiteSummary {
+        &self.summary
+    }
+
+    pub fn into_summary(self) -> TestSuiteSummary {
+        self.summary
+    }
+}
+
+impl From<Vec<TestCaseReport>> for TestSuiteReport {
+    fn from(test_cases: Vec<TestCaseReport>) -> Self {
+        let summary = TestSuiteSummary::from(test_cases.as_slice());
+        Self {
+            test_cases,
+            summary,
+        }
+    }
+}
+
+impl FromIterator<TestCaseReport> for TestSuiteReport {
+    fn from_iter<T: IntoIterator<Item = TestCaseReport>>(iter: T) -> Self {
+        let test_cases: Vec<_> = iter.into_iter().collect();
+        Self::from(test_cases)
     }
 }
