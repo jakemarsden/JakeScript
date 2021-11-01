@@ -1,10 +1,10 @@
 #![feature(assert_matches)]
 
-use common::{exec_source_code, TestOutput};
+use harness::TestOutput;
 use jakescript::interpreter::{Error, Value};
 use std::assert_matches::assert_matches;
 
-pub mod common;
+pub mod harness;
 
 #[test]
 fn assertion_passes_for_truthy_literal() {
@@ -33,12 +33,12 @@ fn assertion_fails_for_falsy_expression() {
 }
 
 fn assertion_passes(source_code: &str) {
-    let result = exec_source_code(source_code);
+    let result = harness::exec_source_code(source_code);
     assert_matches!(result.output(), TestOutput::Pass(Value::Undefined));
 }
 
 fn assertion_fails(source_code: &str) {
-    let result = exec_source_code(source_code);
+    let result = harness::exec_source_code(source_code);
     assert_matches!(
         result.output(),
         TestOutput::InterpreterError(Error::AssertionFailed(..))

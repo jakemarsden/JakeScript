@@ -1,9 +1,8 @@
 use ansi_term::Color::*;
-use common::exec_source_file;
 use std::time::Duration;
 use walkdir::WalkDir;
 
-pub mod common;
+pub mod harness;
 
 #[test]
 fn js_tests() {
@@ -20,7 +19,7 @@ fn js_tests() {
             continue;
         }
 
-        let result = exec_source_file(source_file.path());
+        let result = harness::exec_source_file(source_file.path());
         if result.is_pass() {
             success_count += 1;
             println!("    {}", result);
