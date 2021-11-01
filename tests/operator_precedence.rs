@@ -10,6 +10,7 @@ pub mod harness;
 
 #[test]
 fn add_add() {
+    harness::init();
     let source_code = r##"50 + 100 + 17;"##;
     let report = harness::exec_source_code(source_code);
     assert_matches!(report.result(), TestCaseResult::Pass(Value::Number(167)));
@@ -17,6 +18,7 @@ fn add_add() {
 
 #[test]
 fn add_mul() {
+    harness::init();
     let source_code = r##"2 + 3 * 4;"##;
     let report = harness::exec_source_code(source_code);
     assert_matches!(report.result(), TestCaseResult::Pass(Value::Number(14)));
@@ -24,6 +26,7 @@ fn add_mul() {
 
 #[test]
 fn mul_add() {
+    harness::init();
     let source_code = r##"2 * 3 + 4;"##;
     let report = harness::exec_source_code(source_code);
     assert_matches!(report.result(), TestCaseResult::Pass(Value::Number(10)));
@@ -31,6 +34,7 @@ fn mul_add() {
 
 #[test]
 fn eq_add() {
+    harness::init();
     let source_code = r##"30 === 10 + 20;"##;
     let report = harness::exec_source_code(source_code);
     assert_matches!(report.result(), TestCaseResult::Pass(Value::Boolean(true)));
@@ -38,6 +42,7 @@ fn eq_add() {
 
 #[test]
 fn add_eq() {
+    harness::init();
     let source_code = r##"10 + 20 === 30;"##;
     let report = harness::exec_source_code(source_code);
     assert_matches!(report.result(), TestCaseResult::Pass(Value::Boolean(true)));

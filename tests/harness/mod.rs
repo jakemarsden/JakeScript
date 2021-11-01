@@ -4,8 +4,18 @@ use jakescript::lexer::Lexer;
 use jakescript::parser::{self, Parser};
 use std::path::Path;
 use std::time::{Duration, Instant};
-use std::{fmt, fs, io, process};
+use std::{fmt, fs, io, process, sync};
 use utf8_chars::BufReadCharsExt;
+
+pub fn init() {
+    static INIT: sync::Once = sync::Once::new();
+    INIT.call_once(init_impl);
+
+    fn init_impl() {
+        #[cfg(windows)]
+        ansi_term::enable_ansi_support().ok();
+    }
+}
 
 pub fn exec_source_file(source_path: &Path) -> TestCaseReport {
     let source_name = source_path.display().to_string();

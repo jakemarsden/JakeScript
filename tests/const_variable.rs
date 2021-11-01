@@ -10,6 +10,7 @@ pub mod harness;
 
 #[test]
 fn declare_const_variable_with_initialiser() {
+    harness::init();
     let source_code = r##"
 const a = 10;
 assert a === 10;
@@ -20,6 +21,7 @@ assert a === 10;
 
 #[test]
 fn set_initialised_const_variable() {
+    harness::init();
     let source_code = r##"
 const a = 10;
 a = 20;
