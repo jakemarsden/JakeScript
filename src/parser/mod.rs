@@ -1,6 +1,7 @@
 use crate::ast::{self, *};
 use crate::iter::{IntoPeekableNth, PeekableNth};
 use crate::lexer::{self, *};
+use error::AllowToken::*;
 use std::io;
 use std::iter::Map;
 
@@ -50,7 +51,11 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
             match self.tokens.try_peek()? {
                 Some(Token::Punctuator(Punctuator::CloseBrace)) => break,
                 Some(_) => {}
-                None => return Err(ParseError::unclosed_block()),
+                None => {
+                    return Err(ParseError::unexpected_eoi(Exactly(Token::Punctuator(
+                        Punctuator::CloseBrace,
+                    ))))
+                }
             }
             stmts.push(self.parse_statement()?);
         }
@@ -96,7 +101,7 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
                 self.expect_punctuator(Punctuator::Semicolon)?;
                 Ok(stmt)
             }
-            None => Err(ParseError::unexpected_eoi()),
+            None => Err(ParseError::unexpected_eoi(Unspecified)),
         }
     }
 
@@ -157,10 +162,10 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
                         inner: Box::new(inner),
                     })
                 } else {
-                    todo!(
-                        "Parser::parse_primary_expression: token={}",
-                        Token::Punctuator(punc)
-                    )
+                    return Err(ParseError::unexpected_token(
+                        Unspecified,
+                        Token::Punctuator(punc),
+                    ));
                 }
             }
             Some(Token::Literal(literal)) => Expression::Literal(LiteralExpression {
@@ -179,8 +184,7 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
                     value: ast::Literal::AnonFunction { param_names, body },
                 })
             }
-            Some(token) => todo!("Parser::parse_primary_expression: token={}", token),
-            None => return Err(ParseError::unexpected_eoi()),
+            actual => return Err(ParseError::unexpected(Unspecified, actual)),
         })
     }
 
@@ -254,8 +258,8 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
                     body,
                 })
             }
-            actual => Err(ParseError::unexpected_token(
-                vec![Token::Identifier("<function_name>".to_owned())],
+            actual => Err(ParseError::unexpected(
+                Exactly(Token::Identifier("function_name".to_owned())),
                 actual,
             )),
         }
@@ -267,14 +271,14 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
             Some(Token::Keyword(Keyword::Let)) => VariableDeclarationKind::Let,
             Some(Token::Keyword(Keyword::Var)) => VariableDeclarationKind::Var,
             actual => {
-                return Err(ParseError::unexpected_token(
-                    vec![
+                return Err(ParseError::unexpected(
+                    AnyOf(
                         Token::Keyword(Keyword::Const),
                         Token::Keyword(Keyword::Let),
-                        Token::Keyword(Keyword::Var),
-                    ],
+                        vec![Token::Keyword(Keyword::Var)],
+                    ),
                     actual,
-                ))
+                ));
             }
         };
         let mut entries = Vec::new();
@@ -287,11 +291,12 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
                 }
                 Some(Token::Punctuator(Punctuator::Semicolon)) => break,
                 actual => {
-                    return Err(ParseError::unexpected_token(
-                        vec![
+                    return Err(ParseError::unexpected(
+                        AnyOf(
                             Token::Punctuator(Punctuator::Comma),
                             Token::Punctuator(Punctuator::Semicolon),
-                        ],
+                            vec![],
+                        ),
                         actual.cloned(),
                     ))
                 }
@@ -304,8 +309,8 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
         let var_name = match self.tokens.try_next()? {
             Some(Token::Identifier(var_name)) => self.constants.allocate_if_absent(var_name),
             actual => {
-                return Err(ParseError::unexpected_token(
-                    vec![Token::Identifier("<variable_name>".to_owned())],
+                return Err(ParseError::unexpected(
+                    Exactly(Token::Identifier("variable_name".to_owned())),
                     actual,
                 ))
             }
@@ -334,11 +339,12 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
             Some(Token::Keyword(Keyword::Print)) => false,
             Some(Token::Keyword(Keyword::PrintLn)) => true,
             actual => {
-                return Err(ParseError::unexpected_token(
-                    vec![
+                return Err(ParseError::unexpected(
+                    AnyOf(
                         Token::Keyword(Keyword::Print),
                         Token::Keyword(Keyword::PrintLn),
-                    ],
+                        vec![],
+                    ),
                     actual,
                 ))
             }
@@ -446,8 +452,8 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
                     params.push(param_constant_id);
                 }
                 actual => {
-                    return Err(ParseError::unexpected_token(
-                        vec![Token::Identifier("<function_parameter>".to_owned())],
+                    return Err(ParseError::unexpected(
+                        Exactly(Token::Identifier("function_parameter".to_owned())),
                         actual,
                     ))
                 }
@@ -456,11 +462,12 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
                 Some(Token::Punctuator(Punctuator::Comma)) => {}
                 Some(Token::Punctuator(Punctuator::CloseParen)) => break Ok(params),
                 actual => {
-                    return Err(ParseError::unexpected_token(
-                        vec![
+                    return Err(ParseError::unexpected(
+                        AnyOf(
                             Token::Punctuator(Punctuator::Comma),
                             Token::Punctuator(Punctuator::CloseParen),
-                        ],
+                            vec![],
+                        ),
                         actual,
                     ))
                 }
@@ -487,11 +494,12 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
                 Some(Token::Punctuator(Punctuator::Comma)) => {}
                 Some(Token::Punctuator(Punctuator::CloseParen)) => break Ok(args),
                 actual => {
-                    return Err(ParseError::unexpected_token(
-                        vec![
+                    return Err(ParseError::unexpected(
+                        AnyOf(
                             Token::Punctuator(Punctuator::Comma),
                             Token::Punctuator(Punctuator::CloseParen),
-                        ],
+                            vec![],
+                        ),
                         actual,
                     ))
                 }
@@ -510,7 +518,7 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
     fn expect_token(&mut self, expected: Token) -> ParseResult<()> {
         match self.tokens.try_next()? {
             Some(actual) if actual == expected => Ok(()),
-            actual => Err(ParseError::unexpected_token(vec![expected], actual)),
+            actual => Err(ParseError::unexpected(Exactly(expected), actual)),
         }
     }
 }
@@ -675,6 +683,74 @@ mod test {
             Token::Punctuator(Punctuator::OpenBrace),
         ];
         let parser = Parser::for_tokens(tokens.into_iter());
-        assert_matches!(parser.execute(), Err(err) if matches!(err.kind(), UnclosedBlock));
+        assert_matches!(
+            parser.execute(),
+            Err(err) if matches!(
+                err.kind(),
+                UnexpectedEoi(Exactly(Token::Punctuator(Punctuator::CloseBrace)))
+            )
+        );
+    }
+
+    #[test]
+    fn parse_unclosed_paren() {
+        let tokens = vec![
+            Token::Keyword(Keyword::While),
+            Token::Punctuator(Punctuator::OpenParen),
+            Token::Literal(Literal::Boolean(true)),
+            Token::Punctuator(Punctuator::OpenBrace),
+        ];
+        let parser = Parser::for_tokens(tokens.into_iter());
+        assert_matches!(
+            parser.execute(),
+            Err(err) if matches!(
+                err.kind(),
+                UnexpectedToken(
+                    Exactly(Token::Punctuator(Punctuator::CloseParen)),
+                    Token::Punctuator(Punctuator::OpenBrace)
+                )
+            )
+        );
+    }
+
+    #[test]
+    fn parse_unfinished_variable_decl() {
+        let tokens = vec![
+            Token::Keyword(Keyword::Let),
+            Token::Punctuator(Punctuator::Semicolon),
+        ];
+        let parser = Parser::for_tokens(tokens.into_iter());
+        assert_matches!(
+            parser.execute(),
+            Err(err) if matches!(
+                err.kind(),
+                UnexpectedToken(
+                    Exactly(Token::Identifier(_)),
+                    Token::Punctuator(Punctuator::Semicolon)
+                )
+            )
+        );
+    }
+
+    #[test]
+    fn parse_unfinished_binary_expression() {
+        let tokens = vec![
+            Token::Keyword(Keyword::Let),
+            Token::Identifier("a".to_owned()),
+            Token::Punctuator(Punctuator::Equal),
+            Token::Literal(Literal::Numeric(1)),
+            Token::Punctuator(Punctuator::Plus),
+            Token::Literal(Literal::Numeric(2)),
+            Token::Punctuator(Punctuator::Plus),
+            Token::Punctuator(Punctuator::Semicolon),
+        ];
+        let parser = Parser::for_tokens(tokens.into_iter());
+        assert_matches!(
+            parser.execute(),
+            Err(err) if matches!(
+                err.kind(),
+                UnexpectedToken(Unspecified, Token::Punctuator(Punctuator::Semicolon))
+            )
+        );
     }
 }

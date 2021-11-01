@@ -12,15 +12,18 @@ impl ParseError {
         Self(ParseErrorKind::Lexical(source))
     }
 
-    pub fn unclosed_block() -> Self {
-        Self(ParseErrorKind::UnclosedBlock)
+    pub fn unexpected(expected: AllowToken, actual: Option<Token>) -> Self {
+        match actual {
+            Some(actual) => Self::unexpected_token(expected, actual),
+            None => Self::unexpected_eoi(expected),
+        }
     }
 
-    pub fn unexpected_eoi() -> Self {
-        Self(ParseErrorKind::UnexpectedEoi)
+    pub fn unexpected_eoi(expected: AllowToken) -> Self {
+        Self(ParseErrorKind::UnexpectedEoi(expected))
     }
 
-    pub fn unexpected_token(expected: Vec<Token>, actual: Option<Token>) -> Self {
+    pub fn unexpected_token(expected: AllowToken, actual: Token) -> Self {
         Self(ParseErrorKind::UnexpectedToken(expected, actual))
     }
 
@@ -31,34 +34,13 @@ impl ParseError {
 
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self.kind() {
-            ParseErrorKind::Lexical(source) => write!(f, "Lexical error: {}", source),
-            ParseErrorKind::UnclosedBlock => f.write_str("Unclosed block"),
-            ParseErrorKind::UnexpectedEoi => write!(f, "Unexpected end of input"),
-            ParseErrorKind::UnexpectedToken(expected, Some(actual)) => write!(
-                f,
-                "Unexpected token: expected one of {:?} but was {}",
-                expected, actual
-            ),
-            ParseErrorKind::UnexpectedToken(expected, None) => {
-                write!(
-                    f,
-                    "Unexpected token: expected one of {:?} but was <end>",
-                    expected
-                )
-            }
-        }
+        write!(f, "{}", self.kind())
     }
 }
 
 impl std::error::Error for ParseError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self.kind() {
-            ParseErrorKind::Lexical(source) => Some(source),
-            ParseErrorKind::UnclosedBlock
-            | ParseErrorKind::UnexpectedEoi
-            | ParseErrorKind::UnexpectedToken(..) => None,
-        }
+        self.kind().source()
     }
 }
 
@@ -71,7 +53,58 @@ impl From<LexicalError> for ParseError {
 #[derive(Debug)]
 pub enum ParseErrorKind {
     Lexical(LexicalError),
-    UnclosedBlock,
-    UnexpectedEoi,
-    UnexpectedToken(Vec<Token>, Option<Token>),
+    UnexpectedEoi(AllowToken),
+    UnexpectedToken(AllowToken, Token),
+}
+
+impl ParseErrorKind {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            ParseErrorKind::Lexical(source) => Some(source),
+            ParseErrorKind::UnexpectedEoi(..) | ParseErrorKind::UnexpectedToken(..) => None,
+        }
+    }
+}
+
+impl fmt::Display for ParseErrorKind {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Lexical(source) => write!(f, "Lexical error: {}", source),
+            Self::UnexpectedEoi(expected) => {
+                write!(f, "Unexpected end of input: Expected {}", expected)
+            }
+            Self::UnexpectedToken(expected, actual) => {
+                write!(
+                    f,
+                    "Unexpected token: Expected {} but was {}",
+                    expected, actual
+                )
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum AllowToken {
+    // TODO: Be more specific in the cases where this is used, and remove if possible
+    Unspecified,
+    Exactly(Token),
+    AnyOf(Token, Token, Vec<Token>),
+}
+
+impl fmt::Display for AllowToken {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Unspecified => f.write_str("any token"),
+            Self::Exactly(t0) => write!(f, "{}", t0),
+            Self::AnyOf(t0, t1, rest) => {
+                let mut str = format!("{} or {}", t0, t1);
+                for t in rest {
+                    str.push_str(" or ");
+                    str.push_str(&t.to_string());
+                }
+                f.write_str(&str)
+            }
+        }
+    }
 }
