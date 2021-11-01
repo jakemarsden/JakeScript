@@ -2,10 +2,13 @@ use crate::ast::{self, *};
 use crate::iter::{IntoPeekableNth, PeekableNth};
 use crate::lexer::{self, *};
 use std::io;
+use std::iter::Map;
 
 pub use error::*;
 
 mod error;
+
+type Fallible<I> = Map<I, fn(Token) -> LexResult<Token>>;
 
 pub struct Parser<I: Iterator<Item = LexResult<Token>>> {
     tokens: PeekableNth<I>,
@@ -14,12 +17,18 @@ pub struct Parser<I: Iterator<Item = LexResult<Token>>> {
 
 impl<I: Iterator<Item = io::Result<char>>> Parser<Tokens<Lexer<I>>> {
     pub fn for_lexer(source: Lexer<I>) -> Self {
-        Self::for_tokens(source.tokens())
+        Self::for_tokens_fallible(source.tokens())
+    }
+}
+
+impl<I: Iterator<Item = Token>> Parser<Fallible<I>> {
+    pub fn for_tokens(source: I) -> Self {
+        Self::for_tokens_fallible(source.map(Ok))
     }
 }
 
 impl<I: Iterator<Item = LexResult<Token>>> Parser<I> {
-    pub fn for_tokens(source: I) -> Self {
+    pub fn for_tokens_fallible(source: I) -> Self {
         Self {
             tokens: source.peekable_nth(),
             constants: ConstantPool::default(),

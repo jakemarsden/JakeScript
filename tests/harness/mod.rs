@@ -5,22 +5,23 @@ use jakescript::parser::{self, Parser};
 use std::path::Path;
 use std::time::{Duration, Instant};
 use std::{fmt, fs, io};
+use utf8_chars::BufReadCharsExt;
 
 pub fn exec_source_file(source_path: &Path) -> TestResult {
     let source_name = source_path.display().to_string();
-    match fs::read_to_string(source_path) {
-        Ok(ref source_code) => exec(source_name, source_code),
-        Err(err) => TestResult::read_error(source_name, err),
-    }
+    let mut buf = match fs::File::open(source_path) {
+        Ok(file) => io::BufReader::new(file),
+        Err(err) => return TestResult::read_error(source_name, err),
+    };
+    return exec(source_name, Lexer::for_chars_fallible(buf.chars()));
 }
 
 pub fn exec_source_code(source_code: &str) -> TestResult {
-    exec("untitled".to_owned(), source_code)
+    exec("untitled".to_owned(), Lexer::for_str(source_code))
 }
 
-fn exec(source_name: String, source_code: &str) -> TestResult {
-    let lexer = Lexer::for_str(source_code);
-    let parser = Parser::for_lexer(lexer);
+fn exec<I: Iterator<Item = io::Result<char>>>(source_name: String, source: Lexer<I>) -> TestResult {
+    let parser = Parser::for_lexer(source);
     let mut interpreter = Interpreter::default();
 
     let started_at = Instant::now();

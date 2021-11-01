@@ -1,17 +1,16 @@
 use jakescript::interpreter::{Eval, Interpreter};
 use jakescript::lexer::Lexer;
 use jakescript::parser::Parser;
-use std::path::PathBuf;
 use std::time::Instant;
-use std::{env, fs};
+use std::{env, fs, io};
+use utf8_chars::BufReadCharsExt;
 
 fn main() {
     let path = env::args().nth(1).expect("Expected path as CLI argument");
-    let path = PathBuf::from(path);
 
-    let source_code = fs::read_to_string(&path).expect("Failed to read source file");
+    let mut buf = io::BufReader::new(fs::File::open(&path).expect("Failed to open source file"));
+    let lexer = Lexer::for_chars_fallible(buf.chars());
 
-    let lexer = Lexer::for_str(&source_code);
     let parser = Parser::for_lexer(lexer);
     let mut it = Interpreter::default();
 

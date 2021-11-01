@@ -16,6 +16,9 @@ path = "src/lib.rs"
 [profile.release]
 debug = 1
 
+[dependencies]
+utf8-chars = "1.0"
+
 [dev-dependencies]
 ansi_term = "0.12"
 walkdir = "2.3"
