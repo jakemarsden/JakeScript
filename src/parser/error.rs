@@ -4,7 +4,7 @@ use std::fmt;
 
 pub type ParseResult<T = Program> = std::result::Result<T, ParseError>;
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct ParseError(ParseErrorInner);
 
 impl ParseError {
@@ -37,7 +37,7 @@ impl From<LexicalError> for ParseError {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 enum ParseErrorInner {
     Lexical(LexicalError),
 }

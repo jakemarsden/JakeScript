@@ -1,5 +1,6 @@
 use crate::iter::{IntoPeekableNth, PeekableNth};
-use std::iter::FilterMap;
+use std::io;
+use std::iter::{FilterMap, Map};
 use std::str::{Chars, FromStr};
 
 pub use error::*;
@@ -9,17 +10,24 @@ mod error;
 mod token;
 
 pub type Tokens<I> = FilterMap<I, fn(LexResult<Element>) -> Option<LexResult<Token>>>;
+type Fallible<I> = Map<I, fn(char) -> io::Result<char>>;
 
-pub struct Lexer<I: Iterator<Item = char>>(PeekableNth<I>, State);
+pub struct Lexer<I: Iterator<Item = io::Result<char>>>(PeekableNth<I>, State);
 
-impl<'a> Lexer<Chars<'a>> {
+impl<'a> Lexer<Fallible<Chars<'a>>> {
     pub fn for_str(source: &'a str) -> Self {
         Self::for_chars(source.chars())
     }
 }
 
-impl<I: Iterator<Item = char>> Lexer<I> {
+impl<I: Iterator<Item = char>> Lexer<Fallible<I>> {
     pub fn for_chars(source: I) -> Self {
+        Self::for_chars_fallible(source.map(Ok))
+    }
+}
+
+impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
+    pub fn for_chars_fallible(source: I) -> Self {
         Self(source.peekable_nth(), State::default())
     }
 
@@ -39,66 +47,83 @@ impl<I: Iterator<Item = char>> Lexer<I> {
     }
 
     fn parse_element(&mut self) -> LexResult<Element> {
-        Ok(self
-            .parse_whitespace()
-            .map(Element::Whitespace)
-            .or_else(|| self.parse_line_terminator().map(Element::LineTerminator))
-            .or_else(|| self.parse_comment().map(Element::Comment))
-            .or_else(|| self.parse_token().map(Element::Token))
-            .unwrap_or_else(|| match self.0.peek() {
+        Ok(if let Some(it) = self.parse_whitespace()? {
+            Element::Whitespace(it)
+        } else if let Some(it) = self.parse_line_terminator()? {
+            Element::LineTerminator(it)
+        } else if let Some(it) = self.parse_comment()? {
+            Element::Comment(it)
+        } else if let Some(it) = self.parse_token()? {
+            Element::Token(it)
+        } else {
+            match self.0.try_peek()? {
                 Some(ch) => todo!("Lexer::parse_element: ch={}", ch),
                 None => todo!("Lexer::parse_element: ch=<end>"),
-            }))
+            }
+        })
     }
 
-    fn parse_token(&mut self) -> Option<Token> {
+    fn parse_token(&mut self) -> LexResult<Option<Token>> {
         // TODO: Parse template tokens.
-        self.parse_punctuator()
-            .map(Token::Punctuator)
-            .or_else(|| self.parse_literal().map(Token::Literal))
-            .or_else(|| self.parse_keyword_or_identifier())
+        Ok(if let Some(value) = self.parse_punctuator()? {
+            Some(Token::Punctuator(value))
+        } else if let Some(value) = self.parse_literal()? {
+            Some(Token::Literal(value))
+        } else {
+            self.parse_keyword_or_identifier()?
+        })
     }
 
-    fn parse_punctuator(&mut self) -> Option<Punctuator> {
-        Punctuator::VALUES_IN_LEXICAL_ORDER
-            .iter()
-            .find(|punctuator| self.0.try_consume_str(punctuator.into_str()))
-            .cloned()
+    fn parse_punctuator(&mut self) -> LexResult<Option<Punctuator>> {
+        for value in Punctuator::VALUES_IN_LEXICAL_ORDER {
+            if self.0.try_consume_str(value.into_str())? {
+                return Ok(Some(value));
+            }
+        }
+        Ok(None)
     }
 
-    fn parse_literal(&mut self) -> Option<Literal> {
-        self.parse_null_literal()
-            .map(|()| Literal::Null)
-            .or_else(|| self.parse_undefined_literal().map(|()| Literal::Undefined))
-            .or_else(|| self.parse_boolean_literal().map(Literal::Boolean))
-            .or_else(|| self.parse_numeric_literal().map(Literal::Numeric))
-            .or_else(|| self.parse_string_literal().map(Literal::String))
+    fn parse_literal(&mut self) -> LexResult<Option<Literal>> {
+        Ok(if let Some(()) = self.parse_null_literal()? {
+            Some(Literal::Null)
+        } else if let Some(()) = self.parse_undefined_literal()? {
+            Some(Literal::Undefined)
+        } else if let Some(value) = self.parse_boolean_literal()? {
+            Some(Literal::Boolean(value))
+        } else if let Some(value) = self.parse_numeric_literal()? {
+            Some(Literal::Numeric(value))
+        } else {
+            self.parse_string_literal()?.map(Literal::String)
+        })
     }
 
-    fn parse_null_literal(&mut self) -> Option<()> {
-        self.0.try_consume_str("null").then_some(())
+    fn parse_null_literal(&mut self) -> LexResult<Option<()>> {
+        Ok(self.0.try_consume_str("null")?.then_some(()))
     }
 
-    fn parse_undefined_literal(&mut self) -> Option<()> {
-        self.0.try_consume_str("undefined").then_some(())
+    fn parse_undefined_literal(&mut self) -> LexResult<Option<()>> {
+        Ok(self.0.try_consume_str("undefined")?.then_some(()))
     }
 
-    fn parse_boolean_literal(&mut self) -> Option<bool> {
-        self.0
-            .try_consume_str("true")
-            .then_some(true)
-            .or_else(|| self.0.try_consume_str("false").then_some(false))
+    fn parse_boolean_literal(&mut self) -> LexResult<Option<bool>> {
+        Ok(if self.0.try_consume_str("true")? {
+            Some(true)
+        } else if self.0.try_consume_str("false")? {
+            Some(false)
+        } else {
+            None
+        })
     }
 
-    fn parse_numeric_literal(&mut self) -> Option<i64> {
-        if !matches!(self.0.peek(), Some(ch) if ch.is_ascii_digit()) {
-            return None;
+    fn parse_numeric_literal(&mut self) -> LexResult<Option<i64>> {
+        if !matches!(self.0.try_peek()?, Some(ch) if ch.is_ascii_digit()) {
+            return Ok(None);
         }
         // FIXME: This is a naive implementation which doesn't match the spec.
         let mut content = String::new();
         let mut original_len = 0;
         for offset in 0.. {
-            match self.0.peek_nth(offset) {
+            match self.0.try_peek_nth(offset)? {
                 Some(ch) if ch.is_ascii_digit() => {
                     content.push(*ch);
                     original_len += 1;
@@ -109,43 +134,45 @@ impl<I: Iterator<Item = char>> Lexer<I> {
                 Some(_) | None => break,
             }
         }
-        match self.0.peek_nth(original_len) {
-            Some(next_ch) if is_identifier_start(*next_ch) => return None,
-            Some(next_ch) if next_ch.is_ascii_digit() => return None,
+        match self.0.try_peek_nth(original_len)? {
+            Some(next_ch) if is_identifier_start(*next_ch) => return Ok(None),
+            Some(next_ch) if next_ch.is_ascii_digit() => return Ok(None),
             Some(_) | None => {}
         }
         if let Ok(value) = i64::from_str(&content) {
             self.0.advance_by(original_len).unwrap();
-            Some(value)
+            Ok(Some(value))
         } else {
             todo!("Lexer::parse_numeric_literal: content={}", content)
         }
     }
 
-    fn parse_string_literal(&mut self) -> Option<String> {
-        ['"', '\'']
-            .into_iter()
-            .find_map(|qt| self.parse_quoted_literal(qt))
+    fn parse_string_literal(&mut self) -> LexResult<Option<String>> {
+        Ok(if let Some(content) = self.parse_quoted_literal('"')? {
+            Some(content)
+        } else {
+            self.parse_quoted_literal('\'')?
+        })
     }
 
-    fn parse_quoted_literal(&mut self, qt: char) -> Option<String> {
-        if self.0.peek() != Some(&qt) {
-            return None;
+    fn parse_quoted_literal(&mut self, qt: char) -> LexResult<Option<String>> {
+        if self.0.try_peek()? != Some(&qt) {
+            return Ok(None);
         }
         // Optimisation: Avoid allocating for empty string literals.
-        if self.0.peek_nth(1) == Some(&qt) {
-            self.0.next_exact(&qt);
-            self.0.next_exact(&qt);
-            return Some(String::with_capacity(0));
+        if self.0.try_peek_nth(1)? == Some(&qt) {
+            self.0.try_next_exact(&qt)?;
+            self.0.try_next_exact(&qt)?;
+            return Ok(Some(String::with_capacity(0)));
         }
         // FIXME: This is a naive implementation which doesn't match the spec.
         let mut content = String::new();
         let mut escaped = false;
         let mut raw_content_len = 0;
         for offset in 1.. {
-            match self.0.peek_nth(offset) {
-                Some(ch) if is_line_terminator(*ch) => return None,
-                None => return None,
+            match self.0.try_peek_nth(offset)? {
+                Some(ch) if is_line_terminator(*ch) => return Ok(None),
+                None => return Ok(None),
                 Some(ch) if !escaped && *ch == qt => break,
                 Some('\\') if !escaped => {
                     escaped = true;
@@ -158,99 +185,105 @@ impl<I: Iterator<Item = char>> Lexer<I> {
                 }
             }
         }
-        self.0.next_exact(&qt);
+        self.0.try_next_exact(&qt)?;
         self.0.advance_by(raw_content_len).unwrap();
-        self.0.next_exact(&qt);
-        Some(content)
+        self.0.try_next_exact(&qt)?;
+        Ok(Some(content))
     }
 
-    fn parse_keyword_or_identifier(&mut self) -> Option<Token> {
-        let ident_or_keyword = self.parse_identifier_name()?;
-        Some(if let Ok(keyword) = Keyword::from_str(&ident_or_keyword) {
-            Token::Keyword(keyword)
+    fn parse_keyword_or_identifier(&mut self) -> LexResult<Option<Token>> {
+        Ok(self.parse_identifier_name()?.map(|ident_or_keyword| {
+            Keyword::from_str(&ident_or_keyword)
+                .map(Token::Keyword)
+                .unwrap_or_else(|_| Token::Identifier(ident_or_keyword))
+        }))
+    }
+
+    fn parse_identifier_name(&mut self) -> LexResult<Option<String>> {
+        if let Some(ch0) = self.0.try_next_if(|ch| is_identifier_start(*ch))? {
+            let mut content: String = self.0.try_collect_while(|ch| is_identifier_part(*ch))?;
+            content.insert(0, ch0);
+            Ok(Some(content))
         } else {
-            Token::Identifier(ident_or_keyword)
-        })
+            Ok(None)
+        }
     }
 
-    fn parse_identifier_name(&mut self) -> Option<String> {
-        let ch0 = self.0.next_if(|ch| is_identifier_start(*ch))?;
-        let mut content: String = self.0.collect_while(|ch| is_identifier_part(*ch));
-        content.insert(0, ch0);
-        Some(content)
+    fn parse_whitespace(&mut self) -> LexResult<Option<char>> {
+        Ok(self.0.try_next_if(|ch| is_whitespace(*ch))?)
     }
 
-    fn parse_whitespace(&mut self) -> Option<char> {
-        self.0.next_if(|ch| is_whitespace(*ch))
-    }
-
-    fn parse_line_terminator(&mut self) -> Option<LineTerminator> {
-        match self.0.peek().cloned() {
-            Some(CR) if self.0.peek_nth(1) == Some(&LF) => {
-                self.0.next_exact(&CR);
-                self.0.next_exact(&LF);
+    fn parse_line_terminator(&mut self) -> LexResult<Option<LineTerminator>> {
+        Ok(match self.0.try_peek()?.cloned() {
+            Some(CR) if self.0.try_peek_nth(1)? == Some(&LF) => {
+                self.0.try_next_exact(&CR)?;
+                self.0.try_next_exact(&LF)?;
                 Some(LineTerminator::Crlf)
             }
             Some(CR) => {
-                self.0.next_exact(&CR);
+                self.0.try_next_exact(&CR)?;
                 Some(LineTerminator::Cr)
             }
             Some(LF) => {
-                self.0.next_exact(&LF);
+                self.0.try_next_exact(&LF)?;
                 Some(LineTerminator::Lf)
             }
             Some(LS) => {
-                self.0.next_exact(&LS);
+                self.0.try_next_exact(&LS)?;
                 Some(LineTerminator::Ls)
             }
             Some(PS) => {
-                self.0.next_exact(&PS);
+                self.0.try_next_exact(&PS)?;
                 Some(LineTerminator::Ps)
             }
             Some(_) | None => None,
-        }
+        })
     }
 
-    fn parse_comment(&mut self) -> Option<Comment> {
-        self.parse_single_line_comment()
-            .map(Comment::SingleLine)
-            .or_else(|| self.parse_multi_line_comment().map(Comment::MultiLine))
-    }
-
-    fn parse_single_line_comment(&mut self) -> Option<String> {
-        if self.0.try_consume_str("//") {
-            let content = self.0.collect_until(|ch| is_line_terminator(*ch));
-            Some(content)
+    fn parse_comment(&mut self) -> LexResult<Option<Comment>> {
+        Ok(if let Some(content) = self.parse_single_line_comment()? {
+            Some(Comment::SingleLine(content))
         } else {
-            None
+            self.parse_multi_line_comment()?.map(Comment::MultiLine)
+        })
+    }
+
+    fn parse_single_line_comment(&mut self) -> LexResult<Option<String>> {
+        if self.0.try_peek()? == Some(&'/') && self.0.try_peek_nth(1)? == Some(&'/') {
+            self.0.try_next_exact(&'/')?;
+            self.0.try_next_exact(&'/')?;
+            let content = self.0.try_collect_until(|ch| is_line_terminator(*ch))?;
+            Ok(Some(content))
+        } else {
+            Ok(None)
         }
     }
 
-    fn parse_multi_line_comment(&mut self) -> Option<String> {
-        if self.0.peek() != Some(&'/') || self.0.peek_nth(1) != Some(&'*') {
-            return None;
+    fn parse_multi_line_comment(&mut self) -> LexResult<Option<String>> {
+        if self.0.try_peek()? != Some(&'/') || self.0.try_peek_nth(1)? != Some(&'*') {
+            return Ok(None);
         }
         let mut content = String::new();
         for offset in 2.. {
-            let ch = match self.0.peek_nth(offset) {
+            let ch = match self.0.try_peek_nth(offset)? {
                 Some(ch) => *ch,
                 None => panic!("Multi-line comment not closed before end of input"),
             };
-            if ch == '*' && self.0.peek_nth(offset + 1) == Some(&'/') {
+            if ch == '*' && self.0.try_peek_nth(offset + 1)? == Some(&'/') {
                 break;
             }
             content.push(ch);
         }
-        self.0.next_exact(&'/');
-        self.0.next_exact(&'*');
+        self.0.try_next_exact(&'/')?;
+        self.0.try_next_exact(&'*')?;
         self.0.advance_by(content.len()).unwrap();
-        self.0.next_exact(&'*');
-        self.0.next_exact(&'/');
-        Some(content)
+        self.0.try_next_exact(&'*')?;
+        self.0.try_next_exact(&'/')?;
+        Ok(Some(content))
     }
 }
 
-impl<I: Iterator<Item = char>> Iterator for Lexer<I> {
+impl<I: Iterator<Item = io::Result<char>>> Iterator for Lexer<I> {
     type Item = LexResult<Element>;
 
     fn next(&mut self) -> Option<Self::Item> {

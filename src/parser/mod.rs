@@ -1,6 +1,7 @@
 use crate::ast::{self, *};
 use crate::iter::{IntoPeekableNth, PeekableNth};
 use crate::lexer::{self, *};
+use std::io;
 
 pub use error::*;
 
@@ -11,7 +12,7 @@ pub struct Parser<I: Iterator<Item = LexResult<Token>>> {
     constants: ConstantPool,
 }
 
-impl<I: Iterator<Item = char>> Parser<Tokens<Lexer<I>>> {
+impl<I: Iterator<Item = io::Result<char>>> Parser<Tokens<Lexer<I>>> {
     pub fn for_lexer(source: Lexer<I>) -> Self {
         Self::for_tokens(source.tokens())
     }

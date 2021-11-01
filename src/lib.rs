@@ -7,6 +7,6 @@
 
 pub mod ast;
 pub mod interpreter;
-pub mod iter;
+pub(crate) mod iter;
 pub mod lexer;
 pub mod parser;

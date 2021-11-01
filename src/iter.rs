@@ -38,86 +38,38 @@ impl<I: Iterator> PeekableNth<I> {
         }
         Some(self.buf.get(offset).unwrap())
     }
-
-    pub fn next_if(&mut self, condition: impl FnOnce(&I::Item) -> bool) -> Option<I::Item> {
-        if condition(self.peek()?) {
-            Some(self.next().unwrap())
-        } else {
-            None
-        }
-    }
-
-    pub fn next_if_eq<T>(&mut self, expected: &T) -> Option<I::Item>
-    where
-        T: ?Sized,
-        I::Item: PartialEq<T>,
-    {
-        self.next_if(|next| next == expected)
-    }
-
-    pub fn next_exact<T>(&mut self, expected: &T) -> I::Item
-    where
-        T: ?Sized + fmt::Debug,
-        I::Item: PartialEq<T> + fmt::Debug,
-    {
-        match self.peek() {
-            Some(actual) if actual == expected => self.next().unwrap(),
-            Some(actual) => unreachable!("expected {:?} but was {:?}", expected, actual),
-            None => unreachable!("expected {:?} but was <end>", expected),
-        }
-    }
-
-    pub fn collect_until<B>(&mut self, condition: impl Fn(&I::Item) -> bool) -> B
-    where
-        B: FromIterator<I::Item>,
-    {
-        self.collect_while(|next| !condition(next))
-    }
-
-    pub fn collect_while<B>(&mut self, condition: impl Fn(&I::Item) -> bool) -> B
-    where
-        B: FromIterator<I::Item>,
-    {
-        let mut idx = 0;
-        loop {
-            match self.peek_nth(idx) {
-                Some(item) if condition(item) => idx += 1,
-                Some(_) | None => break,
-            }
-        }
-        FromIterator::from_iter(self.take(idx))
-    }
-
-    fn try_consume_all<I2>(&mut self, expected: I2) -> bool
-    where
-        I::Item: PartialEq<I2::Item>,
-        I2: Iterator,
-    {
-        let mut count = 0;
-        for (idx, ref expected) in expected.enumerate() {
-            match self.peek_nth(idx) {
-                Some(item) if item == expected => count += 1,
-                Some(_) | None => return false,
-            }
-        }
-        self.advance_by(count).unwrap();
-        true
-    }
 }
 
 impl<T, E, I: Iterator<Item = Result<T, E>>> PeekableNth<I> {
     pub fn try_peek(&mut self) -> Result<Option<&T>, E>
     where
-        E: Clone + 'static,
+        E: 'static,
     {
         self.try_peek_nth(0)
     }
 
     pub fn try_peek_nth(&mut self, offset: usize) -> Result<Option<&T>, E>
     where
-        E: Clone + 'static,
+        E: 'static,
     {
-        self.peek_nth(offset).map(clone_if_err).transpose()
+        match self.peek_nth(offset) {
+            Some(Ok(_)) => {
+                if let Some(Ok(value)) = self.peek_nth(offset) {
+                    Ok(Some(value))
+                } else {
+                    panic!()
+                }
+            }
+            Some(Err(_)) => {
+                self.advance_by(offset).unwrap();
+                if let Some(Err(err)) = self.next() {
+                    Err(err)
+                } else {
+                    panic!()
+                }
+            }
+            None => Ok(None),
+        }
     }
 
     pub fn try_next(&mut self) -> Result<Option<T>, E> {
@@ -126,19 +78,25 @@ impl<T, E, I: Iterator<Item = Result<T, E>>> PeekableNth<I> {
 
     pub fn try_next_if(&mut self, condition: impl FnOnce(&T) -> bool) -> Result<Option<T>, E>
     where
-        E: Clone + fmt::Debug + 'static,
+        E: 'static,
     {
         Ok(match self.try_peek()? {
-            Some(next) if condition(next) => Some(self.next().unwrap().unwrap()),
+            Some(next) if condition(next) => {
+                if let Some(Ok(item)) = self.next() {
+                    Some(item)
+                } else {
+                    panic!()
+                }
+            }
             Some(_) | None => None,
         })
     }
 
     pub fn try_next_if_eq<U>(&mut self, expected: &U) -> Result<Option<T>, E>
     where
-        U: ?Sized,
         T: PartialEq<U>,
-        E: Clone + fmt::Debug + 'static,
+        E: 'static,
+        U: ?Sized,
     {
         self.try_next_if(|next| next == expected)
     }
@@ -146,23 +104,62 @@ impl<T, E, I: Iterator<Item = Result<T, E>>> PeekableNth<I> {
     pub fn try_next_exact<U>(&mut self, expected: &U) -> Result<(), E>
     where
         T: PartialEq<U> + fmt::Debug,
-        U: fmt::Debug,
-        E: Clone + fmt::Debug + 'static,
+        E: 'static,
+        U: ?Sized + fmt::Debug,
     {
         match self.try_peek()? {
             Some(actual) if actual == expected => {
-                self.next().unwrap().unwrap();
-                Ok(())
+                if let Some(Ok(_)) = self.next() {
+                    Ok(())
+                } else {
+                    panic!()
+                }
             }
             Some(actual) => unreachable!("expected {:?} but was {:?}", expected, actual),
             None => unreachable!("expected {:?} but was <end>", expected),
         }
     }
-}
 
-impl<I: Iterator<Item = char>> PeekableNth<I> {
-    pub fn try_consume_str(&mut self, expected: &str) -> bool {
-        self.try_consume_all(expected.chars())
+    pub fn try_collect_until<B>(&mut self, condition: impl Fn(&T) -> bool) -> Result<B, E>
+    where
+        E: 'static,
+        B: FromIterator<T>,
+    {
+        self.try_collect_while(|next| !condition(next))
+    }
+
+    pub fn try_collect_while<B>(&mut self, condition: impl Fn(&T) -> bool) -> Result<B, E>
+    where
+        E: 'static,
+        B: FromIterator<T>,
+    {
+        let mut idx = 0;
+        loop {
+            match self.try_peek_nth(idx)? {
+                Some(item) if condition(item) => idx += 1,
+                Some(_) | None => break,
+            }
+        }
+        let partial_iter = self
+            .take(idx)
+            .map(|item| if let Ok(item) = item { item } else { panic!() });
+        Ok(FromIterator::from_iter(partial_iter))
+    }
+
+    pub fn try_consume_str(&mut self, expected: &str) -> Result<bool, E>
+    where
+        T: PartialEq<char>,
+        E: 'static,
+    {
+        let mut len = 0;
+        for (idx, ch) in expected.chars().enumerate() {
+            match self.try_peek_nth(idx)? {
+                Some(item) if item == &ch => len += 1,
+                Some(_) | None => return Ok(false),
+            }
+        }
+        self.advance_by(len).unwrap();
+        Ok(true)
     }
 }
 
@@ -199,20 +196,10 @@ impl<I: ExactSizeIterator> ExactSizeIterator for PeekableNth<I> {}
 
 impl<I: FusedIterator> FusedIterator for PeekableNth<I> {}
 
-#[inline]
-fn clone_if_err<T, E>(self_: &Result<T, E>) -> Result<&T, E>
-where
-    E: Clone,
-{
-    match self_ {
-        Ok(value) => Ok(value),
-        Err(err) => Err(err.clone()),
-    }
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
+    use std::convert::Infallible;
 
     #[test]
     fn peek() {
@@ -234,26 +221,33 @@ mod test {
     }
 
     #[test]
-    fn collect_while() {
-        let mut iter = "Hello, world!".chars().peekable_nth();
+    fn try_collect_while() {
+        let mut iter = "Hello, world!"
+            .chars()
+            .map(Ok as fn(char) -> Result<char, Infallible>)
+            .peekable_nth();
 
-        let hello: Vec<_> = iter.collect_while(|ch| ch.is_ascii_alphabetic());
+        let hello: Vec<_> = iter
+            .try_collect_while(|ch| ch.is_ascii_alphabetic())
+            .unwrap();
         assert_eq!(hello, ['H', 'e', 'l', 'l', 'o']);
-        assert_eq!(iter.next(), Some(','));
+        assert_eq!(iter.next(), Some(Ok(',')));
 
-        let empty: Vec<_> = iter.collect_while(|_| false);
+        let empty: Vec<_> = iter.try_collect_while(|_| false).unwrap();
         assert_eq!(empty, []);
-        assert_eq!(iter.peek(), Some(&' '));
+        assert_eq!(iter.peek(), Some(&Ok(' ')));
 
-        let space: Vec<_> = iter.collect_until(|ch| ch.is_ascii_alphabetic());
+        let space: Vec<_> = iter
+            .try_collect_until(|ch| ch.is_ascii_alphabetic())
+            .unwrap();
         assert_eq!(space, [' ']);
-        assert_eq!(iter.peek(), Some(&'w'));
+        assert_eq!(iter.peek(), Some(&Ok('w')));
 
-        let world: String = iter.collect_while(|_| true);
+        let world: String = iter.try_collect_while(|_| true).unwrap();
         assert_eq!(world, "world!");
         assert_eq!(iter.peek(), None);
 
-        let empty: String = iter.collect_while(|_| true);
+        let empty: String = iter.try_collect_while(|_| true).unwrap();
         assert_eq!(empty, "");
         assert_eq!(iter.peek(), None);
     }
