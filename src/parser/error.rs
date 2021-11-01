@@ -1,5 +1,6 @@
 use crate::ast::Program;
 use crate::lexer::{LexicalError, Token};
+use ansi_term::Style;
 use std::fmt;
 
 pub type ParseResult<T = Program> = std::result::Result<T, ParseError>;
@@ -77,7 +78,8 @@ impl fmt::Display for ParseErrorKind {
                 write!(
                     f,
                     "Unexpected token: Expected {} but was {}",
-                    expected, actual
+                    expected,
+                    highlight(actual.to_string()),
                 )
             }
         }
@@ -96,15 +98,23 @@ impl fmt::Display for AllowToken {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Unspecified => f.write_str("any token"),
-            Self::Exactly(t0) => write!(f, "{}", t0),
+            Self::Exactly(t0) => write!(f, "{}", highlight(t0.to_string())),
             Self::AnyOf(t0, t1, rest) => {
-                let mut str = format!("{} or {}", t0, t1);
+                let mut str = format!(
+                    "{} or {}",
+                    highlight(t0.to_string()),
+                    highlight(t1.to_string())
+                );
                 for t in rest {
                     str.push_str(" or ");
-                    str.push_str(&t.to_string());
+                    str.push_str(&highlight(t.to_string()).to_string());
                 }
                 f.write_str(&str)
             }
         }
     }
+}
+
+fn highlight<'a>(input: String) -> ansi_term::ANSIGenericString<'a, str> {
+    Style::new().bold().paint(input)
 }

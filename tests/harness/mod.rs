@@ -1,4 +1,4 @@
-use ansi_term::Color::*;
+use ansi_term::Color;
 use jakescript::interpreter::{self, Eval, Interpreter};
 use jakescript::lexer::Lexer;
 use jakescript::parser::{self, Parser};
@@ -139,25 +139,21 @@ impl fmt::Display for TestResult {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         const TICK: char = '\u{2714}';
         const CROSS: char = '\u{274C}';
-        if self.is_pass() {
-            write!(
-                f,
-                "[{} {}] {} ({:?})",
-                TICK,
-                Green.paint("pass"),
-                self.source_name(),
-                self.runtime()
-            )
-        } else {
-            write!(
-                f,
-                "[{} {}] {} ({:?}): {}",
-                CROSS,
-                Red.paint("fail"),
-                self.source_name(),
-                self.runtime(),
-                self.failure_reason().unwrap(),
-            )
+
+        let (symbol, status, status_style) = match self.is_pass() {
+            true => (TICK, "pass", Color::Green.normal()),
+            false => (CROSS, "fail", Color::Red.normal()),
+        };
+        let mut msg = format!(
+            "[{} {}] {} ({:?})",
+            symbol,
+            status_style.paint(status),
+            self.source_name(),
+            self.runtime()
+        );
+        if let Some(failure_reason) = self.failure_reason() {
+            msg.push_str(&format!(": {}", failure_reason));
         }
+        f.write_str(&msg)
     }
 }
