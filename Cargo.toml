@@ -17,4 +17,5 @@ path = "src/lib.rs"
 debug = 1
 
 [dev-dependencies]
+ansi_term = "0.12"
 walkdir = "2.3"

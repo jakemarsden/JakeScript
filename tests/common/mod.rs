@@ -1,19 +1,162 @@
-use jakescript::ast::Program;
+use ansi_term::Color::*;
 use jakescript::interpreter::{self, Eval, Interpreter};
 use jakescript::lexer::Lexer;
 use jakescript::parser::{self, Parser};
+use std::path::Path;
+use std::time::{Duration, Instant};
+use std::{fmt, fs, io};
 
-// dead_code: See https://github.com/rust-lang/rust/issues/46379
-#[allow(dead_code)]
-pub fn eval(ast: &Program) -> interpreter::Result {
-    let mut it = Interpreter::default();
-    ast.eval(&mut it)
+pub fn exec_source_file(source_path: &Path) -> TestResult {
+    let source_name = source_path.display().to_string();
+    match fs::read_to_string(source_path) {
+        Ok(ref source_code) => exec(source_name, source_code),
+        Err(err) => TestResult::read_error(source_name, err),
+    }
 }
 
-// dead_code: See https://github.com/rust-lang/rust/issues/46379
-#[allow(dead_code)]
-pub fn parse_from_source_code(source_code: &str) -> parser::ParseResult {
+pub fn exec_source_code(source_code: &str) -> TestResult {
+    exec("untitled".to_owned(), source_code)
+}
+
+fn exec(source_name: String, source_code: &str) -> TestResult {
     let lexer = Lexer::for_str(source_code);
     let parser = Parser::for_lexer(lexer);
-    parser.execute()
+    let mut interpreter = Interpreter::default();
+
+    let started_at = Instant::now();
+
+    let ast = match parser.execute() {
+        Ok(ast) => ast,
+        Err(reason) => return TestResult::parser_error(source_name, started_at.elapsed(), reason),
+    };
+
+    let result = match ast.eval(&mut interpreter) {
+        Ok(result) => result,
+        Err(err) => return TestResult::interpreter_error(source_name, started_at.elapsed(), err),
+    };
+
+    TestResult::pass(source_name, started_at.elapsed(), result)
+}
+
+#[derive(Debug)]
+pub enum TestOutput {
+    Pass(interpreter::Value),
+    ParserError(parser::ParseError),
+    InterpreterError(interpreter::Error),
+    ReadError(io::Error),
+}
+
+#[derive(Debug)]
+pub struct TestResult {
+    source_name: String,
+    runtime: Duration,
+    output: TestOutput,
+}
+
+impl TestResult {
+    pub fn pass(source_name: String, runtime: Duration, value: interpreter::Value) -> Self {
+        Self {
+            source_name,
+            runtime,
+            output: TestOutput::Pass(value),
+        }
+    }
+
+    pub fn parser_error(
+        source_name: String,
+        runtime: Duration,
+        reason: parser::ParseError,
+    ) -> Self {
+        Self {
+            source_name,
+            runtime,
+            output: TestOutput::ParserError(reason),
+        }
+    }
+
+    pub fn interpreter_error(
+        source_name: String,
+        runtime: Duration,
+        reason: interpreter::Error,
+    ) -> Self {
+        Self {
+            source_name,
+            runtime,
+            output: TestOutput::InterpreterError(reason),
+        }
+    }
+
+    pub fn read_error(source_name: String, reason: io::Error) -> Self {
+        Self {
+            source_name,
+            runtime: Duration::ZERO,
+            output: TestOutput::ReadError(reason),
+        }
+    }
+
+    pub fn source_name(&self) -> &str {
+        &self.source_name
+    }
+
+    pub fn runtime(&self) -> Duration {
+        self.runtime
+    }
+
+    pub fn output(&self) -> &TestOutput {
+        &self.output
+    }
+
+    pub fn is_pass(&self) -> bool {
+        match self.output() {
+            TestOutput::Pass(..) => true,
+            TestOutput::ParserError(..)
+            | TestOutput::InterpreterError(..)
+            | TestOutput::ReadError(..) => false,
+        }
+    }
+
+    pub fn success_value(&self) -> Option<&interpreter::Value> {
+        match self.output() {
+            TestOutput::Pass(value) => Some(value),
+            TestOutput::ParserError(..)
+            | TestOutput::InterpreterError(..)
+            | TestOutput::ReadError(..) => None,
+        }
+    }
+
+    pub fn failure_reason(&self) -> Option<&dyn std::error::Error> {
+        match self.output() {
+            TestOutput::Pass(..) => None,
+            TestOutput::ParserError(reason) => Some(reason),
+            TestOutput::InterpreterError(reason) => Some(reason),
+            TestOutput::ReadError(reason) => Some(reason),
+        }
+    }
+}
+
+impl fmt::Display for TestResult {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        const TICK: char = '\u{2714}';
+        const CROSS: char = '\u{274C}';
+        if self.is_pass() {
+            write!(
+                f,
+                "[{} {}] {} ({:?})",
+                TICK,
+                Green.paint("pass"),
+                self.source_name(),
+                self.runtime()
+            )
+        } else {
+            write!(
+                f,
+                "[{} {}] {} ({:?}): {}",
+                CROSS,
+                Red.paint("fail"),
+                self.source_name(),
+                self.runtime(),
+                self.failure_reason().unwrap(),
+            )
+        }
+    }
 }

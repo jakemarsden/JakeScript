@@ -1,11 +1,15 @@
-use std::fs;
-use std::time::{Duration, Instant};
+use ansi_term::Color::*;
+use common::exec_source_file;
+use std::time::Duration;
 use walkdir::WalkDir;
 
-mod common;
+pub mod common;
 
 #[test]
 fn js_tests() {
+    #[cfg(windows)]
+    ansi_term::enable_ansi_support().ok();
+
     let mut success_count = 0_usize;
     let mut failure_count = 0_usize;
     let mut total_runtime = Duration::ZERO;
@@ -16,48 +20,27 @@ fn js_tests() {
             continue;
         }
 
-        let source_file = source_file.path();
-        let source_code = fs::read_to_string(source_file).expect("Failed to read source file");
-
-        let started_at = Instant::now();
-        let ast =
-            common::parse_from_source_code(&source_code).expect("Failed to parse source code");
-        let result = common::eval(&ast);
-
-        let elapsed_runtime = started_at.elapsed();
-        total_runtime += elapsed_runtime;
-
-        match result {
-            Ok(..) => {
-                success_count += 1;
-                println!(
-                    "    [passed] {} ({:?})",
-                    source_file.display(),
-                    elapsed_runtime
-                );
-            }
-            Err(err) => {
-                failure_count += 1;
-                eprintln!(
-                    "    [failed] {} ({:?}): {}",
-                    source_file.display(),
-                    elapsed_runtime,
-                    err
-                );
-            }
+        let result = exec_source_file(source_file.path());
+        if result.is_pass() {
+            success_count += 1;
+            println!("    {}", result);
+        } else {
+            failure_count += 1;
+            eprintln!("    {}", result);
         }
+        total_runtime += result.runtime();
     }
 
+    let msg = format!(
+        "JavaScript tests: {}, {} in {:?}",
+        Green.paint(format!("{} passed", success_count)),
+        Red.paint(format!("{} failed", failure_count)),
+        total_runtime
+    );
     if failure_count == 0 {
-        println!(
-            "    JavaScript tests: {} passed, {} failed ({:?})",
-            success_count, failure_count, total_runtime
-        );
+        println!("    {}", msg);
     } else {
-        eprintln!(
-            "    JavaScript tests: {} passed, {} failed ({:?})",
-            success_count, failure_count, total_runtime
-        );
-        panic!("At least one JavaScript test failed");
+        eprintln!("    {}", msg);
+        panic!("At least one JavaScript test has failed.");
     }
 }

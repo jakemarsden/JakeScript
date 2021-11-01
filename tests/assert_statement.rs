@@ -1,9 +1,10 @@
 #![feature(assert_matches)]
 
+use common::{exec_source_code, TestOutput};
 use jakescript::interpreter::{Error, Value};
 use std::assert_matches::assert_matches;
 
-mod common;
+pub mod common;
 
 #[test]
 fn assertion_passes_for_truthy_literal() {
@@ -32,13 +33,14 @@ fn assertion_fails_for_falsy_expression() {
 }
 
 fn assertion_passes(source_code: &str) {
-    let ast = common::parse_from_source_code(source_code).unwrap();
-    let result = common::eval(&ast);
-    assert_matches!(result, Ok(Value::Undefined))
+    let result = exec_source_code(source_code);
+    assert_matches!(result.output(), TestOutput::Pass(Value::Undefined));
 }
 
 fn assertion_fails(source_code: &str) {
-    let ast = common::parse_from_source_code(source_code).unwrap();
-    let result = common::eval(&ast);
-    assert_matches!(result, Err(Error::AssertionFailed(..)));
+    let result = exec_source_code(source_code);
+    assert_matches!(
+        result.output(),
+        TestOutput::InterpreterError(Error::AssertionFailed(..))
+    );
 }
