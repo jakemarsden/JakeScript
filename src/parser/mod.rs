@@ -50,7 +50,7 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
             match self.tokens.try_peek()? {
                 Some(Token::Punctuator(Punctuator::CloseBrace)) => break,
                 Some(_) => {}
-                None => panic!("Block not closed before end of input"),
+                None => return Err(ParseError::unclosed_block()),
             }
             stmts.push(self.parse_statement()?);
         }
@@ -96,7 +96,7 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
                 self.expect_punctuator(Punctuator::Semicolon)?;
                 Ok(stmt)
             }
-            None => panic!("Expected statement but was <end>"),
+            None => Err(ParseError::unexpected_eoi()),
         }
     }
 
@@ -110,9 +110,7 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
             if let Some(op_kind) = Operator::try_parse(punctuator, Position::Postfix) {
                 if op_kind.precedence() > min_precedence {
                     self.tokens.try_next().unwrap().unwrap();
-                    expression = self
-                        .parse_secondary_expression(expression, op_kind)
-                        .expect("Expected secondary expression but was <end>");
+                    expression = self.parse_secondary_expression(expression, op_kind)?;
                 } else {
                     break;
                 }
@@ -147,17 +145,13 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
             }
             Some(Token::Punctuator(punc)) => {
                 if let Some(op_kind) = UnaryOperator::try_parse(punc, Position::Prefix) {
-                    let operand = self
-                        .parse_expression_impl(op_kind.precedence())
-                        .expect("Expected expression but was <end>");
+                    let operand = self.parse_expression_impl(op_kind.precedence())?;
                     Expression::Unary(UnaryExpression {
                         kind: op_kind,
                         operand: Box::new(operand),
                     })
                 } else if GroupingOp::try_parse(punc, Position::Prefix).is_some() {
-                    let inner = self
-                        .parse_expression()
-                        .expect("Expected expression but was <end>");
+                    let inner = self.parse_expression()?;
                     self.expect_punctuator(Punctuator::CloseParen)?;
                     Expression::Grouping(GroupingExpression {
                         inner: Box::new(inner),
@@ -186,7 +180,7 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
                 })
             }
             Some(token) => todo!("Parser::parse_primary_expression: token={}", token),
-            None => panic!("Expected primary expression but was <end>"),
+            None => return Err(ParseError::unexpected_eoi()),
         })
     }
 
@@ -199,18 +193,12 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
             Operator::Assignment(kind) => Expression::Assignment(AssignmentExpression {
                 kind,
                 lhs: Box::new(lhs),
-                rhs: Box::new(
-                    self.parse_expression_impl(op_kind.precedence())
-                        .expect("Expected right-hand-side of assignment expression but was <end>"),
-                ),
+                rhs: Box::new(self.parse_expression_impl(op_kind.precedence())?),
             }),
             Operator::Binary(kind) => Expression::Binary(BinaryExpression {
                 kind,
                 lhs: Box::new(lhs),
-                rhs: Box::new(
-                    self.parse_expression_impl(op_kind.precedence())
-                        .expect("Expected right-hand-side of binary expression but was <end>"),
-                ),
+                rhs: Box::new(self.parse_expression_impl(op_kind.precedence())?),
             }),
             Operator::Unary(kind) => Expression::Unary(UnaryExpression {
                 kind,
@@ -218,20 +206,9 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
             }),
             Operator::Ternary => {
                 let condition = lhs;
-                let lhs = self.parse_expression_impl(op_kind.precedence()).expect(
-                    "Expected left-hand-side expression of ternary expression but was <end>",
-                );
-                match self.tokens.try_next()? {
-                    Some(Token::Punctuator(Punctuator::Colon)) => {}
-                    Some(token) => panic!(
-                        "Expected colon between ternary expressions but was {}",
-                        token
-                    ),
-                    None => panic!("Expected colon between ternary expressions but was <end>"),
-                }
-                let rhs = self.parse_expression_impl(op_kind.precedence()).expect(
-                    "Expected right-hand-side expression of ternary expression but was <end>",
-                );
+                let lhs = self.parse_expression_impl(op_kind.precedence())?;
+                self.expect_punctuator(Punctuator::Colon)?;
+                let rhs = self.parse_expression_impl(op_kind.precedence())?;
                 Expression::Ternary(TernaryExpression {
                     condition: Box::new(condition),
                     lhs: Box::new(lhs),
@@ -246,16 +223,18 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
                 arguments: self.parse_fn_arguments(false)?,
             }),
             Operator::PropertyAccess => {
-                let rhs = self
-                    .parse_expression_impl(op_kind.precedence())
-                    .expect("Expected right-hand-side of property access expression but was <end>");
+                let rhs = self.parse_expression_impl(op_kind.precedence())?;
                 Expression::PropertyAccess(PropertyAccessExpression {
                     base: Box::new(lhs),
                     property_name: match rhs {
                         Expression::VariableAccess(VariableAccessExpression { var_name }) => {
                             var_name
                         }
-                        rhs_expr => panic!("Expected property name but was {:#?}", rhs_expr),
+                        rhs_expr => todo!(
+                            "Unsupported property access expression (only simple `a.b` \
+                             expressions are currently supported): {:?}",
+                            rhs_expr
+                        ),
                     },
                 })
             }
@@ -264,17 +243,21 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
 
     fn parse_function_declaration(&mut self) -> ParseResult<FunctionDeclaration> {
         self.expect_keyword(Keyword::Function)?;
-        if let Some(Token::Identifier(fn_name)) = self.tokens.try_next()? {
-            let fn_name = self.constants.allocate_if_absent(fn_name);
-            let param_names = self.parse_fn_parameters()?;
-            let body = self.parse_block()?;
-            Ok(FunctionDeclaration {
-                fn_name,
-                param_names,
-                body,
-            })
-        } else {
-            panic!("Expected function name")
+        match self.tokens.try_next()? {
+            Some(Token::Identifier(fn_name)) => {
+                let fn_name = self.constants.allocate_if_absent(fn_name);
+                let param_names = self.parse_fn_parameters()?;
+                let body = self.parse_block()?;
+                Ok(FunctionDeclaration {
+                    fn_name,
+                    param_names,
+                    body,
+                })
+            }
+            actual => Err(ParseError::unexpected_token(
+                vec![Token::Identifier("<function_name>".to_owned())],
+                actual,
+            )),
         }
     }
 
@@ -283,8 +266,16 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
             Some(Token::Keyword(Keyword::Const)) => VariableDeclarationKind::Const,
             Some(Token::Keyword(Keyword::Let)) => VariableDeclarationKind::Let,
             Some(Token::Keyword(Keyword::Var)) => VariableDeclarationKind::Var,
-            Some(token) => panic!("Expected variable declaration but was {}", token),
-            None => panic!("Expected variable declaration but was <end>"),
+            actual => {
+                return Err(ParseError::unexpected_token(
+                    vec![
+                        Token::Keyword(Keyword::Const),
+                        Token::Keyword(Keyword::Let),
+                        Token::Keyword(Keyword::Var),
+                    ],
+                    actual,
+                ))
+            }
         };
         let mut entries = Vec::new();
         loop {
@@ -295,8 +286,15 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
                     self.tokens.try_next().unwrap().unwrap();
                 }
                 Some(Token::Punctuator(Punctuator::Semicolon)) => break,
-                Some(token) => panic!("Expected comma or semicolon but was {}", token),
-                None => panic!("Expected comma or semicolon but was <end>"),
+                actual => {
+                    return Err(ParseError::unexpected_token(
+                        vec![
+                            Token::Punctuator(Punctuator::Comma),
+                            Token::Punctuator(Punctuator::Semicolon),
+                        ],
+                        actual.cloned(),
+                    ))
+                }
             }
         }
         Ok(VariableDeclaration { kind, entries })
@@ -305,16 +303,17 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
     fn parse_variable_declaration_entry(&mut self) -> ParseResult<VariableDeclarationEntry> {
         let var_name = match self.tokens.try_next()? {
             Some(Token::Identifier(var_name)) => self.constants.allocate_if_absent(var_name),
-            Some(token) => unreachable!("Expected variable name but was {}", token),
-            None => unreachable!("Expected variable name but was <end>"),
+            actual => {
+                return Err(ParseError::unexpected_token(
+                    vec![Token::Identifier("<variable_name>".to_owned())],
+                    actual,
+                ))
+            }
         };
         let initialiser =
             if let Some(Token::Punctuator(Punctuator::Equal)) = self.tokens.try_peek()? {
                 self.tokens.try_next().unwrap().unwrap();
-                let expr = self
-                    .parse_expression()
-                    .expect("Expected expression but was <end>");
-                Some(expr)
+                Some(self.parse_expression()?)
             } else {
                 None
             };
@@ -326,9 +325,7 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
 
     fn parse_assertion(&mut self) -> ParseResult<Assertion> {
         self.expect_keyword(Keyword::Assert)?;
-        let condition = self
-            .parse_expression()
-            .expect("Expected expression but was <end>");
+        let condition = self.parse_expression()?;
         Ok(Assertion { condition })
     }
 
@@ -336,30 +333,24 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
         let new_line = match self.tokens.try_next()? {
             Some(Token::Keyword(Keyword::Print)) => false,
             Some(Token::Keyword(Keyword::PrintLn)) => true,
-            Some(token) => unreachable!(
-                "Expected `{}` or `{}` but was {}",
-                Keyword::Print,
-                Keyword::PrintLn,
-                token
-            ),
-            None => unreachable!(
-                "Expected `{}` or `{}` but was <end>",
-                Keyword::Print,
-                Keyword::PrintLn
-            ),
+            actual => {
+                return Err(ParseError::unexpected_token(
+                    vec![
+                        Token::Keyword(Keyword::Print),
+                        Token::Keyword(Keyword::PrintLn),
+                    ],
+                    actual,
+                ))
+            }
         };
-        let argument = self
-            .parse_expression()
-            .expect("Expected expression but was <end>");
+        let argument = self.parse_expression()?;
         Ok(PrintStatement { argument, new_line })
     }
 
     fn parse_if_statement(&mut self) -> ParseResult<IfStatement> {
         self.expect_keyword(Keyword::If)?;
         self.expect_punctuator(Punctuator::OpenParen)?;
-        let condition = self
-            .parse_expression()
-            .expect("Expected expression but was <end>");
+        let condition = self.parse_expression()?;
         self.expect_punctuator(Punctuator::CloseParen)?;
         let success_block = self.parse_block()?;
         let else_block = if self
@@ -384,31 +375,19 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
 
         let initialiser = match self.tokens.try_peek()? {
             Some(Token::Punctuator(Punctuator::Semicolon)) => None,
-            Some(_) => Some(
-                self.parse_variable_declaration()
-                    .expect("Expected variable declaration but was <end>"),
-            ),
-            None => panic!("Expected variable declaration or <end>"),
+            _ => Some(self.parse_variable_declaration()?),
         };
         self.expect_punctuator(Punctuator::Semicolon)?;
 
         let condition = match self.tokens.try_peek()? {
             Some(Token::Punctuator(Punctuator::Semicolon)) => None,
-            Some(_) => Some(
-                self.parse_expression()
-                    .expect("Expected expression but was <end>"),
-            ),
-            None => panic!("Expected expression or semicolon but was <end>"),
+            _ => Some(self.parse_expression()?),
         };
         self.expect_punctuator(Punctuator::Semicolon)?;
 
         let incrementor = match self.tokens.try_peek()? {
             Some(Token::Punctuator(Punctuator::CloseParen)) => None,
-            Some(_) => Some(
-                self.parse_expression()
-                    .expect("Expected expression but was <end>"),
-            ),
-            None => panic!("Expected expression or close paren but was <end>"),
+            _ => Some(self.parse_expression()?),
         };
         self.expect_punctuator(Punctuator::CloseParen)?;
 
@@ -424,9 +403,7 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
     fn parse_while_loop(&mut self) -> ParseResult<WhileLoop> {
         self.expect_keyword(Keyword::While)?;
         self.expect_punctuator(Punctuator::OpenParen)?;
-        let condition = self
-            .parse_expression()
-            .expect("Expected expression but was <end>");
+        let condition = self.parse_expression()?;
         self.expect_punctuator(Punctuator::CloseParen)?;
         let block = self.parse_block()?;
         Ok(WhileLoop { condition, block })
@@ -446,11 +423,7 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
         self.expect_keyword(Keyword::Return)?;
         let expr = match self.tokens.try_peek()? {
             Some(Token::Punctuator(Punctuator::Semicolon)) => None,
-            Some(_) => Some(
-                self.parse_expression()
-                    .expect("Expected expression but was <end>"),
-            ),
-            None => panic!("Expected expression or semicolon but was <end>"),
+            _ => Some(self.parse_expression()?),
         };
         Ok(ReturnStatement { expr })
     }
@@ -472,14 +445,25 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
                     let param_constant_id = self.constants.allocate_if_absent(param);
                     params.push(param_constant_id);
                 }
-                Some(token) => panic!("Expected function parameter identifier but was {}", token),
-                None => panic!("Expected function parameter identifier but was <end>"),
+                actual => {
+                    return Err(ParseError::unexpected_token(
+                        vec![Token::Identifier("<function_parameter>".to_owned())],
+                        actual,
+                    ))
+                }
             }
             match self.tokens.try_next()? {
                 Some(Token::Punctuator(Punctuator::Comma)) => {}
                 Some(Token::Punctuator(Punctuator::CloseParen)) => break Ok(params),
-                Some(token) => panic!("Expected comma or closing parenthesis but was {:?}", token),
-                None => panic!("Expected comma or closing parenthesis but was <end>"),
+                actual => {
+                    return Err(ParseError::unexpected_token(
+                        vec![
+                            Token::Punctuator(Punctuator::Comma),
+                            Token::Punctuator(Punctuator::CloseParen),
+                        ],
+                        actual,
+                    ))
+                }
             }
         }
     }
@@ -502,18 +486,32 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
             match self.tokens.try_next()? {
                 Some(Token::Punctuator(Punctuator::Comma)) => {}
                 Some(Token::Punctuator(Punctuator::CloseParen)) => break Ok(args),
-                Some(token) => panic!("Expected comma or closing parenthesis but was {:?}", token),
-                None => panic!("Expected comma or closing parenthesis but was <end>"),
+                actual => {
+                    return Err(ParseError::unexpected_token(
+                        vec![
+                            Token::Punctuator(Punctuator::Comma),
+                            Token::Punctuator(Punctuator::CloseParen),
+                        ],
+                        actual,
+                    ))
+                }
             }
         }
     }
 
-    fn expect_keyword(&mut self, expected: Keyword) -> LexicalResult<()> {
-        self.tokens.try_next_exact(&Token::Keyword(expected))
+    fn expect_keyword(&mut self, expected: Keyword) -> ParseResult<()> {
+        self.expect_token(Token::Keyword(expected))
     }
 
-    fn expect_punctuator(&mut self, expected: Punctuator) -> LexicalResult<()> {
-        self.tokens.try_next_exact(&Token::Punctuator(expected))
+    fn expect_punctuator(&mut self, expected: Punctuator) -> ParseResult<()> {
+        self.expect_token(Token::Punctuator(expected))
+    }
+
+    fn expect_token(&mut self, expected: Token) -> ParseResult<()> {
+        match self.tokens.try_next()? {
+            Some(actual) if actual == expected => Ok(()),
+            actual => Err(ParseError::unexpected_token(vec![expected], actual)),
+        }
     }
 }
 
@@ -657,5 +655,26 @@ impl TryParse for FunctionCallOp {
 impl TryParse for PropertyAccessOp {
     fn try_parse(punc: Punctuator, pos: Position) -> Option<Self> {
         matches!((punc, pos), (Punctuator::Dot, Position::Postfix)).then_some(Self)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::lexer::{Keyword, Literal, Punctuator, Token};
+    use crate::parser::error::ParseErrorKind::*;
+    use std::assert_matches::assert_matches;
+
+    #[test]
+    fn parse_unclosed_block() {
+        let tokens = vec![
+            Token::Keyword(Keyword::While),
+            Token::Punctuator(Punctuator::OpenParen),
+            Token::Literal(Literal::Boolean(true)),
+            Token::Punctuator(Punctuator::CloseParen),
+            Token::Punctuator(Punctuator::OpenBrace),
+        ];
+        let parser = Parser::for_tokens(tokens.into_iter());
+        assert_matches!(parser.execute(), Err(err) if matches!(err.kind(), UnclosedBlock));
     }
 }

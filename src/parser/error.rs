@@ -1,32 +1,63 @@
 use crate::ast::Program;
-use crate::lexer::LexicalError;
+use crate::lexer::{LexicalError, Token};
 use std::fmt;
 
 pub type ParseResult<T = Program> = std::result::Result<T, ParseError>;
 
 #[derive(Debug)]
-pub struct ParseError(ParseErrorInner);
+pub struct ParseError(ParseErrorKind);
 
 impl ParseError {
     pub fn lexical(source: LexicalError) -> Self {
-        Self(ParseErrorInner::Lexical(source))
+        Self(ParseErrorKind::Lexical(source))
     }
 
-    fn inner(&self) -> &ParseErrorInner {
+    pub fn unclosed_block() -> Self {
+        Self(ParseErrorKind::UnclosedBlock)
+    }
+
+    pub fn unexpected_eoi() -> Self {
+        Self(ParseErrorKind::UnexpectedEoi)
+    }
+
+    pub fn unexpected_token(expected: Vec<Token>, actual: Option<Token>) -> Self {
+        Self(ParseErrorKind::UnexpectedToken(expected, actual))
+    }
+
+    pub fn kind(&self) -> &ParseErrorKind {
         &self.0
     }
 }
 
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.inner())
+        match self.kind() {
+            ParseErrorKind::Lexical(source) => write!(f, "Lexical error: {}", source),
+            ParseErrorKind::UnclosedBlock => f.write_str("Unclosed block"),
+            ParseErrorKind::UnexpectedEoi => write!(f, "Unexpected end of input"),
+            ParseErrorKind::UnexpectedToken(expected, Some(actual)) => write!(
+                f,
+                "Unexpected token: expected one of {:?} but was {}",
+                expected, actual
+            ),
+            ParseErrorKind::UnexpectedToken(expected, None) => {
+                write!(
+                    f,
+                    "Unexpected token: expected one of {:?} but was <end>",
+                    expected
+                )
+            }
+        }
     }
 }
 
 impl std::error::Error for ParseError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self.inner() {
-            ParseErrorInner::Lexical(source) => Some(source),
+        match self.kind() {
+            ParseErrorKind::Lexical(source) => Some(source),
+            ParseErrorKind::UnclosedBlock
+            | ParseErrorKind::UnexpectedEoi
+            | ParseErrorKind::UnexpectedToken(..) => None,
         }
     }
 }
@@ -38,14 +69,9 @@ impl From<LexicalError> for ParseError {
 }
 
 #[derive(Debug)]
-enum ParseErrorInner {
+pub enum ParseErrorKind {
     Lexical(LexicalError),
-}
-
-impl fmt::Display for ParseErrorInner {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Self::Lexical(source) => write!(f, "Lexical error: {}", source),
-        }
-    }
+    UnclosedBlock,
+    UnexpectedEoi,
+    UnexpectedToken(Vec<Token>, Option<Token>),
 }
