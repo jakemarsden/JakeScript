@@ -1,6 +1,6 @@
 use std::{fmt, io};
 
-pub type LexResult<T> = std::result::Result<T, LexicalError>;
+pub type LexicalResult<T> = std::result::Result<T, LexicalError>;
 
 #[derive(Debug)]
 pub struct LexicalError(LexicalErrorInner);

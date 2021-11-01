@@ -8,9 +8,9 @@ pub use error::*;
 
 mod error;
 
-type Fallible<I> = Map<I, fn(Token) -> LexResult<Token>>;
+type Fallible<I> = Map<I, fn(Token) -> LexicalResult<Token>>;
 
-pub struct Parser<I: Iterator<Item = LexResult<Token>>> {
+pub struct Parser<I: Iterator<Item = LexicalResult<Token>>> {
     tokens: PeekableNth<I>,
     constants: ConstantPool,
 }
@@ -27,7 +27,7 @@ impl<I: Iterator<Item = Token>> Parser<Fallible<I>> {
     }
 }
 
-impl<I: Iterator<Item = LexResult<Token>>> Parser<I> {
+impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
     pub fn for_tokens_fallible(source: I) -> Self {
         Self {
             tokens: source.peekable_nth(),
@@ -508,11 +508,11 @@ impl<I: Iterator<Item = LexResult<Token>>> Parser<I> {
         }
     }
 
-    fn expect_keyword(&mut self, expected: Keyword) -> LexResult<()> {
+    fn expect_keyword(&mut self, expected: Keyword) -> LexicalResult<()> {
         self.tokens.try_next_exact(&Token::Keyword(expected))
     }
 
-    fn expect_punctuator(&mut self, expected: Punctuator) -> LexResult<()> {
+    fn expect_punctuator(&mut self, expected: Punctuator) -> LexicalResult<()> {
         self.tokens.try_next_exact(&Token::Punctuator(expected))
     }
 }

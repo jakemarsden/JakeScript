@@ -10,7 +10,7 @@ pub use token::*;
 mod error;
 mod token;
 
-pub type Tokens<I> = FilterMap<I, fn(LexResult<Element>) -> Option<LexResult<Token>>>;
+pub type Tokens<I> = FilterMap<I, fn(LexicalResult<Element>) -> Option<LexicalResult<Token>>>;
 type Fallible<I> = Map<I, fn(char) -> io::Result<char>>;
 
 pub struct Lexer<I: Iterator<Item = io::Result<char>>>(PeekableNth<I>, State);
@@ -47,7 +47,7 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
         self.1 = state;
     }
 
-    fn parse_element(&mut self) -> LexResult<Element> {
+    fn parse_element(&mut self) -> LexicalResult<Element> {
         Ok(if let Some(it) = self.parse_whitespace()? {
             Element::Whitespace(it)
         } else if let Some(it) = self.parse_line_terminator()? {
@@ -62,7 +62,7 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
         })
     }
 
-    fn parse_token(&mut self) -> LexResult<Option<Token>> {
+    fn parse_token(&mut self) -> LexicalResult<Option<Token>> {
         // TODO: Parse template tokens.
         Ok(if let Some(value) = self.parse_punctuator()? {
             Some(Token::Punctuator(value))
@@ -73,7 +73,7 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
         })
     }
 
-    fn parse_punctuator(&mut self) -> LexResult<Option<Punctuator>> {
+    fn parse_punctuator(&mut self) -> LexicalResult<Option<Punctuator>> {
         for value in Punctuator::VALUES_IN_LEXICAL_ORDER {
             if self.0.try_consume_str(value.into_str())? {
                 return Ok(Some(value));
@@ -82,7 +82,7 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
         Ok(None)
     }
 
-    fn parse_literal(&mut self) -> LexResult<Option<Literal>> {
+    fn parse_literal(&mut self) -> LexicalResult<Option<Literal>> {
         Ok(if let Some(()) = self.parse_null_literal()? {
             Some(Literal::Null)
         } else if let Some(()) = self.parse_undefined_literal()? {
@@ -96,15 +96,15 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
         })
     }
 
-    fn parse_null_literal(&mut self) -> LexResult<Option<()>> {
+    fn parse_null_literal(&mut self) -> LexicalResult<Option<()>> {
         Ok(self.0.try_consume_str("null")?.then_some(()))
     }
 
-    fn parse_undefined_literal(&mut self) -> LexResult<Option<()>> {
+    fn parse_undefined_literal(&mut self) -> LexicalResult<Option<()>> {
         Ok(self.0.try_consume_str("undefined")?.then_some(()))
     }
 
-    fn parse_boolean_literal(&mut self) -> LexResult<Option<bool>> {
+    fn parse_boolean_literal(&mut self) -> LexicalResult<Option<bool>> {
         Ok(if self.0.try_consume_str("true")? {
             Some(true)
         } else if self.0.try_consume_str("false")? {
@@ -114,7 +114,7 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
         })
     }
 
-    fn parse_numeric_literal(&mut self) -> LexResult<Option<i64>> {
+    fn parse_numeric_literal(&mut self) -> LexicalResult<Option<i64>> {
         if !matches!(self.0.try_peek()?, Some(ch) if ch.is_ascii_digit()) {
             return Ok(None);
         }
@@ -146,7 +146,7 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
         }
     }
 
-    fn parse_string_literal(&mut self) -> LexResult<Option<String>> {
+    fn parse_string_literal(&mut self) -> LexicalResult<Option<String>> {
         Ok(if let Some(content) = self.parse_quoted_literal('"')? {
             Some(content)
         } else {
@@ -154,7 +154,7 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
         })
     }
 
-    fn parse_quoted_literal(&mut self, qt: char) -> LexResult<Option<String>> {
+    fn parse_quoted_literal(&mut self, qt: char) -> LexicalResult<Option<String>> {
         if self.0.try_peek()? != Some(&qt) {
             return Ok(None);
         }
@@ -216,7 +216,7 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
         Ok(Some(content))
     }
 
-    fn parse_keyword_or_identifier(&mut self) -> LexResult<Option<Token>> {
+    fn parse_keyword_or_identifier(&mut self) -> LexicalResult<Option<Token>> {
         Ok(self.parse_identifier_name()?.map(|ident_or_keyword| {
             Keyword::from_str(&ident_or_keyword)
                 .map(Token::Keyword)
@@ -224,7 +224,7 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
         }))
     }
 
-    fn parse_identifier_name(&mut self) -> LexResult<Option<String>> {
+    fn parse_identifier_name(&mut self) -> LexicalResult<Option<String>> {
         if let Some(ch0) = self.0.try_next_if(|ch| is_identifier_start(*ch))? {
             let mut content: String = self.0.try_collect_while(|ch| is_identifier_part(*ch))?;
             content.insert(0, ch0);
@@ -234,11 +234,11 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
         }
     }
 
-    fn parse_whitespace(&mut self) -> LexResult<Option<char>> {
+    fn parse_whitespace(&mut self) -> LexicalResult<Option<char>> {
         Ok(self.0.try_next_if(|ch| is_whitespace(*ch))?)
     }
 
-    fn parse_line_terminator(&mut self) -> LexResult<Option<LineTerminator>> {
+    fn parse_line_terminator(&mut self) -> LexicalResult<Option<LineTerminator>> {
         Ok(match self.0.try_peek()?.cloned() {
             Some(CR) if self.0.try_peek_nth(1)? == Some(&LF) => {
                 self.0.try_next_exact(&CR)?;
@@ -265,7 +265,7 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
         })
     }
 
-    fn parse_comment(&mut self) -> LexResult<Option<Comment>> {
+    fn parse_comment(&mut self) -> LexicalResult<Option<Comment>> {
         Ok(if let Some(content) = self.parse_single_line_comment()? {
             Some(Comment::SingleLine(content))
         } else {
@@ -273,7 +273,7 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
         })
     }
 
-    fn parse_single_line_comment(&mut self) -> LexResult<Option<String>> {
+    fn parse_single_line_comment(&mut self) -> LexicalResult<Option<String>> {
         if self.0.try_peek()? == Some(&'/') && self.0.try_peek_nth(1)? == Some(&'/') {
             self.0.try_next_exact(&'/')?;
             self.0.try_next_exact(&'/')?;
@@ -284,7 +284,7 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
         }
     }
 
-    fn parse_multi_line_comment(&mut self) -> LexResult<Option<String>> {
+    fn parse_multi_line_comment(&mut self) -> LexicalResult<Option<String>> {
         if self.0.try_peek()? != Some(&'/') || self.0.try_peek_nth(1)? != Some(&'*') {
             return Ok(None);
         }
@@ -309,7 +309,7 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
 }
 
 impl<I: Iterator<Item = io::Result<char>>> Iterator for Lexer<I> {
-    type Item = LexResult<Element>;
+    type Item = LexicalResult<Element>;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.state() {
