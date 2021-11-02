@@ -141,7 +141,8 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
     ///     DecimalIntegerLiteral ExponentPart(opt)
     /// ```
     fn parse_decimal_literal(&mut self) -> LexicalResult<Option<NumericLiteral>> {
-        // TODO: Parse decimal integers
+        // TODO: Parse floating point values and exponents.
+        // TODO: Parse big integer literals.
         Ok(self
             .parse_decimal_int_literal()?
             .map(NumericLiteral::DecInt))
@@ -153,8 +154,7 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
     ///     NonZeroDigit DecimalDigits(opt)
     /// ```
     fn parse_decimal_int_literal(&mut self) -> LexicalResult<Option<u64>> {
-        if matches!(self.0.try_peek()?, Some('0')) {
-            self.0.try_next_exact(&'0').unwrap();
+        if self.0.try_next_if_eq(&'0')?.is_some() {
             Ok(Some(0))
         } else {
             self.parse_int_literal_part(10)
