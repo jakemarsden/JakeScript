@@ -207,11 +207,12 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
         Ok(present.then_some(value))
     }
 
-    fn parse_string_literal(&mut self) -> LexicalResult<Option<String>> {
-        Ok(if let Some(content) = self.parse_quoted_literal('"')? {
-            Some(content)
+    fn parse_string_literal(&mut self) -> LexicalResult<Option<StringLiteral>> {
+        Ok(if let Some(value) = self.parse_quoted_literal('\'')? {
+            Some(StringLiteral::SingleQuoted(value))
         } else {
-            self.parse_quoted_literal('\'')?
+            self.parse_quoted_literal('"')?
+                .map(StringLiteral::DoubleQuoted)
         })
     }
 
@@ -485,36 +486,47 @@ mod test {
 
     #[test]
     fn tokenise_string_literal() {
-        fn check_valid(source: &str, expected: &str) {
+        fn check_valid(source: &str, expected: &str, single_qt: bool) {
             let mut lexer = Lexer::for_str(source);
-            assert_matches!(
-                lexer.next(),
-                Some(Ok(Element::Token(Token::Literal(Literal::String(
-                    actual
-                ))))) if actual == expected
-            );
+            if single_qt {
+                assert_matches!(
+                    lexer.next(),
+                    Some(Ok(Element::Token(Token::Literal(Literal::String(
+                        StringLiteral::SingleQuoted(actual)
+                    ))))) if actual == expected
+                );
+            } else {
+                assert_matches!(
+                    lexer.next(),
+                    Some(Ok(Element::Token(Token::Literal(Literal::String(
+                        StringLiteral::DoubleQuoted(actual)
+                    ))))) if actual == expected
+                );
+            }
             assert_matches!(lexer.next(), None);
         }
 
-        check_valid(r#""""#, r#""#);
-        check_valid(r#""hello, world!""#, r#"hello, world!"#);
+        check_valid(r#""""#, r#""#, false);
+        check_valid(r#""hello, world!""#, r#"hello, world!"#, false);
         check_valid(
             r#""hello, \"escaped quotes\"!""#,
             r#"hello, "escaped quotes"!"#,
+            false,
         );
-        check_valid(r#""hello, back\\slash""#, r#"hello, back\slash"#);
-        check_valid(r#""hello, \\\"\"\\\\""#, r#"hello, \""\\"#);
-        check_valid(r#""hello,\n\r\tworld""#, "hello,\n\r\tworld");
+        check_valid(r#""hello, back\\slash""#, r#"hello, back\slash"#, false);
+        check_valid(r#""hello, \\\"\"\\\\""#, r#"hello, \""\\"#, false);
+        check_valid(r#""hello,\n\r\tworld""#, "hello,\n\r\tworld", false);
 
-        check_valid(r#"''"#, r#""#);
-        check_valid(r#"'hello, world!'"#, r#"hello, world!"#);
+        check_valid(r#"''"#, r#""#, true);
+        check_valid(r#"'hello, world!'"#, r#"hello, world!"#, true);
         check_valid(
             r#"'hello, \'escaped quotes\'!'"#,
             r#"hello, 'escaped quotes'!"#,
+            true,
         );
-        check_valid(r#"'hello, back\\slash'"#, r#"hello, back\slash"#);
-        check_valid(r#"'hello, \\\'\'\\\\'"#, r#"hello, \''\\"#);
-        check_valid(r#"'hello,\n\r\tworld'"#, "hello,\n\r\tworld");
+        check_valid(r#"'hello, back\\slash'"#, r#"hello, back\slash"#, true);
+        check_valid(r#"'hello, \\\'\'\\\\'"#, r#"hello, \''\\"#, true);
+        check_valid(r#"'hello,\n\r\tworld'"#, "hello,\n\r\tworld", true);
     }
 
     #[test]
@@ -534,19 +546,28 @@ mod test {
     fn tokenise_illegal_string_literal_escape_sequence() {
         let source_code = r#""\z""#;
         let mut lexer = Lexer::for_str(source_code);
-        assert_matches!(lexer.next(), Some(Err(err)) if err.kind() == Some(IllegalStringLiteralEscapeSequence));
+        assert_matches!(
+            lexer.next(),
+            Some(Err(err)) if err.kind() == Some(IllegalStringLiteralEscapeSequence)
+        );
         assert_matches!(lexer.next(), None);
 
         // Can't escape single quote inside double quoted string literal
         let source_code = r#""\'""#;
         let mut lexer = Lexer::for_str(source_code);
-        assert_matches!(lexer.next(), Some(Err(err)) if err.kind() == Some(IllegalStringLiteralEscapeSequence));
+        assert_matches!(
+            lexer.next(),
+            Some(Err(err)) if err.kind() == Some(IllegalStringLiteralEscapeSequence)
+        );
         assert_matches!(lexer.next(), None);
 
         // Can't escape double quote inside single quoted string literal
         let source_code = r#"'\"'"#;
         let mut lexer = Lexer::for_str(source_code);
-        assert_matches!(lexer.next(), Some(Err(err)) if err.kind() == Some(IllegalStringLiteralEscapeSequence));
+        assert_matches!(
+            lexer.next(),
+            Some(Err(err)) if err.kind() == Some(IllegalStringLiteralEscapeSequence)
+        );
         assert_matches!(lexer.next(), None);
     }
 

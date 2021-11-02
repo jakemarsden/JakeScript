@@ -180,7 +180,9 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
                     lexer::Literal::Numeric(NumericLiteral::Decimal(value)) => {
                         todo!("NumericLiteral::Decimal: {}", value)
                     }
-                    lexer::Literal::String(value) => ast::Literal::String(value),
+                    lexer::Literal::String(
+                        StringLiteral::SingleQuoted(value) | StringLiteral::DoubleQuoted(value),
+                    ) => ast::Literal::String(value),
                     lexer::Literal::Null => ast::Literal::Null,
                     lexer::Literal::Undefined => ast::Literal::Undefined,
                 },

@@ -251,7 +251,7 @@ impl FromStr for Keyword {
 pub enum Literal {
     Boolean(bool),
     Numeric(NumericLiteral),
-    String(String),
+    String(StringLiteral),
     Null,
     Undefined,
 }
@@ -261,7 +261,7 @@ impl fmt::Display for Literal {
         match self {
             Self::Boolean(value) => write!(f, "{}", value),
             Self::Numeric(value) => write!(f, "{}", value),
-            Self::String(value) => write!(f, r#""{}""#, value),
+            Self::String(value) => write!(f, "{}", value),
             Self::Null => f.write_str("null"),
             Self::Undefined => f.write_str("undefined"),
         }
@@ -287,6 +287,21 @@ impl fmt::Display for NumericLiteral {
             Self::DecInt(value) => write!(f, "{}", value),
             Self::HexInt(value) => write!(f, "{:#x}", value),
             Self::Decimal(value) => write!(f, "{}", value),
+        }
+    }
+}
+
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub enum StringLiteral {
+    SingleQuoted(String),
+    DoubleQuoted(String),
+}
+
+impl fmt::Display for StringLiteral {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::SingleQuoted(value) => write!(f, r#"'{}'"#, value),
+            Self::DoubleQuoted(value) => write!(f, r#""{}""#, value),
         }
     }
 }
