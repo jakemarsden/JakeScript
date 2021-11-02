@@ -183,6 +183,10 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
                     lexer::Literal::String(
                         StringLiteral::SingleQuoted(value) | StringLiteral::DoubleQuoted(value),
                     ) => ast::Literal::String(value),
+                    lexer::Literal::RegEx(_) => {
+                        // FIXME: Support Literal::RegEx properly
+                        ast::Literal::Undefined
+                    }
                     lexer::Literal::Null => ast::Literal::Null,
                     lexer::Literal::Undefined => ast::Literal::Undefined,
                 },

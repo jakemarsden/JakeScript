@@ -1,4 +1,5 @@
 use crate::iter::{IntoPeekableNth, PeekableNth};
+use crate::str::NonEmptyString;
 use error::LexicalErrorKind::*;
 use std::io;
 use std::iter::{FilterMap, Map};
@@ -64,10 +65,10 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
 
     fn parse_token(&mut self) -> LexicalResult<Option<Token>> {
         // TODO: Parse template tokens.
-        Ok(if let Some(value) = self.parse_punctuator()? {
-            Some(Token::Punctuator(value))
-        } else if let Some(value) = self.parse_literal()? {
+        Ok(if let Some(value) = self.parse_literal()? {
             Some(Token::Literal(value))
+        } else if let Some(value) = self.parse_punctuator()? {
+            Some(Token::Punctuator(value))
         } else {
             self.parse_keyword_or_identifier()?
         })
@@ -91,8 +92,10 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
             Some(Literal::Boolean(value))
         } else if let Some(value) = self.parse_numeric_literal()? {
             Some(Literal::Numeric(value))
+        } else if let Some(value) = self.parse_string_literal()? {
+            Some(Literal::String(value))
         } else {
-            self.parse_string_literal()?.map(Literal::String)
+            self.parse_regex_literal()?.map(Literal::RegEx)
         })
     }
 
@@ -207,16 +210,20 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
         Ok(present.then_some(value))
     }
 
+    /// ```plain
+    /// StringLiteral::
+    ///     " DoubleStringCharactersopt(opt) "
+    ///     ' SingleStringCharactersopt(opt) '
     fn parse_string_literal(&mut self) -> LexicalResult<Option<StringLiteral>> {
-        Ok(if let Some(value) = self.parse_quoted_literal('\'')? {
+        Ok(if let Some(value) = self.parse_string_literal_impl('\'')? {
             Some(StringLiteral::SingleQuoted(value))
         } else {
-            self.parse_quoted_literal('"')?
+            self.parse_string_literal_impl('"')?
                 .map(StringLiteral::DoubleQuoted)
         })
     }
 
-    fn parse_quoted_literal(&mut self, qt: char) -> LexicalResult<Option<String>> {
+    fn parse_string_literal_impl(&mut self, qt: char) -> LexicalResult<Option<String>> {
         if self.0.try_peek()? != Some(&qt) {
             return Ok(None);
         }
@@ -226,56 +233,142 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
             self.0.try_next_exact(&qt)?;
             return Ok(Some(String::with_capacity(0)));
         }
-        // FIXME: This is a naive implementation which doesn't match the spec.
-        let mut content = String::new();
         let mut escaped = false;
-        let mut escape_count = 0;
-        for offset in 1.. {
+        let mut content = String::new();
+        let mut raw_content_len = 0;
+
+        let mut offset = 1;
+        loop {
             let ch = if let Some(ch) = self.0.try_peek_nth(offset)? {
                 ch
             } else {
-                return Err(LexicalError::new(UnclosedStringLiteral));
+                return Ok(None);
             };
             match (ch, escaped) {
-                (ch, _) if is_line_terminator(*ch) => {
-                    return Err(LexicalError::new(UnclosedStringLiteral))
+                (ch, false) if *ch == qt => {
+                    break;
                 }
                 ('\\', false) => {
                     escaped = true;
-                    escape_count += 1;
                 }
-                ('\\', true) => {
-                    content.push('\\');
-                    escaped = false;
-                }
-                (ch, false) if *ch == qt => break,
-                (ch, true) if *ch == qt => {
+                (ch @ &LS | ch @ &PS, false) => {
                     content.push(*ch);
-                    escaped = false;
                 }
-                ('n', true) => {
-                    content.push('\n');
-                    escaped = false;
+                (ch, false) if is_line_terminator(*ch) => {
+                    return Ok(None);
                 }
-                ('r', true) => {
-                    content.push('\r');
+                (ch, true) if is_line_terminator(*ch) => {
+                    // LineContinuation::
+                    //     \ LineTerminatorSequence
+                    // LineTerminatorSequence::
+                    //     <LF>
+                    //     <CR> [lookahead ≠ <LF>]
+                    //     <LS>
+                    //     <PS>
+                    //     <CR> <LF>
                     escaped = false;
+                    if *ch == CR && self.0.try_peek_nth(offset + 1)? == Some(&LF) {
+                        // Skip the next iteration
+                        offset += 1;
+                        raw_content_len += 1;
+                    }
                 }
-                ('t', true) => {
-                    content.push('\t');
+                (ch, true) => {
+                    // TODO: Handle escape sequences properly
+                    // EscapeSequence::
+                    //     CharacterEscapeSequence
+                    //     0 [lookahead ∉ DecimalDigit]
+                    //     HexEscapeSequence
+                    //     UnicodeEscapeSequence
                     escaped = false;
+                    content.push(into_escaped(*ch));
                 }
-
-                (_, true) => return Err(LexicalError::new(IllegalStringLiteralEscapeSequence)),
                 (ch, false) => {
                     content.push(*ch);
                 }
             }
+            offset += 1;
+            raw_content_len += 1;
         }
+        debug_assert!(!escaped);
+        debug_assert!(!content.is_empty());
+        debug_assert!(raw_content_len >= content.len());
         self.0.try_next_exact(&qt)?;
-        self.0.advance_by(content.len() + escape_count).unwrap();
+        self.0.advance_by(raw_content_len).unwrap();
         self.0.try_next_exact(&qt)?;
         Ok(Some(content))
+    }
+
+    /// ```plain
+    /// RegularExpressionLiteral::
+    ///     / RegularExpressionBody / RegularExpressionFlags
+    /// ```
+    fn parse_regex_literal(&mut self) -> LexicalResult<Option<RegExLiteral>> {
+        if !matches!(self.0.try_peek()?, Some('/')) {
+            return Ok(None);
+        }
+        if matches!(self.0.try_peek_nth(1)?, Some('*')) {
+            // Not a valid `RegularExpressionFirstChar`.
+            return Ok(None);
+        }
+        if matches!(self.0.try_peek_nth(1)?, Some('/')) {
+            // Not a valid `RegularExpressionFirstChar`. Empty regexes aren't representable because
+            // `//` represents the start of a single-line comment. The spec suggests using `/(?:)/`
+            // as a workaround.
+            return Ok(None);
+        }
+        let mut escaped = false;
+        let mut in_class = false;
+        let mut content = String::new();
+        let mut raw_content_len = 0;
+        for offset in 1.. {
+            let ch = if let Some(ch) = self.0.try_peek_nth(offset)? {
+                ch
+            } else {
+                return Ok(None);
+            };
+            match (ch, escaped, in_class) {
+                ('/', false, false) => {
+                    break;
+                }
+                ('\\', false, _) => {
+                    escaped = true;
+                }
+                ('[', false, false) => {
+                    in_class = true;
+                    content.push('[');
+                }
+                (']', false, true) => {
+                    in_class = false;
+                    content.push(']');
+                }
+                (ch, _, _) if is_line_terminator(*ch) => {
+                    return Ok(None);
+                }
+                (ch, true, _) => {
+                    escaped = false;
+                    content.push(into_escaped(*ch));
+                }
+                (ch, false, _) => {
+                    content.push(*ch);
+                }
+            }
+            raw_content_len += 1;
+        }
+        debug_assert!(!escaped);
+        debug_assert!(!in_class);
+        debug_assert!(!content.is_empty());
+        debug_assert!(raw_content_len >= content.len());
+        self.0.try_next_exact(&'/')?;
+        self.0.advance_by(raw_content_len).unwrap();
+        self.0.try_next_exact(&'/')?;
+
+        // Safety: It's not possible for the loop to break without pushing (at least) one character
+        // to the string, given that the first char it handles cannot be '/'.
+        let content = unsafe { NonEmptyString::from_unchecked(content) };
+
+        let flags = self.0.try_collect_while(|ch| is_identifier_start(*ch))?;
+        Ok(Some(RegExLiteral { content, flags }))
     }
 
     fn parse_keyword_or_identifier(&mut self) -> LexicalResult<Option<Token>> {
@@ -400,8 +493,12 @@ enum State {
     End,
 }
 
+/// NULL
+const NUL: char = '\u{0000}';
+/// BACKSPACE
+const BS: char = '\u{0008}';
 /// CHARACTER TABULATION
-const TAB: char = '\u{0009}';
+const HT: char = '\u{0009}';
 /// LINE FEED (LF)
 const LF: char = '\u{000A}';
 /// LINE TABULATION
@@ -428,7 +525,7 @@ const ZWNBSP: char = '\u{FEFF}';
 fn is_whitespace(ch: char) -> bool {
     // FIXME: Return `true` for USP (any other code point classified in the "Space_Separator"
     //  category, which is not the same as the Unicode "White_Space" property).
-    matches!(ch, TAB | VT | FF | SP | NBSP | ZWNBSP)
+    matches!(ch, HT | VT | FF | SP | NBSP | ZWNBSP)
 }
 
 fn is_line_terminator(ch: char) -> bool {
@@ -453,6 +550,19 @@ fn is_unicode_start(ch: char) -> bool {
 fn is_unicode_continue(ch: char) -> bool {
     // FIXME: Check for characters with the Unicode "ID_Continue" property.
     ch.is_ascii_alphabetic() || ch.is_ascii_digit() || ch == '_'
+}
+
+fn into_escaped(ch: char) -> char {
+    match ch {
+        '0' => NUL,
+        'b' => BS,
+        't' => HT,
+        'n' => LF,
+        'v' => VT,
+        'f' => FF,
+        'r' => CR,
+        ch => ch,
+    }
 }
 
 #[cfg(test)]
@@ -527,48 +637,6 @@ mod test {
         check_valid(r#"'hello, back\\slash'"#, r#"hello, back\slash"#, true);
         check_valid(r#"'hello, \\\'\'\\\\'"#, r#"hello, \''\\"#, true);
         check_valid(r#"'hello,\n\r\tworld'"#, "hello,\n\r\tworld", true);
-    }
-
-    #[test]
-    fn tokenise_unclosed_string_literal() {
-        let source_code = r#"'hello, world!"#;
-        let mut lexer = Lexer::for_str(source_code);
-        assert_matches!(lexer.next(), Some(Err(err)) if err.kind() == Some(UnclosedStringLiteral));
-        assert_matches!(lexer.next(), None);
-
-        let source_code = "'hello, world!\nClosed on the next line'";
-        let mut lexer = Lexer::for_str(source_code);
-        assert_matches!(lexer.next(), Some(Err(err)) if err.kind() == Some(UnclosedStringLiteral));
-        assert_matches!(lexer.next(), None);
-    }
-
-    #[test]
-    fn tokenise_illegal_string_literal_escape_sequence() {
-        let source_code = r#""\z""#;
-        let mut lexer = Lexer::for_str(source_code);
-        assert_matches!(
-            lexer.next(),
-            Some(Err(err)) if err.kind() == Some(IllegalStringLiteralEscapeSequence)
-        );
-        assert_matches!(lexer.next(), None);
-
-        // Can't escape single quote inside double quoted string literal
-        let source_code = r#""\'""#;
-        let mut lexer = Lexer::for_str(source_code);
-        assert_matches!(
-            lexer.next(),
-            Some(Err(err)) if err.kind() == Some(IllegalStringLiteralEscapeSequence)
-        );
-        assert_matches!(lexer.next(), None);
-
-        // Can't escape double quote inside single quoted string literal
-        let source_code = r#"'\"'"#;
-        let mut lexer = Lexer::for_str(source_code);
-        assert_matches!(
-            lexer.next(),
-            Some(Err(err)) if err.kind() == Some(IllegalStringLiteralEscapeSequence)
-        );
-        assert_matches!(lexer.next(), None);
     }
 
     #[test]

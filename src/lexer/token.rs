@@ -1,5 +1,6 @@
 use crate::lexer::error::{BadKeywordError, BadPunctuatorError};
 use crate::lexer::{CR, LF, LS, PS};
+use crate::str::NonEmptyString;
 use std::fmt;
 use std::str::FromStr;
 
@@ -252,6 +253,7 @@ pub enum Literal {
     Boolean(bool),
     Numeric(NumericLiteral),
     String(StringLiteral),
+    RegEx(RegExLiteral),
     Null,
     Undefined,
 }
@@ -262,6 +264,7 @@ impl fmt::Display for Literal {
             Self::Boolean(value) => write!(f, "{}", value),
             Self::Numeric(value) => write!(f, "{}", value),
             Self::String(value) => write!(f, "{}", value),
+            Self::RegEx(value) => write!(f, "{}", value),
             Self::Null => f.write_str("null"),
             Self::Undefined => f.write_str("undefined"),
         }
@@ -303,6 +306,23 @@ impl fmt::Display for StringLiteral {
             Self::SingleQuoted(value) => write!(f, r#"'{}'"#, value),
             Self::DoubleQuoted(value) => write!(f, r#""{}""#, value),
         }
+    }
+}
+
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct RegExLiteral {
+    pub content: NonEmptyString,
+    pub flags: Vec<char>,
+}
+
+impl fmt::Display for RegExLiteral {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "/{}/{}",
+            self.content,
+            self.flags.iter().collect::<String>()
+        )
     }
 }
 
