@@ -9,4 +9,4 @@ function multiplesOf3Or5(limit) {
 }
 
 assert multiplesOf3Or5(10) === 23;
-assert multiplesOf3Or5(1_000) === 233_168;
+assert multiplesOf3Or5(1000) === 233168;

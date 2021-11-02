@@ -3,7 +3,7 @@ use crate::lexer::{CR, LF, LS, PS};
 use std::fmt;
 use std::str::FromStr;
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum Element {
     Token(Token),
     Comment(Comment),
@@ -31,7 +31,7 @@ impl fmt::Display for Element {
     }
 }
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum Token {
     Identifier(String),
     Keyword(Keyword),
@@ -247,11 +247,10 @@ impl FromStr for Keyword {
 }
 
 // TODO: Support RegEx literals.
-// TODO: Support decimal numeric literals.
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum Literal {
     Boolean(bool),
-    Numeric(i64),
+    Numeric(NumericLiteral),
     String(String),
     Null,
     Undefined,
@@ -260,11 +259,34 @@ pub enum Literal {
 impl fmt::Display for Literal {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::Boolean(it) => write!(f, "{}", it),
-            Self::Numeric(it) => write!(f, "{}", it),
-            Self::String(it) => write!(f, "\"{}\"", it),
+            Self::Boolean(value) => write!(f, "{}", value),
+            Self::Numeric(value) => write!(f, "{}", value),
+            Self::String(value) => write!(f, r#""{}""#, value),
             Self::Null => f.write_str("null"),
             Self::Undefined => f.write_str("undefined"),
+        }
+    }
+}
+
+/// Numeric literal tokens are **always unsigned** (but can be made negative at runtime with the
+/// negation unary operator).
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub enum NumericLiteral {
+    BinInt(u64),
+    OctInt(u64),
+    DecInt(u64),
+    HexInt(u64),
+    Decimal(f64),
+}
+
+impl fmt::Display for NumericLiteral {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::BinInt(value) => write!(f, "{:#b}", value),
+            Self::OctInt(value) => write!(f, "{:#o}", value),
+            Self::DecInt(value) => write!(f, "{}", value),
+            Self::HexInt(value) => write!(f, "{:#x}", value),
+            Self::Decimal(value) => write!(f, "{}", value),
         }
     }
 }

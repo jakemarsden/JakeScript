@@ -14,4 +14,4 @@ function evenFibonacciNumbers(limit) {
 }
 
 assert evenFibonacciNumbers(89) === 44;
-assert evenFibonacciNumbers(4_000_000) === 4_613_732;
+assert evenFibonacciNumbers(4000000) === 4613732;

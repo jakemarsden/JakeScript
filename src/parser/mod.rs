@@ -171,7 +171,15 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
             Some(Token::Literal(literal)) => Expression::Literal(LiteralExpression {
                 value: match literal {
                     lexer::Literal::Boolean(value) => ast::Literal::Boolean(value),
-                    lexer::Literal::Numeric(value) => ast::Literal::Numeric(value),
+                    lexer::Literal::Numeric(
+                        NumericLiteral::BinInt(value)
+                        | NumericLiteral::OctInt(value)
+                        | NumericLiteral::DecInt(value)
+                        | NumericLiteral::HexInt(value),
+                    ) => ast::Literal::Numeric(value),
+                    lexer::Literal::Numeric(NumericLiteral::Decimal(value)) => {
+                        todo!("NumericLiteral::Decimal: {}", value)
+                    }
                     lexer::Literal::String(value) => ast::Literal::String(value),
                     lexer::Literal::Null => ast::Literal::Null,
                     lexer::Literal::Undefined => ast::Literal::Undefined,
@@ -738,9 +746,9 @@ mod test {
             Token::Keyword(Keyword::Let),
             Token::Identifier("a".to_owned()),
             Token::Punctuator(Punctuator::Equal),
-            Token::Literal(Literal::Numeric(1)),
+            Token::Literal(Literal::Numeric(NumericLiteral::DecInt(1))),
             Token::Punctuator(Punctuator::Plus),
-            Token::Literal(Literal::Numeric(2)),
+            Token::Literal(Literal::Numeric(NumericLiteral::DecInt(2))),
             Token::Punctuator(Punctuator::Plus),
             Token::Punctuator(Punctuator::Semicolon),
         ];

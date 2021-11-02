@@ -230,7 +230,9 @@ impl Node for VariableAccessExpression {}
 #[derive(Clone, Default, Debug)]
 pub enum Literal {
     Boolean(bool),
-    Numeric(i64),
+    /// Numeric literal tokens are **always unsigned** (but can be made negative at runtime with the
+    /// negation unary operator).
+    Numeric(u64),
     // TODO: Store string literals in the constant pool.
     String(String),
     // TODO: Support properties in object literals.

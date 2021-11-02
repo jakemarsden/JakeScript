@@ -541,7 +541,7 @@ impl Eval for LiteralExpression {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         Ok(match self.value {
             Literal::Boolean(ref value) => Value::Boolean(*value),
-            Literal::Numeric(ref value) => Value::Number(*value),
+            Literal::Numeric(ref value) => Value::Number(i64::try_from(*value).unwrap()),
             Literal::String(ref value) => Value::String(value.to_owned()),
             Literal::Object => {
                 let obj_ref = it.vm_mut().heap_mut().allocate_empty_object()?;

@@ -52,6 +52,8 @@ impl From<io::Error> for LexicalError {
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum LexicalErrorKind {
+    DigitFollowingNumericLiteral,
+    IdentifierFollowingNumericLiteral,
     IllegalStringLiteralEscapeSequence,
     UnclosedComment,
     UnclosedStringLiteral,
@@ -60,6 +62,8 @@ pub enum LexicalErrorKind {
 impl fmt::Display for LexicalErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(match self {
+            Self::DigitFollowingNumericLiteral => "Digit following numeric literal",
+            Self::IdentifierFollowingNumericLiteral => "Identifier following numeric literal",
             Self::IllegalStringLiteralEscapeSequence => "Illegal escape sequence in string literal",
             Self::UnclosedComment => "Unclosed comment",
             Self::UnclosedStringLiteral => "Unclosed string literal",

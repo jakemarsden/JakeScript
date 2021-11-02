@@ -114,36 +114,97 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
         })
     }
 
-    fn parse_numeric_literal(&mut self) -> LexicalResult<Option<i64>> {
-        if !matches!(self.0.try_peek()?, Some(ch) if ch.is_ascii_digit()) {
+    fn parse_numeric_literal(&mut self) -> LexicalResult<Option<NumericLiteral>> {
+        let value = if let Some(value) = self.parse_non_decimal_int_literal()? {
+            Some(value)
+        } else {
+            self.parse_decimal_literal()?
+        };
+        if let Some(value) = value {
+            // Ensure the character following the numeric literal is valid
+            match self.0.try_peek()? {
+                Some(ch) if is_identifier_part(*ch) => {
+                    Err(LexicalError::new(IdentifierFollowingNumericLiteral))
+                }
+                Some(ch) if ch.is_digit(10) => Err(LexicalError::new(DigitFollowingNumericLiteral)),
+                Some(_) | None => Ok(Some(value)),
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// ```plain
+    /// DecimalLiteral::
+    ///     DecimalIntegerLiteral . DecimalDigits(opt) ExponentPart(opt)
+    ///     . DecimalDigits ExponentPart(opt)
+    ///     DecimalIntegerLiteral ExponentPart(opt)
+    /// ```
+    fn parse_decimal_literal(&mut self) -> LexicalResult<Option<NumericLiteral>> {
+        // TODO: Parse decimal integers
+        Ok(self
+            .parse_decimal_int_literal()?
+            .map(NumericLiteral::DecInt))
+    }
+
+    /// ```plain
+    /// DecimalIntegerLiteral::
+    ///     0
+    ///     NonZeroDigit DecimalDigits(opt)
+    /// ```
+    fn parse_decimal_int_literal(&mut self) -> LexicalResult<Option<u64>> {
+        if matches!(self.0.try_peek()?, Some('0')) {
+            self.0.try_next_exact(&'0').unwrap();
+            Ok(Some(0))
+        } else {
+            self.parse_int_literal_part(10)
+        }
+    }
+
+    /// ```plain
+    /// BinaryIntegerLiteral::
+    ///     0b BinaryDigits
+    ///     0B BinaryDigits
+    /// OctalIntegerLiteral::
+    ///     0o OctalDigits
+    ///     0O OctalDigits
+    /// HexIntegerLiteral::
+    ///     0x HexDigits
+    ///     0X HexDigits
+    /// ```
+    fn parse_non_decimal_int_literal(&mut self) -> LexicalResult<Option<NumericLiteral>> {
+        if !matches!(self.0.try_peek()?, Some('0')) {
             return Ok(None);
         }
-        // FIXME: This is a naive implementation which doesn't match the spec.
-        let mut content = String::new();
-        let mut original_len = 0;
-        for offset in 0.. {
-            match self.0.try_peek_nth(offset)? {
-                Some(ch) if ch.is_ascii_digit() => {
-                    content.push(*ch);
-                    original_len += 1;
-                }
-                Some('_') => {
-                    original_len += 1;
-                }
-                Some(_) | None => break,
-            }
+        let (radix, ch1) = match self.0.try_peek_nth(1)? {
+            Some(ch @ 'b' | ch @ 'B') => (2, *ch),
+            Some(ch @ 'o' | ch @ 'O') => (8, *ch),
+            Some(ch @ 'x' | ch @ 'X') => (16, *ch),
+            _ => return Ok(None),
+        };
+        if !matches!(self.0.try_peek_nth(2)?, Some(ch2) if ch2.is_digit(radix)) {
+            return Ok(None);
         }
-        match self.0.try_peek_nth(original_len)? {
-            Some(next_ch) if is_identifier_start(*next_ch) => return Ok(None),
-            Some(next_ch) if next_ch.is_ascii_digit() => return Ok(None),
-            Some(_) | None => {}
+        self.0.try_next_exact(&'0').unwrap();
+        self.0.try_next_exact(&ch1).unwrap();
+        let value = self.parse_int_literal_part(radix)?.unwrap();
+        Ok(Some(match radix {
+            2 => NumericLiteral::BinInt(value),
+            8 => NumericLiteral::OctInt(value),
+            16 => NumericLiteral::HexInt(value),
+            _ => unreachable!("{}", radix),
+        }))
+    }
+
+    fn parse_int_literal_part(&mut self, radix: u32) -> LexicalResult<Option<u64>> {
+        let mut present = false;
+        let mut value = 0;
+        while let Some(ch) = self.0.try_next_if(|ch| ch.is_digit(radix))? {
+            present = true;
+            value *= radix as u64;
+            value += ch.to_digit(radix).unwrap() as u64;
         }
-        if let Ok(value) = i64::from_str(&content) {
-            self.0.advance_by(original_len).unwrap();
-            Ok(Some(value))
-        } else {
-            panic!("Lexer::parse_numeric_literal: content={}", content)
-        }
+        Ok(present.then_some(value))
     }
 
     fn parse_string_literal(&mut self) -> LexicalResult<Option<String>> {

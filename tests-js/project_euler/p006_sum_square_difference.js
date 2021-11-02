@@ -8,5 +8,5 @@ function sumSquareDifference(n) {
     return squareOfSum - sumOfSquares;
 }
 
-assert sumSquareDifference(10) === 2_640;
-assert sumSquareDifference(100) === 25_164_150;
+assert sumSquareDifference(10) === 2640;
+assert sumSquareDifference(100) === 25164150;
