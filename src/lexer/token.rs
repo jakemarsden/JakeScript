@@ -24,10 +24,10 @@ impl Element {
 impl fmt::Display for Element {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::Token(token) => write!(f, "Token<{}>", token),
-            Self::Comment(content) => write!(f, "Comment<{}>", content),
-            Self::LineTerminator(content) => write!(f, "LineTerminator<{}>", content),
-            Self::Whitespace(content) => write!(f, "Whitespace<{}>", content),
+            Self::Token(token) => write!(f, "{}", token),
+            Self::Comment(content) => write!(f, "{}", content),
+            Self::LineTerminator(content) => write!(f, "{}", content),
+            Self::Whitespace(content) => write!(f, "{}", content),
         }
     }
 }
@@ -43,10 +43,10 @@ pub enum Token {
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::Identifier(it) => write!(f, "Identifier<{}>", it),
-            Self::Keyword(it) => write!(f, "Keyword<{}>", it),
-            Self::Literal(it) => write!(f, "Literal<{}>", it),
-            Self::Punctuator(it) => write!(f, "Punctuator<{}>", it),
+            Self::Identifier(it) => write!(f, "{}", it),
+            Self::Keyword(it) => write!(f, "{}", it),
+            Self::Literal(it) => write!(f, "{}", it),
+            Self::Punctuator(it) => write!(f, "{}", it),
         }
     }
 }
@@ -530,8 +530,8 @@ pub enum Comment {
 impl fmt::Display for Comment {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::SingleLine(content) => write!(f, "SingleLine<{}>", content),
-            Self::MultiLine(content) => write!(f, "MultiLine<{}>", content),
+            Self::SingleLine(content) => write!(f, "//{}", content),
+            Self::MultiLine(content) => write!(f, "/*{}*/", content),
         }
     }
 }
@@ -564,12 +564,10 @@ impl LineTerminator {
 
 impl fmt::Display for LineTerminator {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(match self {
-            Self::Cr => "CR",
-            Self::Lf => "LF",
-            Self::Crlf => "CRLF",
-            Self::Ls => "LS",
-            Self::Ps => "PS",
-        })
+        use std::fmt::Write;
+        match self.into_chars() {
+            (ch0, Some(ch1)) => write!(f, "{}{}", ch0, ch1),
+            (ch0, None) => f.write_char(ch0),
+        }
     }
 }

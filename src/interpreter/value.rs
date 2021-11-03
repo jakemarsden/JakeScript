@@ -1,5 +1,6 @@
 use crate::interpreter::heap::Reference;
 use crate::interpreter::Interpreter;
+use std::fmt;
 use std::ops::*;
 
 #[derive(Clone, Default, Debug)]
@@ -227,6 +228,19 @@ impl Value {
             }
             Self::Null => "null".to_owned(),
             Self::Undefined => "undefined".to_owned(),
+        }
+    }
+}
+
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Boolean(value) => write!(f, "{}", value),
+            Self::Number(value) => write!(f, "{}", value),
+            Self::String(value) => write!(f, "{}", value),
+            Self::Reference(value) => write!(f, "{}", value),
+            Self::Null => f.write_str("null"),
+            Self::Undefined => f.write_str("undefined"),
         }
     }
 }
