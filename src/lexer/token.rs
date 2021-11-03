@@ -114,7 +114,7 @@ pub enum Keyword {
 }
 
 impl Keyword {
-    pub(crate) const VALUES: [Self; 53] = [
+    pub(crate) const VALUES: &'static [Self; 53] = &[
         Self::As,
         Self::Assert,
         Self::Async,
@@ -170,7 +170,7 @@ impl Keyword {
         Self::Yield,
     ];
 
-    pub fn into_str(self) -> &'static str {
+    pub fn as_str(&self) -> &'static str {
         match self {
             Self::As => "as",
             Self::Assert => "assert",
@@ -231,7 +231,7 @@ impl Keyword {
 
 impl fmt::Display for Keyword {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(self.into_str())
+        f.write_str(self.as_str())
     }
 }
 
@@ -241,7 +241,7 @@ impl FromStr for Keyword {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Self::VALUES
             .iter()
-            .find(|value| value.into_str() == s)
+            .find(|value| value.as_str() == s)
             .cloned()
             .ok_or(BadKeywordError)
     }
@@ -384,11 +384,11 @@ pub enum Punctuator {
 }
 
 impl Punctuator {
-    pub(crate) const VALUES: [Self; 53] = Self::VALUES_IN_LEXICAL_ORDER;
+    pub(crate) const VALUES: &'static [Self] = Self::VALUES_IN_LEXICAL_ORDER;
 
-    /// Unlike for [VALUES], **order is important**. For multiple punctuators which start with the
-    /// same substring, the longest needs to come first. This is relied on by the [Lexer].
-    pub(crate) const VALUES_IN_LEXICAL_ORDER: [Self; 53] = [
+    /// Unlike for [`Self::VALUES`], **order is important**. For multiple punctuators which start
+    /// with the same substring, the longest needs to come first. This is relied on by the `Lexer`.
+    pub(crate) const VALUES_IN_LEXICAL_ORDER: &'static [Self] = &[
         Self::DoubleAmpersand,
         Self::AmpersandEqual,
         Self::Ampersand,
@@ -444,7 +444,7 @@ impl Punctuator {
         Self::Tilde,
     ];
 
-    pub fn into_str(self) -> &'static str {
+    pub fn as_str(&self) -> &'static str {
         match self {
             Self::Ampersand => "&",
             Self::AmpersandEqual => "&=",
@@ -505,7 +505,7 @@ impl Punctuator {
 
 impl fmt::Display for Punctuator {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(self.into_str())
+        f.write_str(self.as_str())
     }
 }
 
@@ -515,7 +515,7 @@ impl FromStr for Punctuator {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Self::VALUES
             .iter()
-            .find(|value| value.into_str() == s)
+            .find(|value| value.as_str() == s)
             .cloned()
             .ok_or(BadPunctuatorError)
     }
@@ -538,12 +538,12 @@ impl fmt::Display for Comment {
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum LineTerminator {
+    /// Carriage return + line feed
+    Crlf,
     /// Carriage return
     Cr,
     /// Line feed
     Lf,
-    /// Carriage return + line feed
-    Crlf,
     /// Line separator
     Ls,
     /// Paragraph separator
@@ -553,9 +553,9 @@ pub enum LineTerminator {
 impl LineTerminator {
     pub fn into_chars(self: LineTerminator) -> (char, Option<char>) {
         match self {
+            Self::Crlf => (CR, Some(super::LF)),
             Self::Cr => (CR, None),
             Self::Lf => (LF, None),
-            Self::Crlf => (CR, Some(super::LF)),
             Self::Ls => (LS, None),
             Self::Ps => (PS, None),
         }

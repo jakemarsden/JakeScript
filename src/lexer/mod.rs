@@ -76,8 +76,8 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
 
     fn parse_punctuator(&mut self) -> LexicalResult<Option<Punctuator>> {
         for value in Punctuator::VALUES_IN_LEXICAL_ORDER {
-            if self.0.try_consume_str(value.into_str())? {
-                return Ok(Some(value));
+            if self.0.try_consume_str(value.as_str())? {
+                return Ok(Some(*value));
             }
         }
         Ok(None)
@@ -573,10 +573,10 @@ mod test {
     #[test]
     fn tokenise_keywords() {
         for expected in Keyword::VALUES {
-            let mut lexer = Lexer::for_str(expected.into_str());
+            let mut lexer = Lexer::for_str(expected.as_str());
             assert_matches!(
                 lexer.next(),
-                Some(Ok(Element::Token(Token::Keyword(actual)))) if actual == expected
+                Some(Ok(Element::Token(Token::Keyword(actual)))) if actual == *expected
             );
             assert_matches!(lexer.next(), None);
         }
@@ -585,10 +585,10 @@ mod test {
     #[test]
     fn tokenise_punctuators() {
         for expected in Punctuator::VALUES {
-            let mut lexer = Lexer::for_str(expected.into_str());
+            let mut lexer = Lexer::for_str(expected.as_str());
             assert_matches!(
                 lexer.next(),
-                Some(Ok(Element::Token(Token::Punctuator(actual)))) if actual == expected
+                Some(Ok(Element::Token(Token::Punctuator(actual)))) if actual == *expected
             );
             assert_matches!(lexer.next(), None);
         }
