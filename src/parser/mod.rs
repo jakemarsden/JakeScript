@@ -1,6 +1,8 @@
 use crate::ast::{self, *};
 use crate::iter::{IntoPeekableNth, PeekableNth};
-use crate::lexer::{self, *};
+use crate::lexer::{
+    self, Keyword, Lexer, NumericLiteral, Punctuator, StringLiteral, Token, Tokens,
+};
 use error::AllowToken::*;
 use std::io;
 use std::iter::Map;
@@ -9,9 +11,9 @@ pub use error::*;
 
 mod error;
 
-type Fallible<I> = Map<I, fn(Token) -> LexicalResult<Token>>;
+type Fallible<I> = Map<I, fn(Token) -> lexer::Result<Token>>;
 
-pub struct Parser<I: Iterator<Item = LexicalResult<Token>>> {
+pub struct Parser<I: Iterator<Item = lexer::Result<Token>>> {
     tokens: PeekableNth<I>,
     constants: ConstantPool,
 }
@@ -28,7 +30,7 @@ impl<I: Iterator<Item = Token>> Parser<Fallible<I>> {
     }
 }
 
-impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
+impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
     pub fn for_tokens_fallible(source: I) -> Self {
         Self {
             tokens: source.peekable_nth(),
@@ -36,7 +38,7 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
         }
     }
 
-    pub fn execute(mut self) -> ParseResult {
+    pub fn execute(mut self) -> Result {
         let mut stmts = Vec::new();
         while self.tokens.try_peek()?.is_some() {
             stmts.push(self.parse_statement()?);
@@ -44,7 +46,7 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
         Ok(Program::new(Block::new(stmts), self.constants))
     }
 
-    fn parse_block(&mut self) -> ParseResult<Block> {
+    fn parse_block(&mut self) -> Result<Block> {
         self.expect_punctuator(Punctuator::OpenBrace)?;
         let mut stmts = Vec::new();
         loop {
@@ -52,7 +54,7 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
                 Some(Token::Punctuator(Punctuator::CloseBrace)) => break,
                 Some(_) => {}
                 None => {
-                    return Err(ParseError::unexpected_eoi(Exactly(Token::Punctuator(
+                    return Err(Error::unexpected_eoi(Exactly(Token::Punctuator(
                         Punctuator::CloseBrace,
                     ))))
                 }
@@ -63,7 +65,7 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
         Ok(Block::new(stmts))
     }
 
-    fn parse_statement(&mut self) -> ParseResult<Statement> {
+    fn parse_statement(&mut self) -> Result<Statement> {
         match self.tokens.try_peek()? {
             Some(Token::Keyword(Keyword::If)) => {
                 self.parse_if_statement().map(Statement::IfStatement)
@@ -101,15 +103,15 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
                 self.expect_punctuator(Punctuator::Semicolon)?;
                 Ok(stmt)
             }
-            None => Err(ParseError::unexpected_eoi(Unspecified)),
+            None => Err(Error::unexpected_eoi(Unspecified)),
         }
     }
 
-    fn parse_expression(&mut self) -> ParseResult<Expression> {
+    fn parse_expression(&mut self) -> Result<Expression> {
         self.parse_expression_impl(Precedence::MIN)
     }
 
-    fn parse_expression_impl(&mut self, min_precedence: Precedence) -> ParseResult<Expression> {
+    fn parse_expression_impl(&mut self, min_precedence: Precedence) -> Result<Expression> {
         let mut expression = self.parse_primary_expression()?;
         while let Some(&Token::Punctuator(punctuator)) = self.tokens.try_peek()? {
             if let Some(op_kind) = Operator::try_parse(punctuator, Position::Postfix) {
@@ -126,7 +128,7 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
         Ok(expression)
     }
 
-    fn parse_primary_expression(&mut self) -> ParseResult<Expression> {
+    fn parse_primary_expression(&mut self) -> Result<Expression> {
         Ok(match self.tokens.try_next()? {
             Some(Token::Identifier(identifier)) => {
                 let var_name = self.constants.allocate_if_absent(identifier);
@@ -162,7 +164,7 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
                         inner: Box::new(inner),
                     })
                 } else {
-                    return Err(ParseError::unexpected_token(
+                    return Err(Error::unexpected_token(
                         Unspecified,
                         Token::Punctuator(punc),
                     ));
@@ -198,7 +200,7 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
                     value: ast::Literal::AnonFunction { param_names, body },
                 })
             }
-            actual => return Err(ParseError::unexpected(Unspecified, actual)),
+            actual => return Err(Error::unexpected(Unspecified, actual)),
         })
     }
 
@@ -206,7 +208,7 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
         &mut self,
         lhs: Expression,
         op_kind: Operator,
-    ) -> ParseResult<Expression> {
+    ) -> Result<Expression> {
         Ok(match op_kind {
             Operator::Assignment(kind) => Expression::Assignment(AssignmentExpression {
                 kind,
@@ -259,7 +261,7 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
         })
     }
 
-    fn parse_function_declaration(&mut self) -> ParseResult<FunctionDeclaration> {
+    fn parse_function_declaration(&mut self) -> Result<FunctionDeclaration> {
         self.expect_keyword(Keyword::Function)?;
         match self.tokens.try_next()? {
             Some(Token::Identifier(fn_name)) => {
@@ -272,20 +274,20 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
                     body,
                 })
             }
-            actual => Err(ParseError::unexpected(
+            actual => Err(Error::unexpected(
                 Exactly(Token::Identifier("function_name".to_owned())),
                 actual,
             )),
         }
     }
 
-    fn parse_variable_declaration(&mut self) -> ParseResult<VariableDeclaration> {
+    fn parse_variable_declaration(&mut self) -> Result<VariableDeclaration> {
         let kind = match self.tokens.try_next()? {
             Some(Token::Keyword(Keyword::Const)) => VariableDeclarationKind::Const,
             Some(Token::Keyword(Keyword::Let)) => VariableDeclarationKind::Let,
             Some(Token::Keyword(Keyword::Var)) => VariableDeclarationKind::Var,
             actual => {
-                return Err(ParseError::unexpected(
+                return Err(Error::unexpected(
                     AnyOf(
                         Token::Keyword(Keyword::Const),
                         Token::Keyword(Keyword::Let),
@@ -305,7 +307,7 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
                 }
                 Some(Token::Punctuator(Punctuator::Semicolon)) => break,
                 actual => {
-                    return Err(ParseError::unexpected(
+                    return Err(Error::unexpected(
                         AnyOf(
                             Token::Punctuator(Punctuator::Comma),
                             Token::Punctuator(Punctuator::Semicolon),
@@ -319,11 +321,11 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
         Ok(VariableDeclaration { kind, entries })
     }
 
-    fn parse_variable_declaration_entry(&mut self) -> ParseResult<VariableDeclarationEntry> {
+    fn parse_variable_declaration_entry(&mut self) -> Result<VariableDeclarationEntry> {
         let var_name = match self.tokens.try_next()? {
             Some(Token::Identifier(var_name)) => self.constants.allocate_if_absent(var_name),
             actual => {
-                return Err(ParseError::unexpected(
+                return Err(Error::unexpected(
                     Exactly(Token::Identifier("variable_name".to_owned())),
                     actual,
                 ))
@@ -342,18 +344,18 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
         })
     }
 
-    fn parse_assertion(&mut self) -> ParseResult<Assertion> {
+    fn parse_assertion(&mut self) -> Result<Assertion> {
         self.expect_keyword(Keyword::Assert)?;
         let condition = self.parse_expression()?;
         Ok(Assertion { condition })
     }
 
-    fn parse_print_statement(&mut self) -> ParseResult<PrintStatement> {
+    fn parse_print_statement(&mut self) -> Result<PrintStatement> {
         let new_line = match self.tokens.try_next()? {
             Some(Token::Keyword(Keyword::Print)) => false,
             Some(Token::Keyword(Keyword::PrintLn)) => true,
             actual => {
-                return Err(ParseError::unexpected(
+                return Err(Error::unexpected(
                     AnyOf(
                         Token::Keyword(Keyword::Print),
                         Token::Keyword(Keyword::PrintLn),
@@ -367,7 +369,7 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
         Ok(PrintStatement { argument, new_line })
     }
 
-    fn parse_if_statement(&mut self) -> ParseResult<IfStatement> {
+    fn parse_if_statement(&mut self) -> Result<IfStatement> {
         self.expect_keyword(Keyword::If)?;
         self.expect_punctuator(Punctuator::OpenParen)?;
         let condition = self.parse_expression()?;
@@ -389,7 +391,7 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
         })
     }
 
-    fn parse_for_loop(&mut self) -> ParseResult<ForLoop> {
+    fn parse_for_loop(&mut self) -> Result<ForLoop> {
         self.expect_keyword(Keyword::For)?;
         self.expect_punctuator(Punctuator::OpenParen)?;
 
@@ -420,7 +422,7 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
         })
     }
 
-    fn parse_while_loop(&mut self) -> ParseResult<WhileLoop> {
+    fn parse_while_loop(&mut self) -> Result<WhileLoop> {
         self.expect_keyword(Keyword::While)?;
         self.expect_punctuator(Punctuator::OpenParen)?;
         let condition = self.parse_expression()?;
@@ -429,17 +431,17 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
         Ok(WhileLoop { condition, block })
     }
 
-    fn parse_break_statement(&mut self) -> ParseResult<BreakStatement> {
+    fn parse_break_statement(&mut self) -> Result<BreakStatement> {
         self.expect_keyword(Keyword::Break)?;
         Ok(BreakStatement {})
     }
 
-    fn parse_continue_statement(&mut self) -> ParseResult<ContinueStatement> {
+    fn parse_continue_statement(&mut self) -> Result<ContinueStatement> {
         self.expect_keyword(Keyword::Continue)?;
         Ok(ContinueStatement {})
     }
 
-    fn parse_return_statement(&mut self) -> ParseResult<ReturnStatement> {
+    fn parse_return_statement(&mut self) -> Result<ReturnStatement> {
         self.expect_keyword(Keyword::Return)?;
         let expr = match self.tokens.try_peek()? {
             Some(Token::Punctuator(Punctuator::Semicolon)) => None,
@@ -448,7 +450,7 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
         Ok(ReturnStatement { expr })
     }
 
-    fn parse_fn_parameters(&mut self) -> ParseResult<Vec<ConstantId>> {
+    fn parse_fn_parameters(&mut self) -> Result<Vec<ConstantId>> {
         self.expect_punctuator(Punctuator::OpenParen)?;
         if self
             .tokens
@@ -466,7 +468,7 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
                     params.push(param_constant_id);
                 }
                 actual => {
-                    return Err(ParseError::unexpected(
+                    return Err(Error::unexpected(
                         Exactly(Token::Identifier("function_parameter".to_owned())),
                         actual,
                     ))
@@ -476,7 +478,7 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
                 Some(Token::Punctuator(Punctuator::Comma)) => {}
                 Some(Token::Punctuator(Punctuator::CloseParen)) => break Ok(params),
                 actual => {
-                    return Err(ParseError::unexpected(
+                    return Err(Error::unexpected(
                         AnyOf(
                             Token::Punctuator(Punctuator::Comma),
                             Token::Punctuator(Punctuator::CloseParen),
@@ -489,7 +491,7 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
         }
     }
 
-    fn parse_fn_arguments(&mut self, consume_open_paren: bool) -> ParseResult<Vec<Expression>> {
+    fn parse_fn_arguments(&mut self, consume_open_paren: bool) -> Result<Vec<Expression>> {
         if consume_open_paren {
             self.expect_punctuator(Punctuator::OpenParen)?;
         }
@@ -508,7 +510,7 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
                 Some(Token::Punctuator(Punctuator::Comma)) => {}
                 Some(Token::Punctuator(Punctuator::CloseParen)) => break Ok(args),
                 actual => {
-                    return Err(ParseError::unexpected(
+                    return Err(Error::unexpected(
                         AnyOf(
                             Token::Punctuator(Punctuator::Comma),
                             Token::Punctuator(Punctuator::CloseParen),
@@ -521,18 +523,18 @@ impl<I: Iterator<Item = LexicalResult<Token>>> Parser<I> {
         }
     }
 
-    fn expect_keyword(&mut self, expected: Keyword) -> ParseResult<()> {
+    fn expect_keyword(&mut self, expected: Keyword) -> Result<()> {
         self.expect_token(Token::Keyword(expected))
     }
 
-    fn expect_punctuator(&mut self, expected: Punctuator) -> ParseResult<()> {
+    fn expect_punctuator(&mut self, expected: Punctuator) -> Result<()> {
         self.expect_token(Token::Punctuator(expected))
     }
 
-    fn expect_token(&mut self, expected: Token) -> ParseResult<()> {
+    fn expect_token(&mut self, expected: Token) -> Result<()> {
         match self.tokens.try_next()? {
             Some(actual) if actual == expected => Ok(()),
-            actual => Err(ParseError::unexpected(Exactly(expected), actual)),
+            actual => Err(Error::unexpected(Exactly(expected), actual)),
         }
     }
 }
@@ -684,7 +686,7 @@ impl TryParse for PropertyAccessOp {
 mod test {
     use super::*;
     use crate::lexer::{Keyword, Literal, Punctuator, Token};
-    use crate::parser::error::ParseErrorKind::*;
+    use crate::parser::error::ErrorKind::*;
     use std::assert_matches::assert_matches;
 
     #[test]

@@ -1,16 +1,16 @@
 use crate::ast::Program;
-use crate::lexer::{LexicalError, Token};
+use crate::lexer::{self, Token};
 use ansi_term::Style;
 use std::fmt;
 
-pub type ParseResult<T = Program> = std::result::Result<T, ParseError>;
+pub type Result<T = Program> = std::result::Result<T, Error>;
 
 #[derive(Debug)]
-pub struct ParseError(ParseErrorKind);
+pub struct Error(ErrorKind);
 
-impl ParseError {
-    pub fn lexical(source: LexicalError) -> Self {
-        Self(ParseErrorKind::Lexical(source))
+impl Error {
+    pub fn lexical(source: lexer::Error) -> Self {
+        Self(ErrorKind::Lexical(source))
     }
 
     pub fn unexpected(expected: AllowToken, actual: Option<Token>) -> Self {
@@ -21,53 +21,53 @@ impl ParseError {
     }
 
     pub fn unexpected_eoi(expected: AllowToken) -> Self {
-        Self(ParseErrorKind::UnexpectedEoi(expected))
+        Self(ErrorKind::UnexpectedEoi(expected))
     }
 
     pub fn unexpected_token(expected: AllowToken, actual: Token) -> Self {
-        Self(ParseErrorKind::UnexpectedToken(expected, actual))
+        Self(ErrorKind::UnexpectedToken(expected, actual))
     }
 
-    pub fn kind(&self) -> &ParseErrorKind {
+    pub fn kind(&self) -> &ErrorKind {
         &self.0
     }
 }
 
-impl fmt::Display for ParseError {
+impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.kind())
     }
 }
 
-impl std::error::Error for ParseError {
+impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         self.kind().source()
     }
 }
 
-impl From<LexicalError> for ParseError {
-    fn from(source: LexicalError) -> Self {
+impl From<lexer::Error> for Error {
+    fn from(source: lexer::Error) -> Self {
         Self::lexical(source)
     }
 }
 
 #[derive(Debug)]
-pub enum ParseErrorKind {
-    Lexical(LexicalError),
+pub enum ErrorKind {
+    Lexical(lexer::Error),
     UnexpectedEoi(AllowToken),
     UnexpectedToken(AllowToken, Token),
 }
 
-impl ParseErrorKind {
+impl ErrorKind {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            ParseErrorKind::Lexical(source) => Some(source),
-            ParseErrorKind::UnexpectedEoi(..) | ParseErrorKind::UnexpectedToken(..) => None,
+            ErrorKind::Lexical(source) => Some(source),
+            ErrorKind::UnexpectedEoi(..) | ErrorKind::UnexpectedToken(..) => None,
         }
     }
 }
 
-impl fmt::Display for ParseErrorKind {
+impl fmt::Display for ErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Lexical(source) => write!(f, "Lexical error: {}", source),

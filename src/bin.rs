@@ -4,8 +4,8 @@
 
 use jakescript::ast::Program;
 use jakescript::interpreter::{self, Eval, Interpreter};
-use jakescript::lexer::{Element, Lexer, LexicalError, LexicalResult};
-use jakescript::parser::{ParseError, ParseResult, Parser};
+use jakescript::lexer::{self, Element, Lexer};
+use jakescript::parser::{self, Parser};
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::time::{Duration, Instant};
@@ -51,7 +51,7 @@ fn main() -> Result<(), Error> {
 
 fn lex_and_print<I: Iterator<Item = io::Result<char>>>(
     lexer: Lexer<I>,
-) -> LexicalResult<(Vec<Element>, Duration)> {
+) -> lexer::Result<(Vec<Element>, Duration)> {
     let start_time = Instant::now();
     let mut elements = Vec::new();
     for element in lexer {
@@ -62,7 +62,7 @@ fn lex_and_print<I: Iterator<Item = io::Result<char>>>(
 
 fn parse<I: Iterator<Item = io::Result<char>>>(
     lexer: Lexer<I>,
-) -> ParseResult<(Program, Duration)> {
+) -> parser::Result<(Program, Duration)> {
     let start_time = Instant::now();
     let parser = Parser::for_lexer(lexer);
     parser.execute().map(|ast| (ast, start_time.elapsed()))
@@ -150,8 +150,8 @@ impl fmt::Display for Mode {
 
 enum Error {
     Options(ParseOptionsError),
-    Lex(LexicalError),
-    Parse(ParseError),
+    Lex(lexer::Error),
+    Parse(parser::Error),
     Eval(interpreter::Error),
     Io(io::Error),
 }
@@ -186,8 +186,8 @@ impl std::error::Error for Error {
     }
 }
 
-impl From<LexicalError> for Error {
-    fn from(source: LexicalError) -> Self {
+impl From<lexer::Error> for Error {
+    fn from(source: lexer::Error) -> Self {
         Self::Lex(source)
     }
 }
@@ -198,8 +198,8 @@ impl From<ParseOptionsError> for Error {
     }
 }
 
-impl From<ParseError> for Error {
-    fn from(source: ParseError) -> Self {
+impl From<parser::Error> for Error {
+    fn from(source: parser::Error) -> Self {
         Self::Parse(source)
     }
 }

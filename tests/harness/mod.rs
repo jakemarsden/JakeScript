@@ -59,7 +59,7 @@ fn exec<I: Iterator<Item = io::Result<char>>>(
 #[derive(Debug)]
 pub enum TestCaseResult {
     Pass(interpreter::Value),
-    ParserError(parser::ParseError),
+    ParserError(parser::Error),
     InterpreterError(interpreter::Error),
     ReadError(io::Error),
 }
@@ -105,11 +105,7 @@ impl TestCaseReport {
         }
     }
 
-    pub fn parser_error(
-        source_name: String,
-        runtime: Duration,
-        reason: parser::ParseError,
-    ) -> Self {
+    pub fn parser_error(source_name: String, runtime: Duration, reason: parser::Error) -> Self {
         Self {
             source_name,
             runtime,

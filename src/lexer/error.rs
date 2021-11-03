@@ -1,63 +1,64 @@
+use crate::lexer::token::Element;
 use std::{fmt, io};
 
-pub type LexicalResult<T> = std::result::Result<T, LexicalError>;
+pub type Result<T = Element> = std::result::Result<T, Error>;
 
 #[derive(Debug)]
-pub struct LexicalError(LexicalErrorInner);
+pub struct Error(ErrorInner);
 
-impl LexicalError {
-    pub fn new(kind: LexicalErrorKind) -> Self {
-        Self(LexicalErrorInner::Normal(kind))
+impl Error {
+    pub fn new(kind: ErrorKind) -> Self {
+        Self(ErrorInner::Normal(kind))
     }
 
     fn io(source: io::Error) -> Self {
-        Self(LexicalErrorInner::Io(source))
+        Self(ErrorInner::Io(source))
     }
 
-    pub fn kind(&self) -> Option<LexicalErrorKind> {
+    pub fn kind(&self) -> Option<ErrorKind> {
         match self.inner() {
-            LexicalErrorInner::Normal(kind) => Some(*kind),
-            LexicalErrorInner::Io(..) => None,
+            ErrorInner::Normal(kind) => Some(*kind),
+            ErrorInner::Io(..) => None,
         }
     }
 
-    fn inner(&self) -> &LexicalErrorInner {
+    fn inner(&self) -> &ErrorInner {
         &self.0
     }
 }
 
-impl fmt::Display for LexicalError {
+impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.inner() {
-            LexicalErrorInner::Normal(kind) => write!(f, "{}", kind),
-            LexicalErrorInner::Io(source) => write!(f, "IO error: {}", source),
+            ErrorInner::Normal(kind) => write!(f, "{}", kind),
+            ErrorInner::Io(source) => write!(f, "IO error: {}", source),
         }
     }
 }
 
-impl std::error::Error for LexicalError {
+impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self.inner() {
-            LexicalErrorInner::Normal(..) => None,
-            LexicalErrorInner::Io(source) => Some(source),
+            ErrorInner::Normal(..) => None,
+            ErrorInner::Io(source) => Some(source),
         }
     }
 }
 
-impl From<io::Error> for LexicalError {
+impl From<io::Error> for Error {
     fn from(source: io::Error) -> Self {
         Self::io(source)
     }
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
-pub enum LexicalErrorKind {
+pub enum ErrorKind {
     DigitFollowingNumericLiteral,
     IdentifierFollowingNumericLiteral,
     UnclosedComment,
 }
 
-impl fmt::Display for LexicalErrorKind {
+impl fmt::Display for ErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(match self {
             Self::DigitFollowingNumericLiteral => "Digit following numeric literal",
@@ -68,8 +69,8 @@ impl fmt::Display for LexicalErrorKind {
 }
 
 #[derive(Debug)]
-enum LexicalErrorInner {
-    Normal(LexicalErrorKind),
+enum ErrorInner {
+    Normal(ErrorKind),
     Io(io::Error),
 }
 

@@ -1,6 +1,6 @@
 use crate::iter::{IntoPeekableNth, PeekableNth};
 use crate::str::NonEmptyString;
-use error::LexicalErrorKind::*;
+use error::ErrorKind::*;
 use std::io;
 use std::iter::{FilterMap, Map};
 use std::str::{Chars, FromStr};
@@ -11,7 +11,7 @@ pub use token::*;
 mod error;
 mod token;
 
-pub type Tokens<I> = FilterMap<I, fn(LexicalResult<Element>) -> Option<LexicalResult<Token>>>;
+pub type Tokens<I> = FilterMap<I, fn(Result) -> Option<Result<Token>>>;
 type Fallible<I> = Map<I, fn(char) -> io::Result<char>>;
 
 pub struct Lexer<I: Iterator<Item = io::Result<char>>>(PeekableNth<I>, State);
@@ -48,7 +48,7 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
         self.1 = state;
     }
 
-    fn parse_element(&mut self) -> LexicalResult<Element> {
+    fn parse_element(&mut self) -> Result {
         Ok(if let Some(it) = self.parse_whitespace()? {
             Element::Whitespace(it)
         } else if let Some(it) = self.parse_line_terminator()? {
@@ -63,7 +63,7 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
         })
     }
 
-    fn parse_token(&mut self) -> LexicalResult<Option<Token>> {
+    fn parse_token(&mut self) -> Result<Option<Token>> {
         // TODO: Parse template tokens.
         Ok(if let Some(value) = self.parse_literal()? {
             Some(Token::Literal(value))
@@ -74,7 +74,7 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
         })
     }
 
-    fn parse_punctuator(&mut self) -> LexicalResult<Option<Punctuator>> {
+    fn parse_punctuator(&mut self) -> Result<Option<Punctuator>> {
         for value in Punctuator::VALUES_IN_LEXICAL_ORDER {
             if self.0.try_consume_str(value.as_str())? {
                 return Ok(Some(*value));
@@ -83,7 +83,7 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
         Ok(None)
     }
 
-    fn parse_literal(&mut self) -> LexicalResult<Option<Literal>> {
+    fn parse_literal(&mut self) -> Result<Option<Literal>> {
         Ok(if let Some(()) = self.parse_null_literal()? {
             Some(Literal::Null)
         } else if let Some(()) = self.parse_undefined_literal()? {
@@ -99,15 +99,15 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
         })
     }
 
-    fn parse_null_literal(&mut self) -> LexicalResult<Option<()>> {
+    fn parse_null_literal(&mut self) -> Result<Option<()>> {
         Ok(self.0.try_consume_str("null")?.then_some(()))
     }
 
-    fn parse_undefined_literal(&mut self) -> LexicalResult<Option<()>> {
+    fn parse_undefined_literal(&mut self) -> Result<Option<()>> {
         Ok(self.0.try_consume_str("undefined")?.then_some(()))
     }
 
-    fn parse_boolean_literal(&mut self) -> LexicalResult<Option<bool>> {
+    fn parse_boolean_literal(&mut self) -> Result<Option<bool>> {
         Ok(if self.0.try_consume_str("true")? {
             Some(true)
         } else if self.0.try_consume_str("false")? {
@@ -117,7 +117,7 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
         })
     }
 
-    fn parse_numeric_literal(&mut self) -> LexicalResult<Option<NumericLiteral>> {
+    fn parse_numeric_literal(&mut self) -> Result<Option<NumericLiteral>> {
         let value = if let Some(value) = self.parse_non_decimal_int_literal()? {
             Some(value)
         } else {
@@ -127,9 +127,9 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
             // Ensure the character following the numeric literal is valid
             match self.0.try_peek()? {
                 Some(ch) if is_identifier_part(*ch) => {
-                    Err(LexicalError::new(IdentifierFollowingNumericLiteral))
+                    Err(Error::new(IdentifierFollowingNumericLiteral))
                 }
-                Some(ch) if ch.is_digit(10) => Err(LexicalError::new(DigitFollowingNumericLiteral)),
+                Some(ch) if ch.is_digit(10) => Err(Error::new(DigitFollowingNumericLiteral)),
                 Some(_) | None => Ok(Some(value)),
             }
         } else {
@@ -143,7 +143,7 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
     ///     . DecimalDigits ExponentPart(opt)
     ///     DecimalIntegerLiteral ExponentPart(opt)
     /// ```
-    fn parse_decimal_literal(&mut self) -> LexicalResult<Option<NumericLiteral>> {
+    fn parse_decimal_literal(&mut self) -> Result<Option<NumericLiteral>> {
         // TODO: Parse floating point values and exponents.
         // TODO: Parse big integer literals.
         Ok(self
@@ -156,7 +156,7 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
     ///     0
     ///     NonZeroDigit DecimalDigits(opt)
     /// ```
-    fn parse_decimal_int_literal(&mut self) -> LexicalResult<Option<u64>> {
+    fn parse_decimal_int_literal(&mut self) -> Result<Option<u64>> {
         if self.0.try_next_if_eq(&'0')?.is_some() {
             Ok(Some(0))
         } else {
@@ -175,7 +175,7 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
     ///     0x HexDigits
     ///     0X HexDigits
     /// ```
-    fn parse_non_decimal_int_literal(&mut self) -> LexicalResult<Option<NumericLiteral>> {
+    fn parse_non_decimal_int_literal(&mut self) -> Result<Option<NumericLiteral>> {
         if !matches!(self.0.try_peek()?, Some('0')) {
             return Ok(None);
         }
@@ -199,7 +199,7 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
         }))
     }
 
-    fn parse_int_literal_part(&mut self, radix: u32) -> LexicalResult<Option<u64>> {
+    fn parse_int_literal_part(&mut self, radix: u32) -> Result<Option<u64>> {
         let mut present = false;
         let mut value = 0;
         while let Some(ch) = self.0.try_next_if(|ch| ch.is_digit(radix))? {
@@ -214,7 +214,7 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
     /// StringLiteral::
     ///     " DoubleStringCharactersopt(opt) "
     ///     ' SingleStringCharactersopt(opt) '
-    fn parse_string_literal(&mut self) -> LexicalResult<Option<StringLiteral>> {
+    fn parse_string_literal(&mut self) -> Result<Option<StringLiteral>> {
         Ok(if let Some(value) = self.parse_string_literal_impl('\'')? {
             Some(StringLiteral::SingleQuoted(value))
         } else {
@@ -223,7 +223,7 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
         })
     }
 
-    fn parse_string_literal_impl(&mut self, qt: char) -> LexicalResult<Option<String>> {
+    fn parse_string_literal_impl(&mut self, qt: char) -> Result<Option<String>> {
         if self.0.try_peek()? != Some(&qt) {
             return Ok(None);
         }
@@ -303,7 +303,7 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
     /// RegularExpressionLiteral::
     ///     / RegularExpressionBody / RegularExpressionFlags
     /// ```
-    fn parse_regex_literal(&mut self) -> LexicalResult<Option<RegExLiteral>> {
+    fn parse_regex_literal(&mut self) -> Result<Option<RegExLiteral>> {
         if !matches!(self.0.try_peek()?, Some('/')) {
             return Ok(None);
         }
@@ -371,7 +371,7 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
         Ok(Some(RegExLiteral { content, flags }))
     }
 
-    fn parse_keyword_or_identifier(&mut self) -> LexicalResult<Option<Token>> {
+    fn parse_keyword_or_identifier(&mut self) -> Result<Option<Token>> {
         Ok(self.parse_identifier_name()?.map(|ident_or_keyword| {
             Keyword::from_str(&ident_or_keyword)
                 .map(Token::Keyword)
@@ -379,7 +379,7 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
         }))
     }
 
-    fn parse_identifier_name(&mut self) -> LexicalResult<Option<String>> {
+    fn parse_identifier_name(&mut self) -> Result<Option<String>> {
         if let Some(ch0) = self.0.try_next_if(|ch| is_identifier_start(*ch))? {
             let mut content: String = self.0.try_collect_while(|ch| is_identifier_part(*ch))?;
             content.insert(0, ch0);
@@ -389,11 +389,11 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
         }
     }
 
-    fn parse_whitespace(&mut self) -> LexicalResult<Option<char>> {
+    fn parse_whitespace(&mut self) -> Result<Option<char>> {
         Ok(self.0.try_next_if(|ch| is_whitespace(*ch))?)
     }
 
-    fn parse_line_terminator(&mut self) -> LexicalResult<Option<LineTerminator>> {
+    fn parse_line_terminator(&mut self) -> Result<Option<LineTerminator>> {
         Ok(match self.0.try_peek()?.cloned() {
             Some(CR) if self.0.try_peek_nth(1)? == Some(&LF) => {
                 self.0.try_next_exact(&CR)?;
@@ -420,7 +420,7 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
         })
     }
 
-    fn parse_comment(&mut self) -> LexicalResult<Option<Comment>> {
+    fn parse_comment(&mut self) -> Result<Option<Comment>> {
         Ok(if let Some(content) = self.parse_single_line_comment()? {
             Some(Comment::SingleLine(content))
         } else {
@@ -428,7 +428,7 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
         })
     }
 
-    fn parse_single_line_comment(&mut self) -> LexicalResult<Option<String>> {
+    fn parse_single_line_comment(&mut self) -> Result<Option<String>> {
         if self.0.try_peek()? == Some(&'/') && self.0.try_peek_nth(1)? == Some(&'/') {
             self.0.try_next_exact(&'/')?;
             self.0.try_next_exact(&'/')?;
@@ -439,7 +439,7 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
         }
     }
 
-    fn parse_multi_line_comment(&mut self) -> LexicalResult<Option<String>> {
+    fn parse_multi_line_comment(&mut self) -> Result<Option<String>> {
         if self.0.try_peek()? != Some(&'/') || self.0.try_peek_nth(1)? != Some(&'*') {
             return Ok(None);
         }
@@ -447,7 +447,7 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
         for offset in 2.. {
             let ch = match self.0.try_peek_nth(offset)? {
                 Some(ch) => *ch,
-                None => return Err(LexicalError::new(UnclosedComment)),
+                None => return Err(Error::new(UnclosedComment)),
             };
             if ch == '*' && self.0.try_peek_nth(offset + 1)? == Some(&'/') {
                 break;
@@ -464,7 +464,7 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
 }
 
 impl<I: Iterator<Item = io::Result<char>>> Iterator for Lexer<I> {
-    type Item = LexicalResult<Element>;
+    type Item = Result;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.state() {
