@@ -12,7 +12,7 @@ fn js_tests() -> TestSuiteSummary {
     WalkDir::new("tests-js")
         .into_iter()
         .map(Result::unwrap)
-        .filter(is_js_file)
+        .filter(is_normal_file)
         .filter(has_js_extension)
         .map(|dir_entry| harness::exec_source_file(dir_entry.path()))
         .inspect(TestCaseReport::print_report)
@@ -20,10 +20,11 @@ fn js_tests() -> TestSuiteSummary {
         .into_summary()
 }
 
-fn is_js_file(dir_entry: &DirEntry) -> bool {
+fn is_normal_file(dir_entry: &DirEntry) -> bool {
     dir_entry.file_type().is_file()
 }
 
 fn has_js_extension(dir_entry: &DirEntry) -> bool {
-    matches!(dir_entry.file_name().to_str(), Some(name) if name.ends_with(".js"))
+    let file_name = dir_entry.file_name().to_string_lossy();
+    file_name.ends_with(".js") && !file_name.ends_with(".ignore.js")
 }
