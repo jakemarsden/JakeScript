@@ -67,7 +67,7 @@ impl Eval for Block {
 impl Eval for Statement {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         match self {
-            Self::Assertion(node) => node.eval(it),
+            Self::Assert(node) => node.eval(it),
             Self::Break(node) => node.eval(it),
             Self::Continue(node) => node.eval(it),
             Self::Expression(node) => node.eval(it).map(|_| ()),
@@ -82,7 +82,7 @@ impl Eval for Statement {
     }
 }
 
-impl Eval for Assertion {
+impl Eval for AssertStatement {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let value = self.condition.eval(it)?;
         if value.is_truthy(it) {
@@ -140,7 +140,7 @@ impl Eval for ForLoop {
             }
 
             it.vm_mut().stack_mut().frame_mut().push_scope();
-            self.block.eval(it)?;
+            self.body.eval(it)?;
             it.vm_mut().stack_mut().frame_mut().pop_scope();
 
             if let Some(ref incrementor) = self.incrementor {
@@ -180,7 +180,7 @@ impl Eval for WhileLoop {
             }
 
             it.vm_mut().stack_mut().frame_mut().push_scope();
-            self.block.eval(it)?;
+            self.body.eval(it)?;
             it.vm_mut().stack_mut().frame_mut().pop_scope();
 
             match it.vm().execution_state() {

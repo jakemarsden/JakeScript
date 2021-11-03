@@ -81,7 +81,7 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
             Some(token) => {
                 let stmt = match token {
                     Token::Keyword(Keyword::Assert) => {
-                        self.parse_assertion().map(Statement::Assertion)
+                        self.parse_assert_statement().map(Statement::Assert)
                     }
                     Token::Keyword(Keyword::Print | Keyword::PrintLn) => {
                         self.parse_print_statement().map(Statement::Print)
@@ -344,10 +344,10 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
         })
     }
 
-    fn parse_assertion(&mut self) -> Result<Assertion> {
+    fn parse_assert_statement(&mut self) -> Result<AssertStatement> {
         self.expect_keyword(Keyword::Assert)?;
         let condition = self.parse_expression()?;
-        Ok(Assertion { condition })
+        Ok(AssertStatement { condition })
     }
 
     fn parse_print_statement(&mut self) -> Result<PrintStatement> {
@@ -413,12 +413,12 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
         };
         self.expect_punctuator(Punctuator::CloseParen)?;
 
-        let block = self.parse_block()?;
+        let body = self.parse_block()?;
         Ok(ForLoop {
             initialiser,
             condition,
             incrementor,
-            block,
+            body,
         })
     }
 
@@ -427,8 +427,8 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
         self.expect_punctuator(Punctuator::OpenParen)?;
         let condition = self.parse_expression()?;
         self.expect_punctuator(Punctuator::CloseParen)?;
-        let block = self.parse_block()?;
-        Ok(WhileLoop { condition, block })
+        let body = self.parse_block()?;
+        Ok(WhileLoop { condition, body })
     }
 
     fn parse_break_statement(&mut self) -> Result<BreakStatement> {

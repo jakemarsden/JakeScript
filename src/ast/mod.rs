@@ -44,7 +44,7 @@ impl Node for Block {}
 
 #[derive(Clone, Debug)]
 pub enum Statement {
-    Assertion(Assertion),
+    Assert(AssertStatement),
     Break(BreakStatement),
     Continue(ContinueStatement),
     Expression(Expression),
@@ -60,11 +60,11 @@ pub enum Statement {
 impl Node for Statement {}
 
 #[derive(Clone, Debug)]
-pub struct Assertion {
+pub struct AssertStatement {
     pub condition: Expression,
 }
 
-impl Node for Assertion {}
+impl Node for AssertStatement {}
 
 #[derive(Clone, Debug)]
 pub struct PrintStatement {
@@ -88,7 +88,7 @@ pub struct ForLoop {
     pub initialiser: Option<VariableDeclaration>,
     pub condition: Option<Expression>,
     pub incrementor: Option<Expression>,
-    pub block: Block,
+    pub body: Block,
 }
 
 impl Node for ForLoop {}
@@ -96,7 +96,7 @@ impl Node for ForLoop {}
 #[derive(Clone, Debug)]
 pub struct WhileLoop {
     pub condition: Expression,
-    pub block: Block,
+    pub body: Block,
 }
 
 impl Node for WhileLoop {}
