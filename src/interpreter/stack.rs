@@ -1,5 +1,7 @@
 use crate::ast::{ConstantId, VariableDeclarationKind};
-use crate::interpreter::error::*;
+use crate::interpreter::error::{
+    AssignToConstVariableError, VariableAlreadyDefinedError, VariableNotDefinedError,
+};
 use crate::interpreter::value::Value;
 use std::cell::{Ref, RefCell};
 use std::mem;

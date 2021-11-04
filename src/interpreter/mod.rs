@@ -14,8 +14,6 @@ mod stack;
 mod value;
 mod vm;
 
-pub type Result<T = Value> = std::result::Result<T, Error>;
-
 #[derive(Default)]
 pub struct Interpreter {
     vm: Vm,
@@ -317,12 +315,12 @@ impl Eval for AssignmentExpression {
             let rhs = self_.rhs.eval(it)?;
             Ok(match self_.kind {
                 AssignmentOperator::Assign => rhs,
-                AssignmentOperator::AddAssign => Value::add(it, &getter()?, &rhs),
-                AssignmentOperator::SubAssign => Value::sub(it, &getter()?, &rhs),
-                AssignmentOperator::MulAssign => Value::mul(it, &getter()?, &rhs),
-                AssignmentOperator::DivAssign => Value::div(it, &getter()?, &rhs),
-                AssignmentOperator::ModAssign => Value::rem(it, &getter()?, &rhs),
-                AssignmentOperator::PowAssign => Value::pow(it, &getter()?, &rhs),
+                AssignmentOperator::AddAssign => Value::add(it, &getter()?, &rhs)?,
+                AssignmentOperator::SubAssign => Value::sub(it, &getter()?, &rhs)?,
+                AssignmentOperator::MulAssign => Value::mul(it, &getter()?, &rhs)?,
+                AssignmentOperator::DivAssign => Value::div(it, &getter()?, &rhs)?,
+                AssignmentOperator::ModAssign => Value::rem(it, &getter()?, &rhs)?,
+                AssignmentOperator::PowAssign => Value::pow(it, &getter()?, &rhs)?,
                 kind => todo!("AssignmentExpression::eval: kind={:?}", kind),
             })
         }
@@ -409,12 +407,12 @@ impl Eval for BinaryExpression {
                         unreachable_unchecked()
                     },
 
-                    BinaryOperator::Add => Value::add(it, lhs, rhs),
-                    BinaryOperator::Div => Value::div(it, lhs, rhs),
-                    BinaryOperator::Mod => Value::rem(it, lhs, rhs),
-                    BinaryOperator::Mul => Value::mul(it, lhs, rhs),
-                    BinaryOperator::Pow => Value::pow(it, lhs, rhs),
-                    BinaryOperator::Sub => Value::sub(it, lhs, rhs),
+                    BinaryOperator::Add => Value::add(it, lhs, rhs)?,
+                    BinaryOperator::Div => Value::div(it, lhs, rhs)?,
+                    BinaryOperator::Mod => Value::rem(it, lhs, rhs)?,
+                    BinaryOperator::Mul => Value::mul(it, lhs, rhs)?,
+                    BinaryOperator::Pow => Value::pow(it, lhs, rhs)?,
+                    BinaryOperator::Sub => Value::sub(it, lhs, rhs)?,
 
                     BinaryOperator::Equal => Value::eq(it, lhs, rhs),
                     BinaryOperator::NotEqual => Value::ne(it, lhs, rhs),
@@ -460,10 +458,10 @@ impl Eval for UnaryExpression {
                     // The new value to assign to the variable or property
                     let new_value = match self_.kind {
                         UnaryOperator::IncrementPrefix | UnaryOperator::IncrementPostfix => {
-                            Value::add(it, &old_value, &ONE)
+                            Value::add(it, &old_value, &ONE)?
                         }
                         UnaryOperator::DecrementPrefix | UnaryOperator::DecrementPostfix => {
-                            Value::sub(it, &old_value, &ONE)
+                            Value::sub(it, &old_value, &ONE)?
                         }
                         _ => unreachable!("{:?}", self_.kind),
                     };
@@ -524,7 +522,7 @@ impl Eval for UnaryExpression {
 
             UnaryOperator::BitwiseNot => Value::bitwise_not(it, operand),
             UnaryOperator::LogicalNot => Value::not(it, operand),
-            UnaryOperator::NumericNegate => Value::neg(it, operand),
+            UnaryOperator::NumericNegate => Value::neg(it, operand)?,
             UnaryOperator::NumericPlus => Value::plus(it, operand),
         })
     }

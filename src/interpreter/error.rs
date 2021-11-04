@@ -2,6 +2,8 @@ use crate::ast::Expression;
 use crate::interpreter::value::Value;
 use std::fmt;
 
+pub type Result<T = Value> = std::result::Result<T, Error>;
+
 #[derive(Clone, Debug)]
 pub enum Error {
     AssertionFailed(AssertionFailedError),
@@ -9,6 +11,7 @@ pub enum Error {
     FunctionArgumentMismatch(FunctionArgumentMismatchError),
     FunctionNotDefined(FunctionNotDefinedError),
     NotCallable(NotCallableError),
+    NumericOverflow(NumericOverflowError),
     OutOfMemory(OutOfMemoryError),
     VariableAlreadyDefined(VariableAlreadyDefinedError),
     VariableNotDefined(VariableNotDefinedError),
@@ -28,6 +31,7 @@ impl std::error::Error for Error {
             Self::AssignToConstVariable(ref source) => source,
             Self::FunctionArgumentMismatch(ref source) => source,
             Self::FunctionNotDefined(ref source) => source,
+            Self::NumericOverflow(ref source) => source,
             Self::NotCallable(ref source) => source,
             Self::OutOfMemory(ref source) => source,
             Self::VariableAlreadyDefined(ref source) => source,
@@ -165,6 +169,23 @@ impl std::error::Error for NotCallableError {}
 impl From<NotCallableError> for Error {
     fn from(source: NotCallableError) -> Self {
         Self::NotCallable(source)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct NumericOverflowError;
+
+impl fmt::Display for NumericOverflowError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str("Numeric overflow")
+    }
+}
+
+impl std::error::Error for NumericOverflowError {}
+
+impl From<NumericOverflowError> for Error {
+    fn from(source: NumericOverflowError) -> Self {
+        Self::NumericOverflow(source)
     }
 }
 

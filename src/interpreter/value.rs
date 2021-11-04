@@ -1,3 +1,4 @@
+use crate::interpreter::error::NumericOverflowError;
 use crate::interpreter::heap::Reference;
 use crate::interpreter::Interpreter;
 use std::fmt;
@@ -15,56 +16,50 @@ pub enum Value {
 }
 
 impl Value {
-    pub fn add(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Self {
+    pub fn add(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Result<Self, NumericOverflowError> {
         match lhs {
             Value::String(ref lhs) => {
                 let rhs = rhs.coerce_to_string_impl(it);
                 let mut result = String::with_capacity(lhs.len() + rhs.len());
                 result.push_str(lhs);
                 result.push_str(&rhs);
-                Value::String(result)
+                Ok(Value::String(result))
             }
             Value::Reference(_) => todo!("Value::add: {:?} + {:?}", lhs, rhs),
-            _ => match numeric_bin_op(it, lhs, rhs, i64::checked_add) {
-                Some(result) => Self::Number(result),
-                None => todo!("Value::add: {:?} + {:?} => Overflow", lhs, rhs),
-            },
+            _ => numeric_bin_op(it, lhs, rhs, i64::checked_add)
+                .map(Self::Number)
+                .ok_or(NumericOverflowError),
         }
     }
 
-    pub fn sub(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Self {
-        match numeric_bin_op(it, lhs, rhs, i64::checked_sub) {
-            Some(result) => Self::Number(result),
-            None => todo!("Value::sub: {:?} - {:?} => Overflow", lhs, rhs),
-        }
+    pub fn sub(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Result<Self, NumericOverflowError> {
+        numeric_bin_op(it, lhs, rhs, i64::checked_sub)
+            .map(Self::Number)
+            .ok_or(NumericOverflowError)
     }
 
-    pub fn mul(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Self {
-        match numeric_bin_op(it, lhs, rhs, i64::checked_mul) {
-            Some(result) => Self::Number(result),
-            None => todo!("Value::mul: {:?} * {:?} => Overflow", lhs, rhs),
-        }
+    pub fn mul(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Result<Self, NumericOverflowError> {
+        numeric_bin_op(it, lhs, rhs, i64::checked_mul)
+            .map(Self::Number)
+            .ok_or(NumericOverflowError)
     }
 
-    pub fn div(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Self {
-        match numeric_bin_op(it, lhs, rhs, i64::checked_div) {
-            Some(result) => Self::Number(result),
-            None => todo!("Value::div: {:?} / {:?} => Overflow", lhs, rhs),
-        }
+    pub fn div(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Result<Self, NumericOverflowError> {
+        numeric_bin_op(it, lhs, rhs, i64::checked_div)
+            .map(Self::Number)
+            .ok_or(NumericOverflowError)
     }
 
-    pub fn rem(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Self {
-        match numeric_bin_op(it, lhs, rhs, i64::checked_rem) {
-            Some(result) => Self::Number(result),
-            None => todo!("Value::rem: {:?} % {:?} => Overflow", lhs, rhs),
-        }
+    pub fn rem(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Result<Self, NumericOverflowError> {
+        numeric_bin_op(it, lhs, rhs, i64::checked_rem)
+            .map(Self::Number)
+            .ok_or(NumericOverflowError)
     }
 
-    pub fn pow(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Self {
-        match numeric_bin_op(it, lhs, rhs, checked_pow) {
-            Some(result) => Self::Number(result),
-            None => todo!("Value::pow: {:?} ** {:?} => Overflow", lhs, rhs),
-        }
+    pub fn pow(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Result<Self, NumericOverflowError> {
+        numeric_bin_op(it, lhs, rhs, checked_pow)
+            .map(Self::Number)
+            .ok_or(NumericOverflowError)
     }
 
     pub fn identical(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Self {
@@ -165,11 +160,10 @@ impl Value {
         Self::Number(numeric_uni_op(it, operand, |operand| operand))
     }
 
-    pub fn neg(it: &mut Interpreter, operand: &Self) -> Self {
-        match numeric_uni_op(it, operand, i64::checked_neg) {
-            Some(result) => Self::Number(result),
-            None => todo!("Value::neg: -{:?} => Overflow", operand),
-        }
+    pub fn neg(it: &mut Interpreter, operand: &Self) -> Result<Self, NumericOverflowError> {
+        numeric_uni_op(it, operand, i64::checked_neg)
+            .map(Self::Number)
+            .ok_or(NumericOverflowError)
     }
 
     pub fn not(it: &mut Interpreter, operand: &Self) -> Self {
