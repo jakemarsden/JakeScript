@@ -70,14 +70,22 @@ impl Eval for Statement {
             Self::Assert(node) => node.eval(it),
             Self::Break(node) => node.eval(it),
             Self::Continue(node) => node.eval(it),
+            Self::Declaration(node) => node.eval(it),
             Self::Expression(node) => node.eval(it).map(|_| ()),
-            Self::FunctionDeclaration(node) => node.eval(it),
             Self::IfStatement(node) => node.eval(it),
             Self::Print(node) => node.eval(it),
             Self::Return(node) => node.eval(it),
-            Self::VariableDeclaration(node) => node.eval(it),
             Self::ForLoop(node) => node.eval(it),
             Self::WhileLoop(node) => node.eval(it),
+        }
+    }
+}
+
+impl Eval for DeclarationStatement {
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
+        match self {
+            DeclarationStatement::Function(node) => node.eval(it),
+            DeclarationStatement::Variable(node) => node.eval(it),
         }
     }
 }

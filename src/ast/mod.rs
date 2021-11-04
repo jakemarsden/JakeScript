@@ -47,17 +47,24 @@ pub enum Statement {
     Assert(AssertStatement),
     Break(BreakStatement),
     Continue(ContinueStatement),
+    Declaration(DeclarationStatement),
     Expression(Expression),
-    FunctionDeclaration(FunctionDeclaration),
     IfStatement(IfStatement),
     Print(PrintStatement),
     Return(ReturnStatement),
-    VariableDeclaration(VariableDeclaration),
     ForLoop(ForLoop),
     WhileLoop(WhileLoop),
 }
 
 impl Node for Statement {}
+
+#[derive(Clone, Debug)]
+pub enum DeclarationStatement {
+    Function(FunctionDeclaration),
+    Variable(VariableDeclaration),
+}
+
+impl Node for DeclarationStatement {}
 
 #[derive(Clone, Debug)]
 pub struct AssertStatement {
