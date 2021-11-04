@@ -1,9 +1,18 @@
-use crate::ast::{self, *};
+use crate::ast::{
+    self, AssertStatement, AssignmentExpression, AssignmentOperator, BinaryExpression,
+    BinaryOperator, Block, BreakStatement, ConstantId, ConstantPool, ContinueStatement,
+    DeclarationStatement, Expression, ForLoop, FunctionCallExpression, FunctionCallOperator,
+    FunctionDeclaration, GroupingExpression, GroupingOperator, IfStatement, LiteralExpression, Op,
+    Operator, Precedence, PrintStatement, Program, PropertyAccessExpression,
+    PropertyAccessOperator, ReturnStatement, Statement, TernaryExpression, TernaryOperator,
+    UnaryExpression, UnaryOperator, VariableAccessExpression, VariableDeclaration,
+    VariableDeclarationEntry, VariableDeclarationKind, WhileLoop,
+};
 use crate::iter::{IntoPeekableNth, PeekableNth};
 use crate::lexer::{
     self, Keyword, Lexer, NumericLiteral, Punctuator, StringLiteral, Token, Tokens,
 };
-use error::AllowToken::*;
+use error::AllowToken::{AnyOf, Exactly, Unspecified};
 use std::io;
 use std::iter::Map;
 
@@ -63,12 +72,12 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
             match self.parse_statement()? {
                 Statement::Declaration(decl) if decl.is_hoisted() => match decl {
                     DeclarationStatement::Function(fn_decl) => {
-                        hoisted_decls.push(DeclarationStatement::Function(fn_decl))
+                        hoisted_decls.push(DeclarationStatement::Function(fn_decl));
                     }
                     DeclarationStatement::Variable(var_decl) => {
                         let (var_decl, initialisers) = var_decl.into_declaration_and_initialiser();
                         stmts.extend(initialisers.into_iter().map(Statement::Expression));
-                        hoisted_decls.push(DeclarationStatement::Variable(var_decl))
+                        hoisted_decls.push(DeclarationStatement::Variable(var_decl));
                     }
                 },
                 stmt => stmts.push(stmt),
@@ -695,7 +704,7 @@ impl TryParse for PropertyAccessOperator {
 mod test {
     use super::*;
     use crate::lexer::{Keyword, Literal, Punctuator, Token};
-    use crate::parser::error::ErrorKind::*;
+    use crate::parser::error::ErrorKind::{UnexpectedEoi, UnexpectedToken};
     use std::assert_matches::assert_matches;
 
     #[test]

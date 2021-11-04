@@ -28,7 +28,7 @@ fn main() -> Result<(), Error> {
             let (ast, parse_runtime) = parse(lexer)?;
             println!("Parsed in {:?}", parse_runtime);
 
-            let (value, eval_runtime) = eval(ast)?;
+            let (value, eval_runtime) = eval(&ast)?;
             println!(
                 "Evaluated in {:?} (total: {:?})",
                 eval_runtime,
@@ -72,7 +72,7 @@ fn parse<I: Iterator<Item = io::Result<char>>>(
     parser.execute().map(|ast| (ast, start_time.elapsed()))
 }
 
-fn eval(ast: Program) -> interpreter::Result<(interpreter::Value, Duration)> {
+fn eval(ast: &Program) -> interpreter::Result<(interpreter::Value, Duration)> {
     let start_time = Instant::now();
     let mut it = Interpreter::default();
     ast.eval(&mut it).map(|value| (value, start_time.elapsed()))
@@ -99,14 +99,14 @@ impl TryFrom<env::Args> for Options {
             .ok_or(())
             .and_then(|arg| Mode::from_str(&arg).map_err(|_| ()))
             .map_err(|()| ParseOptionsError {
-                executable_path: Some(executable_path.to_owned()),
+                executable_path: Some(executable_path.clone()),
             })?;
         let source_path = args
             .next()
             .ok_or(())
             .and_then(|arg| PathBuf::from_str(&arg).map_err(|_| ()))
             .map_err(|_| ParseOptionsError {
-                executable_path: Some(executable_path.to_owned()),
+                executable_path: Some(executable_path.clone()),
             })?;
         Ok(Self { mode, source_path })
     }

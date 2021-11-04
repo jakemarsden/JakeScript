@@ -185,7 +185,7 @@ impl VariableDeclaration {
     /// with an initialiser.
     pub fn into_declaration_and_initialiser(mut self) -> (Self, Vec<Expression>) {
         let mut initialisers = Vec::with_capacity(self.entries.len());
-        for entry in self.entries.iter_mut() {
+        for entry in &mut self.entries {
             if let Some(initialiser) = entry.initialiser.take() {
                 // Synthesise an assignment expression to initialise the variable
                 initialisers.push(Expression::Assignment(AssignmentExpression {
@@ -321,7 +321,7 @@ impl ConstantId {
         Self(idx)
     }
 
-    fn idx(&self) -> usize {
+    fn idx(self) -> usize {
         self.0
     }
 }
@@ -345,6 +345,9 @@ pub struct ConstantPool {
 }
 
 impl ConstantPool {
+    /// # Panics
+    ///
+    /// Panics if the requested [`ConstantId`] was never allocated by this pool.
     pub fn lookup(&self, id: ConstantId) -> &ConstantValueRef {
         match self.constants.get(id.idx()) {
             Some(value) => value,

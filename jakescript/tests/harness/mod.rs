@@ -9,12 +9,10 @@ use utf8_chars::BufReadCharsExt;
 
 pub fn init() {
     static INIT: sync::Once = sync::Once::new();
-    INIT.call_once(init_impl);
-
-    fn init_impl() {
+    INIT.call_once(|| {
         #[cfg(windows)]
         ansi_term::enable_ansi_support().ok();
-    }
+    });
 }
 
 pub fn exec_source_file(source_path: &Path) -> TestCaseReport {
@@ -187,9 +185,10 @@ impl fmt::Display for TestCaseReport {
         const TICK: char = '\u{2714}';
         const CROSS: char = '\u{274C}';
 
-        let (symbol, status, status_style) = match self.is_pass() {
-            true => (TICK, "pass", Color::Green.normal()),
-            false => (CROSS, "fail", Color::Red.normal()),
+        let (symbol, status, status_style) = if self.is_pass() {
+            (TICK, "pass", Color::Green.normal())
+        } else {
+            (CROSS, "fail", Color::Red.normal())
         };
         let mut msg = format!(
             "[{} {}] {} ({:?})",
@@ -266,9 +265,10 @@ impl process::Termination for TestSuiteSummary {
 impl fmt::Display for TestSuiteSummary {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let success_count_style = Color::Green.bold();
-        let failure_count_style = match self.is_success() {
-            true => Style::default().bold(),
-            false => Color::Red.bold(),
+        let failure_count_style = if self.is_success() {
+            Style::default().bold()
+        } else {
+            Color::Red.bold()
         };
         write!(
             f,

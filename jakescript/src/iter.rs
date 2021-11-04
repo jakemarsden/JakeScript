@@ -143,7 +143,7 @@ impl<T, E, I: Iterator<Item = Result<T, E>>> PeekableNth<I> {
         let partial_iter = self
             .take(idx)
             .map(|item| if let Ok(item) = item { item } else { panic!() });
-        Ok(FromIterator::from_iter(partial_iter))
+        Ok(partial_iter.collect())
     }
 
     pub fn try_consume_str(&mut self, expected: &str) -> Result<bool, E>
@@ -167,10 +167,10 @@ impl<I: Iterator> Iterator for PeekableNth<I> {
     type Item = I::Item;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if !self.buf.is_empty() {
-            Some(self.buf.remove(0))
-        } else {
+        if self.buf.is_empty() {
             self.source.next()
+        } else {
+            Some(self.buf.remove(0))
         }
     }
 
@@ -227,9 +227,7 @@ mod test {
             .map(Ok as fn(char) -> Result<char, Infallible>)
             .peekable_nth();
 
-        let hello: Vec<_> = iter
-            .try_collect_while(|ch| ch.is_ascii_alphabetic())
-            .unwrap();
+        let hello: Vec<_> = iter.try_collect_while(char::is_ascii_alphabetic).unwrap();
         assert_eq!(hello, ['H', 'e', 'l', 'l', 'o']);
         assert_eq!(iter.next(), Some(Ok(',')));
 
@@ -237,9 +235,7 @@ mod test {
         assert_eq!(empty, []);
         assert_eq!(iter.peek(), Some(&Ok(' ')));
 
-        let space: Vec<_> = iter
-            .try_collect_until(|ch| ch.is_ascii_alphabetic())
-            .unwrap();
+        let space: Vec<_> = iter.try_collect_until(char::is_ascii_alphabetic).unwrap();
         assert_eq!(space, [' ']);
         assert_eq!(iter.peek(), Some(&Ok('w')));
 

@@ -1,4 +1,11 @@
-use crate::ast::*;
+use crate::ast::{
+    AssertStatement, AssignmentExpression, AssignmentOperator, Associativity, BinaryExpression,
+    BinaryOperator, Block, BreakStatement, ContinueStatement, DeclarationStatement, Expression,
+    ForLoop, FunctionCallExpression, FunctionDeclaration, GroupingExpression, IfStatement, Literal,
+    LiteralExpression, Node, Op, PrintStatement, Program, PropertyAccessExpression,
+    ReturnStatement, Statement, TernaryExpression, UnaryExpression, UnaryOperator,
+    VariableAccessExpression, VariableDeclaration, VariableDeclarationKind, WhileLoop,
+};
 use std::assert_matches::assert_matches;
 use std::hint::unreachable_unchecked;
 
@@ -38,7 +45,7 @@ impl Eval for Program {
     type Output = Value;
 
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        it.vm_mut().set_constant_pool(self.constants().to_owned());
+        it.vm_mut().set_constant_pool(self.constants().clone());
         self.body().eval(it)
     }
 }
@@ -127,7 +134,7 @@ impl Eval for IfStatement {
         if condition.is_truthy(it) {
             it.vm_mut().stack_mut().frame_mut().push_empty_scope();
             self.success_block.eval(it)?;
-            it.vm_mut().stack_mut().frame_mut().pop_scope()
+            it.vm_mut().stack_mut().frame_mut().pop_scope();
         } else if let Some(ref else_block) = self.else_block {
             it.vm_mut().stack_mut().frame_mut().push_empty_scope();
             else_block.eval(it)?;
@@ -556,7 +563,7 @@ impl Eval for LiteralExpression {
         Ok(match self.value {
             Literal::Boolean(ref value) => Value::Boolean(*value),
             Literal::Numeric(ref value) => Value::Number(i64::try_from(*value).unwrap()),
-            Literal::String(ref value) => Value::String(value.to_owned()),
+            Literal::String(ref value) => Value::String(value.clone()),
             Literal::Object => {
                 let obj_ref = it.vm_mut().heap_mut().allocate_empty_object()?;
                 Value::Reference(obj_ref)
@@ -611,7 +618,7 @@ impl Eval for FunctionCallExpression {
                 VariableDeclarationKind::Let,
                 parameter_name,
                 argument_value,
-            ))
+            ));
         }
 
         let declared_scope = function.declared_scope().clone();

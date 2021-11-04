@@ -1,7 +1,9 @@
 use crate::iter::{IntoPeekableNth, PeekableNth};
 use crate::str::NonEmptyString;
 use enumerate::EnumerateStr;
-use error::ErrorKind::*;
+use error::ErrorKind::{
+    DigitFollowingNumericLiteral, IdentifierFollowingNumericLiteral, UnclosedComment,
+};
 use std::io;
 use std::iter::{FilterMap, Map};
 use std::str::{Chars, FromStr};
@@ -181,9 +183,9 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
             return Ok(None);
         }
         let (radix, ch1) = match self.0.try_peek_nth(1)? {
-            Some(ch @ 'b' | ch @ 'B') => (2, *ch),
-            Some(ch @ 'o' | ch @ 'O') => (8, *ch),
-            Some(ch @ 'x' | ch @ 'X') => (16, *ch),
+            Some(ch @ ('b' | 'B')) => (2, *ch),
+            Some(ch @ ('o' | 'O')) => (8, *ch),
+            Some(ch @ ('x' | 'X')) => (16, *ch),
             _ => return Ok(None),
         };
         if !matches!(self.0.try_peek_nth(2)?, Some(ch2) if ch2.is_digit(radix)) {
@@ -205,16 +207,16 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
         let mut value = 0;
         while let Some(ch) = self.0.try_next_if(|ch| ch.is_digit(radix))? {
             present = true;
-            value *= radix as u64;
-            value += ch.to_digit(radix).unwrap() as u64;
+            value *= u64::from(radix);
+            value += u64::from(ch.to_digit(radix).unwrap());
         }
         Ok(present.then_some(value))
     }
 
     /// ```plain
     /// StringLiteral::
-    ///     " DoubleStringCharactersopt(opt) "
-    ///     ' SingleStringCharactersopt(opt) '
+    ///     " DoubleStringCharacters(opt) "
+    ///     ' SingleStringCharacters(opt) '
     fn parse_string_literal(&mut self) -> Result<Option<StringLiteral>> {
         Ok(if let Some(value) = self.parse_string_literal_impl('\'')? {
             Some(StringLiteral::SingleQuoted(value))
@@ -252,7 +254,7 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
                 ('\\', false) => {
                     escaped = true;
                 }
-                (ch @ &LS | ch @ &PS, false) => {
+                (ch @ &(LS | PS), false) => {
                     content.push(*ch);
                 }
                 (ch, false) if is_line_terminator(*ch) => {
@@ -375,8 +377,7 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
     fn parse_keyword_or_identifier(&mut self) -> Result<Option<Token>> {
         Ok(self.parse_identifier_name()?.map(|ident_or_keyword| {
             Keyword::from_str(&ident_or_keyword)
-                .map(Token::Keyword)
-                .unwrap_or_else(|_| Token::Identifier(ident_or_keyword))
+                .map_or_else(|_| Token::Identifier(ident_or_keyword), Token::Keyword)
         }))
     }
 
@@ -395,7 +396,7 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
     }
 
     fn parse_line_terminator(&mut self) -> Result<Option<LineTerminator>> {
-        Ok(match self.0.try_peek()?.cloned() {
+        Ok(match self.0.try_peek()?.copied() {
             Some(CR) if self.0.try_peek_nth(1)? == Some(&LF) => {
                 self.0.try_next_exact(&CR)?;
                 self.0.try_next_exact(&LF)?;

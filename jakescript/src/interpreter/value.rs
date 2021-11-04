@@ -2,7 +2,7 @@ use crate::interpreter::error::NumericOverflowError;
 use crate::interpreter::heap::Reference;
 use crate::interpreter::Interpreter;
 use std::fmt;
-use std::ops::*;
+use std::ops::{BitAnd, BitOr, BitXor, Not, Shl};
 
 #[derive(Clone, Default, Debug)]
 pub enum Value {
@@ -16,6 +16,9 @@ pub enum Value {
 }
 
 impl Value {
+    /// # Panics
+    ///
+    /// Panics if certain coercions are needed.
     pub fn add(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Result<Self, NumericOverflowError> {
         match lhs {
             Value::String(ref lhs) => {
@@ -71,11 +74,10 @@ impl Value {
                 lhs_ref == rhs_ref || {
                     let lhs_obj = it.vm().heap().resolve(lhs_ref);
                     let rhs_obj = it.vm().heap().resolve(rhs_ref);
-                    lhs_obj.js_equals(rhs_obj.deref())
+                    lhs_obj.js_equals(&*rhs_obj)
                 }
             }
-            (Self::Null, Self::Null) => true,
-            (Self::Undefined, Self::Undefined) => true,
+            (Self::Null, Self::Null) | (Self::Undefined, Self::Undefined) => true,
             (_, _) => false,
         };
         Self::Boolean(result)
@@ -148,10 +150,16 @@ impl Value {
         Self::Number(numeric_bin_op(it, lhs, rhs, i64::shl))
     }
 
+    /// # Panics
+    ///
+    /// Always panics.
     pub fn bitwise_shr(_it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Self {
         todo!("Interpreter::bitwise_shr: lhs={:?}, rhs={:?}", lhs, rhs)
     }
 
+    /// # Panics
+    ///
+    /// Always panics.
     pub fn bitwise_shrr(_it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Self {
         todo!("Interpreter::bitwise_shrr: lhs={:?}, rhs={:?}", lhs, rhs)
     }
@@ -215,7 +223,7 @@ impl Value {
         match self {
             Self::Boolean(value) => value.to_string(),
             Self::Number(value) => value.to_string(),
-            Self::String(value) => value.to_owned(),
+            Self::String(value) => value.clone(),
             Self::Reference(obj_ref) => {
                 let obj = it.vm().heap().resolve(obj_ref);
                 obj.js_to_string()
@@ -239,8 +247,11 @@ impl fmt::Display for Value {
     }
 }
 
+// cast_precision_loss, cast_possible_truncation: TODO: Handle floating-point properly
+#[allow(clippy::cast_precision_loss)]
+#[allow(clippy::cast_possible_truncation)]
 fn checked_pow(lhs: i64, rhs: i64) -> Option<i64> {
-    if rhs >= (i32::MIN as i64) && rhs <= (i32::MAX as i64) {
+    if i32::try_from(rhs).is_ok() {
         Some((lhs as f64).powi(rhs as i32) as i64)
     } else {
         None

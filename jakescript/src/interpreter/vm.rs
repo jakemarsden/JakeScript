@@ -1,6 +1,6 @@
 use crate::ast::ConstantPool;
-use crate::interpreter::heap::*;
-use crate::interpreter::stack::*;
+use crate::interpreter::heap::Heap;
+use crate::interpreter::stack::CallStack;
 use crate::interpreter::value::Value;
 use std::mem;
 
@@ -17,6 +17,9 @@ impl Vm {
         &self.execution_state
     }
 
+    /// # Panics
+    ///
+    /// Panics if the current execution state is not [`ExecutionState::Advance`].
     pub fn set_execution_state(&mut self, execution_state: ExecutionState) {
         assert!(
             self.execution_state.is_advance(),

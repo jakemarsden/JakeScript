@@ -4,8 +4,10 @@ use std::fmt;
 pub struct NonEmptyString(String);
 
 impl NonEmptyString {
-    /// ## Safety
+    /// # Safety
+    ///
     /// The provided string must not be empty, i.e. it must contain at least one character.
+
     pub unsafe fn from_unchecked(str: String) -> Self {
         Self(str)
     }

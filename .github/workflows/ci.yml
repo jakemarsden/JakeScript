@@ -45,8 +45,10 @@ jobs:
       - name: Lint
         uses: actions-rs/cargo@v1
         with:
+          # See: https://github.com/rust-lang/cargo/issues/5034
+          # See: https://github.com/rust-lang/cargo/issues/8415
           command: clippy
-          args: --all-targets --all-features --workspace -- -Dwarnings
+          args: --all-features --all-targets --workspace -- -Dwarnings -Dclippy::all -Dclippy::pedantic -Dclippy::missing-panics-doc -Aclippy::if-not-else -Aclippy::missing-errors-doc -Aclippy::module-name-repetitions -Aclippy::must-use-candidate
 
       - name: Check format
         uses: actions-rs/cargo@v1

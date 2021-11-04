@@ -1,6 +1,6 @@
 #![feature(assert_matches)]
 
-use enumerate::*;
+use enumerate::{Enumerate, EnumerateStr, NoSuchVariantError};
 use std::assert_matches::assert_matches;
 use std::str::FromStr;
 

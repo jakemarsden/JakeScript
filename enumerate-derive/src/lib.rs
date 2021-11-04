@@ -27,7 +27,7 @@ fn derive_enumerate_impl(DeriveInput { ident, data, .. }: &DeriveInput) -> Token
 
     let variant_idents: Vec<_> = variants
         .iter()
-        .map(|variant| variant.ident.to_owned())
+        .map(|variant| variant.ident.clone())
         .collect();
 
     quote! {
@@ -119,7 +119,7 @@ enum RenameAll {
 }
 
 impl RenameAll {
-    fn apply(&self, s: String) -> String {
+    fn apply(self, s: String) -> String {
         match self {
             Self::None => s,
             Self::Lowercase => s.to_lowercase(),
@@ -130,8 +130,8 @@ impl RenameAll {
 
 fn variant_name(variant: &Variant, fallback_strategy: RenameAll, span: Span) -> LitStr {
     let opts: EnumerateStrVariantOpts = darling::FromVariant::from_variant(variant).unwrap();
-    opts.rename
-        .as_ref()
-        .map(|s| LitStr::new(s, span))
-        .unwrap_or_else(|| LitStr::new(&fallback_strategy.apply(variant.ident.to_string()), span))
+    opts.rename.as_ref().map_or_else(
+        || LitStr::new(&fallback_strategy.apply(variant.ident.to_string()), span),
+        |s| LitStr::new(s, span),
+    )
 }

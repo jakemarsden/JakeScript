@@ -34,9 +34,13 @@ impl Heap {
         Ok(Reference::new(obj_idx, new_obj))
     }
 
+    // unused_self: Will be used in the future, see comment about storing objects inside the heap.
+    #[allow(clippy::unused_self)]
     pub fn resolve<'a>(&self, refr: &'a Reference) -> Ref<'a, Object> {
         refr.deref()
     }
+    // unused_self: Will be used in the future, see comment about storing objects inside the heap.
+    #[allow(clippy::unused_self)]
     pub fn resolve_mut<'a>(&mut self, refr: &'a Reference) -> RefMut<'a, Object> {
         refr.deref_mut()
     }
@@ -113,10 +117,16 @@ impl Object {
         self.callable.as_ref()
     }
 
+    /// # Panics
+    ///
+    /// Always panics.
     pub fn js_equals(&self, other: &Object) -> bool {
         todo!("Object::js_equals: {:?} == {:?}", self, other)
     }
 
+    /// # Panics
+    ///
+    /// Always panics.
     pub fn js_to_string(&self) -> String {
         todo!("Object::js_to_string: {:?}", self)
     }

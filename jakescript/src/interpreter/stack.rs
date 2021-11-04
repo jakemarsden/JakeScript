@@ -50,7 +50,7 @@ impl CallFrame {
     }
 
     pub fn push_empty_scope(&mut self) {
-        self.push_scope(Default::default(), false)
+        self.push_scope(ScopeCtx::default(), false);
     }
 
     pub fn push_scope(&mut self, scope_ctx: ScopeCtx, escalation_boundary: bool) {
