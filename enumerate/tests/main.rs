@@ -38,21 +38,21 @@ fn enumerate() {
 
 #[test]
 fn enumerate_str() {
-    #[derive(Enumerate, EnumerateStr, Clone, Debug)]
+    #[derive(EnumerateStr, Clone, Debug)]
     enum Empty {}
 
-    #[derive(Enumerate, EnumerateStr, Clone, Debug)]
+    #[derive(EnumerateStr, Clone, Debug)]
     enum Single {
         Item1,
     }
 
-    #[derive(Enumerate, EnumerateStr, Clone, Debug)]
+    #[derive(EnumerateStr, Clone, Debug)]
     enum Couple {
         Item1,
         Item2,
     }
 
-    #[derive(Enumerate, EnumerateStr, Clone, Debug)]
+    #[derive(EnumerateStr, Clone, Debug)]
     enum Rename {
         #[enumerate_str(rename = "The first item...")]
         Item1,
@@ -60,14 +60,14 @@ fn enumerate_str() {
         Item2,
     }
 
-    #[derive(Enumerate, EnumerateStr, Clone, Debug)]
+    #[derive(EnumerateStr, Clone, Debug)]
     #[enumerate_str(rename_all = "lowercase")]
     enum RenameAll {
         Item1,
         Item2,
     }
 
-    #[derive(Enumerate, EnumerateStr, Clone, Debug)]
+    #[derive(EnumerateStr, Clone, Debug)]
     #[enumerate_str(rename_all = "UPPERCASE")]
     enum RenameMix {
         Item1,

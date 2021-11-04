@@ -30,16 +30,13 @@ fn derive_enumerate_impl(DeriveInput { ident, data, .. }: &DeriveInput) -> Token
         .map(|variant| variant.ident.to_owned())
         .collect();
 
-    let fn_body = quote! {
-        const VALUES: &[#ident] = &[
-            #(#ident::#variant_idents, )*
-        ];
-        VALUES
-    };
     quote! {
         impl enumerate::Enumerate for #ident {
             fn enumerate() -> &'static [Self] {
-                #fn_body
+                const VALUES: &[#ident] = &[
+                    #(#ident::#variant_idents, )*
+                ];
+                VALUES
             }
         }
     }
@@ -58,28 +55,25 @@ fn derive_enumerate_str_impl(input @ DeriveInput { ident, data, .. }: &DeriveInp
         .map(|variant| variant_name(variant, opts.rename_all, ident.span()))
         .collect();
 
-    let as_str_body = if !variants.is_empty() {
-        quote! {
-            match self {
-                #(Self::#variant_idents => #variant_values, )*
-            }
-        }
+    let (as_str_body, from_str_body) = if !variants.is_empty() {
+        (
+            quote! {
+                match self {
+                    #(Self::#variant_idents => #variant_values, )*
+                }
+            },
+            quote! {
+                Ok(match s {
+                    #(#variant_values => Self::#variant_idents, )*
+                    _ => return Err(enumerate::NoSuchVariantError),
+                })
+            },
+        )
     } else {
-        quote! {
-            match *self {}
-        }
-    };
-    let from_str_body = if !variants.is_empty() {
-        quote! {
-            Ok(match s {
-                #(#variant_values => Self::#variant_idents, )*
-                _ => return Err(enumerate::NoSuchVariantError),
-            })
-        }
-    } else {
-        quote! {
-            Err(enumerate::NoSuchVariantError)
-        }
+        (
+            quote! { match *self {} },
+            quote! { Err(enumerate::NoSuchVariantError) },
+        )
     };
     quote! {
         impl enumerate::EnumerateStr for #ident {
