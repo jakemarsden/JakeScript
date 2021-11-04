@@ -78,14 +78,7 @@ impl DeclarationStatement {
     pub fn is_hoisted(&self) -> bool {
         match self {
             Self::Function(..) => true,
-            Self::Variable(VariableDeclaration {
-                kind: VariableDeclarationKind::Var,
-                ..
-            }) => true,
-            Self::Variable(VariableDeclaration {
-                kind: VariableDeclarationKind::Const | VariableDeclarationKind::Let,
-                ..
-            }) => false,
+            Self::Variable(decl) => decl.is_hoisted(),
         }
     }
 }
@@ -171,6 +164,20 @@ pub struct VariableDeclaration {
 }
 
 impl VariableDeclaration {
+    pub fn is_escalated(&self) -> bool {
+        match self.kind {
+            VariableDeclarationKind::Let | VariableDeclarationKind::Const => false,
+            VariableDeclarationKind::Var => true,
+        }
+    }
+
+    pub fn is_hoisted(&self) -> bool {
+        match self.kind {
+            VariableDeclarationKind::Let | VariableDeclarationKind::Const => false,
+            VariableDeclarationKind::Var => true,
+        }
+    }
+
     /// Split the declaration into
     ///
     /// 1. a "main" [`VariableDeclaration`], sans initialisers, to declare each entry

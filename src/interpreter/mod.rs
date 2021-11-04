@@ -1,7 +1,6 @@
 use crate::ast::*;
 use std::assert_matches::assert_matches;
 use std::hint::unreachable_unchecked;
-use std::ops::Deref;
 
 pub use error::*;
 pub use heap::*;
@@ -128,11 +127,11 @@ impl Eval for IfStatement {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let condition = self.condition.eval(it)?;
         if condition.is_truthy(it) {
-            it.vm_mut().stack_mut().frame_mut().push_scope();
+            it.vm_mut().stack_mut().frame_mut().push_empty_scope();
             self.success_block.eval(it)?;
             it.vm_mut().stack_mut().frame_mut().pop_scope()
         } else if let Some(ref else_block) = self.else_block {
-            it.vm_mut().stack_mut().frame_mut().push_scope();
+            it.vm_mut().stack_mut().frame_mut().push_empty_scope();
             else_block.eval(it)?;
             it.vm_mut().stack_mut().frame_mut().pop_scope();
         }
@@ -143,7 +142,7 @@ impl Eval for IfStatement {
 impl Eval for ForLoop {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         if let Some(ref initialiser) = self.initialiser {
-            it.vm_mut().stack_mut().frame_mut().push_scope();
+            it.vm_mut().stack_mut().frame_mut().push_empty_scope();
             initialiser.eval(it)?;
         }
         loop {
@@ -154,7 +153,7 @@ impl Eval for ForLoop {
                 }
             }
 
-            it.vm_mut().stack_mut().frame_mut().push_scope();
+            it.vm_mut().stack_mut().frame_mut().push_empty_scope();
             self.body.eval(it)?;
             it.vm_mut().stack_mut().frame_mut().pop_scope();
 
@@ -194,7 +193,7 @@ impl Eval for WhileLoop {
                 break;
             }
 
-            it.vm_mut().stack_mut().frame_mut().push_scope();
+            it.vm_mut().stack_mut().frame_mut().push_empty_scope();
             self.body.eval(it)?;
             it.vm_mut().stack_mut().frame_mut().pop_scope();
 
@@ -275,11 +274,13 @@ impl Eval for VariableDeclaration {
             } else {
                 Variable::new_unassigned(self.kind, entry.var_name)
             };
-            it.vm_mut()
-                .stack_mut()
-                .frame_mut()
-                .scope_mut()
-                .declare_variable(variable)?;
+            let curr_scope = it.vm_mut().stack_mut().frame_mut().scope_mut();
+            let mut declared_scope = if self.is_escalated() {
+                curr_scope.ancestor(true)
+            } else {
+                curr_scope.clone()
+            };
+            declared_scope.declare_variable(variable)?;
         }
         Ok(())
     }
@@ -615,14 +616,14 @@ impl Eval for FunctionCallExpression {
             ))
         }
 
-        let declared_scope = function.declared_scope().deref().clone();
+        let declared_scope = function.declared_scope().clone();
         let fn_scope_ctx = ScopeCtx::new(argument_variables);
 
         it.vm_mut().stack_mut().push_frame(declared_scope);
         it.vm_mut()
             .stack_mut()
             .frame_mut()
-            .push_scope_ctx(fn_scope_ctx);
+            .push_scope(fn_scope_ctx, true);
         function.body().eval(it)?;
         it.vm_mut().stack_mut().frame_mut().pop_scope();
         it.vm_mut().stack_mut().pop_frame();

@@ -47,17 +47,17 @@ impl CallFrame {
         &mut self.scope
     }
 
-    pub fn push_scope(&mut self) {
-        self.push_scope_ctx(ScopeCtx::default());
+    pub fn push_empty_scope(&mut self) {
+        self.push_scope(Default::default(), false)
     }
 
-    pub fn push_scope_ctx(&mut self, scope_ctx: ScopeCtx) {
-        let new_child_scope = Scope::new_child_of(scope_ctx, self.scope.clone());
-        self.scope = new_child_scope;
+    pub fn push_scope(&mut self, scope_ctx: ScopeCtx, escalation_boundary: bool) {
+        let parent = self.scope.clone();
+        self.scope = Scope::new_child_of(scope_ctx, escalation_boundary, parent);
     }
 
     pub fn pop_scope(&mut self) {
-        let parent_scope = self.scope.parent_scope();
+        let parent_scope = self.scope.parent();
         self.scope = parent_scope.expect("Cannot pop top-level scope context");
     }
 }
@@ -66,24 +66,36 @@ impl CallFrame {
 pub struct Scope(Rc<RefCell<ScopeInner>>);
 
 impl Scope {
-    pub fn new(ctx: ScopeCtx) -> Self {
-        Self(Rc::new(RefCell::new(ScopeInner { ctx, parent: None })))
-    }
-
-    pub fn new_child_of(ctx: ScopeCtx, parent: Self) -> Self {
+    fn new_child_of(ctx: ScopeCtx, escalation_boundary: bool, parent: Self) -> Self {
         Self(Rc::new(RefCell::new(ScopeInner {
             ctx,
+            escalation_boundary,
             parent: Some(parent.0),
         })))
     }
 
-    pub fn parent_scope(&self) -> Option<Self> {
+    pub fn is_escalation_boundary(&self) -> bool {
+        RefCell::borrow(&self.0).is_escalation_boundary()
+    }
+
+    pub fn parent(&self) -> Option<Self> {
         if let Some(parent_ref) = &RefCell::borrow(&self.0).parent {
             let new_parent_ref = Rc::clone(parent_ref);
             Some(Self(new_parent_ref))
         } else {
             None
         }
+    }
+
+    pub fn ancestor(&self, within_escalation_bounds: bool) -> Self {
+        let mut ancestor_ref = self.clone();
+        while let Some(parent_ref) = ancestor_ref.parent() {
+            if within_escalation_bounds && ancestor_ref.is_escalation_boundary() {
+                break;
+            }
+            ancestor_ref = parent_ref;
+        }
+        ancestor_ref
     }
 
     pub fn lookup_variable(&self, name: ConstantId) -> Result<Variable, VariableNotDefinedError> {
@@ -103,10 +115,15 @@ impl Scope {
 #[derive(Default, Debug)]
 struct ScopeInner {
     ctx: ScopeCtx,
+    escalation_boundary: bool,
     parent: Option<Rc<RefCell<ScopeInner>>>,
 }
 
 impl ScopeInner {
+    fn is_escalation_boundary(&self) -> bool {
+        self.escalation_boundary
+    }
+
     fn lookup_variable(&self, name: ConstantId) -> Option<Variable> {
         if let Some(variable) = self.ctx.find_variable(name) {
             Some(variable)
