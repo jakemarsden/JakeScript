@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="clippy" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
-    <option name="command" value="clippy --all-features --all-targets --workspace" />
+  <configuration default="false" name="enumerate::expand" type="CargoCommandRunConfiguration" factoryName="Cargo Command" folderName="enumerate">
+    <option name="command" value="expand --package enumerate --test main" />
     <option name="workingDirectory" value="file://$PROJECT_DIR$" />
     <option name="channel" value="DEFAULT" />
     <option name="requiredFeatures" value="true" />

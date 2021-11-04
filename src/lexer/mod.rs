@@ -1,5 +1,6 @@
 use crate::iter::{IntoPeekableNth, PeekableNth};
 use crate::str::NonEmptyString;
+use enumerate::EnumerateStr;
 use error::ErrorKind::*;
 use std::io;
 use std::iter::{FilterMap, Map};
@@ -75,7 +76,7 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
     }
 
     fn parse_punctuator(&mut self) -> Result<Option<Punctuator>> {
-        for value in Punctuator::VALUES_IN_LEXICAL_ORDER {
+        for value in Punctuator::enumerate_in_lexical_order() {
             if self.0.try_consume_str(value.as_str())? {
                 return Ok(Some(*value));
             }
@@ -568,11 +569,12 @@ fn into_escaped(ch: char) -> char {
 #[cfg(test)]
 mod test {
     use super::*;
+    use enumerate::{Enumerate, EnumerateStr};
     use std::assert_matches::assert_matches;
 
     #[test]
     fn tokenise_keywords() {
-        for expected in Keyword::VALUES {
+        for expected in Keyword::enumerate() {
             let mut lexer = Lexer::for_str(expected.as_str());
             assert_matches!(
                 lexer.next(),
@@ -584,7 +586,7 @@ mod test {
 
     #[test]
     fn tokenise_punctuators() {
-        for expected in Punctuator::VALUES {
+        for expected in Punctuator::enumerate() {
             let mut lexer = Lexer::for_str(expected.as_str());
             assert_matches!(
                 lexer.next(),

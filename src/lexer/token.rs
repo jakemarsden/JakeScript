@@ -1,8 +1,7 @@
-use crate::lexer::error::{BadKeywordError, BadPunctuatorError};
 use crate::lexer::{CR, LF, LS, PS};
 use crate::str::NonEmptyString;
+use enumerate::{Enumerate, EnumerateStr};
 use std::fmt;
-use std::str::FromStr;
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum Element {
@@ -53,7 +52,8 @@ impl fmt::Display for Token {
 
 // TODO: Some variants should only be _contextually_ disallowed as identifiers, i.e. in certain
 //  circumstances they should be allowed as identifiers.
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Enumerate, EnumerateStr, Copy, Clone, Eq, PartialEq, Debug)]
+#[enumerate_str(rename_all = "lowercase")]
 pub enum Keyword {
     As,
     // TODO: Remove from the language once no longer needed to support unit tests.
@@ -111,140 +111,6 @@ pub enum Keyword {
     While,
     With,
     Yield,
-}
-
-impl Keyword {
-    pub(crate) const VALUES: &'static [Self; 53] = &[
-        Self::As,
-        Self::Assert,
-        Self::Async,
-        Self::Await,
-        Self::Break,
-        Self::Case,
-        Self::Catch,
-        Self::Class,
-        Self::Const,
-        Self::Continue,
-        Self::Debugger,
-        Self::Default,
-        Self::Delete,
-        Self::Do,
-        Self::Else,
-        Self::Enum,
-        Self::Export,
-        Self::Extends,
-        Self::Finally,
-        Self::For,
-        Self::From,
-        Self::Function,
-        Self::Get,
-        Self::If,
-        Self::Implements,
-        Self::Import,
-        Self::In,
-        Self::Instanceof,
-        Self::Interface,
-        Self::Let,
-        Self::New,
-        Self::Of,
-        Self::Package,
-        Self::Print,
-        Self::PrintLn,
-        Self::Private,
-        Self::Protected,
-        Self::Public,
-        Self::Return,
-        Self::Set,
-        Self::Static,
-        Self::Super,
-        Self::Switch,
-        Self::Target,
-        Self::This,
-        Self::Throw,
-        Self::Try,
-        Self::Typeof,
-        Self::Var,
-        Self::Void,
-        Self::While,
-        Self::With,
-        Self::Yield,
-    ];
-
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::As => "as",
-            Self::Assert => "assert",
-            Self::Async => "async",
-            Self::Await => "await",
-            Self::Break => "break",
-            Self::Case => "case",
-            Self::Catch => "catch",
-            Self::Class => "class",
-            Self::Const => "const",
-            Self::Continue => "continue",
-            Self::Debugger => "debugger",
-            Self::Default => "default",
-            Self::Delete => "delete",
-            Self::Do => "do",
-            Self::Else => "else",
-            Self::Enum => "enum",
-            Self::Export => "export",
-            Self::Extends => "extends",
-            Self::Finally => "finally",
-            Self::For => "for",
-            Self::From => "from",
-            Self::Function => "function",
-            Self::Get => "get",
-            Self::If => "if",
-            Self::Implements => "implements",
-            Self::Import => "import",
-            Self::Interface => "interface",
-            Self::In => "in",
-            Self::Instanceof => "instanceof",
-            Self::Let => "let",
-            Self::New => "new",
-            Self::Of => "of",
-            Self::Package => "package",
-            Self::Print => "print",
-            Self::PrintLn => "println",
-            Self::Private => "private",
-            Self::Protected => "protected",
-            Self::Public => "public",
-            Self::Return => "return",
-            Self::Set => "set",
-            Self::Static => "static",
-            Self::Super => "super",
-            Self::Switch => "switch",
-            Self::Target => "target",
-            Self::This => "this",
-            Self::Throw => "throw",
-            Self::Try => "try",
-            Self::Typeof => "typeof",
-            Self::Var => "var",
-            Self::Void => "void",
-            Self::While => "while",
-            Self::With => "with",
-            Self::Yield => "yield",
-        }
-    }
-}
-
-impl fmt::Display for Keyword {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
-
-impl FromStr for Keyword {
-    type Err = BadKeywordError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::VALUES
-            .iter()
-            .find(|value| value.as_str() == s)
-            .cloned()
-            .ok_or(BadKeywordError)
-    }
 }
 
 // TODO: Support RegEx literals.
@@ -326,198 +192,176 @@ impl fmt::Display for RegExLiteral {
     }
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Enumerate, EnumerateStr, Copy, Clone, Eq, PartialEq, Debug)]
 pub enum Punctuator {
+    #[enumerate_str(rename = "&")]
     Ampersand,
+    #[enumerate_str(rename = "&=")]
     AmpersandEqual,
+    #[enumerate_str(rename = "*")]
     Asterisk,
+    #[enumerate_str(rename = "*=")]
     AsteriskEqual,
+    #[enumerate_str(rename = "!")]
     Bang,
+    #[enumerate_str(rename = "!==")]
     BangDoubleEqual,
+    #[enumerate_str(rename = "!=")]
     BangEqual,
+    #[enumerate_str(rename = "^")]
     Caret,
+    #[enumerate_str(rename = "^=")]
     CaretEqual,
+    #[enumerate_str(rename = "}")]
     CloseBrace,
+    #[enumerate_str(rename = "]")]
     CloseBracket,
+    #[enumerate_str(rename = ")")]
     CloseParen,
+    #[enumerate_str(rename = ":")]
     Colon,
+    #[enumerate_str(rename = ",")]
     Comma,
+    #[enumerate_str(rename = ".")]
     Dot,
+    #[enumerate_str(rename = "&&")]
     DoubleAmpersand,
+    #[enumerate_str(rename = "**")]
     DoubleAsterisk,
+    #[enumerate_str(rename = "**=")]
     DoubleAsteriskEqual,
+    #[enumerate_str(rename = "==")]
     DoubleEqual,
+    #[enumerate_str(rename = "<<")]
     DoubleLessThan,
+    #[enumerate_str(rename = "<<=")]
     DoubleLessThanEqual,
+    #[enumerate_str(rename = ">>")]
     DoubleMoreThan,
+    #[enumerate_str(rename = ">>=")]
     DoubleMoreThanEqual,
+    #[enumerate_str(rename = "--")]
     DoubleMinus,
+    #[enumerate_str(rename = "||")]
     DoublePipe,
+    #[enumerate_str(rename = "++")]
     DoublePlus,
+    #[enumerate_str(rename = "??")]
     DoubleQuestion,
+    #[enumerate_str(rename = "=")]
     Equal,
+    #[enumerate_str(rename = "=>")]
     EqualMoreThan,
+    #[enumerate_str(rename = "<")]
     LessThan,
+    #[enumerate_str(rename = "<=")]
     LessThanEqual,
+    #[enumerate_str(rename = "-")]
     Minus,
+    #[enumerate_str(rename = "-=")]
     MinusEqual,
+    #[enumerate_str(rename = ">")]
     MoreThan,
+    #[enumerate_str(rename = ">=")]
     MoreThanEqual,
+    #[enumerate_str(rename = "{")]
     OpenBrace,
+    #[enumerate_str(rename = "[")]
     OpenBracket,
+    #[enumerate_str(rename = "(")]
     OpenParen,
+    #[enumerate_str(rename = "%")]
     Percent,
+    #[enumerate_str(rename = "%=")]
     PercentEqual,
+    #[enumerate_str(rename = "|")]
     Pipe,
+    #[enumerate_str(rename = "|=")]
     PipeEqual,
+    #[enumerate_str(rename = "+")]
     Plus,
+    #[enumerate_str(rename = "+=")]
     PlusEqual,
+    #[enumerate_str(rename = "?")]
     Question,
+    #[enumerate_str(rename = ";")]
     Semicolon,
+    #[enumerate_str(rename = "/")]
     Slash,
+    #[enumerate_str(rename = "/=")]
     SlashEqual,
+    #[enumerate_str(rename = "~")]
     Tilde,
+    #[enumerate_str(rename = "...")]
     TripleDot,
+    #[enumerate_str(rename = "===")]
     TripleEqual,
+    #[enumerate_str(rename = ">>>")]
     TripleMoreThan,
+    #[enumerate_str(rename = ">>>=")]
     TripleMoreThanEqual,
 }
 
 impl Punctuator {
-    pub(crate) const VALUES: &'static [Self] = Self::VALUES_IN_LEXICAL_ORDER;
-
     /// Unlike for [`Self::VALUES`], **order is important**. For multiple punctuators which start
     /// with the same substring, the longest needs to come first. This is relied on by the `Lexer`.
-    pub(crate) const VALUES_IN_LEXICAL_ORDER: &'static [Self] = &[
-        Self::DoubleAmpersand,
-        Self::AmpersandEqual,
-        Self::Ampersand,
-        Self::DoubleAsteriskEqual,
-        Self::DoubleAsterisk,
-        Self::AsteriskEqual,
-        Self::Asterisk,
-        Self::BangDoubleEqual,
-        Self::BangEqual,
-        Self::Bang,
-        Self::CaretEqual,
-        Self::Caret,
-        Self::CloseBrace,
-        Self::CloseBracket,
-        Self::CloseParen,
-        Self::Colon,
-        Self::Comma,
-        Self::TripleDot,
-        Self::Dot,
-        Self::TripleEqual,
-        Self::DoubleEqual,
-        Self::EqualMoreThan,
-        Self::Equal,
-        Self::DoubleLessThanEqual,
-        Self::DoubleLessThan,
-        Self::LessThanEqual,
-        Self::LessThan,
-        Self::DoubleMinus,
-        Self::MinusEqual,
-        Self::Minus,
-        Self::TripleMoreThanEqual,
-        Self::TripleMoreThan,
-        Self::DoubleMoreThanEqual,
-        Self::DoubleMoreThan,
-        Self::MoreThanEqual,
-        Self::MoreThan,
-        Self::OpenBrace,
-        Self::OpenBracket,
-        Self::OpenParen,
-        Self::PercentEqual,
-        Self::Percent,
-        Self::DoublePipe,
-        Self::PipeEqual,
-        Self::Pipe,
-        Self::DoublePlus,
-        Self::PlusEqual,
-        Self::Plus,
-        Self::DoubleQuestion,
-        Self::Question,
-        Self::Semicolon,
-        Self::SlashEqual,
-        Self::Slash,
-        Self::Tilde,
-    ];
-
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::Ampersand => "&",
-            Self::AmpersandEqual => "&=",
-            Self::Asterisk => "*",
-            Self::AsteriskEqual => "*=",
-            Self::Bang => "!",
-            Self::BangDoubleEqual => "!==",
-            Self::BangEqual => "!=",
-            Self::Caret => "^",
-            Self::CaretEqual => "^=",
-            Self::CloseBrace => "}",
-            Self::CloseBracket => "]",
-            Self::CloseParen => ")",
-            Self::Colon => ":",
-            Self::Comma => ",",
-            Self::Dot => ".",
-            Self::DoubleAmpersand => "&&",
-            Self::DoubleAsterisk => "**",
-            Self::DoubleAsteriskEqual => "**=",
-            Self::DoubleEqual => "==",
-            Self::DoubleLessThan => "<<",
-            Self::DoubleLessThanEqual => "<<=",
-            Self::DoubleMoreThan => ">>",
-            Self::DoubleMoreThanEqual => ">>=",
-            Self::DoubleMinus => "--",
-            Self::DoublePipe => "||",
-            Self::DoublePlus => "++",
-            Self::DoubleQuestion => "??",
-            Self::Equal => "=",
-            Self::EqualMoreThan => "=>",
-            Self::LessThan => "<",
-            Self::LessThanEqual => "<=",
-            Self::Minus => "-",
-            Self::MinusEqual => "-=",
-            Self::MoreThan => ">",
-            Self::MoreThanEqual => ">=",
-            Self::OpenBrace => "{",
-            Self::OpenBracket => "[",
-            Self::OpenParen => "(",
-            Self::Percent => "%",
-            Self::PercentEqual => "%=",
-            Self::Pipe => "|",
-            Self::PipeEqual => "|=",
-            Self::Plus => "+",
-            Self::PlusEqual => "+=",
-            Self::Question => "?",
-            Self::Semicolon => ";",
-            Self::Slash => "/",
-            Self::SlashEqual => "/=",
-            Self::Tilde => "~",
-            Self::TripleDot => "...",
-            Self::TripleEqual => "===",
-            Self::TripleMoreThan => ">>>",
-            Self::TripleMoreThanEqual => ">>>=",
-        }
-    }
-}
-
-impl fmt::Display for Punctuator {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
-
-impl FromStr for Punctuator {
-    type Err = BadPunctuatorError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::VALUES
-            .iter()
-            .find(|value| value.as_str() == s)
-            .cloned()
-            .ok_or(BadPunctuatorError)
+    pub(crate) fn enumerate_in_lexical_order() -> &'static [Self] {
+        const VALUES_IN_LEXICAL_ORDER: &[Punctuator] = &[
+            Punctuator::DoubleAmpersand,
+            Punctuator::AmpersandEqual,
+            Punctuator::Ampersand,
+            Punctuator::DoubleAsteriskEqual,
+            Punctuator::DoubleAsterisk,
+            Punctuator::AsteriskEqual,
+            Punctuator::Asterisk,
+            Punctuator::BangDoubleEqual,
+            Punctuator::BangEqual,
+            Punctuator::Bang,
+            Punctuator::CaretEqual,
+            Punctuator::Caret,
+            Punctuator::CloseBrace,
+            Punctuator::CloseBracket,
+            Punctuator::CloseParen,
+            Punctuator::Colon,
+            Punctuator::Comma,
+            Punctuator::TripleDot,
+            Punctuator::Dot,
+            Punctuator::TripleEqual,
+            Punctuator::DoubleEqual,
+            Punctuator::EqualMoreThan,
+            Punctuator::Equal,
+            Punctuator::DoubleLessThanEqual,
+            Punctuator::DoubleLessThan,
+            Punctuator::LessThanEqual,
+            Punctuator::LessThan,
+            Punctuator::DoubleMinus,
+            Punctuator::MinusEqual,
+            Punctuator::Minus,
+            Punctuator::TripleMoreThanEqual,
+            Punctuator::TripleMoreThan,
+            Punctuator::DoubleMoreThanEqual,
+            Punctuator::DoubleMoreThan,
+            Punctuator::MoreThanEqual,
+            Punctuator::MoreThan,
+            Punctuator::OpenBrace,
+            Punctuator::OpenBracket,
+            Punctuator::OpenParen,
+            Punctuator::PercentEqual,
+            Punctuator::Percent,
+            Punctuator::DoublePipe,
+            Punctuator::PipeEqual,
+            Punctuator::Pipe,
+            Punctuator::DoublePlus,
+            Punctuator::PlusEqual,
+            Punctuator::Plus,
+            Punctuator::DoubleQuestion,
+            Punctuator::Question,
+            Punctuator::Semicolon,
+            Punctuator::SlashEqual,
+            Punctuator::Slash,
+            Punctuator::Tilde,
+        ];
+        VALUES_IN_LEXICAL_ORDER
     }
 }
 

@@ -18,7 +18,11 @@ debug = 1
 
 [dependencies]
 ansi_term = "0.12"
+enumerate = { path = "enumerate" }
 utf8-chars = "1.0"
 
 [dev-dependencies]
 walkdir = "2.3"
+
+[workspace]
+members = ["enumerate", "enumerate_derive"]
