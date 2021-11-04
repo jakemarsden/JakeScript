@@ -368,7 +368,7 @@ impl ConstantPool {
     }
 }
 
-pub trait Op {
+pub trait Op: Copy + Eq + fmt::Debug {
     fn associativity(&self) -> Associativity;
     fn precedence(&self) -> Precedence;
 }
@@ -390,10 +390,10 @@ impl Op for Operator {
             Self::Assignment(kind) => kind.associativity(),
             Self::Binary(kind) => kind.associativity(),
             Self::Unary(kind) => kind.associativity(),
-            Self::Ternary => TernaryOp.associativity(),
-            Self::Grouping => GroupingOp.associativity(),
-            Self::FunctionCall => FunctionCallOp.associativity(),
-            Self::PropertyAccess => PropertyAccessOp.associativity(),
+            Self::Ternary => TernaryOperator.associativity(),
+            Self::Grouping => GroupingOperator.associativity(),
+            Self::FunctionCall => FunctionCallOperator.associativity(),
+            Self::PropertyAccess => PropertyAccessOperator.associativity(),
         }
     }
 
@@ -402,10 +402,10 @@ impl Op for Operator {
             Self::Assignment(kind) => kind.precedence(),
             Self::Binary(kind) => kind.precedence(),
             Self::Unary(kind) => kind.precedence(),
-            Self::Ternary => TernaryOp.precedence(),
-            Self::Grouping => GroupingOp.precedence(),
-            Self::FunctionCall => FunctionCallOp.precedence(),
-            Self::PropertyAccess => PropertyAccessOp.precedence(),
+            Self::Ternary => TernaryOperator.precedence(),
+            Self::Grouping => GroupingOperator.precedence(),
+            Self::FunctionCall => FunctionCallOperator.precedence(),
+            Self::PropertyAccess => PropertyAccessOperator.precedence(),
         }
     }
 }
@@ -414,18 +414,15 @@ impl Op for Operator {
 pub enum AssignmentOperator {
     #[default]
     Assign,
-
     AddAssign,
     DivAssign,
     ModAssign,
     MulAssign,
     PowAssign,
     SubAssign,
-
     ShiftLeftAssign,
     ShiftRightAssign,
     ShiftRightUnsignedAssign,
-
     BitwiseAndAssign,
     BitwiseOrAssign,
     BitwiseXOrAssign,
@@ -449,25 +446,20 @@ pub enum BinaryOperator {
     Mul,
     Pow,
     Sub,
-
     Equal,
     NotEqual,
     Identical,
     NotIdentical,
-
     LessThan,
     LessThanOrEqual,
     MoreThan,
     MoreThanOrEqual,
-
     ShiftLeft,
     ShiftRight,
     ShiftRightUnsigned,
-
     BitwiseAnd,
     BitwiseOr,
     BitwiseXOr,
-
     LogicalAnd,
     LogicalOr,
 }
@@ -505,7 +497,6 @@ pub enum UnaryOperator {
     DecrementPostfix,
     IncrementPrefix,
     IncrementPostfix,
-
     BitwiseNot,
     LogicalNot,
     NumericNegate,
@@ -531,9 +522,9 @@ impl Op for UnaryOperator {
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
-pub struct TernaryOp;
+pub struct TernaryOperator;
 
-impl Op for TernaryOp {
+impl Op for TernaryOperator {
     fn associativity(&self) -> Associativity {
         Associativity::RightToLeft
     }
@@ -544,9 +535,9 @@ impl Op for TernaryOp {
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
-pub struct GroupingOp;
+pub struct GroupingOperator;
 
-impl Op for GroupingOp {
+impl Op for GroupingOperator {
     fn associativity(&self) -> Associativity {
         Associativity::LeftToRight
     }
@@ -557,9 +548,9 @@ impl Op for GroupingOp {
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
-pub struct FunctionCallOp;
+pub struct FunctionCallOperator;
 
-impl Op for FunctionCallOp {
+impl Op for FunctionCallOperator {
     fn associativity(&self) -> Associativity {
         Associativity::LeftToRight
     }
@@ -570,9 +561,9 @@ impl Op for FunctionCallOp {
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
-pub struct PropertyAccessOp;
+pub struct PropertyAccessOperator;
 
-impl Op for PropertyAccessOp {
+impl Op for PropertyAccessOperator {
     fn associativity(&self) -> Associativity {
         Associativity::LeftToRight
     }

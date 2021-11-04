@@ -131,7 +131,7 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
     fn parse_expression_impl(&mut self, min_precedence: Precedence) -> Result<Expression> {
         let mut expression = self.parse_primary_expression()?;
         while let Some(&Token::Punctuator(punctuator)) = self.tokens.try_peek()? {
-            if let Some(op_kind) = Operator::try_parse(punctuator, Position::Postfix) {
+            if let Some(op_kind) = Operator::try_parse(punctuator, Position::PostfixOrInfix) {
                 if op_kind.precedence() > min_precedence {
                     self.tokens.try_next().unwrap().unwrap();
                     expression = self.parse_secondary_expression(expression, op_kind)?;
@@ -174,7 +174,7 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
                         kind: op_kind,
                         operand: Box::new(operand),
                     })
-                } else if GroupingOp::try_parse(punc, Position::Prefix).is_some() {
+                } else if GroupingOperator::try_parse(punc, Position::Prefix).is_some() {
                     let inner = self.parse_expression()?;
                     self.expect_punctuator(Punctuator::CloseParen)?;
                     Expression::Grouping(GroupingExpression {
@@ -558,8 +558,13 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 enum Position {
+    /// For example:
+    /// - `++a`
     Prefix,
-    Postfix,
+    /// For example:
+    /// - `a++`
+    /// - `a + b`
+    PostfixOrInfix,
 }
 
 trait TryParse {
@@ -570,49 +575,36 @@ trait TryParse {
 
 impl TryParse for Operator {
     fn try_parse(punc: Punctuator, pos: Position) -> Option<Self> {
-        Some(if let Some(op) = AssignmentOperator::try_parse(punc, pos) {
-            Self::Assignment(op)
-        } else if let Some(op) = BinaryOperator::try_parse(punc, pos) {
-            Self::Binary(op)
-        } else if let Some(op) = UnaryOperator::try_parse(punc, pos) {
-            Self::Unary(op)
-        } else if TernaryOp::try_parse(punc, pos).is_some() {
-            Self::Ternary
-        } else if GroupingOp::try_parse(punc, pos).is_some() {
-            Self::Grouping
-        } else if FunctionCallOp::try_parse(punc, pos).is_some() {
-            Self::FunctionCall
-        } else if PropertyAccessOp::try_parse(punc, pos).is_some() {
-            Self::PropertyAccess
-        } else {
-            return None;
-        })
+        AssignmentOperator::try_parse(punc, pos)
+            .map(Self::Assignment)
+            .or_else(|| BinaryOperator::try_parse(punc, pos).map(Self::Binary))
+            .or_else(|| UnaryOperator::try_parse(punc, pos).map(Self::Unary))
+            .or_else(|| TernaryOperator::try_parse(punc, pos).map(|_| Self::Ternary))
+            .or_else(|| GroupingOperator::try_parse(punc, pos).map(|_| Self::Grouping))
+            .or_else(|| FunctionCallOperator::try_parse(punc, pos).map(|_| Self::FunctionCall))
+            .or_else(|| PropertyAccessOperator::try_parse(punc, pos).map(|_| Self::PropertyAccess))
     }
 }
 
 impl TryParse for AssignmentOperator {
     fn try_parse(punc: Punctuator, pos: Position) -> Option<Self> {
-        if pos != Position::Postfix {
+        if pos != Position::PostfixOrInfix {
             return None;
         }
         Some(match punc {
             Punctuator::Equal => Self::Assign,
-
             Punctuator::PlusEqual => Self::AddAssign,
             Punctuator::SlashEqual => Self::DivAssign,
             Punctuator::PercentEqual => Self::ModAssign,
             Punctuator::AsteriskEqual => Self::MulAssign,
             Punctuator::DoubleAsteriskEqual => Self::PowAssign,
             Punctuator::MinusEqual => Self::SubAssign,
-
             Punctuator::DoubleLessThanEqual => Self::ShiftLeftAssign,
             Punctuator::DoubleMoreThanEqual => Self::ShiftRightAssign,
             Punctuator::TripleMoreThanEqual => Self::ShiftRightUnsignedAssign,
-
             Punctuator::AmpersandEqual => Self::BitwiseAndAssign,
             Punctuator::PipeEqual => Self::BitwiseOrAssign,
             Punctuator::CaretEqual => Self::BitwiseXOrAssign,
-
             _ => return None,
         })
     }
@@ -620,7 +612,7 @@ impl TryParse for AssignmentOperator {
 
 impl TryParse for BinaryOperator {
     fn try_parse(punc: Punctuator, pos: Position) -> Option<Self> {
-        if pos != Position::Postfix {
+        if pos != Position::PostfixOrInfix {
             return None;
         }
         Some(match punc {
@@ -630,28 +622,22 @@ impl TryParse for BinaryOperator {
             Punctuator::Asterisk => Self::Mul,
             Punctuator::DoubleAsterisk => Self::Pow,
             Punctuator::Minus => Self::Sub,
-
             Punctuator::DoubleEqual => Self::Equal,
             Punctuator::BangEqual => Self::NotEqual,
             Punctuator::TripleEqual => Self::Identical,
             Punctuator::BangDoubleEqual => Self::NotIdentical,
-
             Punctuator::LessThan => Self::LessThan,
             Punctuator::LessThanEqual => Self::LessThanOrEqual,
             Punctuator::MoreThan => Self::MoreThan,
             Punctuator::MoreThanEqual => Self::MoreThanOrEqual,
-
             Punctuator::DoubleLessThan => Self::ShiftLeft,
             Punctuator::DoubleMoreThan => Self::ShiftRight,
             Punctuator::TripleMoreThan => Self::ShiftRightUnsigned,
-
             Punctuator::Ampersand => Self::BitwiseAnd,
             Punctuator::Pipe => Self::BitwiseOr,
             Punctuator::Caret => Self::BitwiseXOr,
-
             Punctuator::DoubleAmpersand => Self::LogicalAnd,
             Punctuator::DoublePipe => Self::LogicalOr,
-
             _ => return None,
         })
     }
@@ -661,41 +647,47 @@ impl TryParse for UnaryOperator {
     fn try_parse(punc: Punctuator, pos: Position) -> Option<Self> {
         Some(match (punc, pos) {
             (Punctuator::DoubleMinus, Position::Prefix) => Self::DecrementPrefix,
-            (Punctuator::DoubleMinus, Position::Postfix) => Self::DecrementPostfix,
+            (Punctuator::DoubleMinus, Position::PostfixOrInfix) => Self::DecrementPostfix,
             (Punctuator::DoublePlus, Position::Prefix) => Self::IncrementPrefix,
-            (Punctuator::DoublePlus, Position::Postfix) => Self::IncrementPostfix,
-
+            (Punctuator::DoublePlus, Position::PostfixOrInfix) => Self::IncrementPostfix,
             (Punctuator::Tilde, Position::Prefix) => Self::BitwiseNot,
             (Punctuator::Bang, Position::Prefix) => Self::LogicalNot,
             (Punctuator::Minus, Position::Prefix) => Self::NumericNegate,
             (Punctuator::Plus, Position::Prefix) => Self::NumericPlus,
-
             (_, _) => return None,
         })
     }
 }
 
-impl TryParse for TernaryOp {
+impl TryParse for TernaryOperator {
     fn try_parse(punc: Punctuator, pos: Position) -> Option<Self> {
-        matches!((punc, pos), (Punctuator::Question, Position::Postfix)).then_some(Self)
+        matches!(
+            (punc, pos),
+            (Punctuator::Question, Position::PostfixOrInfix)
+        )
+        .then_some(Self)
     }
 }
 
-impl TryParse for GroupingOp {
+impl TryParse for GroupingOperator {
     fn try_parse(punc: Punctuator, pos: Position) -> Option<Self> {
         matches!((punc, pos), (Punctuator::OpenParen, Position::Prefix)).then_some(Self)
     }
 }
 
-impl TryParse for FunctionCallOp {
+impl TryParse for FunctionCallOperator {
     fn try_parse(punc: Punctuator, pos: Position) -> Option<Self> {
-        matches!((punc, pos), (Punctuator::OpenParen, Position::Postfix)).then_some(Self)
+        matches!(
+            (punc, pos),
+            (Punctuator::OpenParen, Position::PostfixOrInfix)
+        )
+        .then_some(Self)
     }
 }
 
-impl TryParse for PropertyAccessOp {
+impl TryParse for PropertyAccessOperator {
     fn try_parse(punc: Punctuator, pos: Position) -> Option<Self> {
-        matches!((punc, pos), (Punctuator::Dot, Position::Postfix)).then_some(Self)
+        matches!((punc, pos), (Punctuator::Dot, Position::PostfixOrInfix)).then_some(Self)
     }
 }
 
