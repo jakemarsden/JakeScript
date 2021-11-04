@@ -1,28 +1,10 @@
-[package]
-name = "jakescript"
-version = "0.1.0"
-authors = ["Jake Marsden <jakemarsdenjm@gmail.com>"]
-edition = "2021"
-publish = false
-
-[[bin]]
-name = "jakescript-bin"
-path = "src/bin.rs"
-
-[lib]
-name = "jakescript"
-path = "src/lib.rs"
+[workspace]
+members = [
+    "enumerate",
+    "enumerate-derive",
+    "jakescript",
+    "jakescript-cli",
+]
 
 [profile.release]
 debug = 1
-
-[dependencies]
-ansi_term = "0.12"
-enumerate = { path = "enumerate" }
-utf8-chars = "1.0"
-
-[dev-dependencies]
-walkdir = "2.3"
-
-[workspace]
-members = ["enumerate", "enumerate_derive"]

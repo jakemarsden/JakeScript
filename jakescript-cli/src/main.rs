@@ -14,6 +14,9 @@ use std::{env, fmt, fs, io};
 use utf8_chars::BufReadCharsExt;
 
 fn main() -> Result<(), Error> {
+    #[cfg(windows)]
+    ansi_term::enable_ansi_support().ok();
+
     let Options { mode, source_path } = Options::try_from(env::args())?;
 
     let source_file = fs::File::open(&source_path)?;

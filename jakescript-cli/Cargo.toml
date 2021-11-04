@@ -1,0 +1,12 @@
+[package]
+name = "jakescript-cli"
+version = "0.1.0"
+authors = ["Jake Marsden <jakemarsdenjm@gmail.com>"]
+edition = "2021"
+publish = false
+
+[dependencies]
+enumerate = { path = "../enumerate" }
+jakescript = { path = "../jakescript" }
+ansi_term = "0.12"
+utf8-chars = "1.0"
