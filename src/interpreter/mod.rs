@@ -51,9 +51,16 @@ impl Eval for Block {
 
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let mut result = Value::default();
+        for decl in self.hoisted_declarations() {
+            assert!(decl.is_hoisted());
+            decl.eval(it)?;
+        }
         for stmt in self.statements() {
             if it.vm().execution_state().is_break_or_return() {
                 break;
+            }
+            if let Statement::Declaration(decl) = stmt {
+                assert!(!decl.is_hoisted());
             }
             result = match stmt {
                 Statement::Expression(expr) => expr.eval(it),

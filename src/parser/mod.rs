@@ -48,6 +48,7 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
             self.expect_punctuator(Punctuator::OpenBrace)?;
         }
         let mut stmts = Vec::new();
+        let mut hoisted_decls = Vec::new();
         loop {
             match self.tokens.try_peek()? {
                 Some(Token::Punctuator(Punctuator::CloseBrace)) if braces => break,
@@ -59,12 +60,24 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
                     ))))
                 }
             }
-            stmts.push(self.parse_statement()?);
+            match self.parse_statement()? {
+                Statement::Declaration(decl) if decl.is_hoisted() => match decl {
+                    DeclarationStatement::Function(fn_decl) => {
+                        hoisted_decls.push(DeclarationStatement::Function(fn_decl))
+                    }
+                    DeclarationStatement::Variable(var_decl) => {
+                        let (var_decl, initialisers) = var_decl.into_declaration_and_initialiser();
+                        stmts.extend(initialisers.into_iter().map(Statement::Expression));
+                        hoisted_decls.push(DeclarationStatement::Variable(var_decl))
+                    }
+                },
+                stmt => stmts.push(stmt),
+            }
         }
         if braces {
             self.expect_punctuator(Punctuator::CloseBrace)?;
         }
-        Ok(Block::new(stmts))
+        Ok(Block::new(stmts, hoisted_decls))
     }
 
     fn parse_statement(&mut self) -> Result<Statement> {

@@ -28,15 +28,25 @@ impl Program {
 impl Node for Program {}
 
 #[derive(Clone, Default, Debug)]
-pub struct Block(Vec<Statement>);
+pub struct Block {
+    stmts: Vec<Statement>,
+    hoisted_decls: Vec<DeclarationStatement>,
+}
 
 impl Block {
-    pub fn new(stmts: Vec<Statement>) -> Self {
-        Self(stmts)
+    pub fn new(stmts: Vec<Statement>, hoisted_decls: Vec<DeclarationStatement>) -> Self {
+        Self {
+            stmts,
+            hoisted_decls,
+        }
     }
 
     pub fn statements(&self) -> &[Statement] {
-        &self.0
+        &self.stmts
+    }
+
+    pub fn hoisted_declarations(&self) -> &[DeclarationStatement] {
+        &self.hoisted_decls
     }
 }
 
@@ -62,6 +72,22 @@ impl Node for Statement {}
 pub enum DeclarationStatement {
     Function(FunctionDeclaration),
     Variable(VariableDeclaration),
+}
+
+impl DeclarationStatement {
+    pub fn is_hoisted(&self) -> bool {
+        match self {
+            Self::Function(..) => true,
+            Self::Variable(VariableDeclaration {
+                kind: VariableDeclarationKind::Var,
+                ..
+            }) => true,
+            Self::Variable(VariableDeclaration {
+                kind: VariableDeclarationKind::Const | VariableDeclarationKind::Let,
+                ..
+            }) => false,
+        }
+    }
 }
 
 impl Node for DeclarationStatement {}
@@ -142,6 +168,30 @@ impl Node for FunctionDeclaration {}
 pub struct VariableDeclaration {
     pub kind: VariableDeclarationKind,
     pub entries: Vec<VariableDeclarationEntry>,
+}
+
+impl VariableDeclaration {
+    /// Split the declaration into
+    ///
+    /// 1. a "main" [`VariableDeclaration`], sans initialisers, to declare each entry
+    /// 2. a new, synthesised [`Expression`] to initialise each entry, for each entry which started
+    /// with an initialiser.
+    pub fn into_declaration_and_initialiser(mut self) -> (Self, Vec<Expression>) {
+        let mut initialisers = Vec::with_capacity(self.entries.len());
+        for entry in self.entries.iter_mut() {
+            if let Some(initialiser) = entry.initialiser.take() {
+                // Synthesise an assignment expression to initialise the variable
+                initialisers.push(Expression::Assignment(AssignmentExpression {
+                    kind: AssignmentOperator::Assign,
+                    lhs: Box::new(Expression::VariableAccess(VariableAccessExpression {
+                        var_name: entry.var_name,
+                    })),
+                    rhs: Box::new(initialiser),
+                }));
+            }
+        }
+        (self, initialisers)
+    }
 }
 
 impl Node for VariableDeclaration {}
