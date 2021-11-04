@@ -2,6 +2,7 @@
 #![feature(derive_default_enum)]
 #![feature(iter_intersperse)]
 
+use enumerate::{Enumerate, EnumerateStr};
 use jakescript::ast::Program;
 use jakescript::interpreter::{self, Eval, Interpreter};
 use jakescript::lexer::{self, Element, Lexer};
@@ -93,7 +94,7 @@ impl TryFrom<env::Args> for Options {
         let mode = args
             .next()
             .ok_or(())
-            .and_then(|arg| Mode::from_str(&arg))
+            .and_then(|arg| Mode::from_str(&arg).map_err(|_| ()))
             .map_err(|()| ParseOptionsError {
                 executable_path: Some(executable_path.to_owned()),
             })?;
@@ -101,51 +102,22 @@ impl TryFrom<env::Args> for Options {
             .next()
             .ok_or(())
             .and_then(|arg| PathBuf::from_str(&arg).map_err(|_| ()))
-            .map_err(|()| ParseOptionsError {
+            .map_err(|_| ParseOptionsError {
                 executable_path: Some(executable_path.to_owned()),
             })?;
         Ok(Self { mode, source_path })
     }
 }
 
-#[derive(Copy, Clone, Default, Eq, PartialEq, Debug)]
+#[derive(Enumerate, EnumerateStr, Copy, Clone, Default, Eq, PartialEq, Debug)]
 enum Mode {
     #[default]
+    #[enumerate_str(rename = "--eval")]
     Eval,
+    #[enumerate_str(rename = "--parse")]
     Parse,
+    #[enumerate_str(rename = "--lex")]
     Lex,
-}
-
-impl Mode {
-    fn variants() -> &'static [Self] {
-        static ALL: &[Mode] = &[Mode::Eval, Mode::Parse, Mode::Lex];
-        ALL
-    }
-
-    fn as_str(&self) -> &'static str {
-        match self {
-            Self::Eval => "--eval",
-            Self::Parse => "--parse",
-            Self::Lex => "--lex",
-        }
-    }
-}
-
-impl FromStr for Mode {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::variants()
-            .iter()
-            .find_map(|it| (s == it.as_str()).then_some(*it))
-            .ok_or(())
-    }
-}
-
-impl fmt::Display for Mode {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(self.as_str())
-    }
 }
 
 enum Error {
@@ -227,7 +199,7 @@ impl fmt::Display for ParseOptionsError {
             f,
             "Usage: {} [{}] <source-path>",
             self.executable_path.as_deref().unwrap_or("jakescript"),
-            Mode::variants()
+            Mode::enumerate()
                 .iter()
                 .map(Mode::to_string)
                 .intersperse_with(|| " | ".to_owned())
