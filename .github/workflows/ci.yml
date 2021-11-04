@@ -30,17 +30,11 @@ jobs:
           components: clippy, rustfmt
           override: true
 
-      - name: Build
+      - name: Check format
         uses: actions-rs/cargo@v1
         with:
-          command: build
-          args: --release --workspace
-
-      - name: Test
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --workspace -- --nocapture
+          command: fmt
+          args: --all -- --check
 
       - name: Lint
         uses: actions-rs/cargo@v1
@@ -50,8 +44,14 @@ jobs:
           command: clippy
           args: --all-features --all-targets --workspace -- -Dwarnings -Dclippy::all -Dclippy::pedantic -Dclippy::missing-panics-doc -Aclippy::if-not-else -Aclippy::missing-errors-doc -Aclippy::module-name-repetitions -Aclippy::must-use-candidate
 
-      - name: Check format
+      - name: Test
         uses: actions-rs/cargo@v1
         with:
-          command: fmt
-          args: --all -- --check
+          command: test
+          args: --workspace -- --nocapture
+
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --workspace
