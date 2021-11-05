@@ -16,8 +16,8 @@ use std::str::FromStr;
 /// ```
 #[macro_export]
 macro_rules! non_empty_str {
-    ($lit:literal) => {
-        NonEmptyString::try_from($lit).unwrap()
+    ($s:literal) => {
+        NonEmptyString::try_from($s).unwrap()
     };
 }
 
@@ -34,7 +34,7 @@ impl NonEmptyString {
 
     /// # Safety
     ///
-    ///  The provided str must not be empty.
+    /// The provided str must not be empty.
     pub unsafe fn from_str_unchecked(s: &str) -> Self {
         Self(String::from(s))
     }
@@ -83,7 +83,7 @@ impl TryFrom<&str> for NonEmptyString {
 
     fn try_from(s: &str) -> Result<Self, Self::Error> {
         if !s.is_empty() {
-            // Safety: The str can't be empty due to the surrounding if.
+            // Safety: The str can't be empty because of the surrounding if.
             Ok(unsafe { Self::from_str_unchecked(s) })
         } else {
             Err(())
@@ -96,7 +96,7 @@ impl TryFrom<String> for NonEmptyString {
 
     fn try_from(s: String) -> Result<Self, Self::Error> {
         if !s.is_empty() {
-            // Safety: The string can't be empty due to the surrounding if.
+            // Safety: The string can't be empty because of the surrounding if.
             Ok(unsafe { Self::from_unchecked(s) })
         } else {
             Err(())

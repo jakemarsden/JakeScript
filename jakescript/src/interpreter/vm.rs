@@ -1,4 +1,3 @@
-use crate::ast::ConstantPool;
 use crate::interpreter::heap::Heap;
 use crate::interpreter::stack::CallStack;
 use crate::interpreter::value::Value;
@@ -7,7 +6,6 @@ use std::mem;
 #[derive(Default)]
 pub struct Vm {
     execution_state: ExecutionState,
-    constant_pool: ConstantPool,
     heap: Heap,
     stack: CallStack,
 }
@@ -33,14 +31,6 @@ impl Vm {
 
     pub fn reset_execution_state(&mut self) -> ExecutionState {
         mem::take(&mut self.execution_state)
-    }
-
-    pub fn constant_pool(&self) -> &ConstantPool {
-        &self.constant_pool
-    }
-
-    pub fn set_constant_pool(&mut self, constant_pool: ConstantPool) {
-        self.constant_pool = constant_pool;
     }
 
     pub fn heap(&self) -> &Heap {

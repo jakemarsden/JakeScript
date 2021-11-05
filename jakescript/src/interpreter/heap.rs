@@ -1,4 +1,4 @@
-use crate::ast::{Block, ConstantId, IdentifierName};
+use crate::ast::{Block, Identifier};
 use crate::interpreter::error::OutOfMemoryError;
 use crate::interpreter::stack::Scope;
 use crate::interpreter::value::Value;
@@ -89,12 +89,12 @@ impl fmt::Debug for Reference {
 
 #[derive(Debug)]
 pub struct Object {
-    properties: HashMap<IdentifierName, Value>,
+    properties: HashMap<Identifier, Value>,
     callable: Option<Callable>,
 }
 
 impl Object {
-    fn new(properties: HashMap<IdentifierName, Value>, callable: Option<Callable>) -> Self {
+    fn new(properties: HashMap<Identifier, Value>, callable: Option<Callable>) -> Self {
         Self {
             properties,
             callable,
@@ -105,12 +105,12 @@ impl Object {
         self.properties.is_empty()
     }
 
-    pub fn property(&self, property_name: &IdentifierName) -> Option<&Value> {
-        self.properties.get(property_name)
+    pub fn property(&self, name: &Identifier) -> Option<&Value> {
+        self.properties.get(name)
     }
 
-    pub fn set_property(&mut self, property_name: IdentifierName, value: Value) {
-        self.properties.insert(property_name, value);
+    pub fn set_property(&mut self, name: Identifier, value: Value) {
+        self.properties.insert(name, value);
     }
 
     pub fn callable(&self) -> Option<&Callable> {
@@ -134,13 +134,13 @@ impl Object {
 
 #[derive(Debug)]
 pub struct Callable {
-    declared_parameters: Vec<ConstantId>,
+    declared_parameters: Vec<Identifier>,
     declared_scope: Scope,
     body: Block,
 }
 
 impl Callable {
-    pub fn new(declared_parameters: Vec<ConstantId>, declared_scope: Scope, body: Block) -> Self {
+    pub fn new(declared_parameters: Vec<Identifier>, declared_scope: Scope, body: Block) -> Self {
         Self {
             declared_parameters,
             declared_scope,
@@ -148,7 +148,7 @@ impl Callable {
         }
     }
 
-    pub fn declared_parameters(&self) -> &[ConstantId] {
+    pub fn declared_parameters(&self) -> &[Identifier] {
         &self.declared_parameters
     }
 

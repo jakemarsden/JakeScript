@@ -1,27 +1,20 @@
 use crate::str::NonEmptyString;
 use std::fmt;
 
-pub type IdentifierName = NonEmptyString;
-
 pub trait Node: Clone + fmt::Debug {}
 
 #[derive(Clone, Default, Debug)]
 pub struct Program {
     body: Block,
-    constants: ConstantPool,
 }
 
 impl Program {
-    pub fn new(body: Block, constants: ConstantPool) -> Self {
-        Self { body, constants }
+    pub fn new(body: Block) -> Self {
+        Self { body }
     }
 
     pub fn body(&self) -> &Block {
         &self.body
-    }
-
-    pub fn constants(&self) -> &ConstantPool {
-        &self.constants
     }
 }
 
@@ -150,8 +143,8 @@ impl Node for ReturnStatement {}
 
 #[derive(Clone, Debug)]
 pub struct FunctionDeclaration {
-    pub fn_name: ConstantId,
-    pub param_names: Vec<ConstantId>,
+    pub fn_name: Identifier,
+    pub param_names: Vec<Identifier>,
     pub body: Block,
 }
 
@@ -191,7 +184,7 @@ impl VariableDeclaration {
                 initialisers.push(Expression::Assignment(AssignmentExpression {
                     kind: AssignmentOperator::Assign,
                     lhs: Box::new(Expression::VariableAccess(VariableAccessExpression {
-                        var_name: entry.var_name,
+                        var_name: entry.var_name.clone(),
                     })),
                     rhs: Box::new(initialiser),
                 }));
@@ -279,17 +272,32 @@ impl Node for FunctionCallExpression {}
 #[derive(Clone, Debug)]
 pub struct PropertyAccessExpression {
     pub base: Box<Expression>,
-    pub property_name: ConstantId,
+    pub property_name: Identifier,
 }
 
 impl Node for PropertyAccessExpression {}
 
 #[derive(Clone, Debug)]
 pub struct VariableAccessExpression {
-    pub var_name: ConstantId,
+    pub var_name: Identifier,
 }
 
 impl Node for VariableAccessExpression {}
+
+#[derive(Clone, Eq, PartialEq, Hash, Debug)]
+pub struct Identifier(NonEmptyString);
+
+impl From<NonEmptyString> for Identifier {
+    fn from(s: NonEmptyString) -> Self {
+        Self(s)
+    }
+}
+
+impl fmt::Display for Identifier {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 #[derive(Clone, Default, Debug)]
 pub enum Literal {
@@ -302,78 +310,12 @@ pub enum Literal {
     // TODO: Support properties in object literals.
     Object,
     AnonFunction {
-        param_names: Vec<ConstantId>,
+        param_names: Vec<Identifier>,
         body: Block,
     },
     Null,
     #[default]
     Undefined,
-}
-
-pub type ConstantValue = NonEmptyString;
-
-#[derive(Copy, Clone, Eq, PartialEq, Hash)]
-pub struct ConstantId(usize);
-
-impl ConstantId {
-    fn new(idx: usize) -> Self {
-        Self(idx)
-    }
-
-    fn idx(self) -> usize {
-        self.0
-    }
-}
-
-impl fmt::Display for ConstantId {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        // Note: 6 includes the 2 chars for the "0x" prefix, so only 4 actual digits are displayed.
-        write!(f, "{:#06x}", self.0)
-    }
-}
-
-impl fmt::Debug for ConstantId {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt(self, f)
-    }
-}
-
-#[derive(Clone, Default, Debug)]
-pub struct ConstantPool {
-    constants: Vec<ConstantValue>,
-}
-
-impl ConstantPool {
-    /// # Panics
-    ///
-    /// Panics if the requested [`ConstantId`] was never allocated by this pool.
-    pub fn lookup(&self, id: ConstantId) -> &ConstantValue {
-        match self.constants.get(id.idx()) {
-            Some(value) => value,
-            None => panic!("Invalid constant ID: {}", id),
-        }
-    }
-
-    pub fn allocate_if_absent(&mut self, value: ConstantValue) -> ConstantId {
-        if let Some((idx, _existing)) = self
-            .constants
-            .iter()
-            .enumerate()
-            .find(|(_idx, existing)| value.eq(existing))
-        {
-            ConstantId::new(idx)
-        } else {
-            let idx = self.constants.len();
-            self.constants.push(value);
-            ConstantId::new(idx)
-        }
-    }
-
-    pub fn extend(&mut self, other: &Self) {
-        for value in &other.constants {
-            self.allocate_if_absent(value.clone());
-        }
-    }
 }
 
 pub trait Op: Copy + Eq + fmt::Debug {
@@ -590,7 +532,7 @@ pub enum VariableDeclarationKind {
 
 #[derive(Clone, Debug)]
 pub struct VariableDeclarationEntry {
-    pub var_name: ConstantId,
+    pub var_name: Identifier,
     pub initialiser: Option<Expression>,
 }
 

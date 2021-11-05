@@ -45,7 +45,6 @@ impl Eval for Program {
     type Output = Value;
 
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        it.vm_mut().set_constant_pool(self.constants().clone());
         self.body().eval(it)
     }
 }
@@ -258,7 +257,7 @@ impl Eval for FunctionDeclaration {
         let fn_obj_ref = it.vm_mut().heap_mut().allocate_callable_object(callable)?;
         let variable = Variable::new(
             VariableDeclarationKind::Var,
-            self.fn_name,
+            self.fn_name.clone(),
             Value::Reference(fn_obj_ref),
         );
         it.vm_mut()
@@ -275,9 +274,9 @@ impl Eval for VariableDeclaration {
         for entry in &self.entries {
             let variable = if let Some(ref initialiser) = entry.initialiser {
                 let initial_value = initialiser.eval(it)?;
-                Variable::new(self.kind, entry.var_name, initial_value)
+                Variable::new(self.kind, entry.var_name.clone(), initial_value)
             } else {
-                Variable::new_unassigned(self.kind, entry.var_name)
+                Variable::new_unassigned(self.kind, entry.var_name.clone())
             };
             let curr_scope = it.vm_mut().stack_mut().frame_mut().scope_mut();
             let mut declared_scope = if self.is_escalated() {
@@ -340,7 +339,7 @@ impl Eval for AssignmentExpression {
                     .stack()
                     .frame()
                     .scope()
-                    .lookup_variable(node.var_name)?;
+                    .lookup_variable(&node.var_name)?;
                 let new_value = compute_new_value(self, it, || Ok(variable.value().clone()))?;
                 variable.set_value(new_value.clone())?;
                 Ok(new_value)
@@ -353,14 +352,13 @@ impl Eval for AssignmentExpression {
                     }
                     base_value => todo!("AssignmentExpression::eval: base_value={:?}", base_value),
                 };
-                let property_name = it.vm().constant_pool().lookup(node.property_name).clone();
                 let new_value = compute_new_value(self, it, || {
                     Ok(base_obj
-                        .property(&property_name)
+                        .property(&node.property_name)
                         .cloned()
                         .unwrap_or_default())
                 })?;
-                base_obj.set_property(property_name, new_value.clone());
+                base_obj.set_property(node.property_name.clone(), new_value.clone());
                 Ok(new_value)
             }
             expr => todo!("AssignmentExpression::eval: lhs={:#?}", expr),
@@ -489,7 +487,7 @@ impl Eval for UnaryExpression {
                             .stack()
                             .frame()
                             .scope()
-                            .lookup_variable(node.var_name)?;
+                            .lookup_variable(&node.var_name)?;
                         let (new_value, result_value) =
                             compute(self, it, || Ok(variable.value().clone()))?;
                         variable.set_value(new_value)?;
@@ -505,15 +503,13 @@ impl Eval for UnaryExpression {
                                 todo!("AssignmentExpression::eval: base_value={:?}", base_value)
                             }
                         };
-                        let property_name =
-                            it.vm().constant_pool().lookup(node.property_name).clone();
                         let (new_value, result_value) = compute(self, it, || {
                             Ok(base_obj
-                                .property(&property_name)
+                                .property(&node.property_name)
                                 .cloned()
                                 .unwrap_or_default())
                         })?;
-                        base_obj.set_property(property_name, new_value);
+                        base_obj.set_property(node.property_name.clone(), new_value);
                         result_value
                     }
                     _ => todo!("UnaryExpression::eval: self={:#?}", self),
@@ -604,12 +600,11 @@ impl Eval for FunctionCallExpression {
         }
         let mut argument_variables = Vec::with_capacity(parameters.len());
         for (idx, parameter_name) in parameters.iter().enumerate() {
-            let parameter_name = *parameter_name;
             let argument_expr = &self.arguments[idx];
             let argument_value = argument_expr.eval(it)?;
             argument_variables.push(Variable::new(
                 VariableDeclarationKind::Let,
-                parameter_name,
+                parameter_name.clone(),
                 argument_value,
             ));
         }
@@ -643,9 +638,8 @@ impl Eval for PropertyAccessExpression {
             Value::Reference(ref base_refr) => it.vm().heap().resolve(base_refr),
             base_value => todo!("PropertyExpression::eval: base={:?}", base_value),
         };
-        let property_name = it.vm().constant_pool().lookup(self.property_name);
         Ok(base_obj
-            .property(property_name)
+            .property(&self.property_name)
             .cloned()
             .unwrap_or_default())
     }
@@ -660,7 +654,7 @@ impl Eval for VariableAccessExpression {
             .stack()
             .frame()
             .scope()
-            .lookup_variable(self.var_name)?;
+            .lookup_variable(&self.var_name)?;
         let value = variable.value().clone();
         Ok(value)
     }

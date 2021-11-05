@@ -366,8 +366,8 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
         self.0.advance_by(raw_content_len).unwrap();
         self.0.try_next_exact(&'/')?;
 
-        // Safety: It's not possible for the loop to break without pushing (at least) one character
-        // to the string, given that the first char it handles cannot be '/'.
+        // Safety: The string cannot be empty because it's not possible to break out of the loop,
+        // unless returning, without pushing at least one character to the string.
         let content = unsafe { NonEmptyString::from_unchecked(content) };
 
         let flags = self.0.try_collect_while(|ch| is_identifier_start(*ch))?;

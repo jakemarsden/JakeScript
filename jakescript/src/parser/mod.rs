@@ -1,12 +1,12 @@
 use crate::ast::{
     self, AssertStatement, AssignmentExpression, AssignmentOperator, BinaryExpression,
-    BinaryOperator, Block, BreakStatement, ConstantId, ConstantPool, ContinueStatement,
-    DeclarationStatement, Expression, ForLoop, FunctionCallExpression, FunctionCallOperator,
-    FunctionDeclaration, GroupingExpression, GroupingOperator, IfStatement, LiteralExpression, Op,
-    Operator, Precedence, PrintStatement, Program, PropertyAccessExpression,
-    PropertyAccessOperator, ReturnStatement, Statement, TernaryExpression, TernaryOperator,
-    UnaryExpression, UnaryOperator, VariableAccessExpression, VariableDeclaration,
-    VariableDeclarationEntry, VariableDeclarationKind, WhileLoop,
+    BinaryOperator, Block, BreakStatement, ContinueStatement, DeclarationStatement, Expression,
+    ForLoop, FunctionCallExpression, FunctionCallOperator, FunctionDeclaration, GroupingExpression,
+    GroupingOperator, Identifier, IfStatement, LiteralExpression, Op, Operator, Precedence,
+    PrintStatement, Program, PropertyAccessExpression, PropertyAccessOperator, ReturnStatement,
+    Statement, TernaryExpression, TernaryOperator, UnaryExpression, UnaryOperator,
+    VariableAccessExpression, VariableDeclaration, VariableDeclarationEntry,
+    VariableDeclarationKind, WhileLoop,
 };
 use crate::iter::{IntoPeekableNth, PeekableNth};
 use crate::lexer::{
@@ -26,7 +26,6 @@ type Fallible<I> = Map<I, fn(Token) -> lexer::Result<Token>>;
 
 pub struct Parser<I: Iterator<Item = lexer::Result<Token>>> {
     tokens: PeekableNth<I>,
-    constants: ConstantPool,
 }
 
 impl<I: Iterator<Item = io::Result<char>>> Parser<Tokens<Lexer<I>>> {
@@ -45,19 +44,12 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
     pub fn for_tokens_fallible(source: I) -> Self {
         Self {
             tokens: source.peekable_nth(),
-            constants: ConstantPool::default(),
         }
-    }
-
-    // TODO: I'm not really happy with this, but it does get the REPL working so it can stay for the
-    //  time being...
-    pub fn extend_constant_pool(&mut self, other: &ConstantPool) {
-        self.constants.extend(other);
     }
 
     pub fn execute(mut self) -> Result {
         let body = self.parse_block(false)?;
-        Ok(Program::new(body, self.constants))
+        Ok(Program::new(body))
     }
 
     fn parse_block(&mut self, braces: bool) -> Result<Block> {
@@ -164,9 +156,10 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
 
     fn parse_primary_expression(&mut self) -> Result<Expression> {
         Ok(match self.tokens.try_next()? {
-            Some(Token::Identifier(identifier)) => {
-                let var_name = self.constants.allocate_if_absent(identifier);
-                Expression::VariableAccess(VariableAccessExpression { var_name })
+            Some(Token::Identifier(var_name)) => {
+                Expression::VariableAccess(VariableAccessExpression {
+                    var_name: Identifier::from(var_name),
+                })
             }
             Some(Token::Punctuator(Punctuator::OpenBrace)) => {
                 Expression::Literal(LiteralExpression {
@@ -299,7 +292,7 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
         self.expect_keyword(Keyword::Function)?;
         match self.tokens.try_next()? {
             Some(Token::Identifier(fn_name)) => {
-                let fn_name = self.constants.allocate_if_absent(fn_name);
+                let fn_name = Identifier::from(fn_name);
                 let param_names = self.parse_fn_parameters()?;
                 let body = self.parse_block(true)?;
                 Ok(FunctionDeclaration {
@@ -328,7 +321,7 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
                         vec![Token::Keyword(Keyword::Var)],
                     ),
                     actual,
-                ));
+                ))
             }
         };
         let mut entries = Vec::new();
@@ -357,7 +350,7 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
 
     fn parse_variable_declaration_entry(&mut self) -> Result<VariableDeclarationEntry> {
         let var_name = match self.tokens.try_next()? {
-            Some(Token::Identifier(var_name)) => self.constants.allocate_if_absent(var_name),
+            Some(Token::Identifier(var_name)) => Identifier::from(var_name),
             actual => {
                 return Err(Error::unexpected(
                     Exactly(Token::Identifier(non_empty_str!("variable_name"))),
@@ -484,7 +477,7 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
         Ok(ReturnStatement { expr })
     }
 
-    fn parse_fn_parameters(&mut self) -> Result<Vec<ConstantId>> {
+    fn parse_fn_parameters(&mut self) -> Result<Vec<Identifier>> {
         self.expect_punctuator(Punctuator::OpenParen)?;
         if self
             .tokens
@@ -498,14 +491,13 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
         loop {
             match self.tokens.try_next()? {
                 Some(Token::Identifier(param)) => {
-                    let param_constant_id = self.constants.allocate_if_absent(param);
-                    params.push(param_constant_id);
+                    params.push(Identifier::from(param));
                 }
                 actual => {
                     return Err(Error::unexpected(
                         Exactly(Token::Identifier(non_empty_str!("function_parameter"))),
                         actual,
-                    ))
+                    ));
                 }
             }
             match self.tokens.try_next()? {

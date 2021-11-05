@@ -1,4 +1,4 @@
-use crate::ast::{ConstantId, VariableDeclarationKind};
+use crate::ast::{Identifier, VariableDeclarationKind};
 use crate::interpreter::error::{
     AssignToConstVariableError, VariableAlreadyDefinedError, VariableNotDefinedError,
 };
@@ -100,7 +100,7 @@ impl Scope {
         ancestor_ref
     }
 
-    pub fn lookup_variable(&self, name: ConstantId) -> Result<Variable, VariableNotDefinedError> {
+    pub fn lookup_variable(&self, name: &Identifier) -> Result<Variable, VariableNotDefinedError> {
         RefCell::borrow(&self.0)
             .lookup_variable(name)
             .ok_or(VariableNotDefinedError)
@@ -126,7 +126,7 @@ impl ScopeInner {
         self.escalation_boundary
     }
 
-    fn lookup_variable(&self, name: ConstantId) -> Option<Variable> {
+    fn lookup_variable(&self, name: &Identifier) -> Option<Variable> {
         if let Some(variable) = self.ctx.find_variable(name) {
             Some(variable)
         } else if let Some(ref parent) = self.parent {
@@ -137,7 +137,7 @@ impl ScopeInner {
     }
 
     fn declare_variable(&mut self, variable: Variable) -> Result<(), VariableAlreadyDefinedError> {
-        if self.lookup_variable(variable.name()).is_none() {
+        if self.lookup_variable(&variable.name()).is_none() {
             self.ctx.declare_variable(variable);
             Ok(())
         } else {
@@ -156,10 +156,10 @@ impl ScopeCtx {
         Self { declared_variables }
     }
 
-    pub fn find_variable(&self, var_name: ConstantId) -> Option<Variable> {
+    pub fn find_variable(&self, var_name: &Identifier) -> Option<Variable> {
         self.declared_variables
             .iter()
-            .find(|var| var.name() == var_name)
+            .find(|var| &*var.name() == var_name)
             .cloned()
     }
 
@@ -172,11 +172,11 @@ impl ScopeCtx {
 pub struct Variable(Rc<RefCell<VariableInner>>);
 
 impl Variable {
-    pub fn new_unassigned(kind: VariableDeclarationKind, name: ConstantId) -> Self {
+    pub fn new_unassigned(kind: VariableDeclarationKind, name: Identifier) -> Self {
         Self::new(kind, name, Value::default())
     }
 
-    pub fn new(kind: VariableDeclarationKind, name: ConstantId, initial_value: Value) -> Self {
+    pub fn new(kind: VariableDeclarationKind, name: Identifier, initial_value: Value) -> Self {
         Self(Rc::new(RefCell::new(VariableInner {
             kind,
             name,
@@ -189,9 +189,9 @@ impl Variable {
         inner.kind
     }
 
-    pub fn name(&self) -> ConstantId {
+    pub fn name(&self) -> Ref<Identifier> {
         let inner = RefCell::borrow(&self.0);
-        inner.name
+        Ref::map(inner, |inner| &inner.name)
     }
 
     pub fn value(&self) -> Ref<Value> {
@@ -214,6 +214,6 @@ impl Variable {
 #[derive(Debug)]
 struct VariableInner {
     kind: VariableDeclarationKind,
-    name: ConstantId,
+    name: Identifier,
     value: Value,
 }
