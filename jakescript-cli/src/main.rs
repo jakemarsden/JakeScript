@@ -1,30 +1,34 @@
 #![feature(bool_to_option)]
 #![feature(derive_default_enum)]
 #![feature(iter_intersperse)]
+#![feature(stdio_locked)]
 
 use enumerate::{Enumerate, EnumerateStr};
 use jakescript::ast::Program;
 use jakescript::interpreter::{self, Eval, Interpreter};
 use jakescript::lexer::{self, Element, Lexer};
 use jakescript::parser::{self, Parser};
+use std::io::BufRead;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::time::{Duration, Instant};
 use std::{env, fmt, fs, io};
 use utf8_chars::BufReadCharsExt;
 
+mod repl;
+
+static PROGRAM_NAME: &str = "jakescript-cli";
+
 fn main() -> Result<(), Error> {
     #[cfg(windows)]
     ansi_term::enable_ansi_support().ok();
 
-    let Options { mode, source_path } = Options::try_from(env::args())?;
+    match Options::try_from(env::args())? {
+        Options(Mode::Eval, Some(ref source_path)) => {
+            let source_file = fs::File::open(source_path)?;
+            let mut buf = io::BufReader::new(source_file);
+            let lexer = Lexer::for_chars_fallible(buf.chars());
 
-    let source_file = fs::File::open(&source_path)?;
-    let mut buf = io::BufReader::new(source_file);
-
-    let lexer = Lexer::for_chars_fallible(buf.chars());
-    match mode {
-        Mode::Eval => {
             let (ast, parse_runtime) = parse(lexer)?;
             println!("Parsed in {:?}", parse_runtime);
 
@@ -36,19 +40,48 @@ fn main() -> Result<(), Error> {
             );
             println!("{:?}", value);
         }
-        Mode::Parse => {
+        Options(Mode::Parse, Some(ref source_path)) => {
+            let source_file = fs::File::open(source_path)?;
+            let mut buf = io::BufReader::new(source_file);
+            let lexer = Lexer::for_chars_fallible(buf.chars());
+
             let (ast, parse_runtime) = parse(lexer)?;
             println!("Parsed in {:?}", parse_runtime);
             println!("{:#?}", ast);
         }
-        Mode::Lex => {
+        Options(Mode::Lex, Some(ref source_path)) => {
+            let source_file = fs::File::open(source_path)?;
+            let mut buf = io::BufReader::new(source_file);
+            let lexer = Lexer::for_chars_fallible(buf.chars());
+
             let (elements, lex_runtime) = lex_and_print(lexer)?;
             println!("Lexed in {:?}", lex_runtime);
             println!(
                 "{}",
                 elements.iter().map(Element::to_string).collect::<String>()
             );
+
+            println!("Lexed in {:?}", lex_runtime);
+            println!(
+                "{}",
+                elements.iter().map(Element::to_string).collect::<String>()
+            );
         }
+        Options(Mode::Repl, None) => {
+            let mut repl = repl::Repl::new(Interpreter::default());
+            for line in io::stdin_locked().lines() {
+                // TODO: Proper error handling...
+                let line = line.unwrap();
+
+                match repl.handle_input_str(&line) {
+                    repl::Value::Ok(value) => println!("{}", value),
+                    repl::Value::ParseErr(err) => eprintln!("Parse error: {}", err),
+                    repl::Value::RuntimeErr(err) => eprintln!("Runtime error: {}", err),
+                    repl::Value::Exit => break,
+                }
+            }
+        }
+        Options(_, _) => unreachable!(),
     }
     Ok(())
 }
@@ -79,10 +112,7 @@ fn eval(ast: &Program) -> interpreter::Result<(interpreter::Value, Duration)> {
 }
 
 #[derive(Clone, Debug)]
-struct Options {
-    mode: Mode,
-    source_path: PathBuf,
-}
+struct Options(Mode, Option<PathBuf>);
 
 impl TryFrom<env::Args> for Options {
     type Error = ParseOptionsError;
@@ -101,14 +131,23 @@ impl TryFrom<env::Args> for Options {
             .map_err(|()| ParseOptionsError {
                 executable_path: Some(executable_path.clone()),
             })?;
-        let source_path = args
-            .next()
-            .ok_or(())
-            .and_then(|arg| PathBuf::from_str(&arg).map_err(|_| ()))
-            .map_err(|_| ParseOptionsError {
-                executable_path: Some(executable_path.clone()),
-            })?;
-        Ok(Self { mode, source_path })
+        let source_path = match mode {
+            Mode::Eval | Mode::Parse | Mode::Lex => Some(
+                args.next()
+                    .ok_or(())
+                    .and_then(|arg| PathBuf::from_str(&arg).map_err(|_| ()))
+                    .map_err(|_| ParseOptionsError {
+                        executable_path: Some(executable_path.clone()),
+                    })?,
+            ),
+            Mode::Repl => None,
+        };
+        if args.next().is_some() {
+            return Err(ParseOptionsError {
+                executable_path: Some(executable_path),
+            });
+        }
+        Ok(Self(mode, source_path))
     }
 }
 
@@ -121,6 +160,8 @@ enum Mode {
     Parse,
     #[enumerate_str(rename = "--lex")]
     Lex,
+    #[enumerate_str(rename = "--repl")]
+    Repl,
 }
 
 enum Error {
@@ -198,15 +239,15 @@ struct ParseOptionsError {
 
 impl fmt::Display for ParseOptionsError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let exec_path = self.executable_path.as_deref().unwrap_or(PROGRAM_NAME);
         write!(
             f,
-            "Usage: {} [{}] <source-path>",
-            self.executable_path.as_deref().unwrap_or("jakescript"),
-            Mode::enumerate()
-                .iter()
-                .map(Mode::to_string)
-                .intersperse_with(|| " | ".to_owned())
-                .collect::<String>()
+            r#"Usage:
+    {}  --eval   <source-path>  # To evaluate a file
+    {}  --parse  <source-path>  # To parse a file
+    {}  --lex    <source-path>  # To lex (tokenise) a file
+    {}  --repl                  # To enter an interactive REPL"#,
+            exec_path, exec_path, exec_path, exec_path,
         )
     }
 }
