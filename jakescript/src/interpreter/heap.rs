@@ -1,4 +1,4 @@
-use crate::ast::{Block, ConstantId, IdentifierName, IdentifierNameRef};
+use crate::ast::{Block, ConstantId, IdentifierName};
 use crate::interpreter::error::OutOfMemoryError;
 use crate::interpreter::stack::Scope;
 use crate::interpreter::value::Value;
@@ -89,12 +89,12 @@ impl fmt::Debug for Reference {
 
 #[derive(Debug)]
 pub struct Object {
-    properties: HashMap<String, Value>,
+    properties: HashMap<IdentifierName, Value>,
     callable: Option<Callable>,
 }
 
 impl Object {
-    fn new(properties: HashMap<String, Value>, callable: Option<Callable>) -> Self {
+    fn new(properties: HashMap<IdentifierName, Value>, callable: Option<Callable>) -> Self {
         Self {
             properties,
             callable,
@@ -105,7 +105,7 @@ impl Object {
         self.properties.is_empty()
     }
 
-    pub fn property(&self, property_name: &IdentifierNameRef) -> Option<&Value> {
+    pub fn property(&self, property_name: &IdentifierName) -> Option<&Value> {
         self.properties.get(property_name)
     }
 

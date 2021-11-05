@@ -1,7 +1,7 @@
+use crate::str::NonEmptyString;
 use std::fmt;
 
-pub type IdentifierName = String;
-pub type IdentifierNameRef = str;
+pub type IdentifierName = NonEmptyString;
 
 pub trait Node: Clone + fmt::Debug {}
 
@@ -310,8 +310,7 @@ pub enum Literal {
     Undefined,
 }
 
-pub type ConstantValue = String;
-pub type ConstantValueRef = str;
+pub type ConstantValue = NonEmptyString;
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash)]
 pub struct ConstantId(usize);
@@ -348,7 +347,7 @@ impl ConstantPool {
     /// # Panics
     ///
     /// Panics if the requested [`ConstantId`] was never allocated by this pool.
-    pub fn lookup(&self, id: ConstantId) -> &ConstantValueRef {
+    pub fn lookup(&self, id: ConstantId) -> &ConstantValue {
         match self.constants.get(id.idx()) {
             Some(value) => value,
             None => panic!("Invalid constant ID: {}", id),
@@ -360,7 +359,7 @@ impl ConstantPool {
             .constants
             .iter()
             .enumerate()
-            .find(|(_idx, existing)| existing.as_str() == value.as_str())
+            .find(|(_idx, existing)| value.eq(existing))
         {
             ConstantId::new(idx)
         } else {

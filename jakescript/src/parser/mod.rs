@@ -12,6 +12,8 @@ use crate::iter::{IntoPeekableNth, PeekableNth};
 use crate::lexer::{
     self, Keyword, Lexer, NumericLiteral, Punctuator, StringLiteral, Token, Tokens,
 };
+use crate::non_empty_str;
+use crate::str::NonEmptyString;
 use error::AllowToken::{AnyOf, Exactly, Unspecified};
 use std::io;
 use std::iter::Map;
@@ -307,7 +309,7 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
                 })
             }
             actual => Err(Error::unexpected(
-                Exactly(Token::Identifier("function_name".to_owned())),
+                Exactly(Token::Identifier(non_empty_str!("function_name"))),
                 actual,
             )),
         }
@@ -358,7 +360,7 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
             Some(Token::Identifier(var_name)) => self.constants.allocate_if_absent(var_name),
             actual => {
                 return Err(Error::unexpected(
-                    Exactly(Token::Identifier("variable_name".to_owned())),
+                    Exactly(Token::Identifier(non_empty_str!("variable_name"))),
                     actual,
                 ))
             }
@@ -501,7 +503,7 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
                 }
                 actual => {
                     return Err(Error::unexpected(
-                        Exactly(Token::Identifier("function_parameter".to_owned())),
+                        Exactly(Token::Identifier(non_empty_str!("function_parameter"))),
                         actual,
                     ))
                 }
@@ -776,7 +778,7 @@ mod test {
     fn parse_unfinished_binary_expression() {
         let tokens = vec![
             Token::Keyword(Keyword::Let),
-            Token::Identifier("a".to_owned()),
+            Token::Identifier(non_empty_str!("a")),
             Token::Punctuator(Punctuator::Equal),
             Token::Literal(Literal::Numeric(NumericLiteral::DecInt(1))),
             Token::Punctuator(Punctuator::Plus),

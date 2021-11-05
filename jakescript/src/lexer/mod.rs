@@ -376,15 +376,17 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
 
     fn parse_keyword_or_identifier(&mut self) -> Result<Option<Token>> {
         Ok(self.parse_identifier_name()?.map(|ident_or_keyword| {
-            Keyword::from_str(&ident_or_keyword)
+            Keyword::from_str(ident_or_keyword.as_ref())
                 .map_or_else(|_| Token::Identifier(ident_or_keyword), Token::Keyword)
         }))
     }
 
-    fn parse_identifier_name(&mut self) -> Result<Option<String>> {
+    fn parse_identifier_name(&mut self) -> Result<Option<NonEmptyString>> {
         if let Some(ch0) = self.0.try_next_if(|ch| is_identifier_start(*ch))? {
-            let mut content: String = self.0.try_collect_while(|ch| is_identifier_part(*ch))?;
-            content.insert(0, ch0);
+            let mut content = NonEmptyString::from(ch0);
+            while let Some(ch) = self.0.try_next_if(|ch| is_identifier_part(*ch))? {
+                content.push(ch);
+            }
             Ok(Some(content))
         } else {
             Ok(None)

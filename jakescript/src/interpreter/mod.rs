@@ -353,11 +353,7 @@ impl Eval for AssignmentExpression {
                     }
                     base_value => todo!("AssignmentExpression::eval: base_value={:?}", base_value),
                 };
-                let property_name = it
-                    .vm()
-                    .constant_pool()
-                    .lookup(node.property_name)
-                    .to_owned();
+                let property_name = it.vm().constant_pool().lookup(node.property_name).clone();
                 let new_value = compute_new_value(self, it, || {
                     Ok(base_obj
                         .property(&property_name)
@@ -509,11 +505,8 @@ impl Eval for UnaryExpression {
                                 todo!("AssignmentExpression::eval: base_value={:?}", base_value)
                             }
                         };
-                        let property_name = it
-                            .vm()
-                            .constant_pool()
-                            .lookup(node.property_name)
-                            .to_owned();
+                        let property_name =
+                            it.vm().constant_pool().lookup(node.property_name).clone();
                         let (new_value, result_value) = compute(self, it, || {
                             Ok(base_obj
                                 .property(&property_name)

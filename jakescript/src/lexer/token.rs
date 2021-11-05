@@ -33,7 +33,7 @@ impl fmt::Display for Element {
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum Token {
-    Identifier(String),
+    Identifier(NonEmptyString),
     Keyword(Keyword),
     Literal(Literal),
     Punctuator(Punctuator),
