@@ -47,6 +47,12 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
         }
     }
 
+    // TODO: I'm not really happy with this, but it does get the REPL working so it can stay for the
+    //  time being...
+    pub fn extend_constant_pool(&mut self, other: &ConstantPool) {
+        self.constants.extend(other);
+    }
+
     pub fn execute(mut self) -> Result {
         let body = self.parse_block(false)?;
         Ok(Program::new(body, self.constants))

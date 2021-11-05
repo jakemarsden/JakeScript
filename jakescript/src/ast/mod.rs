@@ -369,6 +369,12 @@ impl ConstantPool {
             ConstantId::new(idx)
         }
     }
+
+    pub fn extend(&mut self, other: &Self) {
+        for value in &other.constants {
+            self.allocate_if_absent(value.clone());
+        }
+    }
 }
 
 pub trait Op: Copy + Eq + fmt::Debug {
