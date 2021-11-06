@@ -2,7 +2,7 @@
 #![feature(process_exitcode_placeholder)]
 #![feature(termination_trait_lib)]
 
-use harness::TestCaseResult;
+use harness::FailureReason;
 use jakescript::interpreter::{Error, Value};
 use std::assert_matches::assert_matches;
 
@@ -16,7 +16,7 @@ const a = 10;
 assert a === 10;
 "##;
     let report = harness::exec_source_code(source_code);
-    assert_matches!(report.result(), TestCaseResult::Pass(Value::Undefined));
+    assert_matches!(report.success_value(), Some(Value::Undefined));
 }
 
 #[test]
@@ -28,7 +28,7 @@ a = 20;
 "##;
     let report = harness::exec_source_code(source_code);
     assert_matches!(
-        report.result(),
-        TestCaseResult::InterpreterError(Error::AssignToConstVariable(..))
+        report.failure_reason(),
+        Some(FailureReason::Runtime(Error::AssignToConstVariable(..)))
     );
 }

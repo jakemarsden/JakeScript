@@ -2,7 +2,7 @@
 #![feature(process_exitcode_placeholder)]
 #![feature(termination_trait_lib)]
 
-use harness::TestCaseResult;
+use harness::FailureReason;
 use jakescript::interpreter::{Error, Value};
 use std::assert_matches::assert_matches;
 
@@ -40,13 +40,13 @@ fn assertion_fails_for_falsy_expression() {
 
 fn assertion_passes(source_code: &str) {
     let report = harness::exec_source_code(source_code);
-    assert_matches!(report.result(), TestCaseResult::Pass(Value::Undefined));
+    assert_matches!(report.success_value(), Some(Value::Undefined));
 }
 
 fn assertion_fails(source_code: &str) {
     let report = harness::exec_source_code(source_code);
     assert_matches!(
-        report.result(),
-        TestCaseResult::InterpreterError(Error::AssertionFailed(..))
+        report.failure_reason(),
+        Some(FailureReason::Runtime(Error::AssertionFailed(..)))
     );
 }

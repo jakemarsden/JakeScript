@@ -1,5 +1,5 @@
 use ansi_term::{Color, Style};
-use jakescript::interpreter::{self, Eval, Interpreter};
+use jakescript::interpreter::{self, Eval, ExecutionState, Interpreter};
 use jakescript::lexer::Lexer;
 use jakescript::parser::{self, Parser};
 use std::path::Path;
@@ -19,7 +19,7 @@ pub fn exec_source_file(source_path: &Path) -> TestCaseReport {
     let source_name = source_path.display().to_string();
     let mut buf = match fs::File::open(source_path) {
         Ok(file) => io::BufReader::new(file),
-        Err(err) => return TestCaseReport::read_error(source_name, err),
+        Err(err) => return TestCaseReport::fail(source_name, Duration::ZERO, err.into()),
     };
     return exec(source_name, Lexer::for_chars_fallible(buf.chars()));
 }
@@ -39,50 +39,57 @@ fn exec<I: Iterator<Item = io::Result<char>>>(
 
     let ast = match parser.execute() {
         Ok(ast) => ast,
-        Err(reason) => {
-            return TestCaseReport::parser_error(source_name, started_at.elapsed(), reason);
-        }
+        Err(err) => return TestCaseReport::fail(source_name, started_at.elapsed(), err.into()),
     };
 
     let result = match ast.eval(&mut interpreter) {
         Ok(result) => result,
-        Err(err) => {
-            return TestCaseReport::interpreter_error(source_name, started_at.elapsed(), err)
-        }
+        Err(err) => return TestCaseReport::fail(source_name, started_at.elapsed(), err.into()),
     };
 
-    TestCaseReport::pass(source_name, started_at.elapsed(), result)
+    let vm_state = interpreter.vm().execution_state().clone();
+    TestCaseReport::pass(source_name, started_at.elapsed(), result, vm_state)
 }
 
 #[derive(Debug)]
 pub enum TestCaseResult {
-    Pass(interpreter::Value),
-    ParserError(parser::Error),
-    InterpreterError(interpreter::Error),
-    ReadError(io::Error),
+    Pass(interpreter::Value, ExecutionState),
+    Fail(FailureReason),
 }
 
 impl TestCaseResult {
     pub fn is_pass(&self) -> bool {
         match self {
             Self::Pass(..) => true,
-            Self::ParserError(..) | Self::InterpreterError(..) | Self::ReadError(..) => false,
+            Self::Fail(..) => false,
+        }
+    }
+
+    pub fn is_fail(&self) -> bool {
+        match self {
+            Self::Pass(..) => false,
+            Self::Fail(..) => true,
         }
     }
 
     pub fn success_value(&self) -> Option<&interpreter::Value> {
         match self {
-            Self::Pass(value) => Some(value),
-            Self::ParserError(..) | Self::InterpreterError(..) | Self::ReadError(..) => None,
+            Self::Pass(value, _) => Some(value),
+            Self::Fail(..) => None,
         }
     }
 
-    pub fn failure_reason(&self) -> Option<&dyn std::error::Error> {
+    pub fn vm_state(&self) -> Option<&ExecutionState> {
+        match self {
+            Self::Pass(_, vm_state) => Some(vm_state),
+            Self::Fail(..) => None,
+        }
+    }
+
+    pub fn failure_reason(&self) -> Option<&FailureReason> {
         match self {
             Self::Pass(..) => None,
-            Self::ParserError(reason) => Some(reason),
-            Self::InterpreterError(reason) => Some(reason),
-            Self::ReadError(reason) => Some(reason),
+            Self::Fail(reason) => Some(reason),
         }
     }
 }
@@ -95,39 +102,24 @@ pub struct TestCaseReport {
 }
 
 impl TestCaseReport {
-    pub fn pass(source_name: String, runtime: Duration, value: interpreter::Value) -> Self {
-        Self {
-            source_name,
-            runtime,
-            result: TestCaseResult::Pass(value),
-        }
-    }
-
-    pub fn parser_error(source_name: String, runtime: Duration, reason: parser::Error) -> Self {
-        Self {
-            source_name,
-            runtime,
-            result: TestCaseResult::ParserError(reason),
-        }
-    }
-
-    pub fn interpreter_error(
+    pub fn pass(
         source_name: String,
         runtime: Duration,
-        reason: interpreter::Error,
+        value: interpreter::Value,
+        vm_state: ExecutionState,
     ) -> Self {
         Self {
             source_name,
             runtime,
-            result: TestCaseResult::InterpreterError(reason),
+            result: TestCaseResult::Pass(value, vm_state),
         }
     }
 
-    pub fn read_error(source_name: String, reason: io::Error) -> Self {
+    pub fn fail(source_name: String, runtime: Duration, reason: FailureReason) -> Self {
         Self {
             source_name,
-            runtime: Duration::ZERO,
-            result: TestCaseResult::ReadError(reason),
+            runtime,
+            result: TestCaseResult::Fail(reason),
         }
     }
 
@@ -143,11 +135,19 @@ impl TestCaseReport {
         self.result().is_pass()
     }
 
+    pub fn is_fail(&self) -> bool {
+        self.result().is_fail()
+    }
+
     pub fn success_value(&self) -> Option<&interpreter::Value> {
         self.result().success_value()
     }
 
-    pub fn failure_reason(&self) -> Option<&dyn std::error::Error> {
+    pub fn vm_state(&self) -> Option<&ExecutionState> {
+        self.result().vm_state()
+    }
+
+    pub fn failure_reason(&self) -> Option<&FailureReason> {
         self.result().failure_reason()
     }
 
@@ -283,7 +283,7 @@ impl fmt::Display for TestSuiteSummary {
 impl From<&[TestCaseReport]> for TestSuiteSummary {
     fn from(test_cases: &[TestCaseReport]) -> Self {
         let success_count = test_cases.iter().filter(|case| case.is_pass()).count();
-        let failure_count = test_cases.iter().filter(|case| !case.is_pass()).count();
+        let failure_count = test_cases.iter().filter(|case| case.is_fail()).count();
         let total_runtime = test_cases.iter().map(TestCaseReport::runtime).sum();
         match failure_count {
             0 => Self::Success(success_count, total_runtime),
@@ -326,5 +326,50 @@ impl FromIterator<TestCaseReport> for TestSuiteReport {
     fn from_iter<T: IntoIterator<Item = TestCaseReport>>(iter: T) -> Self {
         let test_cases: Vec<_> = iter.into_iter().collect();
         Self::from(test_cases)
+    }
+}
+
+#[derive(Debug)]
+pub enum FailureReason {
+    Read(io::Error),
+    Parse(parser::Error),
+    Runtime(interpreter::Error),
+}
+
+impl fmt::Display for FailureReason {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Read(source) => write!(f, "{}", source),
+            Self::Parse(source) => write!(f, "{}", source),
+            Self::Runtime(source) => write!(f, "{}", source),
+        }
+    }
+}
+
+impl std::error::Error for FailureReason {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(match self {
+            Self::Read(source) => source,
+            Self::Parse(source) => source,
+            Self::Runtime(source) => source,
+        })
+    }
+}
+
+impl From<io::Error> for FailureReason {
+    fn from(source: io::Error) -> Self {
+        Self::Read(source)
+    }
+}
+
+impl From<parser::Error> for FailureReason {
+    fn from(source: parser::Error) -> Self {
+        Self::Parse(source)
+    }
+}
+
+impl From<interpreter::Error> for FailureReason {
+    fn from(source: interpreter::Error) -> Self {
+        Self::Runtime(source)
     }
 }
