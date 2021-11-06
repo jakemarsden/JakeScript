@@ -8,7 +8,7 @@ use jakescript::ast::Program;
 use jakescript::interpreter::{self, Eval, Interpreter};
 use jakescript::lexer::{self, Element, Lexer};
 use jakescript::parser::{self, Parser};
-use std::io::BufRead;
+use repl::Repl;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::time::{Duration, Instant};
@@ -68,18 +68,10 @@ fn main() -> Result<(), Error> {
             );
         }
         Options(Mode::Repl, None) => {
-            let mut repl = repl::Repl::new(Interpreter::default());
-            for line in io::stdin_locked().lines() {
-                // TODO: Proper error handling...
-                let line = line.unwrap();
-
-                match repl.handle_input_str(&line) {
-                    repl::Value::Ok(value) => println!("{}", value),
-                    repl::Value::ParseErr(err) => eprintln!("Parse error: {}", err),
-                    repl::Value::RuntimeErr(err) => eprintln!("Runtime error: {}", err),
-                    repl::Value::Exit => break,
-                }
-            }
+            let mut stdin = io::stdin_locked();
+            let lexer = Lexer::for_chars_fallible(stdin.chars());
+            let mut it = Interpreter::default();
+            Repl::new(lexer).execute(&mut it);
         }
         Options(_, _) => unreachable!(),
     }
