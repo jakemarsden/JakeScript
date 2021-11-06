@@ -26,24 +26,30 @@ where
         }
     }
 
-    pub(crate) fn execute(&mut self, it: &mut Interpreter) {
+    pub(crate) fn execute(&mut self, it: &mut Interpreter) -> Result {
         loop {
+            if matches!(it.vm().execution_state(), ExecutionState::Exit) {
+                eprintln!("Exit");
+                self.token_buf.clear();
+                return Result::ExitNormally;
+            }
             assert_matches!(it.vm().execution_state(), ExecutionState::Advance);
+
             eprint!("> {}", "  ".repeat(self.brace_depth));
             match self.read_next_tokens() {
-                Result::Execute => {}
-                Result::KeepBuffering => {
+                BufferState::Execute => {}
+                BufferState::KeepBuffering => {
                     continue;
                 }
-                Result::Err(lex_err) => {
+                BufferState::Err(lex_err) => {
                     eprintln!("Lex error: {}", lex_err);
                     self.token_buf.clear();
                     continue;
                 }
-                Result::Exit => {
+                BufferState::EndOfInput => {
                     eprintln!("Exit");
                     self.token_buf.clear();
-                    break;
+                    return Result::EndOfInput;
                 }
             }
 
@@ -73,11 +79,11 @@ where
         }
     }
 
-    fn read_next_tokens(&mut self) -> Result {
+    fn read_next_tokens(&mut self) -> BufferState {
         for element in &mut self.input {
             let element = match element {
                 Ok(element) => element,
-                Err(lex_err) => return Result::Err(lex_err),
+                Err(lex_err) => return BufferState::Err(lex_err),
             };
             match element {
                 Element::Token(t @ Token::Punctuator(Punctuator::OpenBrace)) => {
@@ -94,21 +100,27 @@ where
                 }
                 Element::LineTerminator(..) => {
                     return if self.brace_depth == 0 {
-                        Result::Execute
+                        BufferState::Execute
                     } else {
-                        Result::KeepBuffering
+                        BufferState::KeepBuffering
                     };
                 }
                 Element::Comment(..) | Element::Whitespace(..) => {}
             }
         }
-        Result::Exit
+        BufferState::EndOfInput
     }
 }
 
-enum Result {
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub(crate) enum Result {
+    ExitNormally,
+    EndOfInput,
+}
+
+enum BufferState {
     Execute,
     KeepBuffering,
+    EndOfInput,
     Err(lexer::Error),
-    Exit,
 }
