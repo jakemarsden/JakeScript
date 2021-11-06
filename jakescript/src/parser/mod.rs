@@ -415,7 +415,16 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
             .try_next_if_eq(&Token::Keyword(Keyword::Else))?
             .is_some()
         {
-            Some(self.parse_block(true)?)
+            if matches!(self.tokens.try_peek()?, Some(Token::Keyword(Keyword::If))) {
+                // Recursively parse `else if { .. }` blocks
+                Some(Block::new(
+                    vec![Statement::IfStatement(self.parse_if_statement()?)],
+                    vec![],
+                ))
+            } else {
+                // Parse `else { .. }` blocks
+                Some(self.parse_block(true)?)
+            }
         } else {
             None
         };
