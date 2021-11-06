@@ -51,6 +51,7 @@ pub enum Statement {
     Break(BreakStatement),
     Continue(ContinueStatement),
     Declaration(DeclarationStatement),
+    Exit(ExitStatement),
     Expression(Expression),
     IfStatement(IfStatement),
     Print(PrintStatement),
@@ -84,6 +85,11 @@ pub struct AssertStatement {
 }
 
 impl Node for AssertStatement {}
+
+#[derive(Clone, Debug)]
+pub struct ExitStatement;
+
+impl Node for ExitStatement {}
 
 #[derive(Clone, Debug)]
 pub struct PrintStatement {

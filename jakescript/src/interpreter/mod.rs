@@ -1,12 +1,13 @@
 use crate::ast::{
     AssertStatement, AssignmentExpression, AssignmentOperator, Associativity, BinaryExpression,
-    BinaryOperator, Block, BreakStatement, ContinueStatement, DeclarationStatement, Expression,
-    ForLoop, FunctionCallExpression, FunctionDeclaration, GroupingExpression, IfStatement, Literal,
-    LiteralExpression, Node, Op, PrintStatement, Program, PropertyAccessExpression,
-    ReturnStatement, Statement, TernaryExpression, UnaryExpression, UnaryOperator,
-    VariableAccessExpression, VariableDeclaration, VariableDeclarationKind, WhileLoop,
+    BinaryOperator, Block, BreakStatement, ContinueStatement, DeclarationStatement, ExitStatement,
+    Expression, ForLoop, FunctionCallExpression, FunctionDeclaration, GroupingExpression,
+    IfStatement, Literal, LiteralExpression, Node, Op, PrintStatement, Program,
+    PropertyAccessExpression, ReturnStatement, Statement, TernaryExpression, UnaryExpression,
+    UnaryOperator, VariableAccessExpression, VariableDeclaration, VariableDeclarationKind,
+    WhileLoop,
 };
-use std::assert_matches::assert_matches;
+use std::assert_matches::{assert_matches, debug_assert_matches};
 use std::hint::unreachable_unchecked;
 
 pub use error::*;
@@ -55,11 +56,12 @@ impl Eval for Block {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let mut result = Value::default();
         for decl in self.hoisted_declarations() {
+            debug_assert_matches!(it.vm().execution_state(), ExecutionState::Advance);
             assert!(decl.is_hoisted());
             decl.eval(it)?;
         }
         for stmt in self.statements() {
-            if it.vm().execution_state().is_break_or_return() {
+            if !matches!(it.vm().execution_state(), ExecutionState::Advance) {
                 break;
             }
             if let Statement::Declaration(decl) = stmt {
@@ -82,6 +84,7 @@ impl Eval for Statement {
             Self::Continue(node) => node.eval(it),
             Self::Declaration(node) => node.eval(it),
             Self::Expression(node) => node.eval(it).map(|_| ()),
+            Self::Exit(node) => node.eval(it),
             Self::IfStatement(node) => node.eval(it),
             Self::Print(node) => node.eval(it),
             Self::Return(node) => node.eval(it),
@@ -108,6 +111,13 @@ impl Eval for AssertStatement {
         } else {
             Err(AssertionFailedError::new(self.condition.clone(), value).into())
         }
+    }
+}
+
+impl Eval for ExitStatement {
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
+        it.vm_mut().set_execution_state(ExecutionState::Exit);
+        Ok(())
     }
 }
 
@@ -175,9 +185,9 @@ impl Eval for ForLoop {
                     it.vm_mut().reset_execution_state();
                     continue;
                 }
-                ExecutionState::Return(_) => {
+                ExecutionState::Return(_) | ExecutionState::Exit => {
                     // Exit the loop, but don't reset the execution state just yet so that it can be
-                    // handled by an outer `FunctionCallExpression`.
+                    // handled/cleared by some calling AST node.
                     break;
                 }
             }
@@ -211,9 +221,9 @@ impl Eval for WhileLoop {
                     it.vm_mut().reset_execution_state();
                     continue;
                 }
-                ExecutionState::Return(_) => {
+                ExecutionState::Return(_) | ExecutionState::Exit => {
                     // Exit the loop, but don't reset the execution state just yet so that it can be
-                    // handled by an outer `FunctionCallExpression`.
+                    // handled/cleared by some calling AST node.
                     break;
                 }
             }

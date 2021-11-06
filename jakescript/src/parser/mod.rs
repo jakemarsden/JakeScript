@@ -1,10 +1,10 @@
 use crate::ast::{
     self, AssertStatement, AssignmentExpression, AssignmentOperator, BinaryExpression,
-    BinaryOperator, Block, BreakStatement, ContinueStatement, DeclarationStatement, Expression,
-    ForLoop, FunctionCallExpression, FunctionCallOperator, FunctionDeclaration, GroupingExpression,
-    GroupingOperator, Identifier, IfStatement, LiteralExpression, Op, Operator, Precedence,
-    PrintStatement, Program, PropertyAccessExpression, PropertyAccessOperator, ReturnStatement,
-    Statement, TernaryExpression, TernaryOperator, UnaryExpression, UnaryOperator,
+    BinaryOperator, Block, BreakStatement, ContinueStatement, DeclarationStatement, ExitStatement,
+    Expression, ForLoop, FunctionCallExpression, FunctionCallOperator, FunctionDeclaration,
+    GroupingExpression, GroupingOperator, Identifier, IfStatement, LiteralExpression, Op, Operator,
+    Precedence, PrintStatement, Program, PropertyAccessExpression, PropertyAccessOperator,
+    ReturnStatement, Statement, TernaryExpression, TernaryOperator, UnaryExpression, UnaryOperator,
     VariableAccessExpression, VariableDeclaration, VariableDeclarationEntry,
     VariableDeclarationKind, WhileLoop,
 };
@@ -107,6 +107,9 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
                 let stmt = match token {
                     Token::Keyword(Keyword::Assert) => {
                         self.parse_assert_statement().map(Statement::Assert)
+                    }
+                    Token::Keyword(Keyword::Exit) => {
+                        self.parse_exit_statement().map(Statement::Exit)
                     }
                     Token::Keyword(Keyword::Print | Keyword::PrintLn) => {
                         self.parse_print_statement().map(Statement::Print)
@@ -375,6 +378,11 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
         self.expect_keyword(Keyword::Assert)?;
         let condition = self.parse_expression()?;
         Ok(AssertStatement { condition })
+    }
+
+    fn parse_exit_statement(&mut self) -> Result<ExitStatement> {
+        self.expect_keyword(Keyword::Exit)?;
+        Ok(ExitStatement)
     }
 
     fn parse_print_statement(&mut self) -> Result<PrintStatement> {

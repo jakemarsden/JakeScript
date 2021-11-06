@@ -72,6 +72,9 @@ pub enum Keyword {
     Do,
     Else,
     Enum,
+    // TODO: Remove from the language once no longer needed to support the REPL (it should be a
+    //  function call?).
+    Exit,
     Export,
     Extends,
     Finally,

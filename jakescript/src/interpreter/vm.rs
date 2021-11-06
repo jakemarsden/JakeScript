@@ -1,6 +1,7 @@
 use crate::interpreter::heap::Heap;
 use crate::interpreter::stack::CallStack;
 use crate::interpreter::value::Value;
+use std::assert_matches::assert_matches;
 use std::mem;
 
 #[derive(Default)]
@@ -19,13 +20,7 @@ impl Vm {
     ///
     /// Panics if the current execution state is not [`ExecutionState::Advance`].
     pub fn set_execution_state(&mut self, execution_state: ExecutionState) {
-        assert!(
-            self.execution_state.is_advance(),
-            "Unexpected execution state (expected {:?} but was {:?}): Cannot set to {:?}",
-            ExecutionState::Advance,
-            self.execution_state,
-            execution_state
-        );
+        assert_matches!(self.execution_state, ExecutionState::Advance);
         self.execution_state = execution_state;
     }
 
@@ -55,14 +50,5 @@ pub enum ExecutionState {
     Break,
     BreakContinue,
     Return(Value),
-}
-
-impl ExecutionState {
-    pub fn is_advance(&self) -> bool {
-        matches!(self, Self::Advance)
-    }
-
-    pub fn is_break_or_return(&self) -> bool {
-        matches!(self, Self::Break | Self::BreakContinue | Self::Return(_))
-    }
+    Exit,
 }

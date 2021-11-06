@@ -1,3 +1,4 @@
+#![feature(assert_matches)]
 #![feature(bool_to_option)]
 #![feature(derive_default_enum)]
 #![feature(iter_intersperse)]

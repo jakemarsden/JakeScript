@@ -1,6 +1,7 @@
-use jakescript::interpreter::{Eval, Interpreter};
+use jakescript::interpreter::{Eval, ExecutionState, Interpreter};
 use jakescript::lexer::{self, Element, Lexer, Punctuator, Token};
 use jakescript::parser::Parser;
+use std::assert_matches::assert_matches;
 use std::{io, mem};
 
 /// Read Evaluate Print Loop (REPL).
@@ -27,7 +28,7 @@ where
 
     pub(crate) fn execute(&mut self, it: &mut Interpreter) {
         loop {
-            assert!(it.vm().execution_state().is_advance());
+            assert_matches!(it.vm().execution_state(), ExecutionState::Advance);
             eprint!("> {}", "  ".repeat(self.brace_depth));
             match self.read_next_tokens() {
                 Result::Execute => {}
