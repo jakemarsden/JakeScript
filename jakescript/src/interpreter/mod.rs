@@ -125,10 +125,11 @@ impl Eval for PrintStatement {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let value = self.argument.eval(it)?;
         if let Value::String(ref string_value) = value.coerce_to_string(it) {
+            // Note: Print to stderr as stdout is swallowed when running in the REPL.
             if self.new_line {
-                println!("{}", string_value);
+                eprintln!("{}", string_value);
             } else {
-                print!("{}", string_value);
+                eprint!("{}", string_value);
             }
         } else {
             unreachable!();
