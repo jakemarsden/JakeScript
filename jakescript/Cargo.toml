@@ -8,7 +8,9 @@ publish = false
 [dependencies]
 enumerate = { path = "../enumerate" }
 ansi_term = "0.12"
+serde = { version = "1.0", features = ["derive"] }
 
 [dev-dependencies]
+serde_test = "1.0"
 utf8-chars = "1.0"
 walkdir = "2.3"

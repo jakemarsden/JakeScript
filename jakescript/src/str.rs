@@ -1,3 +1,4 @@
+use serde::{de, ser};
 use std::fmt;
 use std::str::FromStr;
 
@@ -119,5 +120,95 @@ impl AsRef<String> for NonEmptyString {
 impl From<NonEmptyString> for String {
     fn from(s: NonEmptyString) -> Self {
         s.into_inner()
+    }
+}
+
+impl ser::Serialize for NonEmptyString {
+    fn serialize<S: ser::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        s.serialize_str(self.as_ref())
+    }
+}
+
+impl<'de> de::Deserialize<'de> for NonEmptyString {
+    fn deserialize<D: de::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        struct Visitor;
+
+        impl<'de> de::Visitor<'de> for Visitor {
+            type Value = NonEmptyString;
+
+            fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                f.write_str("a non-empty string")
+            }
+
+            fn visit_str<E: de::Error>(self, value: &str) -> Result<Self::Value, E> {
+                NonEmptyString::try_from(value)
+                    .map_err(|()| E::invalid_value(de::Unexpected::Str(value), &self))
+            }
+
+            fn visit_string<E: de::Error>(self, value: String) -> Result<Self::Value, E> {
+                NonEmptyString::try_from(value)
+                    .map_err(|()| E::invalid_value(de::Unexpected::Str(""), &self))
+            }
+        }
+        d.deserialize_str(Visitor)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use serde_test::{assert_de_tokens, assert_de_tokens_error, assert_tokens, Token};
+
+    #[test]
+    fn ser_de_happy_path() {
+        assert_tokens(
+            &non_empty_str!("Hello, world!"),
+            &[Token::Str("Hello, world!")],
+        );
+        assert_tokens(
+            &non_empty_str!("Hello, world!"),
+            &[Token::String("Hello, world!")],
+        );
+    }
+
+    #[test]
+    fn de_from_char() {
+        assert_de_tokens(&non_empty_str!('Q'), &[Token::Char('Q')]);
+    }
+
+    #[test]
+    fn de_empty_is_error() {
+        assert_de_tokens_error::<NonEmptyString>(
+            &[Token::Str("")],
+            r#"invalid value: string "", expected a non-empty string"#,
+        );
+        assert_de_tokens_error::<NonEmptyString>(
+            &[Token::String("")],
+            r#"invalid value: string "", expected a non-empty string"#,
+        );
+    }
+
+    #[test]
+    fn de_invalid_type_is_error() {
+        let params = [
+            (Token::Bool(true), "boolean `true`"),
+            (Token::Bool(false), "boolean `false`"),
+            (Token::I8(42), "integer `42`"),
+            (Token::I16(42), "integer `42`"),
+            (Token::I32(42), "integer `42`"),
+            (Token::I64(42), "integer `42`"),
+            (Token::U8(42), "integer `42`"),
+            (Token::U16(42), "integer `42`"),
+            (Token::U32(42), "integer `42`"),
+            (Token::U64(42), "integer `42`"),
+            (Token::F32(0.25), "floating point `0.25`"),
+            (Token::F64(0.25), "floating point `0.25`"),
+        ];
+        for (token, err_str) in params {
+            assert_de_tokens_error::<NonEmptyString>(
+                &[token],
+                &format!(r#"invalid type: {}, expected a non-empty string"#, err_str),
+            );
+        }
     }
 }

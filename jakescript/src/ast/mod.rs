@@ -1,9 +1,10 @@
 use crate::str::NonEmptyString;
+use serde::{Deserialize, Serialize};
 use std::fmt;
 
 pub trait Node: Clone + fmt::Debug {}
 
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct Program {
     body: Block,
 }
@@ -20,7 +21,7 @@ impl Program {
 
 impl Node for Program {}
 
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct Block {
     hoisted_decls: Vec<DeclarationStatement>,
     stmts: Vec<Statement>,
@@ -45,7 +46,8 @@ impl Block {
 
 impl Node for Block {}
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag = "statement_type")]
 pub enum Statement {
     Assert(AssertStatement),
     Break(BreakStatement),
@@ -62,7 +64,8 @@ pub enum Statement {
 
 impl Node for Statement {}
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag = "declaration_type")]
 pub enum DeclarationStatement {
     Function(FunctionDeclaration),
     Variable(VariableDeclaration),
@@ -79,19 +82,19 @@ impl DeclarationStatement {
 
 impl Node for DeclarationStatement {}
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AssertStatement {
     pub condition: Expression,
 }
 
 impl Node for AssertStatement {}
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ExitStatement;
 
 impl Node for ExitStatement {}
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PrintStatement {
     pub argument: Expression,
     pub new_line: bool,
@@ -99,7 +102,7 @@ pub struct PrintStatement {
 
 impl Node for PrintStatement {}
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct IfStatement {
     pub condition: Expression,
     pub success_block: Block,
@@ -108,7 +111,7 @@ pub struct IfStatement {
 
 impl Node for IfStatement {}
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ForLoop {
     pub initialiser: Option<VariableDeclaration>,
     pub condition: Option<Expression>,
@@ -118,7 +121,7 @@ pub struct ForLoop {
 
 impl Node for ForLoop {}
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WhileLoop {
     pub condition: Expression,
     pub body: Block,
@@ -126,28 +129,28 @@ pub struct WhileLoop {
 
 impl Node for WhileLoop {}
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BreakStatement {
     // TODO: Support labels.
 }
 
 impl Node for BreakStatement {}
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ContinueStatement {
     // TODO: Support labels.
 }
 
 impl Node for ContinueStatement {}
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ReturnStatement {
     pub expr: Option<Expression>,
 }
 
 impl Node for ReturnStatement {}
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FunctionDeclaration {
     pub fn_name: Identifier,
     pub param_names: Vec<Identifier>,
@@ -156,7 +159,7 @@ pub struct FunctionDeclaration {
 
 impl Node for FunctionDeclaration {}
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct VariableDeclaration {
     pub kind: VariableDeclarationKind,
     pub entries: Vec<VariableDeclarationEntry>,
@@ -202,7 +205,8 @@ impl VariableDeclaration {
 
 impl Node for VariableDeclaration {}
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(tag = "expression_type")]
 pub enum Expression {
     Assignment(AssignmentExpression),
     Binary(BinaryExpression),
@@ -218,7 +222,7 @@ pub enum Expression {
 
 impl Node for Expression {}
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AssignmentExpression {
     pub op: AssignmentOperator,
     pub lhs: Box<Expression>,
@@ -227,7 +231,7 @@ pub struct AssignmentExpression {
 
 impl Node for AssignmentExpression {}
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BinaryExpression {
     pub op: BinaryOperator,
     pub lhs: Box<Expression>,
@@ -236,7 +240,7 @@ pub struct BinaryExpression {
 
 impl Node for BinaryExpression {}
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct UnaryExpression {
     pub op: UnaryOperator,
     pub operand: Box<Expression>,
@@ -244,7 +248,7 @@ pub struct UnaryExpression {
 
 impl Node for UnaryExpression {}
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TernaryExpression {
     pub condition: Box<Expression>,
     pub lhs: Box<Expression>,
@@ -253,21 +257,21 @@ pub struct TernaryExpression {
 
 impl Node for TernaryExpression {}
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GroupingExpression {
     pub inner: Box<Expression>,
 }
 
 impl Node for GroupingExpression {}
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct LiteralExpression {
     pub value: Literal,
 }
 
 impl Node for LiteralExpression {}
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FunctionCallExpression {
     pub function: Box<Expression>,
     pub arguments: Vec<Expression>,
@@ -275,7 +279,7 @@ pub struct FunctionCallExpression {
 
 impl Node for FunctionCallExpression {}
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PropertyAccessExpression {
     pub base: Box<Expression>,
     pub property_name: Identifier,
@@ -283,14 +287,14 @@ pub struct PropertyAccessExpression {
 
 impl Node for PropertyAccessExpression {}
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct VariableAccessExpression {
     pub var_name: Identifier,
 }
 
 impl Node for VariableAccessExpression {}
 
-#[derive(Clone, Eq, PartialEq, Hash, Debug)]
+#[derive(Clone, Eq, PartialEq, Hash, Debug, Serialize, Deserialize)]
 pub struct Identifier(NonEmptyString);
 
 impl From<NonEmptyString> for Identifier {
@@ -305,7 +309,8 @@ impl fmt::Display for Identifier {
     }
 }
 
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
+#[serde(tag = "kind", content = "value")]
 pub enum Literal {
     Boolean(bool),
     /// Numeric literal tokens are **always unsigned** (but can be made negative at runtime with the
@@ -366,7 +371,7 @@ impl Op for Operator {
     }
 }
 
-#[derive(Copy, Clone, Default, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Default, Eq, PartialEq, Debug, Serialize, Deserialize)]
 pub enum AssignmentOperator {
     #[default]
     Assign,
@@ -394,7 +399,7 @@ impl Op for AssignmentOperator {
     }
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
 pub enum BinaryOperator {
     Add,
     Div,
@@ -447,7 +452,7 @@ impl Op for BinaryOperator {
     }
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
 pub enum UnaryOperator {
     DecrementPrefix,
     DecrementPostfix,
@@ -529,14 +534,14 @@ impl Op for PropertyAccessOperator {
     }
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
 pub enum VariableDeclarationKind {
     Const,
     Let,
     Var,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct VariableDeclarationEntry {
     pub var_name: Identifier,
     pub initialiser: Option<Expression>,
