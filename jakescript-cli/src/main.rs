@@ -25,7 +25,7 @@ fn main() -> Result<(), Error> {
     ansi_term::enable_ansi_support().ok();
 
     match Options::try_from(env::args())? {
-        Options(Mode::Eval, Some(ref source_path)) => {
+        Options(Mode::Eval, None, Some(ref source_path)) => {
             let source_file = fs::File::open(source_path)?;
             let mut buf = io::BufReader::new(source_file);
             let lexer = Lexer::for_chars_fallible(buf.chars());
@@ -41,16 +41,21 @@ fn main() -> Result<(), Error> {
             );
             println!("{:?}", value);
         }
-        Options(Mode::Parse, Some(ref source_path)) => {
+        Options(Mode::Parse, Some(format), Some(ref source_path)) => {
             let source_file = fs::File::open(source_path)?;
             let mut buf = io::BufReader::new(source_file);
             let lexer = Lexer::for_chars_fallible(buf.chars());
 
             let (ast, parse_runtime) = parse(lexer)?;
             println!("Parsed in {:?}", parse_runtime);
-            println!("{:#?}", ast);
+
+            let stdout = io::stdout_locked();
+            match format {
+                Format::Json => serde_json::to_writer_pretty(stdout, &ast).unwrap(),
+                Format::Yaml => serde_yaml::to_writer(stdout, &ast).unwrap(),
+            }
         }
-        Options(Mode::Lex, Some(ref source_path)) => {
+        Options(Mode::Lex, None, Some(ref source_path)) => {
             let source_file = fs::File::open(source_path)?;
             let mut buf = io::BufReader::new(source_file);
             let lexer = Lexer::for_chars_fallible(buf.chars());
@@ -68,13 +73,13 @@ fn main() -> Result<(), Error> {
                 elements.iter().map(Element::to_string).collect::<String>()
             );
         }
-        Options(Mode::Repl, None) => {
+        Options(Mode::Repl, None, None) => {
             let mut stdin = io::stdin_locked();
             let lexer = Lexer::for_chars_fallible(stdin.chars());
             let mut it = Interpreter::default();
             Repl::new(lexer).execute(&mut it);
         }
-        Options(_, _) => unreachable!(),
+        Options(_, _, _) => unreachable!(),
     }
     Ok(())
 }
@@ -105,7 +110,7 @@ fn eval(ast: &Program) -> interpreter::Result<(interpreter::Value, Duration)> {
 }
 
 #[derive(Clone, Debug)]
-struct Options(Mode, Option<PathBuf>);
+struct Options(Mode, Option<Format>, Option<PathBuf>);
 
 impl TryFrom<env::Args> for Options {
     type Error = ParseOptionsError;
@@ -124,6 +129,17 @@ impl TryFrom<env::Args> for Options {
             .map_err(|()| ParseOptionsError {
                 executable_path: Some(executable_path.clone()),
             })?;
+        let format = match mode {
+            Mode::Parse => Some(
+                args.next()
+                    .ok_or(())
+                    .and_then(|arg| Format::from_str(&arg).map_err(|_| ()))
+                    .map_err(|()| ParseOptionsError {
+                        executable_path: Some(executable_path.clone()),
+                    })?,
+            ),
+            Mode::Eval | Mode::Lex | Mode::Repl => None,
+        };
         let source_path = match mode {
             Mode::Eval | Mode::Parse | Mode::Lex => Some(
                 args.next()
@@ -140,7 +156,7 @@ impl TryFrom<env::Args> for Options {
                 executable_path: Some(executable_path),
             });
         }
-        Ok(Self(mode, source_path))
+        Ok(Self(mode, format, source_path))
     }
 }
 
@@ -155,6 +171,14 @@ enum Mode {
     Lex,
     #[enumerate_str(rename = "--repl")]
     Repl,
+}
+
+#[derive(Enumerate, EnumerateStr, Copy, Clone, Eq, PartialEq, Debug)]
+enum Format {
+    #[enumerate_str(rename = "--json")]
+    Json,
+    #[enumerate_str(rename = "--yaml")]
+    Yaml,
 }
 
 enum Error {
@@ -236,10 +260,10 @@ impl fmt::Display for ParseOptionsError {
         write!(
             f,
             r#"Usage:
-    {}  --eval   <source-path>  # To evaluate a file
-    {}  --parse  <source-path>  # To parse a file
-    {}  --lex    <source-path>  # To lex (tokenise) a file
-    {}  --repl                  # To enter an interactive REPL"#,
+    {}  --eval                      <source-path>  # Evaluate a file
+    {}  --parse  [--json | --yaml]  <source-path>  # Parse a file and output as JSON or YAML
+    {}  --lex                       <source-path>  # Lex (tokenise) a file
+    {}  --repl                                     # Enter the interactive REPL"#,
             exec_path, exec_path, exec_path, exec_path,
         )
     }

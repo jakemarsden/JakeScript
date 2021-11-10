@@ -11,10 +11,10 @@ A work-in-progress JavaScript lexer, parser, and interpreter. Written in Rust
 ```shell
 cargo build --release --workspace
 
-./target/release/jakescript-cli  --eval   <source-path>  # To evaluate a file
-./target/release/jakescript-cli  --parse  <source-path>  # To parse a file
-./target/release/jakescript-cli  --lex    <source-path>  # To lex (tokenise) a file
-./target/release/jakescript-cli  --repl                  # To enter an interactive REPL
+./target/release/jakescript-cli  --eval                      <source-path>  # Evaluate a file
+./target/release/jakescript-cli  --parse  [--json | --yaml]  <source-path>  # Parse a file and output as JSON or YAML
+./target/release/jakescript-cli  --lex                       <source-path>  # Lex (tokenise) a file
+./target/release/jakescript-cli  --repl                                     # Enter the interactive REPL
 ```
 
 ## Packages
