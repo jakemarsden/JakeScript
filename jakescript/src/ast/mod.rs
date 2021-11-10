@@ -22,24 +22,24 @@ impl Node for Program {}
 
 #[derive(Clone, Default, Debug)]
 pub struct Block {
-    stmts: Vec<Statement>,
     hoisted_decls: Vec<DeclarationStatement>,
+    stmts: Vec<Statement>,
 }
 
 impl Block {
-    pub fn new(stmts: Vec<Statement>, hoisted_decls: Vec<DeclarationStatement>) -> Self {
+    pub fn new(hoisted_decls: Vec<DeclarationStatement>, stmts: Vec<Statement>) -> Self {
         Self {
-            stmts,
             hoisted_decls,
+            stmts,
         }
-    }
-
-    pub fn statements(&self) -> &[Statement] {
-        &self.stmts
     }
 
     pub fn hoisted_declarations(&self) -> &[DeclarationStatement] {
         &self.hoisted_decls
+    }
+
+    pub fn statements(&self) -> &[Statement] {
+        &self.stmts
     }
 }
 
@@ -53,7 +53,7 @@ pub enum Statement {
     Declaration(DeclarationStatement),
     Exit(ExitStatement),
     Expression(Expression),
-    IfStatement(IfStatement),
+    If(IfStatement),
     Print(PrintStatement),
     Return(ReturnStatement),
     ForLoop(ForLoop),
@@ -188,7 +188,7 @@ impl VariableDeclaration {
             if let Some(initialiser) = entry.initialiser.take() {
                 // Synthesise an assignment expression to initialise the variable
                 initialisers.push(Expression::Assignment(AssignmentExpression {
-                    kind: AssignmentOperator::Assign,
+                    op: AssignmentOperator::Assign,
                     lhs: Box::new(Expression::VariableAccess(VariableAccessExpression {
                         var_name: entry.var_name.clone(),
                     })),
@@ -220,7 +220,7 @@ impl Node for Expression {}
 
 #[derive(Clone, Debug)]
 pub struct AssignmentExpression {
-    pub kind: AssignmentOperator,
+    pub op: AssignmentOperator,
     pub lhs: Box<Expression>,
     pub rhs: Box<Expression>,
 }
@@ -229,7 +229,7 @@ impl Node for AssignmentExpression {}
 
 #[derive(Clone, Debug)]
 pub struct BinaryExpression {
-    pub kind: BinaryOperator,
+    pub op: BinaryOperator,
     pub lhs: Box<Expression>,
     pub rhs: Box<Expression>,
 }
@@ -238,7 +238,7 @@ impl Node for BinaryExpression {}
 
 #[derive(Clone, Debug)]
 pub struct UnaryExpression {
-    pub kind: UnaryOperator,
+    pub op: UnaryOperator,
     pub operand: Box<Expression>,
 }
 

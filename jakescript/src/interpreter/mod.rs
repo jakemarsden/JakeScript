@@ -85,7 +85,7 @@ impl Eval for Statement {
             Self::Declaration(node) => node.eval(it),
             Self::Expression(node) => node.eval(it).map(|_| ()),
             Self::Exit(node) => node.eval(it),
-            Self::IfStatement(node) => node.eval(it),
+            Self::If(node) => node.eval(it),
             Self::Print(node) => node.eval(it),
             Self::Return(node) => node.eval(it),
             Self::ForLoop(node) => node.eval(it),
@@ -330,7 +330,7 @@ impl Eval for AssignmentExpression {
             getter: impl FnOnce() -> Result,
         ) -> Result {
             let rhs = self_.rhs.eval(it)?;
-            Ok(match self_.kind {
+            Ok(match self_.op {
                 AssignmentOperator::Assign => rhs,
                 AssignmentOperator::AddAssign => Value::add(it, &getter()?, &rhs)?,
                 AssignmentOperator::SubAssign => Value::sub(it, &getter()?, &rhs)?,
@@ -342,7 +342,7 @@ impl Eval for AssignmentExpression {
             })
         }
 
-        assert_matches!(self.kind.associativity(), Associativity::RightToLeft);
+        assert_matches!(self.op.associativity(), Associativity::RightToLeft);
         match self.lhs.as_ref() {
             Expression::VariableAccess(node) => {
                 let mut variable = it
@@ -381,18 +381,18 @@ impl Eval for BinaryExpression {
     type Output = Value;
 
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        Ok(match self.kind {
+        Ok(match self.op {
             // Get the boolean ops out of the way first, since they don't let us eval the RHS
             // up-front (which is more ergonomic for all the other ops).
             BinaryOperator::LogicalAnd => {
-                assert_matches!(self.kind.associativity(), Associativity::LeftToRight);
+                assert_matches!(self.op.associativity(), Associativity::LeftToRight);
                 match self.lhs.eval(it)? {
                     lhs if lhs.is_truthy(it) => self.rhs.eval(it)?,
                     lhs => lhs,
                 }
             }
             BinaryOperator::LogicalOr => {
-                assert_matches!(self.kind.associativity(), Associativity::LeftToRight);
+                assert_matches!(self.op.associativity(), Associativity::LeftToRight);
                 match self.lhs.eval(it)? {
                     lhs if lhs.is_falsy(it) => self.rhs.eval(it)?,
                     lhs => lhs,
@@ -454,7 +454,7 @@ impl Eval for UnaryExpression {
 
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let operand = &self.operand.eval(it)?;
-        Ok(match self.kind {
+        Ok(match self.op {
             UnaryOperator::IncrementPrefix
             | UnaryOperator::IncrementPostfix
             | UnaryOperator::DecrementPrefix
@@ -468,29 +468,29 @@ impl Eval for UnaryExpression {
                     let old_value = getter()?;
 
                     // The new value to assign to the variable or property
-                    let new_value = match self_.kind {
+                    let new_value = match self_.op {
                         UnaryOperator::IncrementPrefix | UnaryOperator::IncrementPostfix => {
                             Value::add(it, &old_value, &ONE)?
                         }
                         UnaryOperator::DecrementPrefix | UnaryOperator::DecrementPostfix => {
                             Value::sub(it, &old_value, &ONE)?
                         }
-                        _ => unreachable!("{:?}", self_.kind),
+                        _ => unreachable!("{:?}", self_.op),
                     };
                     // The value to use as the result of the expression
-                    let result_value = match self_.kind {
+                    let result_value = match self_.op {
                         UnaryOperator::IncrementPrefix | UnaryOperator::DecrementPrefix => {
                             new_value.clone()
                         }
                         UnaryOperator::IncrementPostfix | UnaryOperator::DecrementPostfix => {
                             old_value
                         }
-                        _ => unreachable!("{:?}", self_.kind),
+                        _ => unreachable!("{:?}", self_.op),
                     };
                     Ok((new_value, result_value))
                 }
 
-                assert_matches!(self.kind.associativity(), Associativity::RightToLeft);
+                assert_matches!(self.op.associativity(), Associativity::RightToLeft);
                 match self.operand.as_ref() {
                     Expression::VariableAccess(node) => {
                         let mut variable = it

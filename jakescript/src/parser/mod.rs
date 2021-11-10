@@ -56,8 +56,8 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
         if braces {
             self.expect_punctuator(Punctuator::OpenBrace)?;
         }
-        let mut stmts = Vec::new();
         let mut hoisted_decls = Vec::new();
+        let mut stmts = Vec::new();
         loop {
             match self.tokens.try_peek()? {
                 Some(Token::Punctuator(Punctuator::CloseBrace)) if braces => break,
@@ -86,14 +86,12 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
         if braces {
             self.expect_punctuator(Punctuator::CloseBrace)?;
         }
-        Ok(Block::new(stmts, hoisted_decls))
+        Ok(Block::new(hoisted_decls, stmts))
     }
 
     fn parse_statement(&mut self) -> Result<Statement> {
         match self.tokens.try_peek()? {
-            Some(Token::Keyword(Keyword::If)) => {
-                self.parse_if_statement().map(Statement::IfStatement)
-            }
+            Some(Token::Keyword(Keyword::If)) => self.parse_if_statement().map(Statement::If),
             Some(Token::Keyword(Keyword::Function)) => self
                 .parse_function_declaration()
                 .map(DeclarationStatement::Function)
@@ -184,7 +182,7 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
                 if let Some(op_kind) = UnaryOperator::try_parse(punc, Position::Prefix) {
                     let operand = self.parse_expression_impl(op_kind.precedence())?;
                     Expression::Unary(UnaryExpression {
-                        kind: op_kind,
+                        op: op_kind,
                         operand: Box::new(operand),
                     })
                 } else if GroupingOperator::try_parse(punc, Position::Prefix).is_some() {
@@ -241,17 +239,17 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
     ) -> Result<Expression> {
         Ok(match op_kind {
             Operator::Assignment(kind) => Expression::Assignment(AssignmentExpression {
-                kind,
+                op: kind,
                 lhs: Box::new(lhs),
                 rhs: Box::new(self.parse_expression_impl(op_kind.precedence())?),
             }),
             Operator::Binary(kind) => Expression::Binary(BinaryExpression {
-                kind,
+                op: kind,
                 lhs: Box::new(lhs),
                 rhs: Box::new(self.parse_expression_impl(op_kind.precedence())?),
             }),
             Operator::Unary(kind) => Expression::Unary(UnaryExpression {
-                kind,
+                op: kind,
                 operand: Box::new(lhs),
             }),
             Operator::Ternary => {
@@ -418,8 +416,8 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
             if matches!(self.tokens.try_peek()?, Some(Token::Keyword(Keyword::If))) {
                 // Recursively parse `else if { .. }` blocks
                 Some(Block::new(
-                    vec![Statement::IfStatement(self.parse_if_statement()?)],
                     vec![],
+                    vec![Statement::If(self.parse_if_statement()?)],
                 ))
             } else {
                 // Parse `else { .. }` blocks
