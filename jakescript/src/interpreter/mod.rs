@@ -1,11 +1,11 @@
 use crate::ast::{
     AssertStatement, AssignmentExpression, AssignmentOperator, Associativity, BinaryExpression,
-    BinaryOperator, Block, BreakStatement, ContinueStatement, DeclarationStatement, ExitStatement,
-    Expression, ForLoop, FunctionCallExpression, FunctionDeclaration, GroupingExpression,
-    IfStatement, Literal, LiteralExpression, Node, Op, PrintStatement, Program,
-    PropertyAccessExpression, ReturnStatement, Statement, TernaryExpression, UnaryExpression,
-    UnaryOperator, VariableAccessExpression, VariableDeclaration, VariableDeclarationKind,
-    WhileLoop,
+    BinaryOperator, Block, BreakStatement, ComputedPropertyAccessExpression, ContinueStatement,
+    DeclarationStatement, ExitStatement, Expression, ForLoop, FunctionCallExpression,
+    FunctionDeclaration, GroupingExpression, Identifier, IfStatement, Literal, LiteralExpression,
+    Node, Op, PrintStatement, Program, PropertyAccessExpression, ReturnStatement, Statement,
+    TernaryExpression, UnaryExpression, UnaryOperator, VariableAccessExpression,
+    VariableDeclaration, VariableDeclarationKind, WhileLoop,
 };
 use std::assert_matches::{assert_matches, debug_assert_matches};
 use std::hint::unreachable_unchecked;
@@ -313,6 +313,7 @@ impl Eval for Expression {
             Self::Grouping(ref node) => node.eval(it),
             Self::FunctionCall(ref node) => node.eval(it),
             Self::PropertyAccess(ref node) => node.eval(it),
+            Self::ComputedPropertyAccess(ref node) => node.eval(it),
 
             Self::Literal(ref node) => node.eval(it),
             Self::VariableAccess(ref node) => node.eval(it),
@@ -661,6 +662,24 @@ impl Eval for PropertyAccessExpression {
             .property(&self.property_name)
             .cloned()
             .unwrap_or_default())
+    }
+}
+
+impl Eval for ComputedPropertyAccessExpression {
+    type Output = Value;
+
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
+        let base_value = self.base.eval(it)?;
+        let base_obj = match base_value {
+            Value::Reference(ref base_refr) => it.vm().heap().resolve(base_refr),
+            base_value => todo!("ComputedPropertyExpression::eval: base={:?}", base_value),
+        };
+        let property_value = self.property.eval(it)?;
+        let property = match property_value {
+            Value::Number(n) => Identifier::from(n),
+            property => todo!("ComputedPropertyExpression::eval: property={:?}", property),
+        };
+        Ok(base_obj.property(&property).cloned().unwrap_or_default())
     }
 }
 

@@ -1,6 +1,7 @@
 use crate::ast::{
     self, AssertStatement, AssignmentExpression, AssignmentOperator, BinaryExpression,
-    BinaryOperator, Block, BreakStatement, ContinueStatement, DeclarationStatement, ExitStatement,
+    BinaryOperator, Block, BreakStatement, ComputedPropertyAccessExpression,
+    ComputedPropertyAccessOperator, ContinueStatement, DeclarationStatement, ExitStatement,
     Expression, ForLoop, FunctionCallExpression, FunctionCallOperator, FunctionDeclaration,
     GroupingExpression, GroupingOperator, Identifier, IfStatement, LiteralExpression, Op, Operator,
     Precedence, PrintStatement, Program, PropertyAccessExpression, PropertyAccessOperator,
@@ -291,6 +292,14 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
                             rhs_expr
                         ),
                     },
+                })
+            }
+            Operator::ComputedPropertyAccess => {
+                let rhs = self.parse_expression()?;
+                self.expect_punctuator(Punctuator::CloseBracket)?;
+                Expression::ComputedPropertyAccess(ComputedPropertyAccessExpression {
+                    base: Box::new(lhs),
+                    property: Box::new(rhs),
                 })
             }
         })
@@ -644,6 +653,10 @@ impl TryParse for Operator {
             .or_else(|| GroupingOperator::try_parse(punc, pos).map(|_| Self::Grouping))
             .or_else(|| FunctionCallOperator::try_parse(punc, pos).map(|_| Self::FunctionCall))
             .or_else(|| PropertyAccessOperator::try_parse(punc, pos).map(|_| Self::PropertyAccess))
+            .or_else(|| {
+                ComputedPropertyAccessOperator::try_parse(punc, pos)
+                    .map(|_| Self::ComputedPropertyAccess)
+            })
     }
 }
 
@@ -749,6 +762,16 @@ impl TryParse for FunctionCallOperator {
 impl TryParse for PropertyAccessOperator {
     fn try_parse(punc: Punctuator, pos: Position) -> Option<Self> {
         matches!((punc, pos), (Punctuator::Dot, Position::PostfixOrInfix)).then_some(Self)
+    }
+}
+
+impl TryParse for ComputedPropertyAccessOperator {
+    fn try_parse(punc: Punctuator, pos: Position) -> Option<Self> {
+        matches!(
+            (punc, pos),
+            (Punctuator::OpenBracket, Position::PostfixOrInfix)
+        )
+        .then_some(Self)
     }
 }
 

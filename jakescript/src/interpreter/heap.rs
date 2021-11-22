@@ -17,7 +17,7 @@ impl Heap {
         let props = values
             .into_iter()
             .enumerate()
-            .map(|(idx, value)| (Identifier::from(idx), value))
+            .map(|(idx, value)| (Identifier::from(idx as i64), value))
             .collect();
         self.allocate_object(|| Object::new(props, None))
     }
@@ -98,6 +98,9 @@ impl fmt::Debug for Reference {
 
 #[derive(Debug)]
 pub struct Object {
+    // TODO: `Identifier` as the key isn't sufficient here because all sorts of things which aren't
+    //  valid identifiers can be used to lookup and set properties (including an empty string, whole
+    //  other objects, etc.).
     properties: HashMap<Identifier, Value>,
     callable: Option<Callable>,
 }

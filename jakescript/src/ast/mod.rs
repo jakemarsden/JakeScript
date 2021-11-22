@@ -215,6 +215,7 @@ pub enum Expression {
     Grouping(GroupingExpression),
     FunctionCall(FunctionCallExpression),
     PropertyAccess(PropertyAccessExpression),
+    ComputedPropertyAccess(ComputedPropertyAccessExpression),
 
     Literal(LiteralExpression),
     VariableAccess(VariableAccessExpression),
@@ -288,6 +289,14 @@ pub struct PropertyAccessExpression {
 impl Node for PropertyAccessExpression {}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ComputedPropertyAccessExpression {
+    pub base: Box<Expression>,
+    pub property: Box<Expression>,
+}
+
+impl Node for ComputedPropertyAccessExpression {}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct VariableAccessExpression {
     pub var_name: Identifier,
 }
@@ -303,8 +312,8 @@ impl From<NonEmptyString> for Identifier {
     }
 }
 
-impl From<usize> for Identifier {
-    fn from(value: usize) -> Self {
+impl From<i64> for Identifier {
+    fn from(value: i64) -> Self {
         let s = value.to_string();
         // Safety: The string can't be empty because it was created from a number.
         Self(unsafe { NonEmptyString::from_unchecked(s) })
@@ -352,6 +361,7 @@ pub enum Operator {
     Grouping,
     FunctionCall,
     PropertyAccess,
+    ComputedPropertyAccess,
 }
 
 impl Op for Operator {
@@ -364,6 +374,7 @@ impl Op for Operator {
             Self::Grouping => GroupingOperator.associativity(),
             Self::FunctionCall => FunctionCallOperator.associativity(),
             Self::PropertyAccess => PropertyAccessOperator.associativity(),
+            Self::ComputedPropertyAccess => ComputedPropertyAccessOperator.associativity(),
         }
     }
 
@@ -376,6 +387,7 @@ impl Op for Operator {
             Self::Grouping => GroupingOperator.precedence(),
             Self::FunctionCall => FunctionCallOperator.precedence(),
             Self::PropertyAccess => PropertyAccessOperator.precedence(),
+            Self::ComputedPropertyAccess => ComputedPropertyAccessOperator.precedence(),
         }
     }
 }
@@ -534,6 +546,19 @@ impl Op for FunctionCallOperator {
 pub struct PropertyAccessOperator;
 
 impl Op for PropertyAccessOperator {
+    fn associativity(&self) -> Associativity {
+        Associativity::LeftToRight
+    }
+
+    fn precedence(&self) -> Precedence {
+        Precedence(20)
+    }
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub struct ComputedPropertyAccessOperator;
+
+impl Op for ComputedPropertyAccessOperator {
     fn associativity(&self) -> Associativity {
         Associativity::LeftToRight
     }
