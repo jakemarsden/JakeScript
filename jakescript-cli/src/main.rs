@@ -119,42 +119,29 @@ impl TryFrom<env::Args> for Options {
         let executable_path = args
             .next()
             .filter(|it| !it.is_empty())
-            .ok_or(ParseOptionsError {
-                executable_path: None,
-            })?;
+            .ok_or_else(ParseOptionsError::default)?;
         let mode = args
             .next()
-            .ok_or(())
-            .and_then(|arg| Mode::from_str(&arg).map_err(|_| ()))
-            .map_err(|()| ParseOptionsError {
-                executable_path: Some(executable_path.clone()),
-            })?;
+            .and_then(|arg| Mode::from_str(&arg).ok())
+            .ok_or_else(|| ParseOptionsError::new(executable_path.clone()))?;
         let format = match mode {
             Mode::Parse => Some(
                 args.next()
-                    .ok_or(())
-                    .and_then(|arg| Format::from_str(&arg).map_err(|_| ()))
-                    .map_err(|()| ParseOptionsError {
-                        executable_path: Some(executable_path.clone()),
-                    })?,
+                    .and_then(|arg| Format::from_str(&arg).ok())
+                    .ok_or_else(|| ParseOptionsError::new(executable_path.clone()))?,
             ),
             Mode::Eval | Mode::Lex | Mode::Repl => None,
         };
         let source_path = match mode {
             Mode::Eval | Mode::Parse | Mode::Lex => Some(
                 args.next()
-                    .ok_or(())
-                    .and_then(|arg| PathBuf::from_str(&arg).map_err(|_| ()))
-                    .map_err(|_| ParseOptionsError {
-                        executable_path: Some(executable_path.clone()),
-                    })?,
+                    .and_then(|arg| PathBuf::from_str(&arg).ok())
+                    .ok_or_else(|| ParseOptionsError::new(executable_path.clone()))?,
             ),
             Mode::Repl => None,
         };
         if args.next().is_some() {
-            return Err(ParseOptionsError {
-                executable_path: Some(executable_path),
-            });
+            return Err(ParseOptionsError::new(executable_path));
         }
         Ok(Self(mode, format, source_path))
     }
@@ -251,12 +238,24 @@ impl From<io::Error> for Error {
 
 #[derive(Debug)]
 struct ParseOptionsError {
-    executable_path: Option<String>,
+    executable_path: String,
+}
+
+impl Default for ParseOptionsError {
+    fn default() -> Self {
+        Self::new(PROGRAM_NAME.to_owned())
+    }
+}
+
+impl ParseOptionsError {
+    fn new(executable_path: String) -> Self {
+        Self { executable_path }
+    }
 }
 
 impl fmt::Display for ParseOptionsError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let exec_path = self.executable_path.as_deref().unwrap_or(PROGRAM_NAME);
+        let exec_path = self.executable_path.as_str();
         write!(
             f,
             r#"Usage:
