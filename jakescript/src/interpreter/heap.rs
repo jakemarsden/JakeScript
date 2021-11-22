@@ -13,6 +13,15 @@ pub struct Heap {
 }
 
 impl Heap {
+    pub fn allocate_array(&mut self, values: Vec<Value>) -> Result<Reference, OutOfMemoryError> {
+        let props = values
+            .into_iter()
+            .enumerate()
+            .map(|(idx, value)| (Identifier::from(idx), value))
+            .collect();
+        self.allocate_object(|| Object::new(props, None))
+    }
+
     pub fn allocate_empty_object(&mut self) -> Result<Reference, OutOfMemoryError> {
         self.allocate_object(|| Object::new(HashMap::default(), None))
     }

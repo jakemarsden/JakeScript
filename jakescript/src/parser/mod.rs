@@ -162,6 +162,13 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
                     var_name: Identifier::from(var_name),
                 })
             }
+            Some(Token::Punctuator(Punctuator::OpenBracket)) => {
+                let elems = self.parse_array_literal_elements()?;
+                self.expect_punctuator(Punctuator::CloseBracket)?;
+                Expression::Literal(LiteralExpression {
+                    value: ast::Literal::Array(elems),
+                })
+            }
             Some(Token::Punctuator(Punctuator::OpenBrace)) => {
                 Expression::Literal(LiteralExpression {
                     value: if self
@@ -287,6 +294,36 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
                 })
             }
         })
+    }
+
+    fn parse_array_literal_elements(&mut self) -> Result<Vec<Expression>> {
+        if matches!(
+            self.tokens.try_peek()?,
+            Some(Token::Punctuator(Punctuator::CloseBracket))
+        ) {
+            return Ok(Vec::with_capacity(0));
+        }
+        let mut elems = Vec::new();
+        loop {
+            elems.push(self.parse_expression()?);
+            match self.tokens.try_peek()? {
+                Some(&Token::Punctuator(Punctuator::Comma)) => {
+                    self.tokens
+                        .try_next_exact(&Token::Punctuator(Punctuator::Comma))?;
+                }
+                Some(&Token::Punctuator(Punctuator::CloseBracket)) => break Ok(elems),
+                token => {
+                    break Err(Error::unexpected(
+                        AnyOf(
+                            Token::Punctuator(Punctuator::Comma),
+                            Token::Punctuator(Punctuator::CloseBracket),
+                            vec![],
+                        ),
+                        token.cloned(),
+                    ))
+                }
+            }
+        }
     }
 
     fn parse_function_declaration(&mut self) -> Result<FunctionDeclaration> {

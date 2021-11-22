@@ -303,6 +303,14 @@ impl From<NonEmptyString> for Identifier {
     }
 }
 
+impl From<usize> for Identifier {
+    fn from(value: usize) -> Self {
+        let s = value.to_string();
+        // Safety: The string can't be empty because it was created from a number.
+        Self(unsafe { NonEmptyString::from_unchecked(s) })
+    }
+}
+
 impl fmt::Display for Identifier {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.0)
@@ -318,6 +326,7 @@ pub enum Literal {
     Numeric(u64),
     // TODO: Store string literals in the constant pool.
     String(String),
+    Array(Vec<Expression>),
     // TODO: Support properties in object literals.
     Object,
     AnonFunction {

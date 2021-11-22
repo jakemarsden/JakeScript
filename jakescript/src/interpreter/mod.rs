@@ -564,6 +564,14 @@ impl Eval for LiteralExpression {
             Literal::Boolean(ref value) => Value::Boolean(*value),
             Literal::Numeric(ref value) => Value::Number(i64::try_from(*value).unwrap()),
             Literal::String(ref value) => Value::String(value.clone()),
+            Literal::Array(ref elem_exprs) => {
+                let mut elems = Vec::with_capacity(elem_exprs.len());
+                for elem_expr in elem_exprs {
+                    elems.push(elem_expr.eval(it)?);
+                }
+                let obj_ref = it.vm_mut().heap_mut().allocate_array(elems)?;
+                Value::Reference(obj_ref)
+            }
             Literal::Object => {
                 let obj_ref = it.vm_mut().heap_mut().allocate_empty_object()?;
                 Value::Reference(obj_ref)
