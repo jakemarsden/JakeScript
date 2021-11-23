@@ -2,12 +2,12 @@ use crate::ast::{
     self, AssertStatement, AssignmentExpression, AssignmentOperator, BinaryExpression,
     BinaryOperator, Block, BreakStatement, CatchBlock, ComputedPropertyAccessExpression,
     ComputedPropertyAccessOperator, ContinueStatement, DeclarationStatement, ExitStatement,
-    Expression, ForLoop, FunctionCallExpression, FunctionCallOperator, FunctionDeclaration,
-    GroupingExpression, GroupingOperator, Identifier, IfStatement, LiteralExpression, Op, Operator,
-    Precedence, PrintStatement, Program, PropertyAccessExpression, PropertyAccessOperator,
-    ReturnStatement, Statement, TernaryExpression, TernaryOperator, ThrowStatement, TryStatement,
-    UnaryExpression, UnaryOperator, VariableAccessExpression, VariableDeclaration,
-    VariableDeclarationEntry, VariableDeclarationKind, WhileLoop,
+    Expression, FinallyBlock, ForLoop, FunctionCallExpression, FunctionCallOperator,
+    FunctionDeclaration, GroupingExpression, GroupingOperator, Identifier, IfStatement,
+    LiteralExpression, Op, Operator, Precedence, PrintStatement, Program, PropertyAccessExpression,
+    PropertyAccessOperator, ReturnStatement, Statement, TernaryExpression, TernaryOperator,
+    ThrowStatement, TryStatement, UnaryExpression, UnaryOperator, VariableAccessExpression,
+    VariableDeclaration, VariableDeclarationEntry, VariableDeclarationKind, WhileLoop,
 };
 use crate::iter::{IntoPeekableNth, PeekableNth};
 use crate::lexer::{
@@ -559,11 +559,23 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
         } else {
             None
         };
-        if let Some(Token::Keyword(Keyword::Finally)) = self.tokens.try_peek()? {
-            todo!("Implement finally blocks");
-        }
-        if catch_block.is_some() {
-            Ok(TryStatement { body, catch_block })
+        let finally_block = if matches!(
+            self.tokens.try_peek()?,
+            Some(Token::Keyword(Keyword::Finally))
+        ) {
+            self.expect_keyword(Keyword::Finally)?;
+            Some(FinallyBlock {
+                inner: self.parse_block(true)?,
+            })
+        } else {
+            None
+        };
+        if catch_block.is_some() || finally_block.is_some() {
+            Ok(TryStatement {
+                body,
+                catch_block,
+                finally_block,
+            })
         } else {
             Err(Error::unexpected(
                 AnyOf(

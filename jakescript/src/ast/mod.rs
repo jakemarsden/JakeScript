@@ -163,6 +163,7 @@ impl Node for ThrowStatement {}
 pub struct TryStatement {
     pub body: Block,
     pub catch_block: Option<CatchBlock>,
+    pub finally_block: Option<FinallyBlock>,
 }
 
 impl Node for TryStatement {}
@@ -174,6 +175,13 @@ pub struct CatchBlock {
 }
 
 impl Node for CatchBlock {}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct FinallyBlock {
+    pub inner: Block,
+}
+
+impl Node for FinallyBlock {}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FunctionDeclaration {

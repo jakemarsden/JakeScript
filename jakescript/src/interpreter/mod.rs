@@ -1,7 +1,7 @@
 use crate::ast::{
     AssertStatement, AssignmentExpression, AssignmentOperator, Associativity, BinaryExpression,
     BinaryOperator, Block, BreakStatement, CatchBlock, ComputedPropertyAccessExpression,
-    ContinueStatement, DeclarationStatement, ExitStatement, Expression, ForLoop,
+    ContinueStatement, DeclarationStatement, ExitStatement, Expression, FinallyBlock, ForLoop,
     FunctionCallExpression, FunctionDeclaration, GroupingExpression, Identifier, IfStatement,
     Literal, LiteralExpression, Node, Op, PrintStatement, Program, PropertyAccessExpression,
     ReturnStatement, Statement, TernaryExpression, ThrowStatement, TryStatement, UnaryExpression,
@@ -283,16 +283,16 @@ impl Eval for TryStatement {
                 catch.eval(it)?;
             }
         }
+        if let Some(ref finally) = self.finally_block {
+            finally.eval(it)?;
+        }
         Ok(())
     }
 }
 
 impl Eval for CatchBlock {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        let exception = match it.vm_mut().reset_execution_state() {
-            ExecutionState::Exception(ex) => ex,
-            _ => unreachable!(),
-        };
+        let exception = it.vm_mut().clear_exception().unwrap();
         if let Some(ref exception_var_name) = self.exception_identifier {
             let exception_var = Variable::new(
                 VariableDeclarationKind::Let,
@@ -310,6 +310,15 @@ impl Eval for CatchBlock {
             it.vm_mut().stack_mut().frame_mut().pop_scope();
         }
         Ok(())
+    }
+}
+
+impl Eval for FinallyBlock {
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
+        it.vm_mut().hide_current_exception();
+        let result = self.inner.eval(it).map(|_| ());
+        it.vm_mut().restore_hidden_exception();
+        result
     }
 }
 
