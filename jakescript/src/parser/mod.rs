@@ -1,11 +1,11 @@
 use crate::ast::{
     self, AssertStatement, AssignmentExpression, AssignmentOperator, BinaryExpression,
-    BinaryOperator, Block, BreakStatement, ComputedPropertyAccessExpression,
+    BinaryOperator, Block, BreakStatement, CatchBlock, ComputedPropertyAccessExpression,
     ComputedPropertyAccessOperator, ContinueStatement, DeclarationStatement, ExitStatement,
     Expression, ForLoop, FunctionCallExpression, FunctionCallOperator, FunctionDeclaration,
     GroupingExpression, GroupingOperator, Identifier, IfStatement, LiteralExpression, Op, Operator,
     Precedence, PrintStatement, Program, PropertyAccessExpression, PropertyAccessOperator,
-    ReturnStatement, Statement, TernaryExpression, TernaryOperator, ThrowStatement,
+    ReturnStatement, Statement, TernaryExpression, TernaryOperator, ThrowStatement, TryStatement,
     UnaryExpression, UnaryOperator, VariableAccessExpression, VariableDeclaration,
     VariableDeclarationEntry, VariableDeclarationKind, WhileLoop,
 };
@@ -97,6 +97,7 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
                 .parse_function_declaration()
                 .map(DeclarationStatement::Function)
                 .map(Statement::Declaration),
+            Some(Token::Keyword(Keyword::Try)) => self.parse_try_statement().map(Statement::Try),
             Some(Token::Keyword(Keyword::For)) => self.parse_for_loop().map(Statement::ForLoop),
             Some(Token::Keyword(Keyword::While)) => {
                 self.parse_while_loop().map(Statement::WhileLoop)
@@ -545,6 +546,62 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
         self.expect_keyword(Keyword::Throw)?;
         let exception = self.parse_expression()?;
         Ok(ThrowStatement { exception })
+    }
+
+    fn parse_try_statement(&mut self) -> Result<TryStatement> {
+        self.expect_keyword(Keyword::Try)?;
+        let body = self.parse_block(true)?;
+        let catch_block = if matches!(
+            self.tokens.try_peek()?,
+            Some(Token::Keyword(Keyword::Catch))
+        ) {
+            Some(self.parse_catch_block()?)
+        } else {
+            None
+        };
+        if let Some(Token::Keyword(Keyword::Finally)) = self.tokens.try_peek()? {
+            todo!("Implement finally blocks");
+        }
+        if catch_block.is_some() {
+            Ok(TryStatement { body, catch_block })
+        } else {
+            Err(Error::unexpected(
+                AnyOf(
+                    Token::Keyword(Keyword::Catch),
+                    Token::Keyword(Keyword::Finally),
+                    vec![],
+                ),
+                self.tokens.try_peek()?.cloned(),
+            ))
+        }
+    }
+
+    fn parse_catch_block(&mut self) -> Result<CatchBlock> {
+        self.expect_keyword(Keyword::Catch)?;
+        let exception_identifier = if matches!(
+            self.tokens.try_peek()?,
+            Some(Token::Punctuator(Punctuator::OpenParen))
+        ) {
+            self.expect_punctuator(Punctuator::OpenParen)?;
+            let identifier = match self.tokens.try_next()? {
+                Some(Token::Identifier(id)) => Identifier::from(id),
+                token => {
+                    return Err(Error::unexpected(
+                        Exactly(Token::Identifier(non_empty_str!("exception_identifier"))),
+                        token,
+                    ))
+                }
+            };
+            self.expect_punctuator(Punctuator::CloseParen)?;
+            Some(identifier)
+        } else {
+            None
+        };
+        let body = self.parse_block(true)?;
+        Ok(CatchBlock {
+            exception_identifier,
+            body,
+        })
     }
 
     fn parse_fn_parameters(&mut self) -> Result<Vec<Identifier>> {

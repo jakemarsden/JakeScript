@@ -59,6 +59,7 @@ pub enum Statement {
     Print(PrintStatement),
     Return(ReturnStatement),
     Throw(ThrowStatement),
+    Try(TryStatement),
     ForLoop(ForLoop),
     WhileLoop(WhileLoop),
 }
@@ -157,6 +158,22 @@ pub struct ThrowStatement {
 }
 
 impl Node for ThrowStatement {}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct TryStatement {
+    pub body: Block,
+    pub catch_block: Option<CatchBlock>,
+}
+
+impl Node for TryStatement {}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CatchBlock {
+    pub exception_identifier: Option<Identifier>,
+    pub body: Block,
+}
+
+impl Node for CatchBlock {}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FunctionDeclaration {

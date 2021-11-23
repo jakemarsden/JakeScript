@@ -1,11 +1,12 @@
 use crate::ast::{
     AssertStatement, AssignmentExpression, AssignmentOperator, Associativity, BinaryExpression,
-    BinaryOperator, Block, BreakStatement, ComputedPropertyAccessExpression, ContinueStatement,
-    DeclarationStatement, ExitStatement, Expression, ForLoop, FunctionCallExpression,
-    FunctionDeclaration, GroupingExpression, Identifier, IfStatement, Literal, LiteralExpression,
-    Node, Op, PrintStatement, Program, PropertyAccessExpression, ReturnStatement, Statement,
-    TernaryExpression, ThrowStatement, UnaryExpression, UnaryOperator, VariableAccessExpression,
-    VariableDeclaration, VariableDeclarationKind, WhileLoop,
+    BinaryOperator, Block, BreakStatement, CatchBlock, ComputedPropertyAccessExpression,
+    ContinueStatement, DeclarationStatement, ExitStatement, Expression, ForLoop,
+    FunctionCallExpression, FunctionDeclaration, GroupingExpression, Identifier, IfStatement,
+    Literal, LiteralExpression, Node, Op, PrintStatement, Program, PropertyAccessExpression,
+    ReturnStatement, Statement, TernaryExpression, ThrowStatement, TryStatement, UnaryExpression,
+    UnaryOperator, VariableAccessExpression, VariableDeclaration, VariableDeclarationKind,
+    WhileLoop,
 };
 use std::assert_matches::assert_matches;
 use std::hint::unreachable_unchecked;
@@ -91,6 +92,7 @@ impl Eval for Statement {
             Self::Print(node) => node.eval(it),
             Self::Return(node) => node.eval(it),
             Self::Throw(node) => node.eval(it),
+            Self::Try(node) => node.eval(it),
             Self::ForLoop(node) => node.eval(it),
             Self::WhileLoop(node) => node.eval(it),
         }
@@ -269,6 +271,44 @@ impl Eval for ThrowStatement {
         let ex = self.exception.eval(it)?;
         it.vm_mut()
             .set_execution_state(ExecutionState::Exception(ex));
+        Ok(())
+    }
+}
+
+impl Eval for TryStatement {
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
+        self.body.eval(it)?;
+        if let Some(ref catch) = self.catch_block {
+            if matches!(it.vm().execution_state(), ExecutionState::Exception(..)) {
+                catch.eval(it)?;
+            }
+        }
+        Ok(())
+    }
+}
+
+impl Eval for CatchBlock {
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
+        let exception = match it.vm_mut().reset_execution_state() {
+            ExecutionState::Exception(ex) => ex,
+            _ => unreachable!(),
+        };
+        if let Some(ref exception_var_name) = self.exception_identifier {
+            let exception_var = Variable::new(
+                VariableDeclarationKind::Let,
+                exception_var_name.clone(),
+                exception,
+            );
+            let scope_ctx = ScopeCtx::new(vec![exception_var]);
+            it.vm_mut()
+                .stack_mut()
+                .frame_mut()
+                .push_scope(scope_ctx, false);
+        }
+        self.body.eval(it)?;
+        if self.exception_identifier.is_some() {
+            it.vm_mut().stack_mut().frame_mut().pop_scope();
+        }
         Ok(())
     }
 }
