@@ -5,9 +5,9 @@ use crate::ast::{
     Expression, ForLoop, FunctionCallExpression, FunctionCallOperator, FunctionDeclaration,
     GroupingExpression, GroupingOperator, Identifier, IfStatement, LiteralExpression, Op, Operator,
     Precedence, PrintStatement, Program, PropertyAccessExpression, PropertyAccessOperator,
-    ReturnStatement, Statement, TernaryExpression, TernaryOperator, UnaryExpression, UnaryOperator,
-    VariableAccessExpression, VariableDeclaration, VariableDeclarationEntry,
-    VariableDeclarationKind, WhileLoop,
+    ReturnStatement, Statement, TernaryExpression, TernaryOperator, ThrowStatement,
+    UnaryExpression, UnaryOperator, VariableAccessExpression, VariableDeclaration,
+    VariableDeclarationEntry, VariableDeclarationKind, WhileLoop,
 };
 use crate::iter::{IntoPeekableNth, PeekableNth};
 use crate::lexer::{
@@ -121,6 +121,9 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
                     }
                     Token::Keyword(Keyword::Return) => {
                         self.parse_return_statement().map(Statement::Return)
+                    }
+                    Token::Keyword(Keyword::Throw) => {
+                        self.parse_throw_statement().map(Statement::Throw)
                     }
                     Token::Keyword(Keyword::Const | Keyword::Let | Keyword::Var) => self
                         .parse_variable_declaration()
@@ -536,6 +539,12 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
             _ => Some(self.parse_expression()?),
         };
         Ok(ReturnStatement { expr })
+    }
+
+    fn parse_throw_statement(&mut self) -> Result<ThrowStatement> {
+        self.expect_keyword(Keyword::Throw)?;
+        let exception = self.parse_expression()?;
+        Ok(ThrowStatement { exception })
     }
 
     fn parse_fn_parameters(&mut self) -> Result<Vec<Identifier>> {

@@ -50,5 +50,6 @@ pub enum ExecutionState {
     Break,
     BreakContinue,
     Return(Value),
+    Exception(Value),
     Exit,
 }

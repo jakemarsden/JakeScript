@@ -58,6 +58,7 @@ pub enum Statement {
     If(IfStatement),
     Print(PrintStatement),
     Return(ReturnStatement),
+    Throw(ThrowStatement),
     ForLoop(ForLoop),
     WhileLoop(WhileLoop),
 }
@@ -149,6 +150,13 @@ pub struct ReturnStatement {
 }
 
 impl Node for ReturnStatement {}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ThrowStatement {
+    pub exception: Expression,
+}
+
+impl Node for ThrowStatement {}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FunctionDeclaration {

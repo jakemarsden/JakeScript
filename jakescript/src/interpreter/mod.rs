@@ -4,10 +4,10 @@ use crate::ast::{
     DeclarationStatement, ExitStatement, Expression, ForLoop, FunctionCallExpression,
     FunctionDeclaration, GroupingExpression, Identifier, IfStatement, Literal, LiteralExpression,
     Node, Op, PrintStatement, Program, PropertyAccessExpression, ReturnStatement, Statement,
-    TernaryExpression, UnaryExpression, UnaryOperator, VariableAccessExpression,
+    TernaryExpression, ThrowStatement, UnaryExpression, UnaryOperator, VariableAccessExpression,
     VariableDeclaration, VariableDeclarationKind, WhileLoop,
 };
-use std::assert_matches::{assert_matches, debug_assert_matches};
+use std::assert_matches::assert_matches;
 use std::hint::unreachable_unchecked;
 
 pub use error::*;
@@ -56,7 +56,9 @@ impl Eval for Block {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let mut result = Value::default();
         for decl in self.hoisted_declarations() {
-            debug_assert_matches!(it.vm().execution_state(), ExecutionState::Advance);
+            if !matches!(it.vm().execution_state(), ExecutionState::Advance) {
+                break;
+            }
             assert!(decl.is_hoisted());
             decl.eval(it)?;
         }
@@ -88,6 +90,7 @@ impl Eval for Statement {
             Self::If(node) => node.eval(it),
             Self::Print(node) => node.eval(it),
             Self::Return(node) => node.eval(it),
+            Self::Throw(node) => node.eval(it),
             Self::ForLoop(node) => node.eval(it),
             Self::WhileLoop(node) => node.eval(it),
         }
@@ -186,7 +189,7 @@ impl Eval for ForLoop {
                     it.vm_mut().reset_execution_state();
                     continue;
                 }
-                ExecutionState::Return(_) | ExecutionState::Exit => {
+                ExecutionState::Return(_) | ExecutionState::Exception(_) | ExecutionState::Exit => {
                     // Exit the loop, but don't reset the execution state just yet so that it can be
                     // handled/cleared by some calling AST node.
                     break;
@@ -222,7 +225,7 @@ impl Eval for WhileLoop {
                     it.vm_mut().reset_execution_state();
                     continue;
                 }
-                ExecutionState::Return(_) | ExecutionState::Exit => {
+                ExecutionState::Return(_) | ExecutionState::Exception(_) | ExecutionState::Exit => {
                     // Exit the loop, but don't reset the execution state just yet so that it can be
                     // handled/cleared by some calling AST node.
                     break;
@@ -257,6 +260,15 @@ impl Eval for ReturnStatement {
         };
         it.vm_mut()
             .set_execution_state(ExecutionState::Return(value));
+        Ok(())
+    }
+}
+
+impl Eval for ThrowStatement {
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
+        let ex = self.exception.eval(it)?;
+        it.vm_mut()
+            .set_execution_state(ExecutionState::Exception(ex));
         Ok(())
     }
 }
