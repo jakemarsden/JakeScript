@@ -1,7 +1,6 @@
 use jakescript::interpreter::{Eval, ExecutionState, Interpreter};
 use jakescript::lexer::{self, Element, Lexer, Punctuator, Token};
 use jakescript::parser::Parser;
-use std::assert_matches::assert_matches;
 use std::{io, mem};
 
 /// Read Evaluate Print Loop (REPL).
@@ -28,12 +27,22 @@ where
 
     pub(crate) fn execute(&mut self, it: &mut Interpreter) -> Result {
         loop {
-            if matches!(it.vm().execution_state(), ExecutionState::Exit) {
-                eprintln!("Exit");
-                self.token_buf.clear();
-                return Result::ExitNormally;
+            match it.vm().execution_state() {
+                ExecutionState::Advance => {}
+                ExecutionState::Break
+                | ExecutionState::BreakContinue
+                | ExecutionState::Return(..) => unreachable!(),
+                ExecutionState::Exception(ex) => {
+                    eprintln!("Exception: {}", ex);
+                    self.token_buf.clear();
+                    return Result::ExitWithRuntimeError;
+                }
+                ExecutionState::Exit => {
+                    eprintln!("Exit");
+                    self.token_buf.clear();
+                    return Result::ExitNormally;
+                }
             }
-            assert_matches!(it.vm().execution_state(), ExecutionState::Advance);
 
             eprint!("> {}", "  ".repeat(self.brace_depth));
             match self.read_next_tokens() {
@@ -115,6 +124,7 @@ where
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub(crate) enum Result {
     ExitNormally,
+    ExitWithRuntimeError,
     EndOfInput,
 }
 
