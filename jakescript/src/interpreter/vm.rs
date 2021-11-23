@@ -30,12 +30,13 @@ impl Vm {
     }
 
     /// If the current execution state is an exception, reset it to [`ExecutionState::Advance`] and
-    /// stash the exception away so it can be [restored][Self::restore_hidden_exception()] later. If
-    /// there is already a hidden exception, the new exception is discarded.
+    /// stash the exception value away so it may be [restored][Self::restore_hidden_exception()]
+    /// later. If an exception has already been hidden, discard the exception value taken from the
+    /// execution state.
     ///
     /// This is useful for allowing `finally` blocks to function properly.
     ///
-    /// ## JavaScript examples
+    /// # JavaScript examples
     ///
     /// ```javascript
     /// try {
@@ -44,12 +45,12 @@ impl Vm {
     ///   throw 1;
     ///
     /// } finally {
-    ///   // 2. The exception `1` in the execution state is "hidden" so that any
+    ///   // 2. The exception `1` in the execution state is hidden so that any
     ///   // statements in the block are _not_ skipped.
     ///
     ///   // 3. At the end of the block, the exception `1` is restored back to
-    ///   // the execution state so that the `try-finally` block still ends with
-    ///   // the VM in an exception condition.
+    ///   // the execution state. The block ends with the VM in an exception
+    ///   // condition (exception `1`).
     /// }
     /// ```
     ///
@@ -60,16 +61,17 @@ impl Vm {
     ///   throw 1;
     ///
     /// } finally {
-    ///   // 2. The exception `1` in the execution state is "hidden" so that any
+    ///   // 2. The exception `1` in the execution state is hidden so that any
     ///   // statements in the block are _not_ skipped.
     ///
     ///   // 3. The exception `2` is set in the execution state, and any further
     ///   // statements in the block are skipped.
     ///   throw 2;
     ///
-    ///   // 4. At the end of the block, the exception `1` is discarded because
-    ///   // the execution state already contains an exception. The block ends
-    ///   // with the VM in an exception condition (exception `2`).
+    ///   // 4. At the end of the block, the exception `1`, which is hidden, is
+    ///   // discarded because the execution state already contains an exception.
+    ///   // The block ends with the VM in an exception condition (exception
+    ///   // `2`).
     /// }
     /// ```
     pub fn hide_current_exception(&mut self) {
@@ -84,8 +86,8 @@ impl Vm {
         }
     }
 
-    /// If an exception was previously [hidden][Self::hide_current_exception()] exception, restore
-    /// it by putting it back into the execution state. If the execution state already contains an
+    /// If an exception was previously [hidden][Self::hide_current_exception()], restore it by
+    /// putting it back into the execution state. If the execution state already contains an
     /// exception, discard the hidden exception.
     pub fn restore_hidden_exception(&mut self) {
         if let Some(exception) = self.hidden_exception.take() {
@@ -96,7 +98,7 @@ impl Vm {
     }
 
     /// Reset the execution state to [`ExecutionState::Advance`] if it contains an exception, and
-    /// also discard any hidden exception.
+    /// discard any hidden exception.
     pub fn clear_exception(&mut self) -> Option<Value> {
         self.hidden_exception.take();
         if matches!(self.execution_state(), ExecutionState::Exception(..)) {
