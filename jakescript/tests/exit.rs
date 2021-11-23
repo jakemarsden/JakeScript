@@ -45,3 +45,24 @@ assert false;
     assert_matches!(report.success_value(), Some(Value::Undefined));
     assert_matches!(report.vm_state(), Some(ExecutionState::Exit));
 }
+
+#[test]
+fn statements_in_loop_after_exit_are_not_reached() {
+    harness::init();
+    let source_code = r#"
+let i = 0;
+while (i < 10) {
+    if (i === 3) {
+        exit;
+    }
+    if (i >= 3) {
+        assert false;
+    }
+    i += 1;
+}
+assert false;
+"#;
+    let report = harness::exec_source_code(source_code);
+    assert_matches!(report.success_value(), Some(Value::Undefined));
+    assert_matches!(report.vm_state(), Some(ExecutionState::Exit));
+}
