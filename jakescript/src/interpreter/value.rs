@@ -1,13 +1,13 @@
 use crate::interpreter::error::NumericOverflowError;
 use crate::interpreter::heap::Reference;
 use crate::interpreter::Interpreter;
-use std::fmt;
 use std::ops::{BitAnd, BitOr, BitXor, Not, Shl};
+use std::{cmp, fmt, num, ops};
 
 #[derive(Clone, Default, Debug)]
 pub enum Value {
     Boolean(bool),
-    Number(i64),
+    Number(Number),
     String(String),
     Reference(Reference),
     Null,
@@ -29,38 +29,38 @@ impl Value {
                 Ok(Value::String(result))
             }
             Value::Reference(_) => todo!("Value::add: {:?} + {:?}", lhs, rhs),
-            _ => numeric_bin_op(it, lhs, rhs, i64::checked_add)
+            _ => numeric_bin_op(it, lhs, rhs, Number::checked_add)
                 .map(Self::Number)
                 .ok_or(NumericOverflowError),
         }
     }
 
     pub fn sub(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Result<Self, NumericOverflowError> {
-        numeric_bin_op(it, lhs, rhs, i64::checked_sub)
+        numeric_bin_op(it, lhs, rhs, Number::checked_sub)
             .map(Self::Number)
             .ok_or(NumericOverflowError)
     }
 
     pub fn mul(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Result<Self, NumericOverflowError> {
-        numeric_bin_op(it, lhs, rhs, i64::checked_mul)
+        numeric_bin_op(it, lhs, rhs, Number::checked_mul)
             .map(Self::Number)
             .ok_or(NumericOverflowError)
     }
 
     pub fn div(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Result<Self, NumericOverflowError> {
-        numeric_bin_op(it, lhs, rhs, i64::checked_div)
+        numeric_bin_op(it, lhs, rhs, Number::checked_div)
             .map(Self::Number)
             .ok_or(NumericOverflowError)
     }
 
     pub fn rem(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Result<Self, NumericOverflowError> {
-        numeric_bin_op(it, lhs, rhs, i64::checked_rem)
+        numeric_bin_op(it, lhs, rhs, Number::checked_rem)
             .map(Self::Number)
             .ok_or(NumericOverflowError)
     }
 
     pub fn pow(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Result<Self, NumericOverflowError> {
-        numeric_bin_op(it, lhs, rhs, checked_pow)
+        numeric_bin_op(it, lhs, rhs, Number::checked_pow)
             .map(Self::Number)
             .ok_or(NumericOverflowError)
     }
@@ -131,23 +131,23 @@ impl Value {
     }
 
     pub fn bitwise_not(it: &mut Interpreter, operand: &Self) -> Self {
-        Self::Number(numeric_uni_op(it, operand, i64::not))
+        Self::Number(numeric_uni_op(it, operand, Number::not))
     }
 
     pub fn bitwise_and(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Self {
-        Self::Number(numeric_bin_op(it, lhs, rhs, i64::bitand))
+        Self::Number(numeric_bin_op(it, lhs, rhs, Number::bitand))
     }
 
     pub fn bitwise_or(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Self {
-        Self::Number(numeric_bin_op(it, lhs, rhs, i64::bitor))
+        Self::Number(numeric_bin_op(it, lhs, rhs, Number::bitor))
     }
 
     pub fn bitwise_xor(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Self {
-        Self::Number(numeric_bin_op(it, lhs, rhs, i64::bitxor))
+        Self::Number(numeric_bin_op(it, lhs, rhs, Number::bitxor))
     }
 
     pub fn bitwise_shl(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Self {
-        Self::Number(numeric_bin_op(it, lhs, rhs, i64::shl))
+        Self::Number(numeric_bin_op(it, lhs, rhs, Number::shl))
     }
 
     /// # Panics
@@ -169,7 +169,7 @@ impl Value {
     }
 
     pub fn neg(it: &mut Interpreter, operand: &Self) -> Result<Self, NumericOverflowError> {
-        numeric_uni_op(it, operand, i64::checked_neg)
+        numeric_uni_op(it, operand, Number::checked_neg)
             .map(Self::Number)
             .ok_or(NumericOverflowError)
     }
@@ -204,14 +204,13 @@ impl Value {
         Self::Number(self.coerce_to_number_impl(it))
     }
 
-    fn coerce_to_number_impl(&self, _it: &mut Interpreter) -> i64 {
+    fn coerce_to_number_impl(&self, _it: &mut Interpreter) -> Number {
         match self {
-            Self::Boolean(true) => 1,
-            Self::Boolean(false) => 0,
+            Self::Boolean(value) => Number::Int(if *value { 1 } else { 0 }),
             Self::Number(value) => *value,
-            Self::String(_) | Self::Reference(_) | Self::Null | Self::Undefined => {
-                todo!("Value::coerce_to_number: {:?}", self)
-            }
+            Self::Null => Number::Int(0),
+            Self::Reference(..) | Self::Undefined => Number::NaN,
+            Self::String(..) => todo!("Value::coerce_to_number: {:?}", self),
         }
     }
 
@@ -247,6 +246,167 @@ impl fmt::Display for Value {
     }
 }
 
+#[derive(Copy, Clone, Debug)]
+pub enum Number {
+    Int(i64),
+    NaN,
+}
+
+impl fmt::Display for Number {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Int(value) => write!(f, "{}", value),
+            Self::NaN => f.write_str("NaN"),
+        }
+    }
+}
+
+impl Number {
+    pub fn checked_neg(self) -> Option<Self> {
+        self.checked_unary_op(i64::checked_neg)
+    }
+
+    pub fn checked_add(self, rhs: Self) -> Option<Self> {
+        self.checked_binary_op(rhs, i64::checked_add)
+    }
+
+    pub fn checked_sub(self, rhs: Self) -> Option<Self> {
+        self.checked_binary_op(rhs, i64::checked_sub)
+    }
+
+    pub fn checked_mul(self, rhs: Self) -> Option<Self> {
+        self.checked_binary_op(rhs, i64::checked_mul)
+    }
+
+    pub fn checked_div(self, rhs: Self) -> Option<Self> {
+        self.checked_binary_op(rhs, i64::checked_div)
+    }
+
+    pub fn checked_rem(self, rhs: Self) -> Option<Self> {
+        self.checked_binary_op(rhs, i64::checked_rem)
+    }
+
+    pub fn checked_pow(self, rhs: Self) -> Option<Self> {
+        self.checked_binary_op(rhs, checked_pow)
+    }
+
+    #[inline]
+    fn unary_op(self, f: fn(i64) -> i64) -> Self {
+        match self {
+            Self::Int(operand) => Self::Int(f(operand)),
+            Self::NaN => Self::NaN,
+        }
+    }
+
+    #[inline]
+    fn binary_op(self, rhs: Self, f: fn(i64, i64) -> i64) -> Self {
+        match (self, rhs) {
+            (Self::Int(lhs), Self::Int(rhs)) => Self::Int(f(lhs, rhs)),
+            (Self::NaN, _) | (_, Self::NaN) => Self::NaN,
+        }
+    }
+
+    #[inline]
+    fn checked_unary_op(self, f: fn(i64) -> Option<i64>) -> Option<Self> {
+        match self {
+            Self::Int(operand) => f(operand).map(Self::Int),
+            Self::NaN => Some(Self::NaN),
+        }
+    }
+
+    #[inline]
+    fn checked_binary_op(self, rhs: Self, f: fn(i64, i64) -> Option<i64>) -> Option<Self> {
+        match (self, rhs) {
+            (Self::Int(lhs), Self::Int(rhs)) => f(lhs, rhs).map(Self::Int),
+            (Self::NaN, _) | (_, Self::NaN) => Some(Self::NaN),
+        }
+    }
+}
+
+impl ops::Not for Number {
+    type Output = Self;
+
+    fn not(self) -> Self::Output {
+        self.unary_op(i64::not)
+    }
+}
+
+impl ops::BitAnd for Number {
+    type Output = Self;
+
+    fn bitand(self, rhs: Self) -> Self::Output {
+        self.binary_op(rhs, i64::bitand)
+    }
+}
+
+impl ops::BitOr for Number {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        self.binary_op(rhs, i64::bitor)
+    }
+}
+
+impl ops::BitXor for Number {
+    type Output = Self;
+
+    fn bitxor(self, rhs: Self) -> Self::Output {
+        self.binary_op(rhs, i64::bitxor)
+    }
+}
+
+impl cmp::PartialEq for Number {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Int(lhs), Self::Int(rhs)) => lhs == rhs,
+            (Self::NaN, _) | (_, Self::NaN) => false,
+        }
+    }
+}
+
+impl ops::Shl for Number {
+    type Output = Self;
+
+    fn shl(self, rhs: Self) -> Self::Output {
+        self.binary_op(rhs, i64::shl)
+    }
+}
+
+impl cmp::PartialEq<i64> for Number {
+    fn eq(&self, other: &i64) -> bool {
+        match self {
+            Self::Int(lhs) => lhs == other,
+            Self::NaN => false,
+        }
+    }
+}
+
+impl cmp::PartialOrd for Number {
+    fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
+        match (self, other) {
+            (Self::Int(lhs), Self::Int(rhs)) => Some(i64::cmp(lhs, rhs)),
+            (Self::NaN, _) | (_, Self::NaN) => None,
+        }
+    }
+}
+
+impl cmp::PartialOrd<i64> for Number {
+    fn partial_cmp(&self, other: &i64) -> Option<cmp::Ordering> {
+        match self {
+            Self::Int(lhs) => Some(i64::cmp(lhs, other)),
+            Self::NaN => None,
+        }
+    }
+}
+
+impl TryFrom<u64> for Number {
+    type Error = num::TryFromIntError;
+
+    fn try_from(value: u64) -> Result<Self, Self::Error> {
+        i64::try_from(value).map(Self::Int)
+    }
+}
+
 // cast_precision_loss, cast_possible_truncation: TODO: Handle floating-point properly
 #[allow(clippy::cast_precision_loss)]
 #[allow(clippy::cast_possible_truncation)]
@@ -259,13 +419,13 @@ fn checked_pow(lhs: i64, rhs: i64) -> Option<i64> {
 }
 
 #[inline]
-fn boolean_uni_op<R>(it: &mut Interpreter, operand: &Value, op: impl FnOnce(bool) -> R) -> R {
+fn boolean_uni_op<R>(it: &mut Interpreter, operand: &Value, op: fn(bool) -> R) -> R {
     let operand = operand.coerce_to_boolean_impl(it);
     op(operand)
 }
 
 #[inline]
-fn numeric_uni_op<R>(it: &mut Interpreter, operand: &Value, op: impl FnOnce(i64) -> R) -> R {
+fn numeric_uni_op<R>(it: &mut Interpreter, operand: &Value, op: fn(Number) -> R) -> R {
     let operand = operand.coerce_to_number_impl(it);
     op(operand)
 }
@@ -275,7 +435,7 @@ fn numeric_bin_op<R>(
     it: &mut Interpreter,
     lhs: &Value,
     rhs: &Value,
-    op: impl FnOnce(i64, i64) -> R,
+    op: fn(Number, Number) -> R,
 ) -> R {
     let lhs = lhs.coerce_to_number_impl(it);
     let rhs = rhs.coerce_to_number_impl(it);

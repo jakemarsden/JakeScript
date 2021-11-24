@@ -526,7 +526,7 @@ impl Eval for UnaryExpression {
                     it: &mut Interpreter,
                     getter: impl FnOnce() -> Result,
                 ) -> Result<(Value, Value)> {
-                    const ONE: Value = Value::Number(1);
+                    const ONE: Value = Value::Number(Number::Int(1));
                     let old_value = getter()?;
 
                     // The new value to assign to the variable or property
@@ -624,7 +624,7 @@ impl Eval for LiteralExpression {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         Ok(match self.value {
             Literal::Boolean(ref value) => Value::Boolean(*value),
-            Literal::Numeric(ref value) => Value::Number(i64::try_from(*value).unwrap()),
+            Literal::Numeric(ref value) => Value::Number(Number::try_from(*value).unwrap()),
             Literal::String(ref value) => Value::String(value.clone()),
             Literal::Array(ref elem_exprs) => {
                 let mut elems = Vec::with_capacity(elem_exprs.len());
@@ -737,7 +737,7 @@ impl Eval for ComputedPropertyAccessExpression {
         };
         let property_value = self.property.eval(it)?;
         let property = match property_value {
-            Value::Number(n) => Identifier::from(n),
+            Value::Number(Number::Int(n)) => Identifier::from(n),
             property => todo!("ComputedPropertyExpression::eval: property={:?}", property),
         };
         Ok(base_obj.property(&property).cloned().unwrap_or_default())

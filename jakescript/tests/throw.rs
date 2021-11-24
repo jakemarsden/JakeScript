@@ -2,7 +2,7 @@
 #![feature(process_exitcode_placeholder)]
 #![feature(termination_trait_lib)]
 
-use jakescript::interpreter::{ExecutionState, Value};
+use jakescript::interpreter::{ExecutionState, Number, Value};
 use std::assert_matches::assert_matches;
 
 pub mod harness;
@@ -19,7 +19,7 @@ throw 42;
     assert_matches!(report.success_value(), Some(Value::Undefined));
     assert_matches!(
         report.vm_state(),
-        Some(ExecutionState::Exception(Value::Number(42)))
+        Some(ExecutionState::Exception(Value::Number(Number::Int(42))))
     );
 }
 
@@ -35,7 +35,7 @@ throw a;
     assert_matches!(report.success_value(), Some(Value::Undefined));
     assert_matches!(
         report.vm_state(),
-        Some(ExecutionState::Exception(Value::Number(3)))
+        Some(ExecutionState::Exception(Value::Number(Number::Int(3))))
     );
 }
 
@@ -68,7 +68,7 @@ assert false;
     assert_matches!(report.success_value(), Some(Value::Undefined));
     assert_matches!(
         report.vm_state(),
-        Some(ExecutionState::Exception(Value::Number(42)))
+        Some(ExecutionState::Exception(Value::Number(Number::Int(42))))
     );
 }
 
@@ -90,6 +90,6 @@ assert false;
     assert_matches!(report.success_value(), Some(Value::Undefined));
     assert_matches!(
         report.vm_state(),
-        Some(ExecutionState::Exception(Value::Number(3)))
+        Some(ExecutionState::Exception(Value::Number(Number::Int(3))))
     );
 }
