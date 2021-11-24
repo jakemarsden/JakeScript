@@ -149,6 +149,7 @@ pub enum NumericLiteral {
     DecInt(u64),
     HexInt(u64),
     Decimal(f64),
+    NaN,
 }
 
 impl fmt::Display for NumericLiteral {
@@ -159,6 +160,7 @@ impl fmt::Display for NumericLiteral {
             Self::DecInt(value) => write!(f, "{}", value),
             Self::HexInt(value) => write!(f, "{:#x}", value),
             Self::Decimal(value) => write!(f, "{}", value),
+            Self::NaN => f.write_str("NaN"),
         }
     }
 }

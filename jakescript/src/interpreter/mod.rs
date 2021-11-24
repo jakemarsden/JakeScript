@@ -3,10 +3,10 @@ use crate::ast::{
     BinaryOperator, Block, BreakStatement, CatchBlock, ComputedPropertyAccessExpression,
     ContinueStatement, DeclarationStatement, ExitStatement, Expression, FinallyBlock, ForLoop,
     FunctionCallExpression, FunctionDeclaration, GroupingExpression, Identifier, IfStatement,
-    Literal, LiteralExpression, Node, Op, PrintStatement, Program, PropertyAccessExpression,
-    ReturnStatement, Statement, TernaryExpression, ThrowStatement, TryStatement, UnaryExpression,
-    UnaryOperator, VariableAccessExpression, VariableDeclaration, VariableDeclarationKind,
-    WhileLoop,
+    Literal, LiteralExpression, Node, NumericLiteral, Op, PrintStatement, Program,
+    PropertyAccessExpression, ReturnStatement, Statement, TernaryExpression, ThrowStatement,
+    TryStatement, UnaryExpression, UnaryOperator, VariableAccessExpression, VariableDeclaration,
+    VariableDeclarationKind, WhileLoop,
 };
 use std::assert_matches::assert_matches;
 use std::hint::unreachable_unchecked;
@@ -621,7 +621,10 @@ impl Eval for LiteralExpression {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         Ok(match self.value {
             Literal::Boolean(ref value) => Value::Boolean(*value),
-            Literal::Numeric(ref value) => Value::Number(Number::try_from(*value).unwrap()),
+            Literal::Numeric(NumericLiteral::Int(ref value)) => {
+                Value::Number(Number::try_from(*value).unwrap())
+            }
+            Literal::Numeric(NumericLiteral::NaN) => Value::Number(Number::NaN),
             Literal::String(ref value) => Value::String(value.clone()),
             Literal::Array(ref elem_exprs) => {
                 let mut elems = Vec::with_capacity(elem_exprs.len());

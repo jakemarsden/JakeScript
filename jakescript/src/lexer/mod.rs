@@ -121,6 +121,11 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
     }
 
     fn parse_numeric_literal(&mut self) -> Result<Option<NumericLiteral>> {
+        if self.0.try_consume_str("NaN")? {
+            // TODO: Check what chars follow, e.g. this could be an identifier which happens to
+            //  start with "NaN"!
+            return Ok(Some(NumericLiteral::NaN));
+        }
         let value = if let Some(value) = self.parse_non_decimal_int_literal()? {
             Some(value)
         } else {

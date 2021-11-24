@@ -363,9 +363,7 @@ impl fmt::Display for Identifier {
 #[serde(tag = "kind", content = "value")]
 pub enum Literal {
     Boolean(bool),
-    /// Numeric literal tokens are **always unsigned** (but can be made negative at runtime with the
-    /// negation unary operator).
-    Numeric(u64),
+    Numeric(NumericLiteral),
     // TODO: Store string literals in the constant pool.
     String(String),
     Array(Vec<Expression>),
@@ -378,6 +376,14 @@ pub enum Literal {
     Null,
     #[default]
     Undefined,
+}
+
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+pub enum NumericLiteral {
+    /// Numeric literal tokens are **always unsigned** (but can be made negative at runtime with the
+    /// negation unary operator).
+    Int(u64),
+    NaN,
 }
 
 pub trait Op: Copy + Eq + fmt::Debug {

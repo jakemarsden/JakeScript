@@ -11,3 +11,7 @@ assert 0o52 === 42;
 assert 0O52 === 42;
 assert 0x2A === 42;
 assert 0X2A === 42;
+
+assert NaN !== 0;
+assert NaN !== 1;
+assert NaN !== NaN;

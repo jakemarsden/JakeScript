@@ -11,7 +11,7 @@ use crate::ast::{
 };
 use crate::iter::{IntoPeekableNth, PeekableNth};
 use crate::lexer::{
-    self, Keyword, Lexer, NumericLiteral, Punctuator, StringLiteral, Token, Tokens,
+    self, Keyword, Lexer, Literal, NumericLiteral, Punctuator, StringLiteral, Token, Tokens,
 };
 use crate::non_empty_str;
 use crate::str::NonEmptyString;
@@ -212,25 +212,28 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
             }
             Some(Token::Literal(literal)) => Expression::Literal(LiteralExpression {
                 value: match literal {
-                    lexer::Literal::Boolean(value) => ast::Literal::Boolean(value),
-                    lexer::Literal::Numeric(
+                    Literal::Boolean(value) => ast::Literal::Boolean(value),
+                    Literal::Numeric(
                         NumericLiteral::BinInt(value)
                         | NumericLiteral::OctInt(value)
                         | NumericLiteral::DecInt(value)
                         | NumericLiteral::HexInt(value),
-                    ) => ast::Literal::Numeric(value),
-                    lexer::Literal::Numeric(NumericLiteral::Decimal(value)) => {
+                    ) => ast::Literal::Numeric(ast::NumericLiteral::Int(value)),
+                    Literal::Numeric(NumericLiteral::Decimal(value)) => {
                         todo!("NumericLiteral::Decimal: {}", value)
                     }
-                    lexer::Literal::String(
+                    Literal::Numeric(NumericLiteral::NaN) => {
+                        ast::Literal::Numeric(ast::NumericLiteral::NaN)
+                    }
+                    Literal::String(
                         StringLiteral::SingleQuoted(value) | StringLiteral::DoubleQuoted(value),
                     ) => ast::Literal::String(value),
-                    lexer::Literal::RegEx(_) => {
+                    Literal::RegEx(_) => {
                         // FIXME: Support Literal::RegEx properly
                         ast::Literal::Undefined
                     }
-                    lexer::Literal::Null => ast::Literal::Null,
-                    lexer::Literal::Undefined => ast::Literal::Undefined,
+                    Literal::Null => ast::Literal::Null,
+                    Literal::Undefined => ast::Literal::Undefined,
                 },
             }),
             Some(Token::Keyword(Keyword::Function)) => {
@@ -856,7 +859,7 @@ impl TryParse for ComputedPropertyAccessOperator {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::lexer::{Keyword, Literal, Punctuator, Token};
+    use crate::lexer::{Keyword, Literal, NumericLiteral, Punctuator, Token};
     use crate::parser::error::ErrorKind::{UnexpectedEoi, UnexpectedToken};
     use std::assert_matches::assert_matches;
 
