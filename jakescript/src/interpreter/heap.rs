@@ -132,13 +132,6 @@ impl Object {
     /// # Panics
     ///
     /// Always panics.
-    pub fn js_equals(&self, other: &Object) -> bool {
-        todo!("Object::js_equals: {:?} == {:?}", self, other)
-    }
-
-    /// # Panics
-    ///
-    /// Always panics.
     pub fn js_to_string(&self) -> String {
         todo!("Object::js_to_string: {:?}", self)
     }
