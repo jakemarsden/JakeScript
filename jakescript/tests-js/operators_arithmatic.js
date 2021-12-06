@@ -1,8 +1,13 @@
 assert 20 + 10 === 30;
 assert 20 - 10 === 10;
 assert 20 * 10 === 200;
+assert 0 / 10 === 0;
 assert 20 / 10 === 2;
+assert 0 % 7 === 0;
+assert 14 % 7 === 0;
 assert 20 % 7 === 6;
+assert 20 ** 0 === 1;
+assert 20 ** 1 === 20;
 assert 20 ** 3 === 8000;
 
 let counter = 0;
