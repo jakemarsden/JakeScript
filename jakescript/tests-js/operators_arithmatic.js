@@ -10,6 +10,11 @@ assert 20 ** 0 === 1;
 assert 20 ** 1 === 20;
 assert 20 ** 3 === 8000;
 
+// TODO: Implement built-in `isNaN()` global function, and use to assert
+0 / 0;
+0 % 0;
+20 % 0;
+
 let counter = 0;
 
 function assertFirst(n) {

@@ -256,6 +256,14 @@ pub enum Number {
 }
 
 impl Number {
+    #[inline]
+    fn is_zero(self) -> bool {
+        match self {
+            Self::Int(value) => value == 0,
+            Self::NaN => false,
+        }
+    }
+
     pub fn checked_neg(self) -> Option<Self> {
         self.checked_unary_op(i64::checked_neg)
     }
@@ -273,11 +281,19 @@ impl Number {
     }
 
     pub fn checked_div(self, rhs: Self) -> Option<Self> {
-        self.checked_binary_op(rhs, i64::checked_div)
+        if rhs.is_zero() {
+            Some(Self::NaN)
+        } else {
+            self.checked_binary_op(rhs, i64::checked_div)
+        }
     }
 
     pub fn checked_rem(self, rhs: Self) -> Option<Self> {
-        self.checked_binary_op(rhs, i64::checked_rem)
+        if rhs.is_zero() {
+            Some(Self::NaN)
+        } else {
+            self.checked_binary_op(rhs, i64::checked_rem)
+        }
     }
 
     pub fn checked_pow(self, rhs: Self) -> Option<Self> {
