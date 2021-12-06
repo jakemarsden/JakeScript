@@ -111,7 +111,7 @@ impl Eval for DeclarationStatement {
 impl Eval for AssertStatement {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let value = self.condition.eval(it)?;
-        if value.is_truthy(it) {
+        if value.is_truthy() {
             Ok(())
         } else {
             Err(AssertionFailedError::new(self.condition.clone(), value).into())
@@ -143,7 +143,7 @@ impl Eval for PrintStatement {
 impl Eval for IfStatement {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let condition = self.condition.eval(it)?;
-        if condition.is_truthy(it) {
+        if condition.is_truthy() {
             it.vm_mut().stack_mut().frame_mut().push_empty_scope();
             self.success_block.eval(it)?;
             it.vm_mut().stack_mut().frame_mut().pop_scope();
@@ -165,7 +165,7 @@ impl Eval for ForLoop {
         loop {
             if let Some(ref condition) = self.condition {
                 let condition = condition.eval(it)?;
-                if condition.is_falsy(it) {
+                if condition.is_falsy() {
                     break;
                 }
             }
@@ -206,7 +206,7 @@ impl Eval for WhileLoop {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         loop {
             let condition = self.condition.eval(it)?;
-            if condition.is_falsy(it) {
+            if condition.is_falsy() {
                 break;
             }
 
@@ -391,12 +391,12 @@ impl Eval for AssignmentExpression {
             let rhs = self_.rhs.eval(it)?;
             Ok(match self_.op {
                 AssignmentOperator::Assign => rhs,
-                AssignmentOperator::AddAssign => Value::add(it, &getter()?, &rhs)?,
-                AssignmentOperator::SubAssign => Value::sub(it, &getter()?, &rhs)?,
-                AssignmentOperator::MulAssign => Value::mul(it, &getter()?, &rhs)?,
-                AssignmentOperator::DivAssign => Value::div(it, &getter()?, &rhs)?,
-                AssignmentOperator::ModAssign => Value::rem(it, &getter()?, &rhs)?,
-                AssignmentOperator::PowAssign => Value::pow(it, &getter()?, &rhs)?,
+                AssignmentOperator::AddAssign => Value::add_or_append(it, &getter()?, &rhs)?,
+                AssignmentOperator::SubAssign => Value::sub(&getter()?, &rhs)?,
+                AssignmentOperator::MulAssign => Value::mul(&getter()?, &rhs)?,
+                AssignmentOperator::DivAssign => Value::div(&getter()?, &rhs)?,
+                AssignmentOperator::ModAssign => Value::rem(&getter()?, &rhs)?,
+                AssignmentOperator::PowAssign => Value::pow(&getter()?, &rhs)?,
                 kind => todo!("AssignmentExpression::eval: kind={:?}", kind),
             })
         }
@@ -446,14 +446,14 @@ impl Eval for BinaryExpression {
             BinaryOperator::LogicalAnd => {
                 assert_matches!(self.op.associativity(), Associativity::LeftToRight);
                 match self.lhs.eval(it)? {
-                    lhs if lhs.is_truthy(it) => self.rhs.eval(it)?,
+                    lhs if lhs.is_truthy() => self.rhs.eval(it)?,
                     lhs => lhs,
                 }
             }
             BinaryOperator::LogicalOr => {
                 assert_matches!(self.op.associativity(), Associativity::LeftToRight);
                 match self.lhs.eval(it)? {
-                    lhs if lhs.is_falsy(it) => self.rhs.eval(it)?,
+                    lhs if lhs.is_falsy() => self.rhs.eval(it)?,
                     lhs => lhs,
                 }
             }
@@ -478,12 +478,12 @@ impl Eval for BinaryExpression {
                         unreachable_unchecked()
                     },
 
-                    BinaryOperator::Add => Value::add(it, lhs, rhs)?,
-                    BinaryOperator::Div => Value::div(it, lhs, rhs)?,
-                    BinaryOperator::Mod => Value::rem(it, lhs, rhs)?,
-                    BinaryOperator::Mul => Value::mul(it, lhs, rhs)?,
-                    BinaryOperator::Pow => Value::pow(it, lhs, rhs)?,
-                    BinaryOperator::Sub => Value::sub(it, lhs, rhs)?,
+                    BinaryOperator::Add => Value::add_or_append(it, lhs, rhs)?,
+                    BinaryOperator::Div => Value::div(lhs, rhs)?,
+                    BinaryOperator::Mod => Value::rem(lhs, rhs)?,
+                    BinaryOperator::Mul => Value::mul(lhs, rhs)?,
+                    BinaryOperator::Pow => Value::pow(lhs, rhs)?,
+                    BinaryOperator::Sub => Value::sub(lhs, rhs)?,
 
                     BinaryOperator::Equal => Value::eq(it, lhs, rhs),
                     BinaryOperator::NotEqual => Value::ne(it, lhs, rhs),
@@ -495,13 +495,13 @@ impl Eval for BinaryExpression {
                     BinaryOperator::MoreThan => Value::gt(it, lhs, rhs),
                     BinaryOperator::MoreThanOrEqual => Value::ge(it, lhs, rhs),
 
-                    BinaryOperator::ShiftLeft => Value::bitwise_shl(it, lhs, rhs),
-                    BinaryOperator::ShiftRight => Value::bitwise_shr(it, lhs, rhs),
-                    BinaryOperator::ShiftRightUnsigned => Value::bitwise_shrr(it, lhs, rhs),
+                    BinaryOperator::ShiftLeft => Value::shl(lhs, rhs),
+                    BinaryOperator::ShiftRight => Value::shr_signed(lhs, rhs),
+                    BinaryOperator::ShiftRightUnsigned => Value::shr_unsigned(lhs, rhs),
 
-                    BinaryOperator::BitwiseAnd => Value::bitwise_and(it, lhs, rhs),
-                    BinaryOperator::BitwiseOr => Value::bitwise_or(it, lhs, rhs),
-                    BinaryOperator::BitwiseXOr => Value::bitwise_xor(it, lhs, rhs),
+                    BinaryOperator::BitwiseAnd => Value::bitand(lhs, rhs),
+                    BinaryOperator::BitwiseOr => Value::bitor(lhs, rhs),
+                    BinaryOperator::BitwiseXOr => Value::bitxor(lhs, rhs),
                 }
             }
         })
@@ -529,10 +529,10 @@ impl Eval for UnaryExpression {
                     // The new value to assign to the variable or property
                     let new_value = match self_.op {
                         UnaryOperator::IncrementPrefix | UnaryOperator::IncrementPostfix => {
-                            Value::add(it, &old_value, &ONE)?
+                            Value::add_or_append(it, &old_value, &ONE)?
                         }
                         UnaryOperator::DecrementPrefix | UnaryOperator::DecrementPostfix => {
-                            Value::sub(it, &old_value, &ONE)?
+                            Value::sub(&old_value, &ONE)?
                         }
                         _ => unreachable!("{:?}", self_.op),
                     };
@@ -586,10 +586,10 @@ impl Eval for UnaryExpression {
                 }
             }
 
-            UnaryOperator::BitwiseNot => Value::bitwise_not(it, operand),
-            UnaryOperator::LogicalNot => Value::not(it, operand),
-            UnaryOperator::NumericNegate => Value::neg(it, operand)?,
-            UnaryOperator::NumericPlus => Value::plus(it, operand),
+            UnaryOperator::BitwiseNot => Value::bitnot(operand),
+            UnaryOperator::LogicalNot => Value::not(operand),
+            UnaryOperator::NumericNegate => Value::neg(operand)?,
+            UnaryOperator::NumericPlus => Value::plus(operand),
         })
     }
 }
@@ -599,7 +599,7 @@ impl Eval for TernaryExpression {
 
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let condition = self.condition.eval(it)?;
-        if condition.is_truthy(it) {
+        if condition.is_truthy() {
             self.lhs.eval(it)
         } else {
             self.rhs.eval(it)
