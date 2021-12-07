@@ -16,8 +16,18 @@ assert 0X2a === 42;
 assert 0x2A === 42;
 assert 0X2A === 42;
 
+assert Infinity !== 0;
+assert Infinity !== 1;
+assert Infinity !== 42;
+assert Infinity === Infinity;
+assert Infinity !== -Infinity;
+assert -Infinity === -Infinity;
+assert Infinity !== undefined;
+
 assert NaN !== 0;
 assert NaN !== 1;
 assert NaN !== 42;
+assert NaN !== Infinity;
+assert NaN !== -Infinity;
 assert NaN !== NaN;
 assert NaN !== undefined;

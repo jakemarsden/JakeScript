@@ -121,6 +121,11 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
     }
 
     fn parse_numeric_literal(&mut self) -> Result<Option<NumericLiteral>> {
+        if self.0.try_consume_str("Infinity")? {
+            // TODO: Check what chars follow, e.g. this could be an identifier which happens to
+            //  start with "Infinity"!
+            return Ok(Some(NumericLiteral::Infinity));
+        }
         if self.0.try_consume_str("NaN")? {
             // TODO: Check what chars follow, e.g. this could be an identifier which happens to
             //  start with "NaN"!

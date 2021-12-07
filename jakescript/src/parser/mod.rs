@@ -222,6 +222,9 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
                     Literal::Numeric(NumericLiteral::Decimal(value)) => {
                         todo!("NumericLiteral::Decimal: {}", value)
                     }
+                    Literal::Numeric(NumericLiteral::Infinity) => {
+                        ast::Literal::Numeric(ast::NumericLiteral::Infinity)
+                    }
                     Literal::Numeric(NumericLiteral::NaN) => {
                         ast::Literal::Numeric(ast::NumericLiteral::NaN)
                     }

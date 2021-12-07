@@ -124,6 +124,7 @@ pub enum Literal {
     String(StringLiteral),
     RegEx(RegExLiteral),
     Null,
+    // TODO: Should be a property of the VM's global object at runtime, not a literal.
     Undefined,
 }
 
@@ -149,6 +150,9 @@ pub enum NumericLiteral {
     DecInt(u64),
     HexInt(u64),
     Decimal(f64),
+    // TODO: Should be a property of the VM's global object at runtime, not a literal.
+    Infinity,
+    // TODO: Should be a property of the VM's global object at runtime, not a literal.
     NaN,
 }
 
@@ -160,6 +164,7 @@ impl fmt::Display for NumericLiteral {
             Self::DecInt(value) => write!(f, "{}", value),
             Self::HexInt(value) => write!(f, "{:#x}", value),
             Self::Decimal(value) => write!(f, "{}", value),
+            Self::Infinity => f.write_str("Infinity"),
             Self::NaN => f.write_str("NaN"),
         }
     }

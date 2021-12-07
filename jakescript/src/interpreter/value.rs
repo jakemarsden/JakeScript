@@ -169,6 +169,7 @@ impl Value {
             Self::Boolean(value) => *value,
             Self::Number(value) => match value {
                 Number::Int(value) => *value != 0,
+                Number::Inf(_) => true,
                 Number::NaN => false,
             },
             Self::String(value) => !value.is_empty(),
@@ -252,102 +253,173 @@ impl fmt::Display for Value {
 #[derive(Copy, Clone, Debug)]
 pub enum Number {
     Int(i64),
+    Inf(Sign),
     NaN,
 }
 
-impl Number {
-    #[inline]
-    fn is_zero(self) -> bool {
-        match self {
-            Self::Int(value) => value == 0,
-            Self::NaN => false,
+#[derive(Copy, Clone, Default, Eq, PartialEq, Debug)]
+pub enum Sign {
+    #[default]
+    Pos,
+    Neg,
+}
+
+impl Sign {
+    pub fn of(n: i64) -> Self {
+        if n >= 0 {
+            Self::Pos
+        } else {
+            Self::Neg
         }
     }
+}
 
+impl ops::Neg for Sign {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        match self {
+            Self::Pos => Self::Neg,
+            Self::Neg => Self::Pos,
+        }
+    }
+}
+
+impl ops::Mul for Sign {
+    type Output = Self;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        match (self, rhs) {
+            (Self::Pos, Self::Pos) | (Self::Neg, Self::Neg) => Self::Pos,
+            (Self::Pos, Self::Neg) | (Self::Neg, Self::Pos) => Self::Neg,
+        }
+    }
+}
+
+impl cmp::Ord for Sign {
+    fn cmp(&self, other: &Self) -> cmp::Ordering {
+        match (self, other) {
+            (Self::Pos, Self::Pos) | (Self::Neg, Self::Neg) => cmp::Ordering::Equal,
+            (Self::Pos, Self::Neg) => cmp::Ordering::Greater,
+            (Self::Neg, Self::Pos) => cmp::Ordering::Less,
+        }
+    }
+}
+
+impl PartialOrd<Self> for Sign {
+    fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Number {
     pub fn checked_neg(self) -> Option<Self> {
-        self.checked_unary_op(i64::checked_neg)
+        Some(match self {
+            Self::Int(value) => Self::Int(value.checked_neg()?),
+            Self::Inf(sign) => Self::Inf(-sign),
+            Self::NaN => Self::NaN,
+        })
     }
 
     pub fn checked_add(self, rhs: Self) -> Option<Self> {
-        self.checked_binary_op(rhs, i64::checked_add)
+        Some(match (self, rhs) {
+            (Self::Int(lhs), Self::Int(rhs)) => Self::Int(i64::checked_add(lhs, rhs)?),
+            (Self::Int(_), Self::Inf(sign)) | (Self::Inf(sign), Self::Int(_)) => Self::Inf(sign),
+            (Self::Inf(lhs_sign), Self::Inf(rhs_sign)) => {
+                if lhs_sign == rhs_sign {
+                    Self::Inf(lhs_sign)
+                } else {
+                    Self::NaN
+                }
+            }
+            (Self::NaN, _) | (_, Self::NaN) => Self::NaN,
+        })
     }
 
     pub fn checked_sub(self, rhs: Self) -> Option<Self> {
-        self.checked_binary_op(rhs, i64::checked_sub)
+        Some(match (self, rhs) {
+            (Self::Int(lhs), Self::Int(rhs)) => Self::Int(i64::checked_sub(lhs, rhs)?),
+            (Self::Int(_), Self::Inf(sign)) => Self::Inf(-sign),
+            (Self::Inf(sign), Self::Int(_)) => Self::Inf(sign),
+            (Self::Inf(lhs_sign), Self::Inf(rhs_sign)) => {
+                if lhs_sign != rhs_sign {
+                    Self::Inf(lhs_sign)
+                } else {
+                    Self::NaN
+                }
+            }
+            (Self::NaN, _) | (_, Self::NaN) => Self::NaN,
+        })
     }
 
     pub fn checked_mul(self, rhs: Self) -> Option<Self> {
-        self.checked_binary_op(rhs, i64::checked_mul)
+        #[allow(clippy::match_same_arms)]
+        Some(match (self, rhs) {
+            (Self::Int(lhs), Self::Int(rhs)) => Self::Int(i64::checked_mul(lhs, rhs)?),
+            (Self::Int(0), Self::Inf(_)) | (Self::Inf(_), Self::Int(0)) => Self::NaN,
+            (Self::Int(value), Self::Inf(sign)) | (Self::Inf(sign), Self::Int(value)) => {
+                Self::Inf(Sign::of(value) * sign)
+            }
+            (Self::Inf(lhs_sign), Self::Inf(rhs_sign)) => Self::Inf(lhs_sign * rhs_sign),
+            (Self::NaN, _) | (_, Self::NaN) => Self::NaN,
+        })
     }
 
     pub fn checked_div(self, rhs: Self) -> Option<Self> {
-        if rhs.is_zero() {
-            Some(Self::NaN)
-        } else {
-            self.checked_binary_op(rhs, i64::checked_div)
-        }
+        #[allow(clippy::match_same_arms)]
+        Some(match (self, rhs) {
+            (Self::Int(0), Self::Int(0)) | (Self::Inf(_), Self::Inf(_)) => Self::NaN,
+            (Self::Int(lhs), Self::Int(0)) => Self::Inf(Sign::of(lhs)),
+            (Self::Int(lhs), Self::Int(rhs)) => Self::Int(i64::checked_div(lhs, rhs)?),
+            (Self::Int(_), Self::Inf(_)) => Self::Int(0),
+            (Self::Inf(sign), Self::Int(0)) => Self::Inf(sign),
+            (Self::Inf(sign), Self::Int(value)) => Self::Inf(Sign::of(value) * sign),
+            (Self::NaN, _) | (_, Self::NaN) => Self::NaN,
+        })
     }
 
     pub fn checked_rem(self, rhs: Self) -> Option<Self> {
-        if rhs.is_zero() {
-            Some(Self::NaN)
-        } else {
-            self.checked_binary_op(rhs, i64::checked_rem)
-        }
+        #[allow(clippy::match_same_arms)]
+        Some(match (self, rhs) {
+            (Self::Int(_), Self::Int(0)) => Self::NaN,
+            (Self::Int(lhs), Self::Int(rhs)) => Self::Int(i64::checked_rem(lhs, rhs)?),
+            (Self::Int(lhs), Self::Inf(_)) => Self::Int(lhs),
+            (Self::Inf(_), Self::Int(_) | Self::Inf(_)) => Self::NaN,
+            (Self::NaN, _) | (_, Self::NaN) => Self::NaN,
+        })
     }
 
-    pub fn checked_pow(self, rhs: Self) -> Option<Self> {
-        self.checked_binary_op(rhs, checked_pow)
+    pub fn checked_pow(self, exp: Self) -> Option<Self> {
+        #[allow(clippy::match_same_arms)]
+        Some(match (exp, self) {
+            (Self::Int(exp), Self::Int(0)) if exp.is_negative() => Self::Inf(Sign::Pos),
+            (Self::Int(exp), Self::Int(base)) => Self::Int(checked_pow(base, exp)?),
+            (Self::Int(0), Self::Inf(_)) => Self::Int(1),
+            (Self::Int(exp), Self::Inf(_)) if exp.is_negative() => Self::Int(0),
+            (Self::Int(_), Self::Inf(Sign::Pos)) => Self::Inf(Sign::Pos),
+            (Self::Int(exp), Self::Inf(Sign::Neg)) => {
+                Self::Inf(if exp % 2 == 0 { Sign::Pos } else { Sign::Neg })
+            }
+            (Self::Inf(Sign::Pos), Self::Int(0)) => Self::Int(0),
+            (Self::Inf(Sign::Pos), Self::Int(_) | Self::Inf(_)) => Self::Inf(Sign::Pos),
+            (Self::Inf(Sign::Neg), Self::Int(0)) => Self::Inf(Sign::Pos),
+            (Self::Inf(Sign::Neg), Self::Int(_) | Self::Inf(_)) => Self::Int(0),
+            (Self::NaN, _) | (_, Self::NaN) => Self::NaN,
+        })
     }
 
     /// # Panics
     ///
     /// Always panics.
     pub fn shr_signed(self, rhs: Self) -> Self {
-        self.binary_op(rhs, |lhs, rhs| {
-            todo!("Number::shr_signed: lhs={}, rhs={}", lhs, rhs)
-        })
+        todo!("Number::shr_signed: lhs={}, rhs={}", self, rhs)
     }
 
     /// # Panics
     ///
     /// Always panics.
     pub fn shr_unsigned(self, rhs: Self) -> Self {
-        self.binary_op(rhs, |lhs, rhs| {
-            todo!("Number::shr_unsigned: lhs={}, rhs={}", lhs, rhs)
-        })
-    }
-
-    #[inline]
-    fn unary_op(self, f: fn(i64) -> i64) -> Self {
-        match self {
-            Self::Int(operand) => Self::Int(f(operand)),
-            Self::NaN => Self::NaN,
-        }
-    }
-
-    #[inline]
-    fn binary_op(self, rhs: Self, f: fn(i64, i64) -> i64) -> Self {
-        match (self, rhs) {
-            (Self::Int(lhs), Self::Int(rhs)) => Self::Int(f(lhs, rhs)),
-            (Self::NaN, _) | (_, Self::NaN) => Self::NaN,
-        }
-    }
-
-    #[inline]
-    fn checked_unary_op(self, f: fn(i64) -> Option<i64>) -> Option<Self> {
-        match self {
-            Self::Int(operand) => f(operand).map(Self::Int),
-            Self::NaN => Some(Self::NaN),
-        }
-    }
-
-    #[inline]
-    fn checked_binary_op(self, rhs: Self, f: fn(i64, i64) -> Option<i64>) -> Option<Self> {
-        match (self, rhs) {
-            (Self::Int(lhs), Self::Int(rhs)) => f(lhs, rhs).map(Self::Int),
-            (Self::NaN, _) | (_, Self::NaN) => Some(Self::NaN),
-        }
+        todo!("Number::shr_unsigned: lhs={}, rhs={}", self, rhs)
     }
 }
 
@@ -355,7 +427,11 @@ impl ops::Not for Number {
     type Output = Self;
 
     fn not(self) -> Self::Output {
-        self.unary_op(i64::not)
+        match self {
+            Self::Int(value) => Self::Int(value.not()),
+            Self::Inf(_) => Self::Int(-1),
+            Self::NaN => Self::NaN,
+        }
     }
 }
 
@@ -363,7 +439,11 @@ impl ops::BitAnd for Number {
     type Output = Self;
 
     fn bitand(self, rhs: Self) -> Self::Output {
-        self.binary_op(rhs, i64::bitand)
+        match (self, rhs) {
+            (Self::NaN, _) | (_, Self::NaN) => Self::NaN,
+            (Self::Int(lhs), Self::Int(rhs)) => Self::Int(i64::bitand(lhs, rhs)),
+            (Self::Inf(_), _) | (_, Self::Inf(_)) => Self::Int(0),
+        }
     }
 }
 
@@ -371,7 +451,13 @@ impl ops::BitOr for Number {
     type Output = Self;
 
     fn bitor(self, rhs: Self) -> Self::Output {
-        self.binary_op(rhs, i64::bitor)
+        match (self, rhs) {
+            (Self::NaN, _) | (_, Self::NaN) => Self::NaN,
+            (Self::Int(lhs), Self::Int(rhs)) => Self::Int(i64::bitand(lhs, rhs)),
+            (Self::Int(lhs), Self::Inf(_)) => Self::Int(lhs),
+            (Self::Inf(_), Self::Int(rhs)) => Self::Int(rhs),
+            (Self::Inf(_), Self::Inf(_)) => Self::Int(0),
+        }
     }
 }
 
@@ -379,7 +465,13 @@ impl ops::BitXor for Number {
     type Output = Self;
 
     fn bitxor(self, rhs: Self) -> Self::Output {
-        self.binary_op(rhs, i64::bitxor)
+        match (self, rhs) {
+            (Self::NaN, _) | (_, Self::NaN) => Self::NaN,
+            (Self::Int(lhs), Self::Int(rhs)) => Self::Int(i64::bitxor(lhs, rhs)),
+            (Self::Int(lhs), Self::Inf(_)) => Self::Int(lhs),
+            (Self::Inf(_), Self::Int(rhs)) => Self::Int(rhs),
+            (Self::Inf(_), Self::Inf(_)) => Self::Int(0),
+        }
     }
 }
 
@@ -387,7 +479,11 @@ impl ops::Shl for Number {
     type Output = Self;
 
     fn shl(self, rhs: Self) -> Self::Output {
-        self.binary_op(rhs, i64::shl)
+        match (self, rhs) {
+            (Self::Int(lhs), Self::Int(rhs)) => Self::Int(i64::shl(lhs, rhs)),
+            (Self::Int(lhs), Self::Inf(_) | Self::NaN) => Self::Int(lhs),
+            (Self::Inf(_) | Self::NaN, Self::Int(_) | Self::Inf(_) | Self::NaN) => Self::Int(0),
+        }
     }
 }
 
@@ -395,17 +491,25 @@ impl cmp::PartialEq for Number {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Int(lhs), Self::Int(rhs)) => lhs == rhs,
-            (Self::NaN, _) | (_, Self::NaN) => false,
+            (Self::Inf(lhs_sign), Self::Inf(rhs_sign)) => lhs_sign == rhs_sign,
+            (Self::Inf(_) | Self::NaN, _) | (_, Self::Inf(_) | Self::NaN) => false,
         }
     }
 }
 
 impl cmp::PartialOrd for Number {
     fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
-        match (self, other) {
-            (Self::Int(lhs), Self::Int(rhs)) => Some(i64::cmp(lhs, rhs)),
-            (Self::NaN, _) | (_, Self::NaN) => None,
-        }
+        Some(match (self, other) {
+            (Self::Int(lhs), Self::Int(rhs)) => i64::cmp(lhs, rhs),
+            (Self::Int(_), Self::Inf(Sign::Neg)) | (Self::Inf(Sign::Pos), Self::Int(_)) => {
+                cmp::Ordering::Greater
+            }
+            (Self::Int(_), Self::Inf(Sign::Pos)) | (Self::Inf(Sign::Neg), Self::Int(_)) => {
+                cmp::Ordering::Less
+            }
+            (Self::Inf(lhs_sign), Self::Inf(rhs_sign)) => lhs_sign.cmp(rhs_sign),
+            (Self::NaN, _) | (_, Self::NaN) => return None,
+        })
     }
 }
 
@@ -421,6 +525,8 @@ impl fmt::Display for Number {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Int(value) => write!(f, "{}", value),
+            Self::Inf(Sign::Pos) => f.write_str("Infinity"),
+            Self::Inf(Sign::Neg) => f.write_str("-Infinity"),
             Self::NaN => f.write_str("NaN"),
         }
     }

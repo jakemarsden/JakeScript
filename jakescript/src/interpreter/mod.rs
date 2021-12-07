@@ -624,6 +624,7 @@ impl Eval for LiteralExpression {
             Literal::Numeric(NumericLiteral::Int(ref value)) => {
                 Value::Number(Number::try_from(*value).unwrap())
             }
+            Literal::Numeric(NumericLiteral::Infinity) => Value::Number(Number::Inf(Sign::Pos)),
             Literal::Numeric(NumericLiteral::NaN) => Value::Number(Number::NaN),
             Literal::String(ref value) => Value::String(value.clone()),
             Literal::Array(ref elem_exprs) => {

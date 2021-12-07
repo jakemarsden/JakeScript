@@ -374,6 +374,7 @@ pub enum Literal {
         body: Block,
     },
     Null,
+    // TODO: Should be a property of the VM's global object at runtime, not a literal.
     #[default]
     Undefined,
 }
@@ -383,6 +384,9 @@ pub enum NumericLiteral {
     /// Numeric literal tokens are **always unsigned** (but can be made negative at runtime with the
     /// negation unary operator).
     Int(u64),
+    // TODO: Should be a property of the VM's global object at runtime, not a literal.
+    Infinity,
+    // TODO: Should be a property of the VM's global object at runtime, not a literal.
     NaN,
 }
 
