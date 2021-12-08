@@ -1,7 +1,7 @@
 use crate::interpreter::error::NumericOverflowError;
 use crate::interpreter::heap::Reference;
 use crate::interpreter::Interpreter;
-use std::ops::{self, BitAnd, BitOr, BitXor, Shl};
+use std::ops::{self, BitAnd, BitOr, BitXor};
 use std::str::FromStr;
 use std::{cmp, fmt, num};
 
@@ -124,16 +124,16 @@ impl Value {
         Self::numeric_binary_op(lhs, rhs, Number::bitxor)
     }
 
-    pub fn shl(lhs: &Self, rhs: &Self) -> Self {
-        Self::numeric_binary_op(lhs, rhs, Number::shl)
+    pub fn shl(lhs: &Self, rhs: &Self) -> Result<Self, NumericOverflowError> {
+        Self::checked_numeric_binary_op(lhs, rhs, Number::checked_shl)
     }
 
-    pub fn shr_signed(lhs: &Self, rhs: &Self) -> Self {
-        Self::numeric_binary_op(lhs, rhs, Number::shr_signed)
+    pub fn shr_signed(lhs: &Self, rhs: &Self) -> Result<Self, NumericOverflowError> {
+        Self::checked_numeric_binary_op(lhs, rhs, Number::checked_shr_signed)
     }
 
-    pub fn shr_unsigned(lhs: &Self, rhs: &Self) -> Self {
-        Self::numeric_binary_op(lhs, rhs, Number::shr_unsigned)
+    pub fn shr_unsigned(lhs: &Self, rhs: &Self) -> Result<Self, NumericOverflowError> {
+        Self::checked_numeric_binary_op(lhs, rhs, Number::checked_shr_unsigned)
     }
 
     pub fn plus(operand: &Self) -> Self {
@@ -411,15 +411,22 @@ impl Number {
     /// # Panics
     ///
     /// Always panics.
-    pub fn shr_signed(self, rhs: Self) -> Self {
-        todo!("Number::shr_signed: lhs={}, rhs={}", self, rhs)
+    pub fn checked_shl(self, rhs: Self) -> Option<Self> {
+        todo!("Number::checked_shl: lhs={}, rhs={}", self, rhs)
     }
 
     /// # Panics
     ///
     /// Always panics.
-    pub fn shr_unsigned(self, rhs: Self) -> Self {
-        todo!("Number::shr_unsigned: lhs={}, rhs={}", self, rhs)
+    pub fn checked_shr_signed(self, rhs: Self) -> Option<Self> {
+        todo!("Number::checked_shr_signed: lhs={}, rhs={}", self, rhs)
+    }
+
+    /// # Panics
+    ///
+    /// Always panics.
+    pub fn checked_shr_unsigned(self, rhs: Self) -> Option<Self> {
+        todo!("Number::checked_shr_unsigned: lhs={}, rhs={}", self, rhs)
     }
 }
 
@@ -471,18 +478,6 @@ impl ops::BitXor for Number {
             (Self::Int(lhs), Self::Inf(_)) => Self::Int(lhs),
             (Self::Inf(_), Self::Int(rhs)) => Self::Int(rhs),
             (Self::Inf(_), Self::Inf(_)) => Self::Int(0),
-        }
-    }
-}
-
-impl ops::Shl for Number {
-    type Output = Self;
-
-    fn shl(self, rhs: Self) -> Self::Output {
-        match (self, rhs) {
-            (Self::Int(lhs), Self::Int(rhs)) => Self::Int(i64::shl(lhs, rhs)),
-            (Self::Int(lhs), Self::Inf(_) | Self::NaN) => Self::Int(lhs),
-            (Self::Inf(_) | Self::NaN, Self::Int(_) | Self::Inf(_) | Self::NaN) => Self::Int(0),
         }
     }
 }

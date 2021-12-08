@@ -495,9 +495,9 @@ impl Eval for BinaryExpression {
                     BinaryOperator::MoreThan => Value::gt(it, lhs, rhs),
                     BinaryOperator::MoreThanOrEqual => Value::ge(it, lhs, rhs),
 
-                    BinaryOperator::ShiftLeft => Value::shl(lhs, rhs),
-                    BinaryOperator::ShiftRight => Value::shr_signed(lhs, rhs),
-                    BinaryOperator::ShiftRightUnsigned => Value::shr_unsigned(lhs, rhs),
+                    BinaryOperator::ShiftLeft => Value::shl(lhs, rhs)?,
+                    BinaryOperator::ShiftRight => Value::shr_signed(lhs, rhs)?,
+                    BinaryOperator::ShiftRightUnsigned => Value::shr_unsigned(lhs, rhs)?,
 
                     BinaryOperator::BitwiseAnd => Value::bitand(lhs, rhs),
                     BinaryOperator::BitwiseOr => Value::bitor(lhs, rhs),
