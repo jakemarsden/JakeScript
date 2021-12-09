@@ -635,13 +635,10 @@ impl Eval for LiteralExpression {
                 let obj_ref = it.vm_mut().heap_mut().allocate_array(elems)?;
                 Value::Reference(obj_ref)
             }
-            Literal::Object => {
-                let obj_ref = it.vm_mut().heap_mut().allocate_empty_object()?;
-                Value::Reference(obj_ref)
-            }
-            Literal::AnonFunction {
+            Literal::Function {
                 ref param_names,
                 ref body,
+                ..
             } => {
                 let declared_scope = it.vm().stack().frame().scope().clone();
                 let fn_obj_ref = it
@@ -653,6 +650,10 @@ impl Eval for LiteralExpression {
                         body.clone(),
                     ))?;
                 Value::Reference(fn_obj_ref)
+            }
+            Literal::Object => {
+                let obj_ref = it.vm_mut().heap_mut().allocate_empty_object()?;
+                Value::Reference(obj_ref)
             }
             Literal::Null => Value::Null,
             Literal::Undefined => Value::Undefined,

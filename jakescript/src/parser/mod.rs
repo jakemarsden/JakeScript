@@ -240,10 +240,33 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
                 },
             }),
             Some(Token::Keyword(Keyword::Function)) => {
+                let name = match self.tokens.try_peek()? {
+                    Some(Token::Identifier(_)) => {
+                        let name = self
+                            .expect_identifier(non_empty_str!("function_name"))
+                            .unwrap();
+                        Some(Identifier::from(name))
+                    }
+                    Some(Token::Punctuator(Punctuator::OpenParen)) => None,
+                    token => {
+                        return Err(Error::unexpected(
+                            AnyOf(
+                                Token::Punctuator(Punctuator::OpenParen),
+                                Token::Identifier(non_empty_str!("function_name")),
+                                vec![],
+                            ),
+                            token.cloned(),
+                        ))
+                    }
+                };
                 let param_names = self.parse_fn_parameters()?;
                 let body = self.parse_block(true)?;
                 Expression::Literal(LiteralExpression {
-                    value: ast::Literal::AnonFunction { param_names, body },
+                    value: ast::Literal::Function {
+                        name,
+                        param_names,
+                        body,
+                    },
                 })
             }
             actual => return Err(Error::unexpected(Unspecified, actual)),
@@ -700,6 +723,16 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
 
     fn expect_punctuator(&mut self, expected: Punctuator) -> Result<()> {
         self.expect_token(Token::Punctuator(expected))
+    }
+
+    fn expect_identifier(&mut self, placeholder: NonEmptyString) -> Result<NonEmptyString> {
+        match self.tokens.try_next()? {
+            Some(Token::Identifier(id)) => Ok(id),
+            actual => Err(Error::unexpected(
+                Exactly(Token::Identifier(placeholder)),
+                actual,
+            )),
+        }
     }
 
     fn expect_token(&mut self, expected: Token) -> Result<()> {

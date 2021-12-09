@@ -367,12 +367,13 @@ pub enum Literal {
     // TODO: Store string literals in the constant pool.
     String(String),
     Array(Vec<Expression>),
-    // TODO: Support properties in object literals.
-    Object,
-    AnonFunction {
+    Function {
+        name: Option<Identifier>,
         param_names: Vec<Identifier>,
         body: Block,
     },
+    // TODO: Support properties in object literals.
+    Object,
     Null,
     // TODO: Should be a property of the VM's global object at runtime, not a literal.
     #[default]
