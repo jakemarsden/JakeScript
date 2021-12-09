@@ -139,6 +139,7 @@ impl Object {
 
 #[derive(Debug)]
 pub struct Callable {
+    name: Option<Identifier>,
     declared_parameters: Vec<Identifier>,
     declared_scope: Scope,
     body: Block,
@@ -147,10 +148,29 @@ pub struct Callable {
 impl Callable {
     pub fn new(declared_parameters: Vec<Identifier>, declared_scope: Scope, body: Block) -> Self {
         Self {
+            name: None,
             declared_parameters,
             declared_scope,
             body,
         }
+    }
+
+    pub fn new_named(
+        name: Identifier,
+        declared_parameters: Vec<Identifier>,
+        declared_scope: Scope,
+        body: Block,
+    ) -> Self {
+        Self {
+            name: Some(name),
+            declared_parameters,
+            declared_scope,
+            body,
+        }
+    }
+
+    pub fn name(&self) -> Option<&Identifier> {
+        self.name.as_ref()
     }
 
     pub fn declared_parameters(&self) -> &[Identifier] {

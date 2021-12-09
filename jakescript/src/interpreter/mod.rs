@@ -636,19 +636,21 @@ impl Eval for LiteralExpression {
                 Value::Reference(obj_ref)
             }
             Literal::Function {
+                ref name,
                 ref param_names,
                 ref body,
-                ..
             } => {
                 let declared_scope = it.vm().stack().frame().scope().clone();
-                let fn_obj_ref = it
-                    .vm_mut()
-                    .heap_mut()
-                    .allocate_callable_object(Callable::new(
+                let callable = match name {
+                    Some(name) => Callable::new_named(
+                        name.clone(),
                         param_names.clone(),
                         declared_scope,
                         body.clone(),
-                    ))?;
+                    ),
+                    None => Callable::new(param_names.clone(), declared_scope, body.clone()),
+                };
+                let fn_obj_ref = it.vm_mut().heap_mut().allocate_callable_object(callable)?;
                 Value::Reference(fn_obj_ref)
             }
             Literal::Object => {
@@ -696,12 +698,30 @@ impl Eval for FunctionCallExpression {
         let fn_scope_ctx = ScopeCtx::new(argument_variables);
 
         it.vm_mut().stack_mut().push_frame(declared_scope);
+        if let Some(fn_name) = function.name() {
+            // Create an outer scope with nothing but the function's name, which points to itself,
+            // so that named function literals may recurse using their name, without making the name
+            // visible outside of the function body. It has its own outer scope so it can still be
+            // shadowed by arguments with the same name.
+            let fn_scope_ctx_outer = ScopeCtx::new(vec![Variable::new(
+                VariableDeclarationKind::Var,
+                fn_name.clone(),
+                Value::Reference(fn_obj_ref.clone()),
+            )]);
+            it.vm_mut()
+                .stack_mut()
+                .frame_mut()
+                .push_scope(fn_scope_ctx_outer, false);
+        }
         it.vm_mut()
             .stack_mut()
             .frame_mut()
             .push_scope(fn_scope_ctx, true);
         function.body().eval(it)?;
         it.vm_mut().stack_mut().frame_mut().pop_scope();
+        if function.name().is_some() {
+            it.vm_mut().stack_mut().frame_mut().pop_scope();
+        }
         it.vm_mut().stack_mut().pop_frame();
 
         Ok(match it.vm_mut().reset_execution_state() {
