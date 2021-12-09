@@ -370,22 +370,14 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
 
     fn parse_function_declaration(&mut self) -> Result<FunctionDeclaration> {
         self.expect_keyword(Keyword::Function)?;
-        match self.tokens.try_next()? {
-            Some(Token::Identifier(fn_name)) => {
-                let fn_name = Identifier::from(fn_name);
-                let param_names = self.parse_fn_parameters()?;
-                let body = self.parse_block(true)?;
-                Ok(FunctionDeclaration {
-                    fn_name,
-                    param_names,
-                    body,
-                })
-            }
-            actual => Err(Error::unexpected(
-                Exactly(Token::Identifier(non_empty_str!("function_name"))),
-                actual,
-            )),
-        }
+        let fn_name = Identifier::from(self.expect_identifier(non_empty_str!("function_name"))?);
+        let param_names = self.parse_fn_parameters()?;
+        let body = self.parse_block(true)?;
+        Ok(FunctionDeclaration {
+            fn_name,
+            param_names,
+            body,
+        })
     }
 
     fn parse_variable_declaration(&mut self) -> Result<VariableDeclaration> {
@@ -429,15 +421,7 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
     }
 
     fn parse_variable_declaration_entry(&mut self) -> Result<VariableDeclarationEntry> {
-        let var_name = match self.tokens.try_next()? {
-            Some(Token::Identifier(var_name)) => Identifier::from(var_name),
-            actual => {
-                return Err(Error::unexpected(
-                    Exactly(Token::Identifier(non_empty_str!("variable_name"))),
-                    actual,
-                ))
-            }
-        };
+        let var_name = Identifier::from(self.expect_identifier(non_empty_str!("variable_name"))?);
         let initialiser =
             if let Some(Token::Punctuator(Punctuator::Equal)) = self.tokens.try_peek()? {
                 self.tokens.try_next().unwrap().unwrap();
