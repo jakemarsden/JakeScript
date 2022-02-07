@@ -172,11 +172,11 @@ impl ScopeCtx {
 pub struct Variable(Rc<RefCell<VariableInner>>);
 
 impl Variable {
-    pub fn new_unassigned(kind: VariableDeclarationKind, name: Identifier) -> Self {
+    pub fn new_unassigned(kind: VariableKind, name: Identifier) -> Self {
         Self::new(kind, name, Value::default())
     }
 
-    pub fn new(kind: VariableDeclarationKind, name: Identifier, initial_value: Value) -> Self {
+    pub fn new(kind: VariableKind, name: Identifier, initial_value: Value) -> Self {
         Self(Rc::new(RefCell::new(VariableInner {
             kind,
             name,
@@ -184,7 +184,7 @@ impl Variable {
         })))
     }
 
-    pub fn kind(&self) -> VariableDeclarationKind {
+    pub fn kind(&self) -> VariableKind {
         let inner = RefCell::borrow(&self.0);
         inner.kind
     }
@@ -202,18 +202,35 @@ impl Variable {
     pub fn set_value(&mut self, value: Value) -> Result<(), AssignToConstVariableError> {
         let mut inner = RefCell::borrow_mut(&self.0);
         match inner.kind {
-            VariableDeclarationKind::Let | VariableDeclarationKind::Var => {
+            VariableKind::Let | VariableKind::Var => {
                 (*inner).value = value;
                 Ok(())
             }
-            VariableDeclarationKind::Const => Err(AssignToConstVariableError),
+            VariableKind::Const => Err(AssignToConstVariableError),
         }
     }
 }
 
 #[derive(Debug)]
 struct VariableInner {
-    kind: VariableDeclarationKind,
+    kind: VariableKind,
     name: Identifier,
     value: Value,
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub enum VariableKind {
+    Const,
+    Let,
+    Var,
+}
+
+impl From<VariableDeclarationKind> for VariableKind {
+    fn from(decl_kind: VariableDeclarationKind) -> Self {
+        match decl_kind {
+            VariableDeclarationKind::Const => Self::Const,
+            VariableDeclarationKind::Let => Self::Let,
+            VariableDeclarationKind::Var => Self::Var,
+        }
+    }
 }
