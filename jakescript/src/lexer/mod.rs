@@ -89,8 +89,6 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
     fn parse_literal(&mut self) -> Result<Option<Literal>> {
         Ok(if let Some(()) = self.parse_null_literal()? {
             Some(Literal::Null)
-        } else if let Some(()) = self.parse_undefined_literal()? {
-            Some(Literal::Undefined)
         } else if let Some(value) = self.parse_boolean_literal()? {
             Some(Literal::Boolean(value))
         } else if let Some(value) = self.parse_numeric_literal()? {
@@ -106,10 +104,6 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
         Ok(self.0.try_consume_str("null")?.then_some(()))
     }
 
-    fn parse_undefined_literal(&mut self) -> Result<Option<()>> {
-        Ok(self.0.try_consume_str("undefined")?.then_some(()))
-    }
-
     fn parse_boolean_literal(&mut self) -> Result<Option<bool>> {
         Ok(if self.0.try_consume_str("true")? {
             Some(true)
@@ -121,16 +115,6 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
     }
 
     fn parse_numeric_literal(&mut self) -> Result<Option<NumericLiteral>> {
-        if self.0.try_consume_str("Infinity")? {
-            // TODO: Check what chars follow, e.g. this could be an identifier which happens to
-            //  start with "Infinity"!
-            return Ok(Some(NumericLiteral::Infinity));
-        }
-        if self.0.try_consume_str("NaN")? {
-            // TODO: Check what chars follow, e.g. this could be an identifier which happens to
-            //  start with "NaN"!
-            return Ok(Some(NumericLiteral::NaN));
-        }
         let value = if let Some(value) = self.parse_non_decimal_int_literal()? {
             Some(value)
         } else {

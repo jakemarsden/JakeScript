@@ -222,21 +222,14 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
                     Literal::Numeric(NumericLiteral::Decimal(value)) => {
                         todo!("NumericLiteral::Decimal: {}", value)
                     }
-                    Literal::Numeric(NumericLiteral::Infinity) => {
-                        ast::Literal::Numeric(ast::NumericLiteral::Infinity)
-                    }
-                    Literal::Numeric(NumericLiteral::NaN) => {
-                        ast::Literal::Numeric(ast::NumericLiteral::NaN)
-                    }
                     Literal::String(
                         StringLiteral::SingleQuoted(value) | StringLiteral::DoubleQuoted(value),
                     ) => ast::Literal::String(value),
-                    Literal::RegEx(_) => {
-                        // FIXME: Support Literal::RegEx properly
-                        ast::Literal::Undefined
+                    Literal::RegEx(value) => {
+                        // FIXME: Support Literal::RegEx properly"
+                        ast::Literal::String(value.to_string())
                     }
                     Literal::Null => ast::Literal::Null,
-                    Literal::Undefined => ast::Literal::Undefined,
                 },
             }),
             Some(Token::Keyword(Keyword::Function)) => {

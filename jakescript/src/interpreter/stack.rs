@@ -7,12 +7,16 @@ use std::cell::{Ref, RefCell};
 use std::mem;
 use std::rc::Rc;
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct CallStack {
     frame: CallFrame,
 }
 
 impl CallStack {
+    pub fn new(root_frame: CallFrame) -> Self {
+        Self { frame: root_frame }
+    }
+
     pub fn frame(&self) -> &CallFrame {
         &self.frame
     }
@@ -35,13 +39,20 @@ impl CallStack {
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct CallFrame {
     scope: Scope,
     parent: Option<Box<CallFrame>>,
 }
 
 impl CallFrame {
+    pub fn new(scope: Scope) -> Self {
+        Self {
+            scope,
+            parent: None,
+        }
+    }
+
     pub fn scope(&self) -> &Scope {
         &self.scope
     }
@@ -64,10 +75,18 @@ impl CallFrame {
     }
 }
 
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Debug)]
 pub struct Scope(Rc<RefCell<ScopeInner>>);
 
 impl Scope {
+    pub fn new(ctx: ScopeCtx) -> Self {
+        Self(Rc::new(RefCell::new(ScopeInner {
+            ctx,
+            escalation_boundary: true,
+            parent: None,
+        })))
+    }
+
     fn new_child_of(ctx: ScopeCtx, escalation_boundary: bool, parent: Self) -> Self {
         Self(Rc::new(RefCell::new(ScopeInner {
             ctx,
@@ -114,7 +133,7 @@ impl Scope {
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 struct ScopeInner {
     ctx: ScopeCtx,
     escalation_boundary: bool,
@@ -207,6 +226,7 @@ impl Variable {
                 Ok(())
             }
             VariableKind::Const => Err(AssignToConstVariableError),
+            VariableKind::SilentReadOnly => Ok(()),
         }
     }
 }
@@ -223,6 +243,9 @@ pub enum VariableKind {
     Const,
     Let,
     Var,
+    /// The assignment operator completes successfully, and returns the value you might expect, but
+    /// the value of the variable isn't actually changed.
+    SilentReadOnly,
 }
 
 impl From<VariableDeclarationKind> for VariableKind {

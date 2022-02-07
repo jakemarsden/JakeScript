@@ -359,7 +359,7 @@ impl fmt::Display for Identifier {
     }
 }
 
-#[derive(Clone, Default, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "value")]
 pub enum Literal {
     Boolean(bool),
@@ -375,9 +375,6 @@ pub enum Literal {
     // TODO: Support properties in object literals.
     Object,
     Null,
-    // TODO: Should be a property of the VM's global object at runtime, not a literal.
-    #[default]
-    Undefined,
 }
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
@@ -385,10 +382,6 @@ pub enum NumericLiteral {
     /// Numeric literal tokens are **always unsigned** (but can be made negative at runtime with the
     /// negation unary operator).
     Int(u64),
-    // TODO: Should be a property of the VM's global object at runtime, not a literal.
-    Infinity,
-    // TODO: Should be a property of the VM's global object at runtime, not a literal.
-    NaN,
 }
 
 pub trait Op: Copy + Eq + fmt::Debug {

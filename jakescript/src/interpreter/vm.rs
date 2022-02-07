@@ -1,15 +1,27 @@
+use crate::interpreter::global_scope;
 use crate::interpreter::heap::Heap;
-use crate::interpreter::stack::CallStack;
+use crate::interpreter::stack::{CallFrame, CallStack};
 use crate::interpreter::value::Value;
 use std::assert_matches::assert_matches;
 use std::mem;
 
-#[derive(Default)]
 pub struct Vm {
     execution_state: ExecutionState,
     hidden_exception: Option<Value>,
     heap: Heap,
     stack: CallStack,
+}
+
+impl Default for Vm {
+    fn default() -> Self {
+        let global_scope = global_scope::create();
+        Self {
+            execution_state: ExecutionState::default(),
+            hidden_exception: Option::default(),
+            heap: Heap::default(),
+            stack: CallStack::new(CallFrame::new(global_scope)),
+        }
+    }
 }
 
 impl Vm {
