@@ -170,12 +170,12 @@ impl TestCaseReport {
 }
 
 impl process::Termination for TestCaseReport {
-    fn report(self) -> i32 {
+    fn report(self) -> process::ExitCode {
         self.print_report();
         if self.is_pass() {
-            process::ExitCode::SUCCESS.report()
+            process::ExitCode::SUCCESS
         } else {
-            process::ExitCode::FAILURE.report()
+            process::ExitCode::FAILURE
         }
     }
 }
@@ -252,12 +252,12 @@ impl TestSuiteSummary {
 }
 
 impl process::Termination for TestSuiteSummary {
-    fn report(self) -> i32 {
+    fn report(self) -> process::ExitCode {
         self.print_report();
         if self.is_success() {
-            process::ExitCode::SUCCESS.report()
+            process::ExitCode::SUCCESS
         } else {
-            process::ExitCode::FAILURE.report()
+            process::ExitCode::FAILURE
         }
     }
 }
