@@ -692,10 +692,10 @@ impl Eval for FunctionCallExpression {
 
                 it.vm_mut().stack_mut().push_frame(declared_scope);
                 if let Some(fn_name) = function.name() {
-                    // Create an outer scope with nothing but the function's name, which points to itself,
-                    // so that named function literals may recurse using their name, without making the name
-                    // visible outside of the function body. It has its own outer scope so it can still be
-                    // shadowed by arguments with the same name.
+                    // Create an outer scope with nothing but the function's name, which points to
+                    // itself, so that named function literals may recurse using their name, without
+                    // making the name visible outside of the function body. It has its own outer
+                    // scope so it can still be shadowed by arguments with the same name.
                     let fn_scope_ctx_outer = ScopeCtx::new(vec![Variable::new(
                         VariableKind::Var,
                         fn_name.clone(),
@@ -732,7 +732,7 @@ impl Eval for FunctionCallExpression {
                 let result = f.apply(it.vm_mut(), &args);
                 Ok(result)
             }
-            _ => Err(Error::NotCallable(NotCallableError))
+            _ => Err(Error::NotCallable(NotCallableError)),
         }
     }
 }
