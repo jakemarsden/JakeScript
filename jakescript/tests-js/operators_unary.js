@@ -33,11 +33,6 @@ let postfixDecrement = 20;
 assert (postfixDecrement--) === 20;
 assert postfixDecrement === 19;
 
-// TODO: Implement built-in `isNaN()` function
-function isNaN(x) {
-    return x !== x;
-}
-
 assert (~Infinity) === -1;
 assert (~(-Infinity)) === -1;
 assert isNaN(~NaN);

@@ -663,68 +663,77 @@ impl Eval for FunctionCallExpression {
     type Output = Value;
 
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        let fn_obj_ref = if let Value::Reference(fn_obj_ref) = self.function.eval(it)? {
-            fn_obj_ref
-        } else {
-            return Err(Error::NotCallable(NotCallableError));
-        };
-        let fn_obj = it.vm().heap().resolve(&fn_obj_ref);
-        let function = if let Some(callable) = fn_obj.callable() {
-            callable
-        } else {
-            return Err(Error::NotCallable(NotCallableError));
-        };
+        match self.function.eval(it)? {
+            Value::Reference(fn_obj_ref) => {
+                let fn_obj = it.vm().heap().resolve(&fn_obj_ref);
+                let function = if let Some(callable) = fn_obj.callable() {
+                    callable
+                } else {
+                    return Err(Error::NotCallable(NotCallableError));
+                };
 
-        let parameters = function.declared_parameters();
-        if parameters.len() != self.arguments.len() {
-            return Err(FunctionArgumentMismatchError.into());
-        }
-        let mut argument_variables = Vec::with_capacity(parameters.len());
-        for (idx, parameter_name) in parameters.iter().enumerate() {
-            let argument_expr = &self.arguments[idx];
-            let argument_value = argument_expr.eval(it)?;
-            argument_variables.push(Variable::new(
-                VariableKind::Let,
-                parameter_name.clone(),
-                argument_value,
-            ));
-        }
+                let parameters = function.declared_parameters();
+                if parameters.len() != self.arguments.len() {
+                    return Err(FunctionArgumentMismatchError.into());
+                }
+                let mut argument_variables = Vec::with_capacity(parameters.len());
+                for (idx, parameter_name) in parameters.iter().enumerate() {
+                    let argument_expr = &self.arguments[idx];
+                    let argument_value = argument_expr.eval(it)?;
+                    argument_variables.push(Variable::new(
+                        VariableKind::Let,
+                        parameter_name.clone(),
+                        argument_value,
+                    ));
+                }
 
-        let declared_scope = function.declared_scope().clone();
-        let fn_scope_ctx = ScopeCtx::new(argument_variables);
+                let declared_scope = function.declared_scope().clone();
+                let fn_scope_ctx = ScopeCtx::new(argument_variables);
 
-        it.vm_mut().stack_mut().push_frame(declared_scope);
-        if let Some(fn_name) = function.name() {
-            // Create an outer scope with nothing but the function's name, which points to itself,
-            // so that named function literals may recurse using their name, without making the name
-            // visible outside of the function body. It has its own outer scope so it can still be
-            // shadowed by arguments with the same name.
-            let fn_scope_ctx_outer = ScopeCtx::new(vec![Variable::new(
-                VariableKind::Var,
-                fn_name.clone(),
-                Value::Reference(fn_obj_ref.clone()),
-            )]);
-            it.vm_mut()
-                .stack_mut()
-                .frame_mut()
-                .push_scope(fn_scope_ctx_outer, false);
-        }
-        it.vm_mut()
-            .stack_mut()
-            .frame_mut()
-            .push_scope(fn_scope_ctx, true);
-        function.body().eval(it)?;
-        it.vm_mut().stack_mut().frame_mut().pop_scope();
-        if function.name().is_some() {
-            it.vm_mut().stack_mut().frame_mut().pop_scope();
-        }
-        it.vm_mut().stack_mut().pop_frame();
+                it.vm_mut().stack_mut().push_frame(declared_scope);
+                if let Some(fn_name) = function.name() {
+                    // Create an outer scope with nothing but the function's name, which points to itself,
+                    // so that named function literals may recurse using their name, without making the name
+                    // visible outside of the function body. It has its own outer scope so it can still be
+                    // shadowed by arguments with the same name.
+                    let fn_scope_ctx_outer = ScopeCtx::new(vec![Variable::new(
+                        VariableKind::Var,
+                        fn_name.clone(),
+                        Value::Reference(fn_obj_ref.clone()),
+                    )]);
+                    it.vm_mut()
+                        .stack_mut()
+                        .frame_mut()
+                        .push_scope(fn_scope_ctx_outer, false);
+                }
+                it.vm_mut()
+                    .stack_mut()
+                    .frame_mut()
+                    .push_scope(fn_scope_ctx, true);
+                function.body().eval(it)?;
+                it.vm_mut().stack_mut().frame_mut().pop_scope();
+                if function.name().is_some() {
+                    it.vm_mut().stack_mut().frame_mut().pop_scope();
+                }
+                it.vm_mut().stack_mut().pop_frame();
 
-        Ok(match it.vm_mut().reset_execution_state() {
-            ExecutionState::Advance => Value::Undefined,
-            ExecutionState::Return(value) => value,
-            execution_state => panic!("Unexpected execution state: {:?}", execution_state),
-        })
+                Ok(match it.vm_mut().reset_execution_state() {
+                    ExecutionState::Advance => Value::Undefined,
+                    ExecutionState::Return(value) => value,
+                    execution_state => panic!("Unexpected execution state: {:?}", execution_state),
+                })
+            }
+            Value::NativeFunction(f) => {
+                let mut args = Vec::with_capacity(self.arguments.len());
+                for arg in &self.arguments {
+                    let arg_value = arg.eval(it)?;
+                    args.push(arg_value);
+                }
+                let result = f.apply(it.vm_mut(), &args);
+                Ok(result)
+            }
+            _ => Err(Error::NotCallable(NotCallableError))
+        }
     }
 }
 

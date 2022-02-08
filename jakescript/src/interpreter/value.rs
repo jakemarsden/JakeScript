@@ -1,5 +1,6 @@
 use crate::interpreter::error::NumericOverflowError;
 use crate::interpreter::heap::Reference;
+use crate::interpreter::vm::Vm;
 use crate::interpreter::Interpreter;
 use std::ops::{self, BitAnd, BitOr, BitXor};
 use std::str::FromStr;
@@ -11,6 +12,7 @@ pub enum Value {
     Number(Number),
     String(String),
     Reference(Reference),
+    NativeFunction(NativeFunction),
     Null,
     #[default]
     Undefined,
@@ -57,6 +59,7 @@ impl Value {
             (Self::Number(lhs), Self::Number(rhs)) => lhs == rhs,
             (Self::String(lhs), Self::String(rhs)) => lhs == rhs,
             (Self::Reference(lhs), Self::Reference(rhs)) => lhs == rhs,
+            (Self::NativeFunction(lhs), Self::NativeFunction(rhs)) => lhs == rhs,
             (Self::Null, Self::Null) | (Self::Undefined, Self::Undefined) => true,
             (_, _) => false,
         };
@@ -78,6 +81,13 @@ impl Value {
             Self::String(lhs) => lhs == rhs.coerce_to_string(it).as_str(),
             Self::Reference(lhs) => {
                 if let Self::Reference(rhs) = rhs {
+                    lhs == rhs
+                } else {
+                    false
+                }
+            }
+            Self::NativeFunction(lhs) => {
+                if let Self::NativeFunction(rhs) = rhs {
                     lhs == rhs
                 } else {
                     false
@@ -173,7 +183,7 @@ impl Value {
                 Number::NaN => false,
             },
             Self::String(value) => !value.is_empty(),
-            Self::Reference(..) => true,
+            Self::Reference(..) | Self::NativeFunction(_) => true,
             Self::Null | Self::Undefined => false,
         }
     }
@@ -184,7 +194,7 @@ impl Value {
             Self::Number(value) => *value,
             Self::String(value) => Number::from_str(value).unwrap_or(Number::NaN),
             Self::Null => Number::Int(0),
-            Self::Reference(..) | Self::Undefined => Number::NaN,
+            Self::Reference(..) | Self::NativeFunction(_) | Self::Undefined => Number::NaN,
         }
     }
 
@@ -197,6 +207,7 @@ impl Value {
                 let obj = it.vm().heap().resolve(obj_ref);
                 obj.js_to_string()
             }
+            Self::NativeFunction(value) => value.to_string(),
             Self::Null => "null".to_owned(),
             Self::Undefined => "undefined".to_owned(),
         }
@@ -244,6 +255,7 @@ impl fmt::Display for Value {
             Self::Number(value) => write!(f, "{}", value),
             Self::String(value) => write!(f, "{}", value),
             Self::Reference(value) => write!(f, "{}", value),
+            Self::NativeFunction(value) => write!(f, "{}", value),
             Self::Null => f.write_str("null"),
             Self::Undefined => f.write_str("undefined"),
         }
@@ -549,5 +561,48 @@ fn checked_pow(lhs: i64, rhs: i64) -> Option<i64> {
         Some((lhs as f64).powi(rhs as i32) as i64)
     } else {
         None
+    }
+}
+
+#[derive(Copy, Clone)]
+pub struct NativeFunction {
+    name: &'static str,
+    implementation: &'static dyn Fn(&mut Vm, &[Value]) -> Value,
+}
+
+impl NativeFunction {
+    pub fn new(
+        name: &'static str,
+        implementation: &'static dyn Fn(&mut Vm, &[Value]) -> Value,
+    ) -> Self {
+        Self {
+            name,
+            implementation,
+        }
+    }
+
+    pub fn apply(&self, vm: &mut Vm, args: &[Value]) -> Value {
+        (self.implementation)(vm, args)
+    }
+}
+
+impl cmp::PartialEq for NativeFunction {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+    }
+}
+
+impl fmt::Display for NativeFunction {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "function {}() {{\n    [native code]\n}}", self.name)
+    }
+}
+
+impl fmt::Debug for NativeFunction {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("NativeFunction")
+            .field("name", &self.name)
+            .field("implementation", &"[native code]")
+            .finish()
     }
 }

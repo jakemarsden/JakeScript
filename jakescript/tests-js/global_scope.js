@@ -1,7 +1,17 @@
-// TODO: Implement built-in `isNaN()` function
-function isNaN(x) {
-    return x !== x;
-}
+assert isNaN(7) === false;
+assert isNaN(Infinity) === false;
+assert isNaN(-Infinity) === false;
+assert isNaN(NaN) === true;
+assert isNaN(null) === true;
+assert isNaN(undefined) === true;
+assert isNaN(true) === true;
+assert isNaN(false) === true;
+assert isNaN("Hello, world!") === true;
+assert isNaN({}) === true;
+assert isNaN(function() {}) === true;
+assert isNaN(isNaN) === true;
+assert isNaN == isNaN;
+assert isNaN === isNaN;
 
 // Using an assignment operator on properties of the global object should return normally with the value you would
 // expect, without _actually_ changing the value of the property.

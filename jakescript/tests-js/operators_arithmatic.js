@@ -1,8 +1,3 @@
-// TODO: Implement built-in `isNaN()` function
-function isNaN(x) {
-    return x !== x;
-}
-
 assert 0 + 0 === 0;
 assert 0 + 3 === 3;
 assert 0 + (-3) === -3;

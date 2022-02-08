@@ -1,6 +1,7 @@
 use crate::ast::Identifier;
 use crate::interpreter::stack::{Scope, ScopeCtx, Variable, VariableKind};
-use crate::interpreter::value::{Number, Sign, Value};
+use crate::interpreter::value::{NativeFunction, Number, Sign, Value};
+use crate::interpreter::vm::Vm;
 use crate::non_empty_str;
 use crate::str::NonEmptyString;
 
@@ -23,6 +24,25 @@ pub(crate) fn create() -> Scope {
             Identifier::from(non_empty_str!("undefined")),
             Value::Undefined,
         ),
+        Variable::new(
+            VariableKind::Var,
+            Identifier::from(non_empty_str!("isNaN")),
+            Value::NativeFunction(NativeFunction::new("isNaN", &is_nan_builtin)),
+        ),
     ]);
     Scope::new(global_scope)
+}
+
+fn is_nan_builtin(_: &mut Vm, args: &[Value]) -> Value {
+    let value = args.first().cloned().unwrap_or_default();
+    Value::Boolean(match value {
+        Value::Number(Number::Int(_) | Number::Inf(_)) => false,
+        Value::Boolean(_)
+        | Value::Number(Number::NaN)
+        | Value::String(_)
+        | Value::Reference(_)
+        | Value::NativeFunction(_)
+        | Value::Null
+        | Value::Undefined => true,
+    })
 }
