@@ -133,7 +133,7 @@ impl Eval for ExitStatement {
 impl Eval for PrintStatement {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let value = self.argument.eval(it)?;
-        let string_value = value.coerce_to_string(it);
+        let string_value = value.coerce_to_string(it.vm());
         // Note: Print to stderr as stdout is swallowed when running in the REPL.
         if self.new_line {
             eprintln!("{}", string_value);
@@ -393,7 +393,7 @@ impl Eval for AssignmentExpression {
             let rhs = self_.rhs.eval(it)?;
             Ok(match self_.op {
                 AssignmentOperator::Assign => rhs,
-                AssignmentOperator::AddAssign => Value::add_or_append(it, &getter()?, &rhs)?,
+                AssignmentOperator::AddAssign => Value::add_or_append(it.vm(), &getter()?, &rhs)?,
                 AssignmentOperator::SubAssign => Value::sub(&getter()?, &rhs)?,
                 AssignmentOperator::MulAssign => Value::mul(&getter()?, &rhs)?,
                 AssignmentOperator::DivAssign => Value::div(&getter()?, &rhs)?,
@@ -480,22 +480,22 @@ impl Eval for BinaryExpression {
                         unreachable_unchecked()
                     },
 
-                    BinaryOperator::Add => Value::add_or_append(it, lhs, rhs)?,
+                    BinaryOperator::Add => Value::add_or_append(it.vm(), lhs, rhs)?,
                     BinaryOperator::Div => Value::div(lhs, rhs)?,
                     BinaryOperator::Mod => Value::rem(lhs, rhs)?,
                     BinaryOperator::Mul => Value::mul(lhs, rhs)?,
                     BinaryOperator::Pow => Value::pow(lhs, rhs)?,
                     BinaryOperator::Sub => Value::sub(lhs, rhs)?,
 
-                    BinaryOperator::Equal => Value::eq(it, lhs, rhs),
-                    BinaryOperator::NotEqual => Value::ne(it, lhs, rhs),
-                    BinaryOperator::Identical => Value::identical(it, lhs, rhs),
-                    BinaryOperator::NotIdentical => Value::not_identical(it, lhs, rhs),
+                    BinaryOperator::Equal => Value::eq(it.vm(), lhs, rhs),
+                    BinaryOperator::NotEqual => Value::ne(it.vm(), lhs, rhs),
+                    BinaryOperator::Identical => Value::identical(it.vm(), lhs, rhs),
+                    BinaryOperator::NotIdentical => Value::not_identical(it.vm(), lhs, rhs),
 
-                    BinaryOperator::LessThan => Value::lt(it, lhs, rhs),
-                    BinaryOperator::LessThanOrEqual => Value::le(it, lhs, rhs),
-                    BinaryOperator::MoreThan => Value::gt(it, lhs, rhs),
-                    BinaryOperator::MoreThanOrEqual => Value::ge(it, lhs, rhs),
+                    BinaryOperator::LessThan => Value::lt(it.vm(), lhs, rhs),
+                    BinaryOperator::LessThanOrEqual => Value::le(it.vm(), lhs, rhs),
+                    BinaryOperator::MoreThan => Value::gt(it.vm(), lhs, rhs),
+                    BinaryOperator::MoreThanOrEqual => Value::ge(it.vm(), lhs, rhs),
 
                     BinaryOperator::ShiftLeft => Value::shl(lhs, rhs)?,
                     BinaryOperator::ShiftRight => Value::shr_signed(lhs, rhs)?,
@@ -531,7 +531,7 @@ impl Eval for UnaryExpression {
                     // The new value to assign to the variable or property
                     let new_value = match self_.op {
                         UnaryOperator::IncrementPrefix | UnaryOperator::IncrementPostfix => {
-                            Value::add_or_append(it, &old_value, &ONE)?
+                            Value::add_or_append(it.vm(), &old_value, &ONE)?
                         }
                         UnaryOperator::DecrementPrefix | UnaryOperator::DecrementPostfix => {
                             Value::sub(&old_value, &ONE)?

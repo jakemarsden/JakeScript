@@ -1,7 +1,6 @@
 use crate::interpreter::error::NumericOverflowError;
 use crate::interpreter::heap::Reference;
 use crate::interpreter::vm::Vm;
-use crate::interpreter::Interpreter;
 use std::ops::{self, BitAnd, BitOr, BitXor};
 use std::str::FromStr;
 use std::{cmp, fmt, num};
@@ -19,14 +18,10 @@ pub enum Value {
 }
 
 impl Value {
-    pub fn add_or_append(
-        it: &mut Interpreter,
-        lhs: &Self,
-        rhs: &Self,
-    ) -> Result<Self, NumericOverflowError> {
+    pub fn add_or_append(vm: &Vm, lhs: &Self, rhs: &Self) -> Result<Self, NumericOverflowError> {
         if lhs.is_str_or_ref() || rhs.is_str_or_ref() {
-            let mut out = lhs.coerce_to_string(it);
-            out.push_str(&rhs.coerce_to_string(it));
+            let mut out = lhs.coerce_to_string(vm);
+            out.push_str(&rhs.coerce_to_string(vm));
             Ok(Self::String(out))
         } else {
             Self::checked_numeric_binary_op(lhs, rhs, Number::checked_add)
@@ -53,7 +48,7 @@ impl Value {
         Self::checked_numeric_binary_op(lhs, rhs, Number::checked_pow)
     }
 
-    pub fn identical(_it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Self {
+    pub fn identical(_vm: &Vm, lhs: &Self, rhs: &Self) -> Self {
         let result = match (lhs, rhs) {
             (Self::Boolean(lhs), Self::Boolean(rhs)) => lhs == rhs,
             (Self::Number(lhs), Self::Number(rhs)) => lhs == rhs,
@@ -66,19 +61,19 @@ impl Value {
         Self::Boolean(result)
     }
 
-    pub fn not_identical(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Self {
-        let identical = Self::identical(it, lhs, rhs);
+    pub fn not_identical(vm: &Vm, lhs: &Self, rhs: &Self) -> Self {
+        let identical = Self::identical(vm, lhs, rhs);
         Self::not(&identical)
     }
 
-    pub fn eq(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Self {
+    pub fn eq(vm: &Vm, lhs: &Self, rhs: &Self) -> Self {
         if let Self::String(rhs) = rhs {
-            return Self::Boolean(lhs.coerce_to_string(it).as_str() == rhs);
+            return Self::Boolean(lhs.coerce_to_string(vm).as_str() == rhs);
         }
         Self::Boolean(match lhs {
             Self::Boolean(lhs) => *lhs == rhs.coerce_to_bool(),
             Self::Number(lhs) => *lhs == rhs.coerce_to_number(),
-            Self::String(lhs) => lhs == rhs.coerce_to_string(it).as_str(),
+            Self::String(lhs) => lhs == rhs.coerce_to_string(vm).as_str(),
             Self::Reference(lhs) => {
                 if let Self::Reference(rhs) = rhs {
                     lhs == rhs
@@ -97,25 +92,25 @@ impl Value {
         })
     }
 
-    pub fn ne(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Self {
-        let eq = Self::eq(it, lhs, rhs);
+    pub fn ne(vm: &Vm, lhs: &Self, rhs: &Self) -> Self {
+        let eq = Self::eq(vm, lhs, rhs);
         Self::not(&eq)
     }
 
-    pub fn lt(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Self {
-        Self::partial_cmp_op(it, lhs, rhs, cmp::Ordering::is_lt)
+    pub fn lt(vm: &Vm, lhs: &Self, rhs: &Self) -> Self {
+        Self::partial_cmp_op(vm, lhs, rhs, cmp::Ordering::is_lt)
     }
 
-    pub fn le(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Self {
-        Self::partial_cmp_op(it, lhs, rhs, cmp::Ordering::is_le)
+    pub fn le(vm: &Vm, lhs: &Self, rhs: &Self) -> Self {
+        Self::partial_cmp_op(vm, lhs, rhs, cmp::Ordering::is_le)
     }
 
-    pub fn gt(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Self {
-        Self::partial_cmp_op(it, lhs, rhs, cmp::Ordering::is_gt)
+    pub fn gt(vm: &Vm, lhs: &Self, rhs: &Self) -> Self {
+        Self::partial_cmp_op(vm, lhs, rhs, cmp::Ordering::is_gt)
     }
 
-    pub fn ge(it: &mut Interpreter, lhs: &Self, rhs: &Self) -> Self {
-        Self::partial_cmp_op(it, lhs, rhs, cmp::Ordering::is_ge)
+    pub fn ge(vm: &Vm, lhs: &Self, rhs: &Self) -> Self {
+        Self::partial_cmp_op(vm, lhs, rhs, cmp::Ordering::is_ge)
     }
 
     pub fn bitnot(operand: &Self) -> Self {
@@ -198,13 +193,13 @@ impl Value {
         }
     }
 
-    pub fn coerce_to_string(&self, it: &Interpreter) -> String {
+    pub fn coerce_to_string(&self, vm: &Vm) -> String {
         match self {
             Self::Boolean(value) => value.to_string(),
             Self::Number(value) => value.to_string(),
             Self::String(value) => value.clone(),
             Self::Reference(obj_ref) => {
-                let obj = it.vm().heap().resolve(obj_ref);
+                let obj = vm.heap().resolve(obj_ref);
                 obj.js_to_string()
             }
             Self::NativeFunction(value) => value.to_string(),
@@ -231,14 +226,9 @@ impl Value {
     }
 
     #[inline]
-    fn partial_cmp_op(
-        it: &mut Interpreter,
-        lhs: &Self,
-        rhs: &Self,
-        f: fn(cmp::Ordering) -> bool,
-    ) -> Self {
+    fn partial_cmp_op(vm: &Vm, lhs: &Self, rhs: &Self, f: fn(cmp::Ordering) -> bool) -> Self {
         let result = if lhs.is_str_or_ref() || rhs.is_str_or_ref() {
-            f(lhs.coerce_to_string(it).cmp(&rhs.coerce_to_string(it)))
+            f(lhs.coerce_to_string(vm).cmp(&rhs.coerce_to_string(vm)))
         } else {
             lhs.coerce_to_number()
                 .partial_cmp(&rhs.coerce_to_number())
