@@ -115,7 +115,8 @@ impl Eval for AssertStatement {
         if value.is_truthy() {
             Ok(())
         } else {
-            Err(AssertionFailedError::new(self.condition.clone(), value).into())
+            let detail_msg = format!("(evaluated to `{:?}`): {:#?}", value, self.condition);
+            Err(AssertionFailedError::new(detail_msg).into())
         }
     }
 }

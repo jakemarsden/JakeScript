@@ -1,17 +1,20 @@
+use common_macros::hash_map;
+
 use crate::ast::Identifier;
 use crate::interpreter::{
-    self, Heap, InitialisationError, ScopeCtx, Value, Variable, VariableKind, Vm,
+    self, AssertionFailedError, Heap, InitialisationError, ScopeCtx, Value, Variable, VariableKind,
+    Vm,
 };
 use crate::non_empty_str;
 use crate::runtime::{native_fn, Builtin};
 use crate::str::NonEmptyString;
-use common_macros::hash_map;
 
 pub struct ConsoleBuiltin;
 
 impl Builtin for ConsoleBuiltin {
     fn register(&self, global: &mut ScopeCtx, heap: &mut Heap) -> Result<(), InitialisationError> {
         let console_obj_props = hash_map! {
+            Identifier::from(non_empty_str!("assert")) => native_fn("assert", &builtin_assert),
             Identifier::from(non_empty_str!("log")) => native_fn("log", &builtin_log),
         };
         let console_obj = heap
@@ -25,6 +28,26 @@ impl Builtin for ConsoleBuiltin {
         ));
 
         Ok(())
+    }
+}
+
+fn builtin_assert(vm: &mut Vm, args: &[Value]) -> interpreter::Result {
+    let condition = match args.first().cloned() {
+        Some(condition) => condition.coerce_to_bool(),
+        None => false,
+    };
+    if condition {
+        Ok(Value::Undefined)
+    } else {
+        let detail_msg: String = args
+            .iter()
+            .skip(1)
+            .map(|arg| arg.coerce_to_string(vm))
+            .intersperse_with(|| " ".to_owned())
+            .collect();
+        Err(interpreter::Error::AssertionFailed(
+            AssertionFailedError::new(detail_msg),
+        ))
     }
 }
 
