@@ -50,7 +50,6 @@ impl Node for Block {}
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "statement_type")]
 pub enum Statement {
-    Assert(AssertStatement),
     Break(BreakStatement),
     Continue(ContinueStatement),
     Declaration(DeclarationStatement),
@@ -82,13 +81,6 @@ impl DeclarationStatement {
 }
 
 impl Node for DeclarationStatement {}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct AssertStatement {
-    pub condition: Expression,
-}
-
-impl Node for AssertStatement {}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct IfStatement {

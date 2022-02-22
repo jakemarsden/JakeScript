@@ -1,11 +1,11 @@
 use crate::ast::{
-    AssertStatement, AssignmentExpression, AssignmentOperator, Associativity, BinaryExpression,
-    BinaryOperator, Block, BreakStatement, CatchBlock, ComputedPropertyAccessExpression,
-    ContinueStatement, DeclarationStatement, Expression, FinallyBlock, ForLoop,
-    FunctionCallExpression, FunctionDeclaration, GroupingExpression, Identifier, IfStatement,
-    Literal, LiteralExpression, Node, NumericLiteral, Op, Program, PropertyAccessExpression,
-    ReturnStatement, Statement, TernaryExpression, ThrowStatement, TryStatement, UnaryExpression,
-    UnaryOperator, VariableAccessExpression, VariableDeclaration, WhileLoop,
+    AssignmentExpression, AssignmentOperator, Associativity, BinaryExpression, BinaryOperator,
+    Block, BreakStatement, CatchBlock, ComputedPropertyAccessExpression, ContinueStatement,
+    DeclarationStatement, Expression, FinallyBlock, ForLoop, FunctionCallExpression,
+    FunctionDeclaration, GroupingExpression, Identifier, IfStatement, Literal, LiteralExpression,
+    Node, NumericLiteral, Op, Program, PropertyAccessExpression, ReturnStatement, Statement,
+    TernaryExpression, ThrowStatement, TryStatement, UnaryExpression, UnaryOperator,
+    VariableAccessExpression, VariableDeclaration, WhileLoop,
 };
 use std::assert_matches::assert_matches;
 use std::collections::HashMap;
@@ -85,7 +85,6 @@ impl Eval for Block {
 impl Eval for Statement {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         match self {
-            Self::Assert(node) => node.eval(it),
             Self::Break(node) => node.eval(it),
             Self::Continue(node) => node.eval(it),
             Self::Declaration(node) => node.eval(it),
@@ -105,18 +104,6 @@ impl Eval for DeclarationStatement {
         match self {
             DeclarationStatement::Function(node) => node.eval(it),
             DeclarationStatement::Variable(node) => node.eval(it),
-        }
-    }
-}
-
-impl Eval for AssertStatement {
-    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        let value = self.condition.eval(it)?;
-        if value.is_truthy() {
-            Ok(())
-        } else {
-            let detail_msg = format!("(evaluated to `{:?}`): {:#?}", value, self.condition);
-            Err(AssertionFailedError::new(detail_msg).into())
         }
     }
 }
