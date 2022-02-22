@@ -15,11 +15,12 @@ pub struct Vm {
 
 impl Vm {
     pub fn new() -> Result<Self, InitialisationError> {
-        let global_scope = global_scope::create()?;
+        let mut heap = Heap::default();
+        let global_scope = global_scope::create(&mut heap)?;
         Ok(Self {
             execution_state: ExecutionState::default(),
             hidden_exception: Option::default(),
-            heap: Heap::default(),
+            heap,
             stack: CallStack::new(CallFrame::new(global_scope)),
         })
     }

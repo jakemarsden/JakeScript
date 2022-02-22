@@ -19,21 +19,28 @@ impl Heap {
             .enumerate()
             .map(|(idx, value)| (Identifier::from(idx as i64), value))
             .collect();
-        self.allocate_object(|| Object::new(props, None))
+        self.alloc(|| Object::new(props, None))
     }
 
     pub fn allocate_empty_object(&mut self) -> Result<Reference, OutOfMemoryError> {
-        self.allocate_object(|| Object::new(HashMap::default(), None))
+        self.alloc(|| Object::new(HashMap::default(), None))
+    }
+
+    pub fn allocate_object(
+        &mut self,
+        properties: HashMap<Identifier, Value>,
+    ) -> Result<Reference, OutOfMemoryError> {
+        self.alloc(|| Object::new(properties, None))
     }
 
     pub fn allocate_callable_object(
         &mut self,
         callable: Callable,
     ) -> Result<Reference, OutOfMemoryError> {
-        self.allocate_object(|| Object::new(HashMap::default(), Some(callable)))
+        self.alloc(|| Object::new(HashMap::default(), Some(callable)))
     }
 
-    fn allocate_object(
+    fn alloc(
         &mut self,
         constructor: impl FnOnce() -> Object,
     ) -> Result<Reference, OutOfMemoryError> {

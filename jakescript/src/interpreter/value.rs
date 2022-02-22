@@ -420,6 +420,23 @@ impl Number {
         })
     }
 
+    // cast_precision_loss, cast_possible_truncation: TODO: Handle floating-point properly
+    #[allow(clippy::cast_precision_loss)]
+    #[allow(clippy::cast_possible_truncation)]
+    pub fn checked_sqrt(self) -> Option<Self> {
+        #[allow(clippy::match_same_arms)]
+        Some(match self {
+            Self::Int(n) => match n.cmp(&0) {
+                cmp::Ordering::Greater => Self::Int((n as f64).sqrt().round() as i64),
+                cmp::Ordering::Less => Self::NaN,
+                cmp::Ordering::Equal => return None,
+            },
+            Self::Inf(Sign::Pos) => Self::Inf(Sign::Pos),
+            Self::Inf(Sign::Neg) => Self::NaN,
+            Self::NaN => Self::NaN,
+        })
+    }
+
     /// # Panics
     ///
     /// Always panics.
