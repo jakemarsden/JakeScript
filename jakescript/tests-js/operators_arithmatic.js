@@ -245,7 +245,7 @@ assert (-Infinity) ** Infinity === Infinity;
 assert (-Infinity) ** (-Infinity) === 0;
 assert isNaN((-Infinity) ** NaN);
 
-assert isNaN(NaN ** 0);
+assert NaN ** 0 === 1;
 assert isNaN(NaN ** 3);
 assert isNaN(NaN ** (-3));
 assert isNaN(NaN ** Infinity);

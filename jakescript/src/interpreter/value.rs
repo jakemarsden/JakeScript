@@ -45,7 +45,7 @@ impl Value {
     }
 
     pub fn pow(lhs: &Self, rhs: &Self) -> Result<Self, NumericOverflowError> {
-        Self::checked_numeric_binary_op(lhs, rhs, Number::checked_pow)
+        Ok(Self::numeric_binary_op(lhs, rhs, Number::pow))
     }
 
     pub fn identical(_vm: &Vm, lhs: &Self, rhs: &Self) -> Self {
@@ -172,11 +172,7 @@ impl Value {
     pub fn coerce_to_bool(&self) -> bool {
         match self {
             Self::Boolean(value) => *value,
-            Self::Number(value) => match value {
-                Number::Int(value) => *value != 0,
-                Number::Inf(_) => true,
-                Number::NaN => false,
-            },
+            Self::Number(value) => !value.is_zero() && !value.is_nan(),
             Self::String(value) => !value.is_empty(),
             Self::Reference(..) | Self::NativeFunction(_) => true,
             Self::Null | Self::Undefined => false,
@@ -187,9 +183,9 @@ impl Value {
         match self {
             Self::Boolean(value) => Number::Int(if *value { 1 } else { 0 }),
             Self::Number(value) => *value,
-            Self::String(value) => Number::from_str(value).unwrap_or(Number::NaN),
+            Self::String(value) => Number::from_str(value).unwrap_or(Number::NAN),
             Self::Null => Number::Int(0),
-            Self::Reference(..) | Self::NativeFunction(_) | Self::Undefined => Number::NaN,
+            Self::Reference(..) | Self::NativeFunction(_) | Self::Undefined => Number::NAN,
         }
     }
 
@@ -254,177 +250,118 @@ impl fmt::Display for Value {
 
 #[derive(Copy, Clone, Debug)]
 pub enum Number {
+    Float(f64),
     Int(i64),
-    Inf(Sign),
-    NaN,
-}
-
-#[derive(Copy, Clone, Default, Eq, PartialEq, Debug)]
-pub enum Sign {
-    #[default]
-    Pos,
-    Neg,
-}
-
-impl Sign {
-    pub fn of(n: i64) -> Self {
-        if n >= 0 {
-            Self::Pos
-        } else {
-            Self::Neg
-        }
-    }
-}
-
-impl ops::Neg for Sign {
-    type Output = Self;
-
-    fn neg(self) -> Self::Output {
-        match self {
-            Self::Pos => Self::Neg,
-            Self::Neg => Self::Pos,
-        }
-    }
-}
-
-impl ops::Mul for Sign {
-    type Output = Self;
-
-    fn mul(self, rhs: Self) -> Self::Output {
-        match (self, rhs) {
-            (Self::Pos, Self::Pos) | (Self::Neg, Self::Neg) => Self::Pos,
-            (Self::Pos, Self::Neg) | (Self::Neg, Self::Pos) => Self::Neg,
-        }
-    }
-}
-
-impl cmp::Ord for Sign {
-    fn cmp(&self, other: &Self) -> cmp::Ordering {
-        match (self, other) {
-            (Self::Pos, Self::Pos) | (Self::Neg, Self::Neg) => cmp::Ordering::Equal,
-            (Self::Pos, Self::Neg) => cmp::Ordering::Greater,
-            (Self::Neg, Self::Pos) => cmp::Ordering::Less,
-        }
-    }
-}
-
-impl PartialOrd<Self> for Sign {
-    fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
-        Some(self.cmp(other))
-    }
 }
 
 impl Number {
+    pub const NAN: Self = Self::Float(f64::NAN);
+    pub const POS_INF: Self = Self::Float(f64::INFINITY);
+    pub const NEG_INF: Self = Self::Float(f64::NEG_INFINITY);
+
+    pub fn infinity(sign: i64) -> Self {
+        if sign >= 0 {
+            Self::POS_INF
+        } else {
+            Self::NEG_INF
+        }
+    }
+
+    pub fn is_zero(self) -> bool {
+        match self {
+            Self::Float(value) => value == 0.0,
+            Self::Int(value) => value == 0,
+        }
+    }
+
+    pub fn is_finite(self) -> bool {
+        match self {
+            Self::Float(value) => value.is_finite(),
+            Self::Int(_) => true,
+        }
+    }
+
+    pub fn is_infinite(self) -> bool {
+        match self {
+            Self::Float(value) => value.is_infinite(),
+            Self::Int(_) => false,
+        }
+    }
+
+    pub fn is_nan(self) -> bool {
+        match self {
+            Self::Float(value) => value.is_nan(),
+            Self::Int(_) => false,
+        }
+    }
+
+    pub fn as_i64(self) -> i64 {
+        match self {
+            #[allow(clippy::cast_possible_truncation)]
+            Self::Float(value) => value as i64,
+            Self::Int(value) => value,
+        }
+    }
+
+    pub fn as_f64(self) -> f64 {
+        match self {
+            Self::Float(value) => value,
+            #[allow(clippy::cast_precision_loss)]
+            Self::Int(value) => value as f64,
+        }
+    }
+
     pub fn checked_neg(self) -> Option<Self> {
         Some(match self {
+            Self::Float(value) => Self::Float(-value),
             Self::Int(value) => Self::Int(value.checked_neg()?),
-            Self::Inf(sign) => Self::Inf(-sign),
-            Self::NaN => Self::NaN,
         })
     }
 
     pub fn checked_add(self, rhs: Self) -> Option<Self> {
         Some(match (self, rhs) {
             (Self::Int(lhs), Self::Int(rhs)) => Self::Int(i64::checked_add(lhs, rhs)?),
-            (Self::Int(_), Self::Inf(sign)) | (Self::Inf(sign), Self::Int(_)) => Self::Inf(sign),
-            (Self::Inf(lhs_sign), Self::Inf(rhs_sign)) => {
-                if lhs_sign == rhs_sign {
-                    Self::Inf(lhs_sign)
-                } else {
-                    Self::NaN
-                }
-            }
-            (Self::NaN, _) | (_, Self::NaN) => Self::NaN,
+            (lhs, rhs) => Self::Float(lhs.as_f64() + rhs.as_f64()),
         })
     }
 
     pub fn checked_sub(self, rhs: Self) -> Option<Self> {
         Some(match (self, rhs) {
             (Self::Int(lhs), Self::Int(rhs)) => Self::Int(i64::checked_sub(lhs, rhs)?),
-            (Self::Int(_), Self::Inf(sign)) => Self::Inf(-sign),
-            (Self::Inf(sign), Self::Int(_)) => Self::Inf(sign),
-            (Self::Inf(lhs_sign), Self::Inf(rhs_sign)) => {
-                if lhs_sign != rhs_sign {
-                    Self::Inf(lhs_sign)
-                } else {
-                    Self::NaN
-                }
-            }
-            (Self::NaN, _) | (_, Self::NaN) => Self::NaN,
+            (lhs, rhs) => Self::Float(lhs.as_f64() - rhs.as_f64()),
         })
     }
 
     pub fn checked_mul(self, rhs: Self) -> Option<Self> {
-        #[allow(clippy::match_same_arms)]
         Some(match (self, rhs) {
             (Self::Int(lhs), Self::Int(rhs)) => Self::Int(i64::checked_mul(lhs, rhs)?),
-            (Self::Int(0), Self::Inf(_)) | (Self::Inf(_), Self::Int(0)) => Self::NaN,
-            (Self::Int(value), Self::Inf(sign)) | (Self::Inf(sign), Self::Int(value)) => {
-                Self::Inf(Sign::of(value) * sign)
-            }
-            (Self::Inf(lhs_sign), Self::Inf(rhs_sign)) => Self::Inf(lhs_sign * rhs_sign),
-            (Self::NaN, _) | (_, Self::NaN) => Self::NaN,
+            (lhs, rhs) => Self::Float(lhs.as_f64() * rhs.as_f64()),
         })
     }
 
     pub fn checked_div(self, rhs: Self) -> Option<Self> {
-        #[allow(clippy::match_same_arms)]
         Some(match (self, rhs) {
-            (Self::Int(0), Self::Int(0)) | (Self::Inf(_), Self::Inf(_)) => Self::NaN,
-            (Self::Int(lhs), Self::Int(0)) => Self::Inf(Sign::of(lhs)),
+            (Self::Int(0), Self::Int(0)) => Self::NAN,
+            (Self::Int(lhs), Self::Int(0)) => Self::infinity(lhs),
             (Self::Int(lhs), Self::Int(rhs)) => Self::Int(i64::checked_div(lhs, rhs)?),
-            (Self::Int(_), Self::Inf(_)) => Self::Int(0),
-            (Self::Inf(sign), Self::Int(0)) => Self::Inf(sign),
-            (Self::Inf(sign), Self::Int(value)) => Self::Inf(Sign::of(value) * sign),
-            (Self::NaN, _) | (_, Self::NaN) => Self::NaN,
+            (lhs, rhs) => Self::Float(lhs.as_f64() / rhs.as_f64()),
         })
     }
 
     pub fn checked_rem(self, rhs: Self) -> Option<Self> {
-        #[allow(clippy::match_same_arms)]
         Some(match (self, rhs) {
-            (Self::Int(_), Self::Int(0)) => Self::NaN,
+            (Self::Int(_), Self::Int(0)) => Self::NAN,
             (Self::Int(lhs), Self::Int(rhs)) => Self::Int(i64::checked_rem(lhs, rhs)?),
-            (Self::Int(lhs), Self::Inf(_)) => Self::Int(lhs),
-            (Self::Inf(_), Self::Int(_) | Self::Inf(_)) => Self::NaN,
-            (Self::NaN, _) | (_, Self::NaN) => Self::NaN,
+            (lhs, rhs) => Self::Float(lhs.as_f64() % rhs.as_f64()),
         })
     }
 
-    pub fn checked_pow(self, exp: Self) -> Option<Self> {
-        #[allow(clippy::match_same_arms)]
-        Some(match (exp, self) {
-            (Self::Int(exp), Self::Int(0)) if exp.is_negative() => Self::Inf(Sign::Pos),
-            (Self::Int(exp), Self::Int(base)) => Self::Int(checked_pow(base, exp)?),
-            (Self::Int(0), Self::Inf(_)) => Self::Int(1),
-            (Self::Int(exp), Self::Inf(_)) if exp.is_negative() => Self::Int(0),
-            (Self::Int(_), Self::Inf(Sign::Pos)) => Self::Inf(Sign::Pos),
-            (Self::Int(exp), Self::Inf(Sign::Neg)) => {
-                Self::Inf(if exp % 2 == 0 { Sign::Pos } else { Sign::Neg })
-            }
-            (Self::Inf(Sign::Pos), Self::Int(0)) => Self::Int(0),
-            (Self::Inf(Sign::Pos), Self::Int(_) | Self::Inf(_)) => Self::Inf(Sign::Pos),
-            (Self::Inf(Sign::Neg), Self::Int(0)) => Self::Inf(Sign::Pos),
-            (Self::Inf(Sign::Neg), Self::Int(_) | Self::Inf(_)) => Self::Int(0),
-            (Self::NaN, _) | (_, Self::NaN) => Self::NaN,
-        })
+    pub fn pow(self, exp: Self) -> Self {
+        Self::Float(self.as_f64().powf(exp.as_f64()))
     }
 
-    // cast_precision_loss, cast_possible_truncation: TODO: Handle floating-point properly
-    #[allow(clippy::cast_precision_loss)]
-    #[allow(clippy::cast_possible_truncation)]
-    pub fn checked_sqrt(self) -> Option<Self> {
-        #[allow(clippy::match_same_arms)]
-        Some(match self {
-            Self::Int(n) => match n.cmp(&0) {
-                cmp::Ordering::Greater => Self::Int((n as f64).sqrt().round() as i64),
-                cmp::Ordering::Less => Self::NaN,
-                cmp::Ordering::Equal => return None,
-            },
-            Self::Inf(Sign::Pos) => Self::Inf(Sign::Pos),
-            Self::Inf(Sign::Neg) => Self::NaN,
-            Self::NaN => Self::NaN,
-        })
+    pub fn sqrt(self) -> Self {
+        Self::Float(self.as_f64().sqrt())
     }
 
     /// # Panics
@@ -453,10 +390,12 @@ impl ops::Not for Number {
     type Output = Self;
 
     fn not(self) -> Self::Output {
-        match self {
-            Self::Int(value) => Self::Int(value.not()),
-            Self::Inf(_) => Self::Int(-1),
-            Self::NaN => Self::NaN,
+        if self.is_nan() {
+            Self::NAN
+        } else if self.is_infinite() {
+            Self::Int(-1)
+        } else {
+            Self::Int(!self.as_i64())
         }
     }
 }
@@ -465,10 +404,12 @@ impl ops::BitAnd for Number {
     type Output = Self;
 
     fn bitand(self, rhs: Self) -> Self::Output {
-        match (self, rhs) {
-            (Self::NaN, _) | (_, Self::NaN) => Self::NaN,
-            (Self::Int(lhs), Self::Int(rhs)) => Self::Int(i64::bitand(lhs, rhs)),
-            (Self::Inf(_), _) | (_, Self::Inf(_)) => Self::Int(0),
+        if self.is_nan() || rhs.is_nan() {
+            Self::NAN
+        } else if self.is_infinite() || rhs.is_infinite() {
+            Self::Int(0)
+        } else {
+            Self::Int(self.as_i64() & self.as_i64())
         }
     }
 }
@@ -477,12 +418,16 @@ impl ops::BitOr for Number {
     type Output = Self;
 
     fn bitor(self, rhs: Self) -> Self::Output {
-        match (self, rhs) {
-            (Self::NaN, _) | (_, Self::NaN) => Self::NaN,
-            (Self::Int(lhs), Self::Int(rhs)) => Self::Int(i64::bitand(lhs, rhs)),
-            (Self::Int(lhs), Self::Inf(_)) => Self::Int(lhs),
-            (Self::Inf(_), Self::Int(rhs)) => Self::Int(rhs),
-            (Self::Inf(_), Self::Inf(_)) => Self::Int(0),
+        if self.is_nan() || rhs.is_nan() {
+            Self::NAN
+        } else if self.is_infinite() && rhs.is_infinite() {
+            Self::Int(0)
+        } else if self.is_infinite() {
+            Self::Int(rhs.as_i64())
+        } else if rhs.is_infinite() {
+            Self::Int(self.as_i64())
+        } else {
+            Self::Int(self.as_i64() | rhs.as_i64())
         }
     }
 }
@@ -491,12 +436,16 @@ impl ops::BitXor for Number {
     type Output = Self;
 
     fn bitxor(self, rhs: Self) -> Self::Output {
-        match (self, rhs) {
-            (Self::NaN, _) | (_, Self::NaN) => Self::NaN,
-            (Self::Int(lhs), Self::Int(rhs)) => Self::Int(i64::bitxor(lhs, rhs)),
-            (Self::Int(lhs), Self::Inf(_)) => Self::Int(lhs),
-            (Self::Inf(_), Self::Int(rhs)) => Self::Int(rhs),
-            (Self::Inf(_), Self::Inf(_)) => Self::Int(0),
+        if self.is_nan() || rhs.is_nan() {
+            Self::NAN
+        } else if self.is_infinite() && rhs.is_infinite() {
+            Self::Int(0)
+        } else if self.is_infinite() {
+            Self::Int(rhs.as_i64())
+        } else if rhs.is_infinite() {
+            Self::Int(self.as_i64())
+        } else {
+            Self::Int(self.as_i64() ^ rhs.as_i64())
         }
     }
 }
@@ -505,25 +454,17 @@ impl cmp::PartialEq for Number {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Int(lhs), Self::Int(rhs)) => lhs == rhs,
-            (Self::Inf(lhs_sign), Self::Inf(rhs_sign)) => lhs_sign == rhs_sign,
-            (Self::Inf(_) | Self::NaN, _) | (_, Self::Inf(_) | Self::NaN) => false,
+            (lhs, rhs) => lhs.as_f64() == rhs.as_f64(),
         }
     }
 }
 
 impl cmp::PartialOrd for Number {
     fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
-        Some(match (self, other) {
-            (Self::Int(lhs), Self::Int(rhs)) => i64::cmp(lhs, rhs),
-            (Self::Int(_), Self::Inf(Sign::Neg)) | (Self::Inf(Sign::Pos), Self::Int(_)) => {
-                cmp::Ordering::Greater
-            }
-            (Self::Int(_), Self::Inf(Sign::Pos)) | (Self::Inf(Sign::Neg), Self::Int(_)) => {
-                cmp::Ordering::Less
-            }
-            (Self::Inf(lhs_sign), Self::Inf(rhs_sign)) => lhs_sign.cmp(rhs_sign),
-            (Self::NaN, _) | (_, Self::NaN) => return None,
-        })
+        match (self, other) {
+            (Self::Int(lhs), Self::Int(rhs)) => Some(lhs.cmp(rhs)),
+            (lhs, rhs) => lhs.as_f64().partial_cmp(&rhs.as_f64()),
+        }
     }
 }
 
@@ -538,10 +479,20 @@ impl TryFrom<u64> for Number {
 impl fmt::Display for Number {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            Self::Float(value) => {
+                if value.is_nan() {
+                    f.write_str("NaN")
+                } else if value.is_infinite() {
+                    f.write_str(if value.is_sign_positive() {
+                        "Infinity"
+                    } else {
+                        "-Infinity"
+                    })
+                } else {
+                    write!(f, "{}", value)
+                }
+            }
             Self::Int(value) => write!(f, "{}", value),
-            Self::Inf(Sign::Pos) => f.write_str("Infinity"),
-            Self::Inf(Sign::Neg) => f.write_str("-Infinity"),
-            Self::NaN => f.write_str("NaN"),
         }
     }
 }
@@ -561,18 +512,7 @@ impl FromStr for Number {
 
 impl From<&str> for Number {
     fn from(s: &str) -> Self {
-        Self::from_str(s).unwrap_or(Self::NaN)
-    }
-}
-
-// cast_precision_loss, cast_possible_truncation: TODO: Handle floating-point properly
-#[allow(clippy::cast_precision_loss)]
-#[allow(clippy::cast_possible_truncation)]
-fn checked_pow(lhs: i64, rhs: i64) -> Option<i64> {
-    if i32::try_from(rhs).is_ok() {
-        Some((lhs as f64).powi(rhs as i32) as i64)
-    } else {
-        None
+        Self::from_str(s).unwrap_or(Self::NAN)
     }
 }
 
