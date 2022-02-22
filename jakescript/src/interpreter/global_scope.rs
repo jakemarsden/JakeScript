@@ -29,6 +29,21 @@ pub(crate) fn create(heap: &mut Heap) -> Result<Scope, InitialisationError> {
         ),
         Variable::new(
             VariableKind::Var,
+            Identifier::from(non_empty_str!("Boolean")),
+            Value::NativeFunction(NativeFunction::new("Boolean", &builtin_boolean)),
+        ),
+        Variable::new(
+            VariableKind::Var,
+            Identifier::from(non_empty_str!("Number")),
+            Value::NativeFunction(NativeFunction::new("Number", &builtin_number)),
+        ),
+        Variable::new(
+            VariableKind::Var,
+            Identifier::from(non_empty_str!("String")),
+            Value::NativeFunction(NativeFunction::new("String", &builtin_string)),
+        ),
+        Variable::new(
+            VariableKind::Var,
             Identifier::from(non_empty_str!("isNaN")),
             Value::NativeFunction(NativeFunction::new("isNaN", &builtin_isnan)),
         ),
@@ -45,6 +60,27 @@ pub(crate) fn create(heap: &mut Heap) -> Result<Scope, InitialisationError> {
         ),
     ]);
     Ok(Scope::new(global_scope))
+}
+
+fn builtin_boolean(_: &mut Vm, args: &[Value]) -> Value {
+    match args.first().cloned() {
+        Some(value) => Value::Boolean(value.coerce_to_bool()),
+        None => Value::Boolean(false),
+    }
+}
+
+fn builtin_number(_: &mut Vm, args: &[Value]) -> Value {
+    match args.first().cloned() {
+        Some(value) => Value::Number(value.coerce_to_number()),
+        None => Value::Number(Number::Int(0)),
+    }
+}
+
+fn builtin_string(vm: &mut Vm, args: &[Value]) -> Value {
+    match args.first().cloned() {
+        Some(value) => Value::String(value.coerce_to_string(vm)),
+        None => Value::String("".to_owned()),
+    }
 }
 
 fn builtin_isnan(_: &mut Vm, args: &[Value]) -> Value {

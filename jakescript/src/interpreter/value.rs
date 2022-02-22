@@ -549,8 +549,13 @@ impl fmt::Display for Number {
 impl FromStr for Number {
     type Err = num::ParseIntError;
 
+    // TODO: Parsing numbers at runtime should use the same logic as the lexer?
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        i64::from_str(s).map(Self::Int)
+        if !s.is_empty() {
+            i64::from_str(s).map(Self::Int)
+        } else {
+            Ok(Self::Int(0))
+        }
     }
 }
 

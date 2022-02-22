@@ -136,11 +136,10 @@ impl Object {
         self.callable.as_ref()
     }
 
-    /// # Panics
-    ///
-    /// Always panics.
+    // TODO: Call `.toString()` on the object if it exists.
+    #[allow(clippy::unused_self)]
     pub fn js_to_string(&self) -> String {
-        todo!("Object::js_to_string: {:?}", self)
+        "[object Object]".to_owned()
     }
 }
 
