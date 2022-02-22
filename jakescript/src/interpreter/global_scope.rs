@@ -3,7 +3,7 @@ use crate::interpreter::error::InitialisationError;
 use crate::interpreter::heap::Heap;
 use crate::interpreter::stack::{Scope, ScopeCtx, Variable, VariableKind};
 use crate::interpreter::value::{NativeFunction, Number, Sign, Value};
-use crate::interpreter::vm::Vm;
+use crate::interpreter::vm::{ExecutionState, Vm};
 use crate::non_empty_str;
 use crate::str::NonEmptyString;
 use common_macros::hash_map;
@@ -55,6 +55,11 @@ pub(crate) fn create(heap: &mut Heap) -> Result<Scope, InitialisationError> {
             VariableKind::Var,
             Identifier::from(non_empty_str!("String")),
             Value::NativeFunction(NativeFunction::new("String", &builtin_string)),
+        ),
+        Variable::new(
+            VariableKind::Var,
+            Identifier::from(non_empty_str!("exit")),
+            Value::NativeFunction(NativeFunction::new("exit", &builtin_exit)),
         ),
         Variable::new(
             VariableKind::Var,
@@ -117,6 +122,11 @@ fn builtin_console_log(vm: &mut Vm, args: &[Value]) -> Value {
         .intersperse_with(|| " ".to_owned())
         .collect();
     vm.write_message(&msg);
+    Value::Undefined
+}
+
+fn builtin_exit(vm: &mut Vm, _args: &[Value]) -> Value {
+    vm.set_execution_state(ExecutionState::Exit);
     Value::Undefined
 }
 
