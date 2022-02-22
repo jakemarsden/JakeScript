@@ -11,6 +11,20 @@ use common_macros::hash_map;
 // TODO: What's the difference between a property of the global object, and a variable which is
 //  accessible from the global scope?
 pub(crate) fn create(heap: &mut Heap) -> Result<Scope, InitialisationError> {
+    let console_obj = heap
+        .allocate_object(hash_map! {
+            Identifier::from(non_empty_str!("log"))
+            => Value::NativeFunction(NativeFunction::new("log", &builtin_console_log)),
+        })
+        .map_err(InitialisationError::from)?;
+
+    let math_obj = heap
+        .allocate_object(hash_map! {
+            Identifier::from(non_empty_str!("sqrt"))
+            => Value::NativeFunction(NativeFunction::new("sqrt", &builtin_math_sqrt)),
+        })
+        .map_err(InitialisationError::from)?;
+
     let global_scope = ScopeCtx::new(vec![
         Variable::new(
             VariableKind::SilentReadOnly,
@@ -49,14 +63,13 @@ pub(crate) fn create(heap: &mut Heap) -> Result<Scope, InitialisationError> {
         ),
         Variable::new(
             VariableKind::Var,
+            Identifier::from(non_empty_str!("console")),
+            Value::Reference(console_obj),
+        ),
+        Variable::new(
+            VariableKind::Var,
             Identifier::from(non_empty_str!("Math")),
-            Value::Reference(
-                heap.allocate_object(hash_map! {
-                    Identifier::from(non_empty_str!("sqrt"))
-                    => Value::NativeFunction(NativeFunction::new("sqrt", &builtin_math_sqrt)),
-                })
-                .map_err(InitialisationError::from)?,
-            ),
+            Value::Reference(math_obj),
         ),
     ]);
     Ok(Scope::new(global_scope))
@@ -95,6 +108,16 @@ fn builtin_isnan(_: &mut Vm, args: &[Value]) -> Value {
         | Value::Null
         | Value::Undefined => true,
     })
+}
+
+fn builtin_console_log(vm: &mut Vm, args: &[Value]) -> Value {
+    let msg: String = args
+        .iter()
+        .map(|arg| arg.coerce_to_string(vm))
+        .intersperse_with(|| " ".to_owned())
+        .collect();
+    vm.write_message(&msg);
+    Value::Undefined
 }
 
 fn builtin_math_sqrt(_: &mut Vm, args: &[Value]) -> Value {
