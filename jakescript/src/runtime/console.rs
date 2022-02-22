@@ -32,7 +32,7 @@ fn builtin_log(vm: &mut Vm, args: &[Value]) -> interpreter::Result {
     let msg: String = args
         .iter()
         .map(|arg| arg.coerce_to_string(vm))
-        .intersperse_with(|| "".to_owned())
+        .intersperse_with(|| " ".to_owned())
         .collect();
     vm.write_message(&msg);
     Ok(Value::Undefined)
