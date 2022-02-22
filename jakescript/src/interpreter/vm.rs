@@ -1,8 +1,8 @@
 use crate::interpreter::error::InitialisationError;
-use crate::interpreter::global_scope;
 use crate::interpreter::heap::Heap;
-use crate::interpreter::stack::{CallFrame, CallStack};
+use crate::interpreter::stack::{CallFrame, CallStack, Scope};
 use crate::interpreter::value::Value;
+use crate::runtime::{DefaultRuntime, Runtime};
 use std::assert_matches::assert_matches;
 use std::mem;
 
@@ -15,8 +15,14 @@ pub struct Vm {
 
 impl Vm {
     pub fn new() -> Result<Self, InitialisationError> {
+        let runtime = DefaultRuntime::default();
+        Self::with_custom_runtime(&runtime)
+    }
+
+    pub fn with_custom_runtime(runtime: &dyn Runtime) -> Result<Self, InitialisationError> {
         let mut heap = Heap::default();
-        let global_scope = global_scope::create(&mut heap)?;
+        let global_ctx = runtime.create_global_context(&mut heap)?;
+        let global_scope = Scope::new(global_ctx);
         Ok(Self {
             execution_state: ExecutionState::default(),
             hidden_exception: Option::default(),

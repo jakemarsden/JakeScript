@@ -18,7 +18,6 @@ pub use value::*;
 pub use vm::*;
 
 mod error;
-mod global_scope;
 mod heap;
 mod stack;
 mod value;
