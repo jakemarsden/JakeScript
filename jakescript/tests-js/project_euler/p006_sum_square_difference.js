@@ -8,5 +8,5 @@ function sumSquareDifference(n) {
     return squareOfSum - sumOfSquares;
 }
 
-assert sumSquareDifference(10) === 2640;
-assert sumSquareDifference(100) === 25164150;
+console.assert(sumSquareDifference(10) === 2640);
+console.assert(sumSquareDifference(100) === 25164150);

@@ -8,5 +8,5 @@ function multiplesOf3Or5(limit) {
     return sum;
 }
 
-assert multiplesOf3Or5(10) === 23;
-assert multiplesOf3Or5(1000) === 233168;
+console.assert(multiplesOf3Or5(10) === 23);
+console.assert(multiplesOf3Or5(1000) === 233168);
