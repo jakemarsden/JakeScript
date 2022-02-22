@@ -12,4 +12,4 @@ Comment 3
 
 let /**Comment 4*/ d = /* 50 */ 40;
 
-assert a + b + c + d === 100;
+console.assert(a + b + c + d === 100);

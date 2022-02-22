@@ -4,13 +4,13 @@ let b = null;
 if (a === 42) {
     b = "success block!";
 }
-assert b === "success block!";
+console.assert(b === "success block!");
 
 let c = undefined;
 if (a !== 42) {
     c = "success block!";
 }
-assert c === undefined;
+console.assert(c === undefined);
 
 let d;
 if (a === 42) {
@@ -18,7 +18,7 @@ if (a === 42) {
 } else {
     d = "else block!";
 }
-assert d === "success block!";
+console.assert(d === "success block!");
 
 let e;
 if (a !== 42) {
@@ -26,7 +26,7 @@ if (a !== 42) {
 } else {
     e = "else block!";
 }
-assert e === "else block!";
+console.assert(e === "else block!");
 
 let f;
 if (a === 42) {
@@ -36,7 +36,7 @@ if (a === 42) {
 } else {
     f = "else block!";
 }
-assert f === "success block!";
+console.assert(f === "success block!");
 
 let g;
 if (a === 41) {
@@ -46,7 +46,7 @@ if (a === 41) {
 } else {
     g = "else block!";
 }
-assert g === "else-if block!";
+console.assert(g === "else-if block!");
 
 let h;
 if (a === 41) {
@@ -56,7 +56,7 @@ if (a === 41) {
 } else {
     h = "else block!";
 }
-assert h === "else block!";
+console.assert(h === "else block!");
 
 let i;
 if (a === 42) {
@@ -68,7 +68,7 @@ if (a === 42) {
         i = "nested else block!";
     }
 }
-assert i === "success block!";
+console.assert(i === "success block!");
 
 let j;
 if (a === 41) {
@@ -80,7 +80,7 @@ if (a === 41) {
         j = "nested else block!";
     }
 }
-assert j === "nested if block!";
+console.assert(j === "nested if block!");
 
 let k;
 if (a === 41) {
@@ -92,4 +92,4 @@ if (a === 41) {
         k = "nested else block!";
     }
 }
-assert k === "nested else block!";
+console.assert(k === "nested else block!");

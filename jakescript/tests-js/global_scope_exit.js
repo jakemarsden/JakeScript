@@ -1,10 +1,10 @@
-assert exit;
+console.assert(exit);
 
 function assertNotReached() {
-    assert false;
+    console.assert(false);
 }
 
-assert 1 + 2 === 3;
+console.assert(1 + 2 === 3);
 
 exit();
 assertNotReached();

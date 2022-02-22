@@ -1,23 +1,23 @@
 function noArg() {
-    assert true;
+    console.assert(true);
 }
 noArg();
 
 function oneArg(a) {
-    assert a === 10;
+    console.assert(a === 10);
 }
 oneArg(10);
 
 function multiArg(a, b, c) {
-    assert a === b;
-    assert a === c;
+    console.assert(a === b);
+    console.assert(a === c);
 }
 multiArg(2 + 2, 2 * 2, 2 ** 2);
 
 function add(a, b) {
     return a + b;
 }
-assert add(10, 20) === 30;
+console.assert(add(10, 20) === 30);
 
 function earlyReturn(arg) {
     if (arg === 42) {
@@ -29,28 +29,28 @@ function earlyReturn(arg) {
             return nice;
         }
     }
-    assert false;
+    console.assert(false);
 }
-assert earlyReturn(42) === undefined;
-assert earlyReturn(69) === "nice";
+console.assert(earlyReturn(42) === undefined);
+console.assert(earlyReturn(69) === "nice");
 
 function trailingExpressionIsNotReturned(a, b) {
     let sum = a + b;
     sum;
 }
-assert trailingExpressionIsNotReturned(40, 2) === undefined;
+console.assert(trailingExpressionIsNotReturned(40, 2) === undefined);
 
 function actuallyReturnsUndefined() {
     return undefined;
 }
-assert actuallyReturnsUndefined() === undefined;
+console.assert(actuallyReturnsUndefined() === undefined);
 
 let n = 10;
 function addOutside(delta) {
     n += delta;
 }
-assert n === 10;
+console.assert(n === 10);
 addOutside(3);
 addOutside(n);
 addOutside(4);
-assert n === 30;
+console.assert(n === 30);

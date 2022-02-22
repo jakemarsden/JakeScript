@@ -2,28 +2,28 @@ let counter = 0;
 for (let i = 0; i <= 10; i += 1) {
     counter += i;
 }
-assert counter === 55;
+console.assert(counter === 55);
 
 let counterWithVar = 0;
 for (var varI = 0; varI <= 10; varI += 1) {
     counterWithVar += varI;
 }
-assert counterWithVar === 55;
+console.assert(counterWithVar === 55);
 
 let noInitCounter = 0;
 let noInitI = 5;
 for (; noInitI > 0; noInitI -= 1) {
     noInitCounter += 1;
 }
-assert noInitI === 0;
-assert noInitCounter === 5;
+console.assert(noInitI === 0);
+console.assert(noInitCounter === 5);
 
 let noIncCounter = 0;
 for (let i = 5; i > 0;) {
     i -= 1;
     noIncCounter += 1;
 }
-assert noIncCounter === 5;
+console.assert(noIncCounter === 5);
 
 let noCondCounter = 0;
 for (let i = 5; ; i -= 1) {
@@ -32,7 +32,7 @@ for (let i = 5; ; i -= 1) {
     }
     noCondCounter += 1;
 }
-assert noCondCounter === 5;
+console.assert(noCondCounter === 5);
 
 let infCounter = 0;
 for (;;) {
@@ -41,7 +41,7 @@ for (;;) {
     }
     infCounter += 1;
 }
-assert infCounter === 4;
+console.assert(infCounter === 4);
 
 let breakCounter = 0;
 for (let i = 0; i <= 10; i += 1) {
@@ -50,7 +50,7 @@ for (let i = 0; i <= 10; i += 1) {
     }
     breakCounter += i;
 }
-assert breakCounter === 15;
+console.assert(breakCounter === 15);
 
 let continueCounter = 0;
 for (let i = 0; i < 10; i += 1) {
@@ -59,7 +59,7 @@ for (let i = 0; i < 10; i += 1) {
     }
     continueCounter += i;
 }
-assert continueCounter === 25;
+console.assert(continueCounter === 25);
 
 let bcCount = 0;
 for (let idx = 9;; idx -= 1) {
@@ -71,15 +71,15 @@ for (let idx = 9;; idx -= 1) {
     }
     bcCount += 1;
 }
-assert bcCount === 4;
+console.assert(bcCount === 4);
 
 function returnInside() {
     for (let i = 3; i -= 1;) {
         return i;
     }
-    assert false;
+    console.assert(false);
 }
-assert returnInside() === 2;
+console.assert(returnInside() === 2);
 
 function returnInside2() {
     for (let i = 0;; i += 1) {
@@ -87,6 +87,6 @@ function returnInside2() {
             return i;
         }
     }
-    assert false;
+    console.assert(false);
 }
-assert returnInside2() === 10;
+console.assert(returnInside2() === 10);
