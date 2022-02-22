@@ -1,4 +1,5 @@
 use crate::ast::Identifier;
+use crate::interpreter::error::InitialisationError;
 use crate::interpreter::stack::{Scope, ScopeCtx, Variable, VariableKind};
 use crate::interpreter::value::{NativeFunction, Number, Sign, Value};
 use crate::interpreter::vm::Vm;
@@ -7,7 +8,8 @@ use crate::str::NonEmptyString;
 
 // TODO: What's the difference between a property of the global object, and a variable which is
 //  accessible from the global scope?
-pub(crate) fn create() -> Scope {
+#[allow(clippy::unnecessary_wraps)]
+pub(crate) fn create() -> Result<Scope, InitialisationError> {
     let global_scope = ScopeCtx::new(vec![
         Variable::new(
             VariableKind::SilentReadOnly,
@@ -30,7 +32,7 @@ pub(crate) fn create() -> Scope {
             Value::NativeFunction(NativeFunction::new("isNaN", &is_nan_builtin)),
         ),
     ]);
-    Scope::new(global_scope)
+    Ok(Scope::new(global_scope))
 }
 
 fn is_nan_builtin(_: &mut Vm, args: &[Value]) -> Value {

@@ -1,3 +1,4 @@
+use crate::interpreter::error::InitialisationError;
 use crate::interpreter::global_scope;
 use crate::interpreter::heap::Heap;
 use crate::interpreter::stack::{CallFrame, CallStack};
@@ -12,19 +13,17 @@ pub struct Vm {
     stack: CallStack,
 }
 
-impl Default for Vm {
-    fn default() -> Self {
-        let global_scope = global_scope::create();
-        Self {
+impl Vm {
+    pub fn new() -> Result<Self, InitialisationError> {
+        let global_scope = global_scope::create()?;
+        Ok(Self {
             execution_state: ExecutionState::default(),
             hidden_exception: Option::default(),
             heap: Heap::default(),
             stack: CallStack::new(CallFrame::new(global_scope)),
-        }
+        })
     }
-}
 
-impl Vm {
     pub fn execution_state(&self) -> &ExecutionState {
         &self.execution_state
     }

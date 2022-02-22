@@ -24,12 +24,15 @@ mod stack;
 mod value;
 mod vm;
 
-#[derive(Default)]
 pub struct Interpreter {
     vm: Vm,
 }
 
 impl Interpreter {
+    pub fn new(vm: Vm) -> Self {
+        Self { vm }
+    }
+
     pub fn vm(&self) -> &Vm {
         &self.vm
     }

@@ -1,5 +1,5 @@
 use ansi_term::{Color, Style};
-use jakescript::interpreter::{self, Eval, ExecutionState, Interpreter};
+use jakescript::interpreter::{self, Eval, ExecutionState, Interpreter, Vm};
 use jakescript::lexer::Lexer;
 use jakescript::parser::{self, Parser};
 use std::path::Path;
@@ -33,7 +33,7 @@ fn exec<I: Iterator<Item = io::Result<char>>>(
     source: Lexer<I>,
 ) -> TestCaseReport {
     let parser = Parser::for_lexer(source);
-    let mut interpreter = Interpreter::default();
+    let mut interpreter = Interpreter::new(Vm::new().unwrap());
 
     let started_at = Instant::now();
 

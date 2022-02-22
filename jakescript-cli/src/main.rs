@@ -6,7 +6,7 @@
 
 use enumerate::{Enumerate, EnumerateStr};
 use jakescript::ast::Program;
-use jakescript::interpreter::{self, Eval, Interpreter};
+use jakescript::interpreter::{self, Eval, Interpreter, Vm};
 use jakescript::lexer::{self, Element, Lexer};
 use jakescript::parser::{self, Parser};
 use repl::Repl;
@@ -76,7 +76,7 @@ fn main() -> Result<(), Error> {
         Options(Mode::Repl, None, None) => {
             let mut stdin = io::stdin_locked();
             let lexer = Lexer::for_chars_fallible(stdin.chars());
-            let mut it = Interpreter::default();
+            let mut it = Interpreter::new(Vm::new().unwrap());
             Repl::new(lexer).execute(&mut it);
         }
         Options(_, _, _) => unreachable!(),
@@ -105,7 +105,7 @@ fn parse<I: Iterator<Item = io::Result<char>>>(
 
 fn eval(ast: &Program) -> interpreter::Result<(interpreter::Value, Duration)> {
     let start_time = Instant::now();
-    let mut it = Interpreter::default();
+    let mut it = Interpreter::new(Vm::new().unwrap());
     ast.eval(&mut it).map(|value| (value, start_time.elapsed()))
 }
 

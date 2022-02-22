@@ -205,3 +205,27 @@ impl From<OutOfMemoryError> for Error {
         Self::OutOfMemory(source)
     }
 }
+
+#[derive(Clone, Debug)]
+pub struct InitialisationError(Error);
+
+impl fmt::Display for InitialisationError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Initialisation error: {}", self.0)
+    }
+}
+
+impl std::error::Error for InitialisationError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(&self.0)
+    }
+}
+
+impl<T> From<T> for InitialisationError
+where
+    Error: From<T>,
+{
+    fn from(source: T) -> Self {
+        Self(Error::from(source))
+    }
+}
