@@ -1,13 +1,13 @@
 use crate::ast::{
     self, AssertStatement, AssignmentExpression, AssignmentOperator, BinaryExpression,
     BinaryOperator, Block, BreakStatement, CatchBlock, ComputedPropertyAccessExpression,
-    ComputedPropertyAccessOperator, ContinueStatement, DeclarationStatement, ExitStatement,
-    Expression, FinallyBlock, ForLoop, FunctionCallExpression, FunctionCallOperator,
-    FunctionDeclaration, GroupingExpression, GroupingOperator, Identifier, IfStatement,
-    LiteralExpression, Op, Operator, Precedence, PrintStatement, Program, PropertyAccessExpression,
-    PropertyAccessOperator, ReturnStatement, Statement, TernaryExpression, TernaryOperator,
-    ThrowStatement, TryStatement, UnaryExpression, UnaryOperator, VariableAccessExpression,
-    VariableDeclaration, VariableDeclarationEntry, VariableDeclarationKind, WhileLoop,
+    ComputedPropertyAccessOperator, ContinueStatement, DeclarationStatement, Expression,
+    FinallyBlock, ForLoop, FunctionCallExpression, FunctionCallOperator, FunctionDeclaration,
+    GroupingExpression, GroupingOperator, Identifier, IfStatement, LiteralExpression, Op, Operator,
+    Precedence, Program, PropertyAccessExpression, PropertyAccessOperator, ReturnStatement,
+    Statement, TernaryExpression, TernaryOperator, ThrowStatement, TryStatement, UnaryExpression,
+    UnaryOperator, VariableAccessExpression, VariableDeclaration, VariableDeclarationEntry,
+    VariableDeclarationKind, WhileLoop,
 };
 use crate::iter::{IntoPeekableNth, PeekableNth};
 use crate::lexer::{
@@ -107,12 +107,6 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
                 let stmt = match token {
                     Token::Keyword(Keyword::Assert) => {
                         self.parse_assert_statement().map(Statement::Assert)
-                    }
-                    Token::Keyword(Keyword::Exit) => {
-                        self.parse_exit_statement().map(Statement::Exit)
-                    }
-                    Token::Keyword(Keyword::Print | Keyword::PrintLn) => {
-                        self.parse_print_statement().map(Statement::Print)
                     }
                     Token::Keyword(Keyword::Break) => {
                         self.parse_break_statement().map(Statement::Break)
@@ -432,30 +426,6 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
         self.expect_keyword(Keyword::Assert)?;
         let condition = self.parse_expression()?;
         Ok(AssertStatement { condition })
-    }
-
-    fn parse_exit_statement(&mut self) -> Result<ExitStatement> {
-        self.expect_keyword(Keyword::Exit)?;
-        Ok(ExitStatement)
-    }
-
-    fn parse_print_statement(&mut self) -> Result<PrintStatement> {
-        let new_line = match self.tokens.try_next()? {
-            Some(Token::Keyword(Keyword::Print)) => false,
-            Some(Token::Keyword(Keyword::PrintLn)) => true,
-            actual => {
-                return Err(Error::unexpected(
-                    AnyOf(
-                        Token::Keyword(Keyword::Print),
-                        Token::Keyword(Keyword::PrintLn),
-                        vec![],
-                    ),
-                    actual,
-                ))
-            }
-        };
-        let argument = self.parse_expression()?;
-        Ok(PrintStatement { argument, new_line })
     }
 
     fn parse_if_statement(&mut self) -> Result<IfStatement> {

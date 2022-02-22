@@ -53,10 +53,8 @@ pub enum Statement {
     Break(BreakStatement),
     Continue(ContinueStatement),
     Declaration(DeclarationStatement),
-    Exit(ExitStatement),
     Expression(Expression),
     If(IfStatement),
-    Print(PrintStatement),
     Return(ReturnStatement),
     Throw(ThrowStatement),
     Try(TryStatement),
@@ -90,19 +88,6 @@ pub struct AssertStatement {
 }
 
 impl Node for AssertStatement {}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ExitStatement;
-
-impl Node for ExitStatement {}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct PrintStatement {
-    pub argument: Expression,
-    pub new_line: bool,
-}
-
-impl Node for PrintStatement {}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct IfStatement {

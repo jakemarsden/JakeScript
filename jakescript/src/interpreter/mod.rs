@@ -1,12 +1,11 @@
 use crate::ast::{
     AssertStatement, AssignmentExpression, AssignmentOperator, Associativity, BinaryExpression,
     BinaryOperator, Block, BreakStatement, CatchBlock, ComputedPropertyAccessExpression,
-    ContinueStatement, DeclarationStatement, ExitStatement, Expression, FinallyBlock, ForLoop,
+    ContinueStatement, DeclarationStatement, Expression, FinallyBlock, ForLoop,
     FunctionCallExpression, FunctionDeclaration, GroupingExpression, Identifier, IfStatement,
-    Literal, LiteralExpression, Node, NumericLiteral, Op, PrintStatement, Program,
-    PropertyAccessExpression, ReturnStatement, Statement, TernaryExpression, ThrowStatement,
-    TryStatement, UnaryExpression, UnaryOperator, VariableAccessExpression, VariableDeclaration,
-    WhileLoop,
+    Literal, LiteralExpression, Node, NumericLiteral, Op, Program, PropertyAccessExpression,
+    ReturnStatement, Statement, TernaryExpression, ThrowStatement, TryStatement, UnaryExpression,
+    UnaryOperator, VariableAccessExpression, VariableDeclaration, WhileLoop,
 };
 use std::assert_matches::assert_matches;
 use std::hint::unreachable_unchecked;
@@ -91,9 +90,7 @@ impl Eval for Statement {
             Self::Continue(node) => node.eval(it),
             Self::Declaration(node) => node.eval(it),
             Self::Expression(node) => node.eval(it).map(|_| ()),
-            Self::Exit(node) => node.eval(it),
             Self::If(node) => node.eval(it),
-            Self::Print(node) => node.eval(it),
             Self::Return(node) => node.eval(it),
             Self::Throw(node) => node.eval(it),
             Self::Try(node) => node.eval(it),
@@ -120,27 +117,6 @@ impl Eval for AssertStatement {
         } else {
             Err(AssertionFailedError::new(self.condition.clone(), value).into())
         }
-    }
-}
-
-impl Eval for ExitStatement {
-    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        it.vm_mut().set_execution_state(ExecutionState::Exit);
-        Ok(())
-    }
-}
-
-impl Eval for PrintStatement {
-    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        let value = self.argument.eval(it)?;
-        let string_value = value.coerce_to_string(it.vm());
-        // Note: Print to stderr as stdout is swallowed when running in the REPL.
-        if self.new_line {
-            eprintln!("{}", string_value);
-        } else {
-            eprint!("{}", string_value);
-        }
-        Ok(())
     }
 }
 

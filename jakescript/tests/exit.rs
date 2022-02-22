@@ -20,12 +20,12 @@ assert a === 3;
 }
 
 #[test]
-fn exit_with_exit_statement() {
+fn exit_with_exit_function() {
     harness::init();
     let source_code = r#"
 let a = 1 + 2;
 assert a === 3;
-exit;
+exit();
 "#;
     let report = harness::exec_source_code(source_code);
     assert_matches!(report.success_value(), Some(Value::Undefined));
@@ -38,7 +38,7 @@ fn statements_after_exit_are_not_reached() {
     let source_code = r#"
 let a = 1 + 2;
 assert a === 3;
-exit;
+exit();
 assert false;
 "#;
     let report = harness::exec_source_code(source_code);
@@ -53,7 +53,7 @@ fn statements_in_loop_after_exit_are_not_reached() {
 let i = 0;
 while (i < 10) {
     if (i === 3) {
-        exit;
+        exit();
     }
     if (i >= 3) {
         assert false;

@@ -72,9 +72,6 @@ pub enum Keyword {
     Do,
     Else,
     Enum,
-    // TODO: Remove from the language once no longer needed to support the REPL (it should be a
-    //  function call?).
-    Exit,
     Export,
     Extends,
     Finally,
@@ -92,10 +89,6 @@ pub enum Keyword {
     New,
     Of,
     Package,
-    // TODO: Remove from the language once no longer needed to support unit tests.
-    Print,
-    // TODO: Remove from the language once no longer needed to support unit tests.
-    PrintLn,
     Private,
     Protected,
     Public,
