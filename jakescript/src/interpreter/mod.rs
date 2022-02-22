@@ -713,8 +713,7 @@ impl Eval for FunctionCallExpression {
                     let arg_value = arg.eval(it)?;
                     args.push(arg_value);
                 }
-                let result = f.apply(it.vm_mut(), &args);
-                Ok(result)
+                f.apply(it.vm_mut(), &args)
             }
             _ => Err(Error::NotCallable(NotCallableError)),
         }

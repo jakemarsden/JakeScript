@@ -1,6 +1,6 @@
 use crate::ast::Identifier;
 use crate::interpreter::{
-    Heap, InitialisationError, Number, ScopeCtx, Value, Variable, VariableKind, Vm,
+    self, Heap, InitialisationError, Number, ScopeCtx, Value, Variable, VariableKind, Vm,
 };
 use crate::non_empty_str;
 use crate::runtime::{native_fn, Builtin};
@@ -19,9 +19,9 @@ impl Builtin for NumberBuiltin {
     }
 }
 
-fn builtin_number(_: &mut Vm, args: &[Value]) -> Value {
-    Value::Number(match args.first().cloned() {
+fn builtin_number(_: &mut Vm, args: &[Value]) -> interpreter::Result {
+    Ok(Value::Number(match args.first().cloned() {
         Some(arg) => arg.coerce_to_number(),
         None => Number::Int(0),
-    })
+    }))
 }

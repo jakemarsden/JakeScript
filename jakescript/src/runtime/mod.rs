@@ -1,7 +1,9 @@
+#![allow(clippy::unnecessary_wraps)]
+
 use crate::ast::Identifier;
 use crate::interpreter::{
-    ExecutionState, Heap, InitialisationError, NativeFunction, Number, ScopeCtx, Value, Variable,
-    VariableKind, Vm,
+    self, ExecutionState, Heap, InitialisationError, NativeFunction, Number, ScopeCtx, Value,
+    Variable, VariableKind, Vm,
 };
 use crate::non_empty_str;
 use crate::str::NonEmptyString;
@@ -66,24 +68,26 @@ impl Runtime for DefaultRuntime {
 
 pub(crate) fn native_fn(
     name: &'static str,
-    implementation: &'static dyn Fn(&mut Vm, &[Value]) -> Value,
+    implementation: &'static dyn Fn(&mut Vm, &[Value]) -> interpreter::Result,
 ) -> Value {
     Value::NativeFunction(NativeFunction::new(name, implementation))
 }
 
-fn builtin_exit(vm: &mut Vm, _args: &[Value]) -> Value {
+fn builtin_exit(vm: &mut Vm, _args: &[Value]) -> interpreter::Result {
     vm.set_execution_state(ExecutionState::Exit);
-    Value::Undefined
+    Ok(Value::Undefined)
 }
 
-fn builtin_isnan(_: &mut Vm, args: &[Value]) -> Value {
-    Value::Boolean(match args.first().cloned().unwrap_or_default() {
-        Value::Boolean(_)
-        | Value::String(_)
-        | Value::Reference(_)
-        | Value::NativeFunction(_)
-        | Value::Null
-        | Value::Undefined => true,
-        Value::Number(arg) => arg.is_nan(),
-    })
+fn builtin_isnan(_: &mut Vm, args: &[Value]) -> interpreter::Result {
+    Ok(Value::Boolean(
+        match args.first().cloned().unwrap_or_default() {
+            Value::Boolean(_)
+            | Value::String(_)
+            | Value::Reference(_)
+            | Value::NativeFunction(_)
+            | Value::Null
+            | Value::Undefined => true,
+            Value::Number(arg) => arg.is_nan(),
+        },
+    ))
 }

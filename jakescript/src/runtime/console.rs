@@ -1,5 +1,7 @@
 use crate::ast::Identifier;
-use crate::interpreter::{Heap, InitialisationError, ScopeCtx, Value, Variable, VariableKind, Vm};
+use crate::interpreter::{
+    self, Heap, InitialisationError, ScopeCtx, Value, Variable, VariableKind, Vm,
+};
 use crate::non_empty_str;
 use crate::runtime::{native_fn, Builtin};
 use crate::str::NonEmptyString;
@@ -26,12 +28,12 @@ impl Builtin for ConsoleBuiltin {
     }
 }
 
-fn builtin_log(vm: &mut Vm, args: &[Value]) -> Value {
+fn builtin_log(vm: &mut Vm, args: &[Value]) -> interpreter::Result {
     let msg: String = args
         .iter()
         .map(|arg| arg.coerce_to_string(vm))
         .intersperse_with(|| "".to_owned())
         .collect();
     vm.write_message(&msg);
-    Value::Undefined
+    Ok(Value::Undefined)
 }

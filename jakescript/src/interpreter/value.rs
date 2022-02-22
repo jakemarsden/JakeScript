@@ -1,3 +1,4 @@
+use crate::interpreter;
 use crate::interpreter::error::NumericOverflowError;
 use crate::interpreter::heap::Reference;
 use crate::interpreter::vm::Vm;
@@ -519,13 +520,13 @@ impl From<&str> for Number {
 #[derive(Copy, Clone)]
 pub struct NativeFunction {
     name: &'static str,
-    implementation: &'static dyn Fn(&mut Vm, &[Value]) -> Value,
+    implementation: &'static dyn Fn(&mut Vm, &[Value]) -> interpreter::Result,
 }
 
 impl NativeFunction {
     pub fn new(
         name: &'static str,
-        implementation: &'static dyn Fn(&mut Vm, &[Value]) -> Value,
+        implementation: &'static dyn Fn(&mut Vm, &[Value]) -> interpreter::Result,
     ) -> Self {
         Self {
             name,
@@ -533,7 +534,7 @@ impl NativeFunction {
         }
     }
 
-    pub fn apply(&self, vm: &mut Vm, args: &[Value]) -> Value {
+    pub fn apply(&self, vm: &mut Vm, args: &[Value]) -> interpreter::Result {
         (self.implementation)(vm, args)
     }
 }
