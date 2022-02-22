@@ -1,4 +1,2 @@
 var a;
-var result = a + 2;  // Evaluates to NaN
-
-assert isNaN(result);
+console.assert(isNaN(a + 2), "Evaluates to NaN");

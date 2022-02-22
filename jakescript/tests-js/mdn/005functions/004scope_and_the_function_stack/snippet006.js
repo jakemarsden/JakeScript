@@ -4,9 +4,6 @@ function addSquares(a, b) {
   }
   return square(a) + square(b);
 }
-var a = addSquares(2, 3); // returns 13
-var b = addSquares(3, 4); // returns 25
-var c = addSquares(4, 5); // returns 41
-assert a === 13;
-assert b === 25;
-assert c === 41;
+console.assert(addSquares(2, 3) === 13, "returns 13");
+console.assert(addSquares(3, 4) === 25, "returns 25");
+console.assert(addSquares(4, 5) === 41, "returns 41");

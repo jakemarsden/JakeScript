@@ -6,10 +6,10 @@ var a5 = 'Cat' && 'Dog';    // t && t returns Dog
 var a6 = false && 'Cat';    // f && t returns false
 var a7 = 'Cat' && false;    // t && f returns false
 
-assert a1 === true;
-assert a2 === false;
-assert a3 === false;
-assert a4 === false;
-assert a5 === "Dog";
-assert a6 === false;
-assert a7 === false;
+console.assert(a1 === true);
+console.assert(a2 === false);
+console.assert(a3 === false);
+console.assert(a4 === false);
+console.assert(a5 === "Dog");
+console.assert(a6 === false);
+console.assert(a7 === false);

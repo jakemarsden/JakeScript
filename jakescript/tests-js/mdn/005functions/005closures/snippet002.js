@@ -26,12 +26,9 @@ var createPet = function(name) {
 };
 
 var pet = createPet('Vivie');
-var result1 = pet.getName();                  // Vivie
-assert result1 === "Vivie";
+console.assert(pet.getName() === "Vivie", "Vivie");
 
 pet.setName('Oliver');
 pet.setSex('male');
-var result2 = pet.getSex();                   // male
-var result3 = pet.getName();                  // Oliver
-assert result2 === "male";
-assert result3 === "Oliver";
+console.assert(pet.getSex() === "male", "male");
+console.assert(pet.getName() === "Oliver", "Oliver");

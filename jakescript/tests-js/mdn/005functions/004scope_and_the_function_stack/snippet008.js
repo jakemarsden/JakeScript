@@ -10,4 +10,4 @@ function A(x) {
   B(2);
 }
 A(1); // logs 6 (1 + 2 + 3)
-assert log === 6;
+console.assert(log === 6);
