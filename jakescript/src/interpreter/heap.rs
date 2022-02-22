@@ -22,10 +22,6 @@ impl Heap {
         self.alloc(|| Object::new(props, None))
     }
 
-    pub fn allocate_empty_object(&mut self) -> Result<Reference, OutOfMemoryError> {
-        self.alloc(|| Object::new(HashMap::default(), None))
-    }
-
     pub fn allocate_object(
         &mut self,
         properties: HashMap<Identifier, Value>,

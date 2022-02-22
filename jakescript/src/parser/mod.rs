@@ -16,6 +16,7 @@ use crate::lexer::{
 use crate::non_empty_str;
 use crate::str::NonEmptyString;
 use error::AllowToken::{AnyOf, Exactly, Unspecified};
+use std::collections::HashMap;
 use std::io;
 use std::iter::Map;
 
@@ -169,19 +170,10 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
                 })
             }
             Some(Token::Punctuator(Punctuator::OpenBrace)) => {
+                let props = self.parse_object_properties()?;
+                self.expect_punctuator(Punctuator::CloseBrace)?;
                 Expression::Literal(LiteralExpression {
-                    value: if self
-                        .tokens
-                        .try_next_if_eq(&Token::Punctuator(Punctuator::CloseBrace))?
-                        .is_some()
-                    {
-                        ast::Literal::Object
-                    } else {
-                        todo!(
-                            "Parser::parse_primary_expression: Only empty object literals are \
-                             supported"
-                        )
-                    },
+                    value: ast::Literal::Object(props),
                 })
             }
             Some(Token::Punctuator(punc)) => {
@@ -662,6 +654,60 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
                 }
             }
         }
+    }
+
+    fn parse_object_properties(&mut self) -> Result<HashMap<Identifier, Expression>> {
+        let mut props = HashMap::default();
+        Ok(loop {
+            match self.tokens.try_peek()? {
+                Some(Token::Punctuator(Punctuator::CloseBrace)) => break props,
+                Some(Token::Identifier(_)) => {
+                    let (key, value) = self.parse_object_property()?;
+                    props.insert(key, value);
+                }
+                actual => {
+                    return Err(Error::unexpected(
+                        AnyOf(
+                            Token::Punctuator(Punctuator::CloseBrace),
+                            Token::Identifier(non_empty_str!("property_key")),
+                            vec![],
+                        ),
+                        actual.cloned(),
+                    ))
+                }
+            }
+            match self.tokens.try_peek()? {
+                Some(Token::Punctuator(Punctuator::CloseBrace)) => break props,
+                Some(Token::Punctuator(Punctuator::Comma)) => self
+                    .tokens
+                    .try_next_exact(&Token::Punctuator(Punctuator::Comma))?,
+                actual => {
+                    return Err(Error::unexpected(
+                        AnyOf(
+                            Token::Punctuator(Punctuator::CloseBrace),
+                            Token::Punctuator(Punctuator::Comma),
+                            vec![],
+                        ),
+                        actual.cloned(),
+                    ))
+                }
+            }
+        })
+    }
+
+    fn parse_object_property(&mut self) -> Result<(Identifier, Expression)> {
+        let key = match self.tokens.try_next()? {
+            Some(Token::Identifier(id)) => Identifier::from(id),
+            actual => {
+                return Err(Error::unexpected(
+                    Exactly(Token::Identifier(non_empty_str!("property_key"))),
+                    actual,
+                ))
+            }
+        };
+        self.expect_punctuator(Punctuator::Colon)?;
+        let value = self.parse_expression()?;
+        Ok((key, value))
     }
 
     fn expect_keyword(&mut self, expected: Keyword) -> Result<()> {

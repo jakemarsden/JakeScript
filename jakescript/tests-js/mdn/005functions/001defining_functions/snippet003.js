@@ -2,11 +2,7 @@ function myFunc(theObject) {
   theObject.make = 'Toyota';
 }
 
-// TODO: Object literals with properties
-var mycar = {};
-mycar.make = 'Honda';
-mycar.model = 'Accord';
-mycar.year = 1998;
+var mycar = {make: 'Honda', model: 'Accord', year: 1998};
 var x, y;
 
 x = mycar.make; // x gets the value "Honda"

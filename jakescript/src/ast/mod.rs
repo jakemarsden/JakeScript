@@ -1,5 +1,6 @@
 use crate::str::NonEmptyString;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fmt;
 
 pub trait Node: Clone + fmt::Debug {}
@@ -357,8 +358,7 @@ pub enum Literal {
         param_names: Vec<Identifier>,
         body: Block,
     },
-    // TODO: Support properties in object literals.
-    Object,
+    Object(HashMap<Identifier, Expression>),
     Null,
 }
 

@@ -8,11 +8,7 @@ function carTypes(name) {
     }
 }
 
-// TODO: Object literals with properties
-var car = {};
-car.myCar = 'Saturn';
-car.getCar = carTypes('Honda');
-car.special = sales;
+var car = { myCar: 'Saturn', getCar: carTypes('Honda'), special: sales };
 
 assert car.myCar === "Saturn";   // Saturn
 assert car.getCar === "Honda";  // Honda

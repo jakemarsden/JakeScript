@@ -1,29 +1,28 @@
 var createPet = function(name) {
   var sex;
 
-  // TODO: Object literals with properties
-  let result = {};
-  result.setName = function(newName) {
-    name = newName;
-  };
+  return {
+    setName: function(newName) {
+      name = newName;
+    },
 
-  result.getName = function() {
-    return name;
-  };
+    getName: function() {
+      return name;
+    },
 
-  result.getSex = function() {
-    return sex;
-  };
+    getSex: function() {
+      return sex;
+    },
 
-  result.setSex = function(newSex) {
-    // TODO: Support `typeof` operator
-    // TODO: Builtin string functions
-    //if(typeof newSex === 'string' && (newSex.toLowerCase() === 'male' ||
-    //  newSex.toLowerCase() === 'female')) {
-      sex = newSex;
-    //}
+    setSex: function(newSex) {
+      // TODO: Support `typeof` operator
+      // TODO: Builtin string functions
+      //if(typeof newSex === 'string' && (newSex.toLowerCase() === 'male' ||
+      //    newSex.toLowerCase() === 'female')) {
+        sex = newSex;
+      //}
+    }
   };
-  return result;
 };
 
 var pet = createPet('Vivie');

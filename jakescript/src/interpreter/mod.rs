@@ -8,6 +8,7 @@ use crate::ast::{
     UnaryOperator, VariableAccessExpression, VariableDeclaration, WhileLoop,
 };
 use std::assert_matches::assert_matches;
+use std::collections::HashMap;
 use std::hint::unreachable_unchecked;
 
 pub use error::*;
@@ -629,8 +630,13 @@ impl Eval for LiteralExpression {
                 let fn_obj_ref = it.vm_mut().heap_mut().allocate_callable_object(callable)?;
                 Value::Reference(fn_obj_ref)
             }
-            Literal::Object => {
-                let obj_ref = it.vm_mut().heap_mut().allocate_empty_object()?;
+            Literal::Object(ref declared_props) => {
+                let mut resolved_props = HashMap::with_capacity(declared_props.len());
+                for (key, expr) in declared_props {
+                    let value = expr.eval(it)?;
+                    resolved_props.insert(key.clone(), value);
+                }
+                let obj_ref = it.vm_mut().heap_mut().allocate_object(resolved_props)?;
                 Value::Reference(obj_ref)
             }
             Literal::Null => Value::Null,
