@@ -12,9 +12,9 @@ A work-in-progress JavaScript lexer, parser, and interpreter. Written in Rust
 cargo build --release --workspace
 
 ./target/release/jakescript-cli  --eval                      <source-path>  # Evaluate a file
-./target/release/jakescript-cli  --parse  [--json | --yaml]  <source-path>  # Parse a file and output as JSON or YAML
 ./target/release/jakescript-cli  --lex                       <source-path>  # Lex (tokenise) a file
-./target/release/jakescript-cli  --repl                                     # Enter the interactive REPL
+./target/release/jakescript-cli  --parse  [--json | --yaml]  <source-path>  # Parse a file and output as JSON or YAML
+./target/release/jakescript-cli  --repl                                     # Enter an interactive REPL
 ```
 
 ## Packages
@@ -27,8 +27,8 @@ cargo build --release --workspace
   The core of the project. Contains code for the lexer, parser, interpreter, and
   most of the tests.
 - &#x25B7; [`jakescript-cli`][file-jakescript-cli]
-  Simple command line utility to run the lexer, parser, and/or interpreter on a
-  file. Will eventually include a REPL.
+  Command line interface with a REPL. Can also run the lexer, parser, and
+  interpreter on a file.
 
 ## Tests
 
