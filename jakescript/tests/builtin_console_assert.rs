@@ -62,9 +62,9 @@ fn assert_fails(source_code: &str, expected_detail_msg: &str) {
     let report = harness::exec_source_code(source_code);
     assert_matches!(
         report.failure_reason(),
-        Some(FailureReason::Runtime(Error::AssertionFailed(..)))
+        Some(FailureReason::Runtime(Error::Assertion(..)))
     );
-    if let Some(FailureReason::Runtime(Error::AssertionFailed(err))) = report.failure_reason() {
+    if let Some(FailureReason::Runtime(Error::Assertion(err))) = report.failure_reason() {
         assert_eq!(err.detail_msg(), expected_detail_msg);
     } else {
         unreachable!();

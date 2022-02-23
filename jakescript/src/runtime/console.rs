@@ -1,7 +1,6 @@
 use crate::ast::Identifier;
 use crate::interpreter::{
-    self, AssertionFailedError, Heap, InitialisationError, ScopeCtx, Value, Variable, VariableKind,
-    Vm,
+    self, AssertionError, Heap, InitialisationError, ScopeCtx, Value, Variable, VariableKind, Vm,
 };
 use crate::non_empty_str;
 use crate::runtime::{native_fn, Builtin};
@@ -33,25 +32,23 @@ impl Builtin for ConsoleBuiltin {
 }
 
 fn builtin_assert(vm: &mut Vm, args: &[Value]) -> interpreter::Result {
-    let condition = match args.first().cloned() {
-        Some(condition) => condition.coerce_to_bool(),
-        None => false,
-    };
-    if condition {
+    let mut args = args.iter();
+    let assertion = args.next().unwrap_or(&Value::Undefined);
+    if assertion.is_truthy() {
         Ok(Value::Undefined)
     } else {
-        let detail_msg = build_msg(vm, args.iter().skip(1));
-        Err(interpreter::Error::AssertionFailed(
-            AssertionFailedError::new(detail_msg),
-        ))
+        let detail_msg = build_msg(vm, args);
+        Err(interpreter::Error::Assertion(AssertionError::new(
+            detail_msg,
+        )))
     }
 }
 
 fn builtin_assertnotreached(vm: &mut Vm, args: &[Value]) -> interpreter::Result {
     let detail_msg = build_msg(vm, args.iter());
-    Err(interpreter::Error::AssertionFailed(
-        AssertionFailedError::new(detail_msg),
-    ))
+    Err(interpreter::Error::Assertion(AssertionError::new(
+        detail_msg,
+    )))
 }
 
 fn builtin_log(vm: &mut Vm, args: &[Value]) -> interpreter::Result {

@@ -5,7 +5,7 @@ pub type Result<T = Value> = std::result::Result<T, Error>;
 
 #[derive(Clone, Debug)]
 pub enum Error {
-    AssertionFailed(AssertionFailedError),
+    Assertion(AssertionError),
     AssignToConstVariable(AssignToConstVariableError),
     FunctionArgumentMismatch(FunctionArgumentMismatchError),
     FunctionNotDefined(FunctionNotDefinedError),
@@ -26,7 +26,7 @@ impl fmt::Display for Error {
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         Some(match self {
-            Self::AssertionFailed(ref source) => source,
+            Self::Assertion(ref source) => source,
             Self::AssignToConstVariable(ref source) => source,
             Self::FunctionArgumentMismatch(ref source) => source,
             Self::FunctionNotDefined(ref source) => source,
@@ -40,11 +40,11 @@ impl std::error::Error for Error {
 }
 
 #[derive(Clone, Debug)]
-pub struct AssertionFailedError {
+pub struct AssertionError {
     detail_msg: String,
 }
 
-impl AssertionFailedError {
+impl AssertionError {
     pub fn new(detail_msg: String) -> Self {
         Self { detail_msg }
     }
@@ -54,17 +54,17 @@ impl AssertionFailedError {
     }
 }
 
-impl fmt::Display for AssertionFailedError {
+impl fmt::Display for AssertionError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Assertion failed: {}", self.detail_msg)
     }
 }
 
-impl std::error::Error for AssertionFailedError {}
+impl std::error::Error for AssertionError {}
 
-impl From<AssertionFailedError> for Error {
-    fn from(source: AssertionFailedError) -> Self {
-        Self::AssertionFailed(source)
+impl From<AssertionError> for Error {
+    fn from(source: AssertionError) -> Self {
+        Self::Assertion(source)
     }
 }
 
