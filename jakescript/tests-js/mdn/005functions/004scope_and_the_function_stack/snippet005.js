@@ -1,11 +1,14 @@
-var log = "";
+let mockLog = "";
+console.log = function (msg) {
+  mockLog += msg + '\n';
+};
 
 function foo(i) {
   if (i < 0)
     return;
-  log += 'begin: ' + i + '\n';
+  console.log('begin: ' + i);
   foo(i - 1);
-  log += 'end: ' + i + '\n';
+  console.log('end: ' + i);
 }
 foo(3);
 
@@ -19,4 +22,4 @@ foo(3);
 // end: 1
 // end: 2
 // end: 3
-console.assert(log === "begin: 3\nbegin: 2\nbegin: 1\nbegin: 0\nend: 0\nend: 1\nend: 2\nend: 3\n");
+console.assert(mockLog === "begin: 3\nbegin: 2\nbegin: 1\nbegin: 0\nend: 0\nend: 1\nend: 2\nend: 3\n");
