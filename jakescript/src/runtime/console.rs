@@ -1,5 +1,3 @@
-use common_macros::hash_map;
-
 use crate::ast::Identifier;
 use crate::interpreter::{
     self, AssertionFailedError, Heap, InitialisationError, ScopeCtx, Value, Variable, VariableKind,
@@ -8,6 +6,7 @@ use crate::interpreter::{
 use crate::non_empty_str;
 use crate::runtime::{native_fn, Builtin};
 use crate::str::NonEmptyString;
+use common_macros::hash_map;
 
 pub struct ConsoleBuiltin;
 
