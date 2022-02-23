@@ -1,10 +1,8 @@
 function factorial(n) {
-  // TODO: Braceless single-line if and loop statements
-  if ((n === 0) || (n === 1)) {
+  if ((n === 0) || (n === 1))
     return 1;
-  } else {
+  else
     return (n * factorial(n - 1));
-  }
 }
 
 var a, b, c, d, e;

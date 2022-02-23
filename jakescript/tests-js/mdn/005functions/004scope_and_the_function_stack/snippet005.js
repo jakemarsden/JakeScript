@@ -1,10 +1,8 @@
 var log = "";
 
 function foo(i) {
-  // TODO: Braceless single-line if and loop statements
-  if (i < 0) {
+  if (i < 0)
     return;
-  }
   log += 'begin: ' + i + '\n';
   foo(i - 1);
   log += 'end: ' + i + '\n';
