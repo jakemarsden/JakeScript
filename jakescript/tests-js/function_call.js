@@ -54,3 +54,41 @@ addOutside(3);
 addOutside(n);
 addOutside(4);
 console.assert(n === 30);
+
+function moreArgsThanParams(a, b) {
+    console.assert(a === 1);
+    console.assert(b === 2);
+}
+moreArgsThanParams(1, 2, 3, 4);
+
+function moreParamsThanArgs(a, b, c, d) {
+    console.assert(a === 1);
+    console.assert(b === 2);
+    console.assert(c === undefined);
+    console.assert(d === undefined);
+}
+moreParamsThanArgs(1, 2);
+
+let paramsEvaluatedCount = 0;
+function param(x) {
+    paramsEvaluatedCount += 1;
+    return x;
+}
+
+function moreArgsThanParams2(a, b) {
+    console.assert(a === 1);
+    console.assert(b === 2);
+}
+moreArgsThanParams2(param(1), param(2), param(3), param(4));
+console.assert(paramsEvaluatedCount === 4);
+paramsEvaluatedCount = 0;
+
+function moreParamsThanArgs2(a, b, c, d) {
+    console.assert(a === 1);
+    console.assert(b === 2);
+    console.assert(c === undefined);
+    console.assert(d === undefined);
+}
+moreParamsThanArgs2(param(1), param(2));
+console.assert(paramsEvaluatedCount === 2);
+paramsEvaluatedCount = 0;

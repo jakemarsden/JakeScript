@@ -644,30 +644,37 @@ impl Eval for FunctionCallExpression {
                     return Err(Error::NotCallable(NotCallableError));
                 };
 
-                let parameters = function.declared_parameters();
-                if parameters.len() != self.arguments.len() {
-                    return Err(FunctionArgumentMismatchError.into());
-                }
-                let mut argument_variables = Vec::with_capacity(parameters.len());
-                for (idx, parameter_name) in parameters.iter().enumerate() {
-                    let argument_expr = &self.arguments[idx];
-                    let argument_value = argument_expr.eval(it)?;
-                    argument_variables.push(Variable::new(
+                let declared_param_names = function.declared_parameters();
+                let mut supplied_args = self.arguments.iter();
+                let mut variables = Vec::with_capacity(declared_param_names.len());
+
+                for declared_param_name in declared_param_names.iter() {
+                    let arg_value = match supplied_args.next() {
+                        Some(supplied_arg) => supplied_arg.eval(it)?,
+                        None => Value::Undefined,
+                    };
+                    variables.push(Variable::new(
                         VariableKind::Let,
-                        parameter_name.clone(),
-                        argument_value,
+                        declared_param_name.clone(),
+                        arg_value,
                     ));
                 }
 
+                // Evaluate remaining arguments when more arguments are supplied than the function
+                // has parameters.
+                for arg in supplied_args {
+                    arg.eval(it)?;
+                }
+
                 let declared_scope = function.declared_scope().clone();
-                let fn_scope_ctx = ScopeCtx::new(argument_variables);
+                let fn_scope_ctx = ScopeCtx::new(variables);
 
                 it.vm_mut().stack_mut().push_frame(declared_scope);
                 if let Some(fn_name) = function.name() {
                     // Create an outer scope with nothing but the function's name, which points to
                     // itself, so that named function literals may recurse using their name, without
                     // making the name visible outside of the function body. It has its own outer
-                    // scope so it can still be shadowed by arguments with the same name.
+                    // scope so it can still be shadowed by parameters with the same name.
                     let fn_scope_ctx_outer = ScopeCtx::new(vec![Variable::new(
                         VariableKind::Var,
                         fn_name.clone(),

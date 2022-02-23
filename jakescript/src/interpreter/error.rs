@@ -7,7 +7,6 @@ pub type Result<T = Value> = std::result::Result<T, Error>;
 pub enum Error {
     Assertion(AssertionError),
     AssignToConstVariable(AssignToConstVariableError),
-    FunctionArgumentMismatch(FunctionArgumentMismatchError),
     FunctionNotDefined(FunctionNotDefinedError),
     NotCallable(NotCallableError),
     NumericOverflow(NumericOverflowError),
@@ -28,7 +27,6 @@ impl std::error::Error for Error {
         Some(match self {
             Self::Assertion(ref source) => source,
             Self::AssignToConstVariable(ref source) => source,
-            Self::FunctionArgumentMismatch(ref source) => source,
             Self::FunctionNotDefined(ref source) => source,
             Self::NumericOverflow(ref source) => source,
             Self::NotCallable(ref source) => source,
@@ -116,23 +114,6 @@ impl std::error::Error for VariableNotDefinedError {}
 impl From<VariableNotDefinedError> for Error {
     fn from(source: VariableNotDefinedError) -> Self {
         Self::VariableNotDefined(source)
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct FunctionArgumentMismatchError;
-
-impl fmt::Display for FunctionArgumentMismatchError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str("Function arguments don't match declared parameters")
-    }
-}
-
-impl std::error::Error for FunctionArgumentMismatchError {}
-
-impl From<FunctionArgumentMismatchError> for Error {
-    fn from(source: FunctionArgumentMismatchError) -> Self {
-        Self::FunctionArgumentMismatch(source)
     }
 }
 
