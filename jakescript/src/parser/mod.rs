@@ -50,31 +50,62 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
     }
 
     pub fn execute(mut self) -> Result {
-        let body = self.parse_block(false)?;
+        let body = self.parse_multi_statement_block_body()?;
         Ok(Program::new(body))
     }
 
-    fn parse_block(&mut self, braces: bool) -> Result<Block> {
-        if braces {
-            self.expect_punctuator(Punctuator::OpenBrace)?;
+    fn parse_block(&mut self, braces: BlockBraces) -> Result<Block> {
+        match self.tokens.try_peek()? {
+            Some(Token::Punctuator(Punctuator::OpenBrace)) => match braces {
+                BlockBraces::Allow | BlockBraces::Require => {
+                    self.expect_punctuator(Punctuator::OpenBrace)?;
+                    let block = self.parse_multi_statement_block_body();
+                    self.expect_punctuator(Punctuator::CloseBrace)?;
+                    block
+                }
+            },
+            Some(actual) => match braces {
+                BlockBraces::Allow => self.parse_single_statement_block_body(),
+                BlockBraces::Require => Err(Error::unexpected_token(
+                    Exactly(Token::Punctuator(Punctuator::OpenBrace)),
+                    actual.clone(),
+                )),
+            },
+            None => Err(Error::unexpected_eoi(Unspecified)),
         }
+    }
+
+    fn parse_single_statement_block_body(&mut self) -> Result<Block> {
+        Ok(match self.parse_statement()? {
+            Statement::Declaration(decl) if decl.is_hoisted() => match decl {
+                decl_stmt @ DeclarationStatement::Function(_) => {
+                    Block::new(vec![decl_stmt], vec![])
+                }
+                DeclarationStatement::Variable(var_decl) => {
+                    let (var_decl, initialisers) = var_decl.into_declaration_and_initialiser();
+                    let decl_stmt = DeclarationStatement::Variable(var_decl);
+                    let init_stmts = initialisers
+                        .into_iter()
+                        .map(Statement::Expression)
+                        .collect();
+                    Block::new(vec![decl_stmt], init_stmts)
+                }
+            },
+            stmt => Block::new(vec![], vec![stmt]),
+        })
+    }
+
+    fn parse_multi_statement_block_body(&mut self) -> Result<Block> {
         let mut hoisted_decls = Vec::new();
         let mut stmts = Vec::new();
-        loop {
-            match self.tokens.try_peek()? {
-                Some(Token::Punctuator(Punctuator::CloseBrace)) if braces => break,
-                Some(_) => {}
-                None if !braces => break,
-                None => {
-                    return Err(Error::unexpected_eoi(Exactly(Token::Punctuator(
-                        Punctuator::CloseBrace,
-                    ))))
-                }
-            }
+        while !matches!(
+            self.tokens.try_peek()?,
+            Some(Token::Punctuator(Punctuator::CloseBrace)) | None
+        ) {
             match self.parse_statement()? {
                 Statement::Declaration(decl) if decl.is_hoisted() => match decl {
-                    DeclarationStatement::Function(fn_decl) => {
-                        hoisted_decls.push(DeclarationStatement::Function(fn_decl));
+                    decl_stmt @ DeclarationStatement::Function(_) => {
+                        hoisted_decls.push(decl_stmt);
                     }
                     DeclarationStatement::Variable(var_decl) => {
                         let (var_decl, initialisers) = var_decl.into_declaration_and_initialiser();
@@ -84,9 +115,6 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
                 },
                 stmt => stmts.push(stmt),
             }
-        }
-        if braces {
-            self.expect_punctuator(Punctuator::CloseBrace)?;
         }
         Ok(Block::new(hoisted_decls, stmts))
     }
@@ -236,7 +264,7 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
                     }
                 };
                 let param_names = self.parse_fn_parameters()?;
-                let body = self.parse_block(true)?;
+                let body = self.parse_block(BlockBraces::Require)?;
                 Expression::Literal(LiteralExpression {
                     value: ast::Literal::Function {
                         name,
@@ -348,7 +376,7 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
         self.expect_keyword(Keyword::Function)?;
         let fn_name = Identifier::from(self.expect_identifier(non_empty_str!("function_name"))?);
         let param_names = self.parse_fn_parameters()?;
-        let body = self.parse_block(true)?;
+        let body = self.parse_block(BlockBraces::Require)?;
         Ok(FunctionDeclaration {
             fn_name,
             param_names,
@@ -416,7 +444,7 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
         self.expect_punctuator(Punctuator::OpenParen)?;
         let condition = self.parse_expression()?;
         self.expect_punctuator(Punctuator::CloseParen)?;
-        let success_block = self.parse_block(true)?;
+        let success_block = self.parse_block(BlockBraces::Allow)?;
         let else_block = if self
             .tokens
             .try_next_if_eq(&Token::Keyword(Keyword::Else))?
@@ -430,7 +458,7 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
                 ))
             } else {
                 // Parse `else { .. }` blocks
-                Some(self.parse_block(true)?)
+                Some(self.parse_block(BlockBraces::Allow)?)
             }
         } else {
             None
@@ -464,7 +492,7 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
         };
         self.expect_punctuator(Punctuator::CloseParen)?;
 
-        let body = self.parse_block(true)?;
+        let body = self.parse_block(BlockBraces::Allow)?;
         Ok(ForLoop {
             initialiser,
             condition,
@@ -478,7 +506,7 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
         self.expect_punctuator(Punctuator::OpenParen)?;
         let condition = self.parse_expression()?;
         self.expect_punctuator(Punctuator::CloseParen)?;
-        let body = self.parse_block(true)?;
+        let body = self.parse_block(BlockBraces::Allow)?;
         Ok(WhileLoop { condition, body })
     }
 
@@ -509,7 +537,7 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
 
     fn parse_try_statement(&mut self) -> Result<TryStatement> {
         self.expect_keyword(Keyword::Try)?;
-        let body = self.parse_block(true)?;
+        let body = self.parse_block(BlockBraces::Require)?;
         let catch_block = if matches!(
             self.tokens.try_peek()?,
             Some(Token::Keyword(Keyword::Catch))
@@ -524,7 +552,7 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
         ) {
             self.expect_keyword(Keyword::Finally)?;
             Some(FinallyBlock {
-                inner: self.parse_block(true)?,
+                inner: self.parse_block(BlockBraces::Require)?,
             })
         } else {
             None
@@ -568,7 +596,7 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
         } else {
             None
         };
-        let body = self.parse_block(true)?;
+        let body = self.parse_block(BlockBraces::Require)?;
         Ok(CatchBlock {
             exception_identifier,
             body,
@@ -874,6 +902,12 @@ impl TryParse for ComputedPropertyAccessOperator {
         )
         .then_some(Self)
     }
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+enum BlockBraces {
+    Allow,
+    Require,
 }
 
 #[cfg(test)]
