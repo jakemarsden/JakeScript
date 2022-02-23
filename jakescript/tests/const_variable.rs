@@ -13,7 +13,7 @@ fn declare_const_variable_with_initialiser() {
     harness::init();
     let source_code = r##"
 const a = 10;
-assert a === 10;
+console.assert(a === 10);
 "##;
     let report = harness::exec_source_code(source_code);
     assert_matches!(report.success_value(), Some(Value::Undefined));

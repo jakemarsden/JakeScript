@@ -1,30 +1,30 @@
 let obj = {};
-assert obj;
+console.assert(obj);
 
 obj.hello = "world";
 let objProp = obj.hello;
-assert objProp === "world";
+console.assert(objProp === "world");
 
 let objWithNestedObj = {};
 objWithNestedObj.nested = obj;
-assert objWithNestedObj.nested.hello === "world";
+console.assert(objWithNestedObj.nested.hello === "world");
 
 let objLiteral = {
     foo: "Hello",
     bar: "world"
 };
-assert objLiteral.foo === "Hello";
-assert objLiteral.bar === "world";
+console.assert(objLiteral.foo === "Hello");
+console.assert(objLiteral.bar === "world");
 
 let objLiteralTrailingComma = {
     foo: "Hello",
     bar: "world",
 };
-assert objLiteralTrailingComma.foo === "Hello";
-assert objLiteralTrailingComma.bar === "world";
+console.assert(objLiteralTrailingComma.foo === "Hello");
+console.assert(objLiteralTrailingComma.bar === "world");
 
 let objLiteralSingleton = { foo: "Hello" };
-assert objLiteralSingleton.foo === "Hello";
+console.assert(objLiteralSingleton.foo === "Hello");
 
 let objLiteralSingletonTrailingComma = { foo: "Hello", };
-assert objLiteralSingletonTrailingComma.foo = "Hello";
+console.assert(objLiteralSingletonTrailingComma.foo = "Hello");

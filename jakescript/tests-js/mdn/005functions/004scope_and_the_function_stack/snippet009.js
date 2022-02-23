@@ -6,5 +6,4 @@ function outside() {
   return inside;
 }
 
-var result = outside()(10); // returns 20 instead of 10
-assert result === 20;
+console.assert(outside()(10) === 20, "returns 20 instead of 10");

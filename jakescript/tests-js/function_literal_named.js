@@ -4,8 +4,8 @@ let factorial = function fac(a) {
     }
     return a * fac(a - 1);
 };
-assert factorial(5) === 120;
-assert factorial(10) === 3628800;
+console.assert(factorial(5) === 120);
+console.assert(factorial(10) === 3628800);
 
 let fib = function fib(n) {
     function add(a, b) {
@@ -22,19 +22,19 @@ let fib = function fib(n) {
     let b = fib(n - 1);
     return add(a, b);
 };
-assert fib(0) === 0;
-assert fib(1) === 1;
-assert fib(2) === 1;
-assert fib(3) === 2;
-assert fib(4) === 3;
-assert fib(5) === 5;
-assert fib(10) === 55;
-assert fib(12) === 144;
+console.assert(fib(0) === 0);
+console.assert(fib(1) === 1);
+console.assert(fib(2) === 1);
+console.assert(fib(3) === 2);
+console.assert(fib(4) === 3);
+console.assert(fib(5) === 5);
+console.assert(fib(10) === 55);
+console.assert(fib(12) === 144);
 
 let shadowedByParam = function shadowed(shadowed, exp) {
     return shadowed ** exp;
 };
-assert shadowedByParam(5, 3) === 125;
+console.assert(shadowedByParam(5, 3) === 125);
 
 // TODO: Allow variables to be shadowed.
 let shadowedByVar = function shadowed(n) {
@@ -42,7 +42,7 @@ let shadowedByVar = function shadowed(n) {
     return shadowed;
     var shadowed;
 };
-//assert shadowedByVar(5) === 25;
+//console.assert(shadowedByVar(5) === 25);
 
 let shadowedByInnerFunction = function shadowed(n) {
     return shadowed(n) ** 2;
@@ -51,4 +51,4 @@ let shadowedByInnerFunction = function shadowed(n) {
         return value + 1;
     }
 };
-//assert shadowedByInnerFunction(3) === 16;
+//console.assert(shadowedByInnerFunction(3) === 16);

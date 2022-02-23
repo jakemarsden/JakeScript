@@ -8,8 +8,7 @@ function multiply() {
   return num1 * num2;
 }
 
-var result1 = multiply(); // Returns 60
-assert result1 === 60;
+console.assert(multiply() === 60, "Returns 60");
 
 // A nested function example
 function getScore() {
@@ -24,5 +23,4 @@ function getScore() {
   return add();
 }
 
-var result2 = getScore(); // Returns "Chamakh scored 5"
-assert result2 === "Chamakh scored 5";
+console.assert(getScore() === "Chamakh scored 5", 'Returns "Chamakh scored 5"');

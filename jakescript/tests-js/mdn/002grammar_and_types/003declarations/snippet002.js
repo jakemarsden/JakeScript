@@ -14,5 +14,5 @@ if (input === undefined) {
   doThat();
 }
 
-assert doThisCalled;
-assert !doThatCalled;
+console.assert(doThisCalled);
+console.assert(!doThatCalled);

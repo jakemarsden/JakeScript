@@ -1,3 +1,4 @@
-assert console;
+console.assert(console);
 
-assert console.log;
+console.assert(console.assert);
+console.assert(console.log);

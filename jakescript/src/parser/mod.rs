@@ -1,11 +1,11 @@
 use crate::ast::{
-    self, AssertStatement, AssignmentExpression, AssignmentOperator, BinaryExpression,
-    BinaryOperator, Block, BreakStatement, CatchBlock, ComputedPropertyAccessExpression,
-    ComputedPropertyAccessOperator, ContinueStatement, DeclarationStatement, Expression,
-    FinallyBlock, ForLoop, FunctionCallExpression, FunctionCallOperator, FunctionDeclaration,
-    GroupingExpression, GroupingOperator, Identifier, IfStatement, LiteralExpression, Op, Operator,
-    Precedence, Program, PropertyAccessExpression, PropertyAccessOperator, ReturnStatement,
-    Statement, TernaryExpression, TernaryOperator, ThrowStatement, TryStatement, UnaryExpression,
+    self, AssignmentExpression, AssignmentOperator, BinaryExpression, BinaryOperator, Block,
+    BreakStatement, CatchBlock, ComputedPropertyAccessExpression, ComputedPropertyAccessOperator,
+    ContinueStatement, DeclarationStatement, Expression, FinallyBlock, ForLoop,
+    FunctionCallExpression, FunctionCallOperator, FunctionDeclaration, GroupingExpression,
+    GroupingOperator, Identifier, IfStatement, LiteralExpression, Op, Operator, Precedence,
+    Program, PropertyAccessExpression, PropertyAccessOperator, ReturnStatement, Statement,
+    TernaryExpression, TernaryOperator, ThrowStatement, TryStatement, UnaryExpression,
     UnaryOperator, VariableAccessExpression, VariableDeclaration, VariableDeclarationEntry,
     VariableDeclarationKind, WhileLoop,
 };
@@ -106,9 +106,6 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
 
             Some(token) => {
                 let stmt = match token {
-                    Token::Keyword(Keyword::Assert) => {
-                        self.parse_assert_statement().map(Statement::Assert)
-                    }
                     Token::Keyword(Keyword::Break) => {
                         self.parse_break_statement().map(Statement::Break)
                     }
@@ -412,12 +409,6 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
             var_name,
             initialiser,
         })
-    }
-
-    fn parse_assert_statement(&mut self) -> Result<AssertStatement> {
-        self.expect_keyword(Keyword::Assert)?;
-        let condition = self.parse_expression()?;
-        Ok(AssertStatement { condition })
     }
 
     fn parse_if_statement(&mut self) -> Result<IfStatement> {

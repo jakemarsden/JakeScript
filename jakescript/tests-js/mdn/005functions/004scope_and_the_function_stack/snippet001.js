@@ -1,3 +1,3 @@
 var foo = function bar() {
-    // statements go here
+   // statements go here
 };

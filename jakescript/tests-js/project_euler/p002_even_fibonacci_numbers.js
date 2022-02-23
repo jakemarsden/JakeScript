@@ -13,5 +13,5 @@ function evenFibonacciNumbers(limit) {
     return sum;
 }
 
-assert evenFibonacciNumbers(89) === 44;
-assert evenFibonacciNumbers(4000000) === 4613732;
+console.assert(evenFibonacciNumbers(89) === 44);
+console.assert(evenFibonacciNumbers(4000000) === 4613732);

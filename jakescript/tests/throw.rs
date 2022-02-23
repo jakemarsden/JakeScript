@@ -12,7 +12,7 @@ fn throw() {
     harness::init();
     let source_code = r#"
 let a = 1 + 2;
-assert a === 3;
+console.assert(a === 3);
 throw 42;
 "#;
     let report = harness::exec_source_code(source_code);
@@ -28,7 +28,7 @@ fn throw_variable() {
     harness::init();
     let source_code = r#"
 let a = 1 + 2;
-assert a === 3;
+console.assert(a === 3);
 throw a;
 "#;
     let report = harness::exec_source_code(source_code);
@@ -44,7 +44,7 @@ fn throw_undefined() {
     harness::init();
     let source_code = r#"
 let a = 1 + 2;
-assert a === 3;
+console.assert(a === 3);
 throw undefined;
 "#;
     let report = harness::exec_source_code(source_code);
@@ -60,9 +60,9 @@ fn statements_after_throw_are_not_reached() {
     harness::init();
     let source_code = r#"
 let a = 1 + 2;
-assert a === 3;
+console.assert(a === 3);
 throw 42;
-assert false;
+console.assert(false);
 "#;
     let report = harness::exec_source_code(source_code);
     assert_matches!(report.success_value(), Some(Value::Undefined));
@@ -81,10 +81,10 @@ while (i < 10) {
     if (i === 3) {
         throw i;
     }
-    assert i < 3;
+    console.assert(i < 3);
     i += 1;
 }
-assert false;
+console.assert(false);
 "#;
     let report = harness::exec_source_code(source_code);
     assert_matches!(report.success_value(), Some(Value::Undefined));

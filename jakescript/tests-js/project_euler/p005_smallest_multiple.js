@@ -15,7 +15,7 @@ function smallestMultiple(maxDivisor) {
     }
 }
 
-assert smallestMultiple(10) === 2520;
+console.assert(smallestMultiple(10) === 2520);
 
 // Too slow to run by default:
-//assert smallestMultiple(20) === 232792560;
+//console.assert(smallestMultiple(20) === 232792560);

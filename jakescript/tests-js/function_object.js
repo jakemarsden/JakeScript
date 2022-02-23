@@ -8,17 +8,17 @@ function g() {
 
 f.answer = 42;
 f.functionAsProperty = g;
-assert f() === "Hello";
-assert f.answer === 42;
-assert f.functionAsProperty() === "world";
+console.assert(f() === "Hello");
+console.assert(f.answer === 42);
+console.assert(f.functionAsProperty() === "world");
 
 let f2 = f;
-assert f2() === "Hello";
-assert f2.answer === 42;
-assert f2.functionAsProperty() === "world";
-assert f() === "Hello";
-assert f.answer === 42;
-assert f.functionAsProperty() === "world";
+console.assert(f2() === "Hello");
+console.assert(f2.answer === 42);
+console.assert(f2.functionAsProperty() === "world");
+console.assert(f() === "Hello");
+console.assert(f.answer === 42);
+console.assert(f.functionAsProperty() === "world");
 
 function h() {
     return "computer";
@@ -26,5 +26,5 @@ function h() {
 
 f.answer += 1295;
 f.functionAsProperty = h;
-assert f2.answer === 1337;
-assert f2.functionAsProperty() === "computer";
+console.assert(f2.answer === 1337);
+console.assert(f2.functionAsProperty() === "computer");

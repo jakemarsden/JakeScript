@@ -6,5 +6,4 @@ var getCode = (function() {
   };
 })();
 
-var result = getCode();    // Returns the apiCode
-assert result === "0]Eal(eh&2";
+console.assert(getCode() === "0]Eal(eh&2", "Returns the apiCode");

@@ -56,8 +56,6 @@ impl fmt::Display for Token {
 #[enumerate_str(rename_all = "lowercase")]
 pub enum Keyword {
     As,
-    // TODO: Remove from the language once no longer needed to support unit tests.
-    Assert,
     Async,
     Await,
     Break,
