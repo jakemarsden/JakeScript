@@ -87,6 +87,6 @@ function returnInside2() {
             return i;
         }
     }
-    console.assertNotEached();
+    console.assertNotReached();
 }
 console.assert(returnInside2() === 10);
