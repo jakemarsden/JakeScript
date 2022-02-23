@@ -77,7 +77,7 @@ function returnInside() {
     for (let i = 3; i -= 1;) {
         return i;
     }
-    console.assert(false);
+    console.assertNotReached();
 }
 console.assert(returnInside() === 2);
 
@@ -87,6 +87,6 @@ function returnInside2() {
             return i;
         }
     }
-    console.assert(false);
+    console.assertNotEached();
 }
 console.assert(returnInside2() === 10);

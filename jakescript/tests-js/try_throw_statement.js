@@ -1,12 +1,8 @@
-function assertNotReached() {
-    console.assert(false);
-}
-
 let a;
 try {
     a = 42;
 } catch {
-    assertNotReached();
+    console.assertNotReached();
 }
 console.assert(a === 42);
 
@@ -14,7 +10,7 @@ let b, c;
 try {
     b = 42;
     throw "example exception";
-    assertNotReached();
+    console.assertNotReached();
 } catch {
     c = 42;
 }
@@ -25,7 +21,7 @@ let d, e;
 try {
     d = 42;
     throw "example exception";
-    assertNotReached();
+    console.assertNotReached();
 } catch (ex) {
     e = 42;
     console.assert(ex === "example exception");
@@ -38,13 +34,13 @@ try {
     try {
         f = 42;
         throw "example exception";
-        assertNotReached();
+        console.assertNotReached();
     } catch (originalEx) {
         g = 42;
         throw "rethrown " + originalEx;
-        assertNotReached();
+        console.assertNotReached();
     }
-    assertNotReached();
+    console.assertNotReached();
 } catch (rethrownEx) {
     h = 42;
     console.assert(rethrownEx === "rethrown example exception");
@@ -66,7 +62,7 @@ let k, l, m;
 try {
     k = 42;
     throw "example exception";
-    assertNotReached();
+    console.assertNotReached();
 } catch (ex) {
     l = 42;
     console.assert(ex === "example exception");
@@ -82,11 +78,11 @@ try {
     try {
         n = 42;
         throw "example exception";
-        assertNotReached();
+        console.assertNotReached();
     } finally {
         o = 42;
     }
-    assertNotReached();
+    console.assertNotReached();
 } catch (ex) {
     p = 42;
     console.assert(ex === "example exception");
@@ -102,19 +98,19 @@ try {
             try {
                 q = 42;
                 throw "example exception";
-                assertNotReached();
+                console.assertNotReached();
             } finally {
                 r = 42;
             }
-            assertNotReached();
+            console.assertNotReached();
         } finally {
             s = 42;
         }
-        assertNotReached();
+        console.assertNotReached();
     } finally {
         t = 42;
     }
-    assertNotReached();
+    console.assertNotReached();
 } catch (ex) {
     u = 42;
     console.assert(ex === "example exception");
@@ -133,11 +129,11 @@ try {
     try {
         w = 42;
         throw "example exception";
-        assertNotReached();
+        console.assertNotReached();
     } finally {
         x = 42;
         throw "example exception which hides the original exception";
-        assertNotReached();
+        console.assertNotReached();
     }
 } catch (ex) {
     y = 42;
@@ -157,25 +153,25 @@ try {
             try {
                 aa = 42;
                 throw 1;
-                assertNotReached();
+                console.assertNotReached();
             } finally {
                 ab = 42;
                 throw 2;
-                assertNotReached();
+                console.assertNotReached();
             }
-            assertNotReached();
+            console.assertNotReached();
         } finally {
             ac = 42;
             throw 3;
-            assertNotReached();
+            console.assertNotReached();
         }
-        assertNotReached();
+        console.assertNotReached();
     } finally {
         ad = 42;
         throw 4;
-        assertNotReached();
+        console.assertNotReached();
     }
-    assertNotReached();
+    console.assertNotReached();
 } catch (ex) {
     ae = 42;
     console.assert(ex === 4);
@@ -203,7 +199,7 @@ try {
     }
     ah = 42;
 } catch (ex) {
-    assertNotReached();
+    console.assertNotReached();
 }
 console.assert(ag === 42);
 console.assert(ah === 42);
@@ -218,9 +214,9 @@ try {
         } catch {
             throw 3;
         }
-        assertNotReached();
+        console.assertNotReached();
     }
-    assertNotReached();
+    console.assertNotReached();
 } catch (ex) {
     ai = 42;
     console.assert(ex === 3);

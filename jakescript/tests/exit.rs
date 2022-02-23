@@ -39,7 +39,7 @@ fn statements_after_exit_are_not_reached() {
 let a = 1 + 2;
 console.assert(a === 3);
 exit();
-console.assert(false);
+console.assertNotReached();
 "#;
     let report = harness::exec_source_code(source_code);
     assert_matches!(report.success_value(), Some(Value::Undefined));
@@ -56,11 +56,11 @@ while (i < 10) {
         exit();
     }
     if (i >= 3) {
-        console.assert(false);
+        console.assertNotReached();
     }
     i += 1;
 }
-console.assert(false);
+console.assertNotReached();
 "#;
     let report = harness::exec_source_code(source_code);
     assert_matches!(report.success_value(), Some(Value::Undefined));

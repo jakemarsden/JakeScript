@@ -29,7 +29,7 @@ function earlyReturn(arg) {
             return nice;
         }
     }
-    console.assert(false);
+    console.assertNotReached();
 }
 console.assert(earlyReturn(42) === undefined);
 console.assert(earlyReturn(69) === "nice");

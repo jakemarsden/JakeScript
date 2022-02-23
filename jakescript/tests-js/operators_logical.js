@@ -18,14 +18,10 @@ console.assert(("lhs" || "") === "lhs");
 console.assert(("" || "rhs") === "rhs");
 console.assert(("" || "") === "");
 
-function assertNotReached() {
-    console.assert(false);
-}
-
-console.assert((false && assertNotReached()) === false);
-console.assert((true || assertNotReached()) === true);
-console.assert(("" && assertNotReached()) === "");
-console.assert(("lhs" || assertNotReached()) === "lhs");
+console.assert((false && console.assertNotReached()) === false);
+console.assert((true || console.assertNotReached()) === true);
+console.assert(("" && console.assertNotReached()) === "");
+console.assert(("lhs" || console.assertNotReached()) === "lhs");
 
 let counter = 0;
 

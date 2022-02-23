@@ -16,7 +16,7 @@ console.assert(counter === 15);
 
 while (true) {
     break;
-    console.assert(false);
+    console.assertNotReached();
 }
 
 let breakFlag = false;
@@ -35,7 +35,7 @@ let z = 0;
 while (z < 3) {
     z += 1;
     continue;
-    console.assert(false);
+    console.assertNotReached();
 }
 console.assert(z === 3);
 
@@ -71,7 +71,7 @@ function returnInsideWhileLoop() {
     while (riwlCounter -= 1) {
         return riwlCounter;
     }
-    console.assert(false);
+    console.assertNotReached();
 }
 console.assert(returnInsideWhileLoop() === 2);
 
@@ -83,6 +83,6 @@ function returnInsideWhileLoop2() {
         }
         riwl2Counter += 1;
     }
-    console.assert(false);
+    console.assertNotReached();
 }
 console.assert(returnInsideWhileLoop2() === 10);

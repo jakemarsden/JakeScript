@@ -62,7 +62,7 @@ fn statements_after_throw_are_not_reached() {
 let a = 1 + 2;
 console.assert(a === 3);
 throw 42;
-console.assert(false);
+console.assertNotReached();
 "#;
     let report = harness::exec_source_code(source_code);
     assert_matches!(report.success_value(), Some(Value::Undefined));
@@ -84,7 +84,7 @@ while (i < 10) {
     console.assert(i < 3);
     i += 1;
 }
-console.assert(false);
+console.assertNotReached();
 "#;
     let report = harness::exec_source_code(source_code);
     assert_matches!(report.success_value(), Some(Value::Undefined));
