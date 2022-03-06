@@ -1,60 +1,99 @@
 use crate::ast::Identifier;
-use crate::interpreter::{
-    self, AssertionError, Heap, InitialisationError, ScopeCtx, Value, Variable, VariableKind, Vm,
-};
-use crate::non_empty_str;
-use crate::runtime::{native_fn, Builtin};
-use crate::str::NonEmptyString;
-use common_macros::hash_map;
+use crate::interpreter::{self, AssertionError, Error, InitialisationError, Value, Vm};
+use crate::runtime::{Builtin, NativeHeap, NativeRef};
 
-pub struct ConsoleBuiltin;
+pub struct Console {
+    assert: Value,
+    assert_not_reached: Value,
+    log: Value,
+}
 
-impl Builtin for ConsoleBuiltin {
-    fn register(&self, global: &mut ScopeCtx, heap: &mut Heap) -> Result<(), InitialisationError> {
-        let console_obj_props = hash_map! {
-            Identifier::from(non_empty_str!("assert")) => native_fn("assert", &builtin_assert),
-            Identifier::from(non_empty_str!("assertNotReached"))
-                    => native_fn("assertNotReached", &builtin_assertnotreached),
-            Identifier::from(non_empty_str!("log")) => native_fn("log", &builtin_log),
+impl Builtin for Console {
+    fn register(run: &mut NativeHeap) -> Result<NativeRef, InitialisationError> {
+        let console = Self {
+            assert: Value::NativeObject(ConsoleAssert::register(run)?),
+            assert_not_reached: Value::NativeObject(ConsoleAssertNotReached::register(run)?),
+            log: Value::NativeObject(ConsoleLog::register(run)?),
         };
-        let console_obj = heap
-            .allocate_object(console_obj_props)
-            .map_err(InitialisationError::from)?;
+        Ok(run.register_builtin(console)?)
+    }
 
-        global.declare_variable(Variable::new(
-            VariableKind::Var,
-            Identifier::from(non_empty_str!("console")),
-            Value::Reference(console_obj),
-        ));
+    fn to_js_string(&self) -> String {
+        "[object Object]".to_owned()
+    }
 
-        Ok(())
+    fn property(&self, name: &Identifier) -> interpreter::Result<Option<Value>> {
+        Ok(match name.as_str() {
+            "assert" => Some(self.assert.clone()),
+            "assertNotReached" => Some(self.assert_not_reached.clone()),
+            "log" => Some(self.log.clone()),
+            _ => None,
+        })
+    }
+
+    fn set_property(&mut self, name: &Identifier, value: Value) -> interpreter::Result<Option<()>> {
+        Ok(match name.as_str() {
+            "assert" => {
+                self.assert = value;
+                Some(())
+            }
+            "assertNotReached" => {
+                self.assert_not_reached = value;
+                Some(())
+            }
+            "log" => {
+                self.log = value;
+                Some(())
+            }
+            _ => None,
+        })
     }
 }
 
-fn builtin_assert(vm: &mut Vm, args: &[Value]) -> interpreter::Result {
-    let mut args = args.iter();
-    let assertion = args.next().unwrap_or(&Value::Undefined);
-    if assertion.is_truthy() {
+pub struct ConsoleAssert;
+
+impl Builtin for ConsoleAssert {
+    fn register(run: &mut NativeHeap) -> Result<NativeRef, InitialisationError> {
+        Ok(run.register_builtin(Self)?)
+    }
+
+    fn invoke(&self, vm: &mut Vm, args: &[Value]) -> interpreter::Result {
+        let mut args = args.iter();
+        let assertion = args.next().unwrap_or(&Value::Undefined);
+        if assertion.is_truthy() {
+            Ok(Value::Undefined)
+        } else {
+            let detail_msg = build_msg(vm, args);
+            Err(Error::Assertion(AssertionError::new(detail_msg)))
+        }
+    }
+}
+
+pub struct ConsoleAssertNotReached;
+
+impl Builtin for ConsoleAssertNotReached {
+    fn register(run: &mut NativeHeap) -> Result<NativeRef, InitialisationError> {
+        Ok(run.register_builtin(Self)?)
+    }
+
+    fn invoke(&self, vm: &mut Vm, args: &[Value]) -> interpreter::Result {
+        let detail_msg = build_msg(vm, args.iter());
+        Err(Error::Assertion(AssertionError::new(detail_msg)))
+    }
+}
+
+pub struct ConsoleLog;
+
+impl Builtin for ConsoleLog {
+    fn register(run: &mut NativeHeap) -> Result<NativeRef, InitialisationError> {
+        Ok(run.register_builtin(Self)?)
+    }
+
+    fn invoke(&self, vm: &mut Vm, args: &[Value]) -> interpreter::Result {
+        let msg = build_msg(vm, args.iter());
+        vm.write_message(&msg);
         Ok(Value::Undefined)
-    } else {
-        let detail_msg = build_msg(vm, args);
-        Err(interpreter::Error::Assertion(AssertionError::new(
-            detail_msg,
-        )))
     }
-}
-
-fn builtin_assertnotreached(vm: &mut Vm, args: &[Value]) -> interpreter::Result {
-    let detail_msg = build_msg(vm, args.iter());
-    Err(interpreter::Error::Assertion(AssertionError::new(
-        detail_msg,
-    )))
-}
-
-fn builtin_log(vm: &mut Vm, args: &[Value]) -> interpreter::Result {
-    let log_msg = build_msg(vm, args.iter());
-    vm.write_message(&log_msg);
-    Ok(Value::Undefined)
 }
 
 fn build_msg<'a>(vm: &Vm, values: impl Iterator<Item = &'a Value>) -> String {

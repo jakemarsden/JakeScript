@@ -1,7 +1,7 @@
-use crate::interpreter;
 use crate::interpreter::error::NumericOverflowError;
 use crate::interpreter::heap::Reference;
 use crate::interpreter::vm::Vm;
+use crate::runtime::NativeRef;
 use std::ops::{self, BitAnd, BitOr, BitXor};
 use std::str::FromStr;
 use std::{cmp, fmt, num};
@@ -12,7 +12,7 @@ pub enum Value {
     Number(Number),
     String(String),
     Reference(Reference),
-    NativeFunction(NativeFunction),
+    NativeObject(NativeRef),
     Null,
     #[default]
     Undefined,
@@ -55,7 +55,7 @@ impl Value {
             (Self::Number(lhs), Self::Number(rhs)) => lhs == rhs,
             (Self::String(lhs), Self::String(rhs)) => lhs == rhs,
             (Self::Reference(lhs), Self::Reference(rhs)) => lhs == rhs,
-            (Self::NativeFunction(lhs), Self::NativeFunction(rhs)) => lhs == rhs,
+            (Self::NativeObject(lhs), Self::NativeObject(rhs)) => lhs == rhs,
             (Self::Null, Self::Null) | (Self::Undefined, Self::Undefined) => true,
             (_, _) => false,
         };
@@ -82,8 +82,8 @@ impl Value {
                     false
                 }
             }
-            Self::NativeFunction(lhs) => {
-                if let Self::NativeFunction(rhs) = rhs {
+            Self::NativeObject(lhs) => {
+                if let Self::NativeObject(rhs) = rhs {
                     lhs == rhs
                 } else {
                     false
@@ -175,7 +175,7 @@ impl Value {
             Self::Boolean(value) => *value,
             Self::Number(value) => !value.is_zero() && !value.is_nan(),
             Self::String(value) => !value.is_empty(),
-            Self::Reference(..) | Self::NativeFunction(_) => true,
+            Self::Reference(..) | Self::NativeObject(_) => true,
             Self::Null | Self::Undefined => false,
         }
     }
@@ -186,7 +186,7 @@ impl Value {
             Self::Number(value) => *value,
             Self::String(value) => Number::from_str(value).unwrap_or(Number::NAN),
             Self::Null => Number::Int(0),
-            Self::Reference(..) | Self::NativeFunction(_) | Self::Undefined => Number::NAN,
+            Self::Reference(..) | Self::NativeObject(_) | Self::Undefined => Number::NAN,
         }
     }
 
@@ -199,7 +199,10 @@ impl Value {
                 let obj = vm.heap().resolve(obj_ref);
                 obj.js_to_string()
             }
-            Self::NativeFunction(value) => value.to_string(),
+            Self::NativeObject(obj_ref) => {
+                let obj = vm.runtime().resolve(obj_ref);
+                obj.to_js_string()
+            }
             Self::Null => "null".to_owned(),
             Self::Undefined => "undefined".to_owned(),
         }
@@ -242,7 +245,7 @@ impl fmt::Display for Value {
             Self::Number(value) => write!(f, "{}", value),
             Self::String(value) => write!(f, "{}", value),
             Self::Reference(value) => write!(f, "{}", value),
-            Self::NativeFunction(value) => write!(f, "{}", value),
+            Self::NativeObject(value) => write!(f, "NativeObject<{}>", value),
             Self::Null => f.write_str("null"),
             Self::Undefined => f.write_str("undefined"),
         }
@@ -514,48 +517,5 @@ impl FromStr for Number {
 impl From<&str> for Number {
     fn from(s: &str) -> Self {
         Self::from_str(s).unwrap_or(Self::NAN)
-    }
-}
-
-#[derive(Copy, Clone)]
-pub struct NativeFunction {
-    name: &'static str,
-    implementation: &'static dyn Fn(&mut Vm, &[Value]) -> interpreter::Result,
-}
-
-impl NativeFunction {
-    pub fn new(
-        name: &'static str,
-        implementation: &'static dyn Fn(&mut Vm, &[Value]) -> interpreter::Result,
-    ) -> Self {
-        Self {
-            name,
-            implementation,
-        }
-    }
-
-    pub fn apply(&self, vm: &mut Vm, args: &[Value]) -> interpreter::Result {
-        (self.implementation)(vm, args)
-    }
-}
-
-impl cmp::PartialEq for NativeFunction {
-    fn eq(&self, other: &Self) -> bool {
-        self.name == other.name
-    }
-}
-
-impl fmt::Display for NativeFunction {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "function {}() {{\n    [native code]\n}}", self.name)
-    }
-}
-
-impl fmt::Debug for NativeFunction {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct("NativeFunction")
-            .field("name", &self.name)
-            .field("implementation", &"[native code]")
-            .finish()
     }
 }

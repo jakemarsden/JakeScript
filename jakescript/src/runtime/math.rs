@@ -1,36 +1,49 @@
 use crate::ast::Identifier;
-use crate::interpreter::{
-    self, Heap, InitialisationError, Number, ScopeCtx, Value, Variable, VariableKind, Vm,
-};
-use crate::non_empty_str;
-use crate::runtime::{native_fn, Builtin};
-use crate::str::NonEmptyString;
-use common_macros::hash_map;
+use crate::interpreter::{self, InitialisationError, Number, Value, Vm};
+use crate::runtime::{Builtin, NativeHeap, NativeRef};
 
-pub struct MathBuiltin;
+pub struct Math {
+    sqrt: Value,
+}
 
-impl Builtin for MathBuiltin {
-    fn register(&self, global: &mut ScopeCtx, heap: &mut Heap) -> Result<(), InitialisationError> {
-        let math_obj_props = hash_map! {
-            Identifier::from(non_empty_str!("sqrt")) => native_fn("sqrt", &builtin_sqrt),
+impl Builtin for Math {
+    fn register(run: &mut NativeHeap) -> Result<NativeRef, InitialisationError> {
+        let math = Self {
+            sqrt: Value::NativeObject(MathSqrt::register(run)?),
         };
-        let math_obj = heap
-            .allocate_object(math_obj_props)
-            .map_err(InitialisationError::from)?;
+        Ok(run.register_builtin(math)?)
+    }
 
-        global.declare_variable(Variable::new(
-            VariableKind::Var,
-            Identifier::from(non_empty_str!("Math")),
-            Value::Reference(math_obj),
-        ));
+    fn property(&self, name: &Identifier) -> interpreter::Result<Option<Value>> {
+        Ok(match name.as_str() {
+            "sqrt" => Some(self.sqrt.clone()),
+            _ => None,
+        })
+    }
 
-        Ok(())
+    fn set_property(&mut self, name: &Identifier, value: Value) -> interpreter::Result<Option<()>> {
+        Ok(match name.as_str() {
+            "sqrt" => {
+                self.sqrt = value;
+                Some(())
+            }
+            _ => None,
+        })
     }
 }
 
-fn builtin_sqrt(_: &mut Vm, args: &[Value]) -> interpreter::Result {
-    Ok(Value::Number(match args.first().cloned() {
-        Some(value) => value.coerce_to_number().sqrt(),
-        None => Number::NAN,
-    }))
+pub struct MathSqrt;
+
+impl Builtin for MathSqrt {
+    fn register(run: &mut NativeHeap) -> Result<NativeRef, InitialisationError> {
+        Ok(run.register_builtin(Self)?)
+    }
+
+    fn invoke(&self, _: &mut Vm, args: &[Value]) -> interpreter::Result {
+        let arg = args.first();
+        Ok(Value::Number(match arg {
+            Some(arg) => arg.coerce_to_number().sqrt(),
+            None => Number::NAN,
+        }))
+    }
 }

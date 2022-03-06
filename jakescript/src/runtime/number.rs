@@ -1,27 +1,18 @@
-use crate::ast::Identifier;
-use crate::interpreter::{
-    self, Heap, InitialisationError, Number, ScopeCtx, Value, Variable, VariableKind, Vm,
-};
-use crate::non_empty_str;
-use crate::runtime::{native_fn, Builtin};
-use crate::str::NonEmptyString;
+use crate::interpreter::{self, InitialisationError, Value, Vm};
+use crate::runtime::{Builtin, NativeHeap, NativeRef};
 
-pub struct NumberBuiltin;
+pub struct Number;
 
-impl Builtin for NumberBuiltin {
-    fn register(&self, global: &mut ScopeCtx, _: &mut Heap) -> Result<(), InitialisationError> {
-        global.declare_variable(Variable::new(
-            VariableKind::Var,
-            Identifier::from(non_empty_str!("Number")),
-            native_fn("Number", &builtin_number),
-        ));
-        Ok(())
+impl Builtin for Number {
+    fn register(run: &mut NativeHeap) -> Result<NativeRef, InitialisationError> {
+        Ok(run.register_builtin(Self)?)
     }
-}
 
-fn builtin_number(_: &mut Vm, args: &[Value]) -> interpreter::Result {
-    Ok(Value::Number(match args.first().cloned() {
-        Some(arg) => arg.coerce_to_number(),
-        None => Number::Int(0),
-    }))
+    fn invoke(&self, _: &mut Vm, args: &[Value]) -> interpreter::Result {
+        let arg = args.first();
+        Ok(Value::Number(match arg {
+            Some(arg) => arg.coerce_to_number(),
+            None => interpreter::Number::Int(0),
+        }))
+    }
 }

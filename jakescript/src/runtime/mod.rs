@@ -1,93 +1,197 @@
-#![allow(clippy::unnecessary_wraps)]
-
 use crate::ast::Identifier;
-use crate::interpreter::{
-    self, ExecutionState, Heap, InitialisationError, NativeFunction, Number, ScopeCtx, Value,
-    Variable, VariableKind, Vm,
-};
-use crate::non_empty_str;
-use crate::str::NonEmptyString;
+use crate::interpreter::{self, ExecutionState, InitialisationError, OutOfMemoryError, Value, Vm};
+use common_macros::hash_map;
+use std::cell::{Ref, RefCell, RefMut};
+use std::collections::hash_map::Entry;
+use std::collections::HashMap;
+use std::fmt;
+use std::rc::Rc;
 
-pub mod boolean;
-pub mod console;
-pub mod math;
-pub mod number;
-pub mod string;
+pub use global::DefaultGlobalObject;
 
-pub trait Builtin {
-    fn register(&self, global: &mut ScopeCtx, heap: &mut Heap) -> Result<(), InitialisationError>;
+mod boolean;
+mod console;
+mod global;
+mod math;
+mod number;
+mod string;
+
+pub struct Runtime {
+    global_object: NativeRef,
+    native_heap: NativeHeap,
 }
 
-pub trait Runtime {
-    fn create_global_context(&self, heap: &mut Heap) -> Result<ScopeCtx, InitialisationError>;
-}
+impl Runtime {
+    pub fn new<T: Builtin>() -> Result<Self, InitialisationError> {
+        let mut native_heap = NativeHeap::default();
+        let global_object = T::register(&mut native_heap)?;
+        Ok(Self {
+            global_object,
+            native_heap,
+        })
+    }
 
-#[derive(Default)]
-pub struct DefaultRuntime {}
+    pub fn global_object_ref(&self) -> NativeRef {
+        self.global_object.clone()
+    }
 
-impl Runtime for DefaultRuntime {
-    fn create_global_context(&self, heap: &mut Heap) -> Result<ScopeCtx, InitialisationError> {
-        let mut global = ScopeCtx::default();
+    pub fn global_object(&self) -> Ref<NativeObject> {
+        self.native_heap.resolve(&self.global_object)
+    }
+    pub fn global_object_mut(&mut self) -> RefMut<NativeObject> {
+        self.native_heap.resolve_mut(&self.global_object)
+    }
 
-        global.declare_variable(Variable::new(
-            VariableKind::SilentReadOnly,
-            Identifier::from(non_empty_str!("Infinity")),
-            Value::Number(Number::POS_INF),
-        ));
-        global.declare_variable(Variable::new(
-            VariableKind::SilentReadOnly,
-            Identifier::from(non_empty_str!("NaN")),
-            Value::Number(Number::NAN),
-        ));
-        global.declare_variable(Variable::new(
-            VariableKind::SilentReadOnly,
-            Identifier::from(non_empty_str!("undefined")),
-            Value::Undefined,
-        ));
-
-        global.declare_variable(Variable::new(
-            VariableKind::Var,
-            Identifier::from(non_empty_str!("exit")),
-            native_fn("exit", &builtin_exit),
-        ));
-        global.declare_variable(Variable::new(
-            VariableKind::Var,
-            Identifier::from(non_empty_str!("isNaN")),
-            native_fn("isNaN", &builtin_isnan),
-        ));
-
-        boolean::BooleanBuiltin.register(&mut global, heap)?;
-        console::ConsoleBuiltin.register(&mut global, heap)?;
-        math::MathBuiltin.register(&mut global, heap)?;
-        number::NumberBuiltin.register(&mut global, heap)?;
-        string::StringBuiltin.register(&mut global, heap)?;
-
-        Ok(global)
+    // unused_self: May be needed in the future.
+    #[allow(clippy::unused_self)]
+    pub fn resolve<'a>(&self, refr: &'a NativeRef) -> Ref<'a, NativeObject> {
+        self.native_heap.resolve(refr)
+    }
+    // unused_self: May be needed in the future.
+    #[allow(clippy::unused_self)]
+    pub fn resolve_mut<'a>(&mut self, refr: &'a NativeRef) -> RefMut<'a, NativeObject> {
+        self.native_heap.resolve_mut(refr)
     }
 }
 
-pub(crate) fn native_fn(
-    name: &'static str,
-    implementation: &'static dyn Fn(&mut Vm, &[Value]) -> interpreter::Result,
-) -> Value {
-    Value::NativeFunction(NativeFunction::new(name, implementation))
+#[derive(Default)]
+pub struct NativeHeap {
+    next_obj_idx: usize,
 }
 
-fn builtin_exit(vm: &mut Vm, _args: &[Value]) -> interpreter::Result {
-    vm.set_execution_state(ExecutionState::Exit);
-    Ok(Value::Undefined)
+impl NativeHeap {
+    fn register_builtin(
+        &mut self,
+        builtin: impl Builtin + 'static,
+    ) -> Result<NativeRef, OutOfMemoryError> {
+        let native_obj = NativeObject::new(builtin);
+        self.register(native_obj)
+    }
+
+    // unused_self: May be needed in the future.
+    #[allow(clippy::unused_self)]
+    fn register(&mut self, obj: NativeObject) -> Result<NativeRef, OutOfMemoryError> {
+        let idx = self.next_obj_idx;
+        self.next_obj_idx = self.next_obj_idx.checked_add(1).ok_or(OutOfMemoryError)?;
+        Ok(NativeRef::new(idx, obj))
+    }
+
+    // unused_self: May be needed in the future.
+    #[allow(clippy::unused_self)]
+    pub fn resolve<'a>(&self, refr: &'a NativeRef) -> Ref<'a, NativeObject> {
+        refr.deref()
+    }
+    // unused_self: May be needed in the future.
+    #[allow(clippy::unused_self)]
+    pub fn resolve_mut<'a>(&mut self, refr: &'a NativeRef) -> RefMut<'a, NativeObject> {
+        refr.deref_mut()
+    }
 }
 
-fn builtin_isnan(_: &mut Vm, args: &[Value]) -> interpreter::Result {
-    Ok(Value::Boolean(
-        match args.first().cloned().unwrap_or_default() {
-            Value::Boolean(_)
-            | Value::String(_)
-            | Value::Reference(_)
-            | Value::NativeFunction(_)
-            | Value::Null
-            | Value::Undefined => true,
-            Value::Number(arg) => arg.is_nan(),
-        },
-    ))
+pub struct NativeObject {
+    builtin: Box<dyn Builtin>,
+    user_properties: HashMap<Identifier, Value>,
+}
+
+impl NativeObject {
+    fn new(builtin: impl Builtin + 'static) -> Self {
+        Self {
+            builtin: Box::new(builtin),
+            user_properties: hash_map! {},
+        }
+    }
+
+    pub fn to_js_string(&self) -> String {
+        self.builtin.to_js_string()
+    }
+
+    pub fn invoke(&self, vm: &mut Vm, args: &[Value]) -> interpreter::Result {
+        self.builtin.invoke(vm, args)
+    }
+
+    pub fn property(&self, name: &Identifier) -> interpreter::Result {
+        Ok(if let Some(user_value) = self.user_properties.get(name) {
+            user_value.clone()
+        } else if let Some(builtin_value) = self.builtin.property(name)? {
+            builtin_value
+        } else {
+            Value::Undefined
+        })
+    }
+
+    pub fn set_property(&mut self, name: &Identifier, value: Value) -> interpreter::Result<()> {
+        match self.user_properties.entry(name.clone()) {
+            Entry::Occupied(mut entry) => {
+                entry.insert(value);
+            }
+            Entry::Vacant(entry) => {
+                if self.builtin.set_property(name, value.clone())?.is_none() {
+                    entry.insert(value);
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+pub trait Builtin {
+    fn register(run: &mut NativeHeap) -> Result<NativeRef, InitialisationError>
+    where
+        Self: Sized;
+
+    fn to_js_string(&self) -> String {
+        "function assert() {\n    [native code]\n}".to_owned()
+    }
+
+    fn invoke(&self, vm: &mut Vm, args: &[Value]) -> interpreter::Result {
+        let arg = args.first().unwrap_or(&Value::Undefined);
+        let exception = Value::String(format!("Type error: {} is not a function", arg));
+        vm.set_execution_state(ExecutionState::Exception(exception));
+        Ok(Value::Undefined)
+    }
+
+    fn property(&self, _: &Identifier) -> interpreter::Result<Option<Value>> {
+        Ok(None)
+    }
+
+    fn set_property(&mut self, _: &Identifier, _: Value) -> interpreter::Result<Option<()>> {
+        Ok(None)
+    }
+}
+
+#[derive(Clone)]
+pub struct NativeRef(usize, Rc<RefCell<NativeObject>>);
+
+impl NativeRef {
+    fn new(idx: usize, builtin: NativeObject) -> Self {
+        Self(idx, Rc::new(RefCell::new(builtin)))
+    }
+
+    fn deref(&self) -> Ref<NativeObject> {
+        RefCell::borrow(&self.1)
+    }
+    fn deref_mut(&self) -> RefMut<NativeObject> {
+        RefCell::borrow_mut(&self.1)
+    }
+}
+
+impl Eq for NativeRef {}
+
+impl PartialEq for NativeRef {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+
+impl fmt::Display for NativeRef {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // Note: 6 includes the 2 chars for the "0x" prefix, so only 4 actual digits are displayed.
+        write!(f, "{:#06x}", self.0)
+    }
+}
+
+impl fmt::Debug for NativeRef {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(self, f)
+    }
 }

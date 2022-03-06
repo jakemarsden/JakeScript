@@ -1,27 +1,18 @@
-use crate::ast::Identifier;
-use crate::interpreter::{
-    self, Heap, InitialisationError, ScopeCtx, Value, Variable, VariableKind, Vm,
-};
-use crate::non_empty_str;
-use crate::runtime::{native_fn, Builtin};
-use crate::str::NonEmptyString;
+use crate::interpreter::{self, InitialisationError, Value, Vm};
+use crate::runtime::{Builtin, NativeHeap, NativeRef};
 
-pub struct BooleanBuiltin;
+pub struct Boolean;
 
-impl Builtin for BooleanBuiltin {
-    fn register(&self, global: &mut ScopeCtx, _: &mut Heap) -> Result<(), InitialisationError> {
-        global.declare_variable(Variable::new(
-            VariableKind::Var,
-            Identifier::from(non_empty_str!("Boolean")),
-            native_fn("Boolean", &builtin_boolean),
-        ));
-        Ok(())
+impl Builtin for Boolean {
+    fn register(run: &mut NativeHeap) -> Result<NativeRef, InitialisationError> {
+        Ok(run.register_builtin(Self)?)
     }
-}
 
-fn builtin_boolean(_: &mut Vm, args: &[Value]) -> interpreter::Result {
-    Ok(Value::Boolean(match args.first().cloned() {
-        Some(arg) => arg.coerce_to_bool(),
-        None => false,
-    }))
+    fn invoke(&self, _: &mut Vm, args: &[Value]) -> interpreter::Result {
+        let arg = args.first();
+        Ok(Value::Boolean(match arg {
+            Some(arg) => arg.coerce_to_bool(),
+            None => false,
+        }))
+    }
 }

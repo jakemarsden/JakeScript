@@ -370,32 +370,49 @@ impl Eval for AssignmentExpression {
         assert_matches!(self.op.associativity(), Associativity::RightToLeft);
         match self.lhs.as_ref() {
             Expression::VariableAccess(node) => {
-                let mut variable = it
+                if let Some(mut variable) = it
                     .vm()
                     .stack()
                     .frame()
                     .scope()
-                    .lookup_variable(&node.var_name)?;
-                let new_value = compute_new_value(self, it, || Ok(variable.value().clone()))?;
-                variable.set_value(new_value.clone())?;
-                Ok(new_value)
+                    .lookup_variable(&node.var_name)
+                {
+                    let new_value = compute_new_value(self, it, || Ok(variable.value().clone()))?;
+                    variable.set_value(new_value.clone())?;
+                    Ok(new_value)
+                } else {
+                    let value = it.vm().runtime().global_object().property(&node.var_name)?;
+                    let new_value = compute_new_value(self, it, || Ok(value.clone()))?;
+                    it.vm_mut()
+                        .runtime_mut()
+                        .global_object_mut()
+                        .set_property(&node.var_name, value.clone())?;
+                    Ok(new_value)
+                }
             }
             Expression::PropertyAccess(node) => {
                 let base_value = node.base.eval(it)?;
-                let mut base_obj = match base_value {
+                match base_value {
                     Value::Reference(ref base_refr) => {
-                        it.vm_mut().heap_mut().resolve_mut(base_refr)
+                        let mut base_obj = it.vm_mut().heap_mut().resolve_mut(base_refr);
+                        let new_value = compute_new_value(self, it, || {
+                            Ok(base_obj
+                                .property(&node.property_name)
+                                .cloned()
+                                .unwrap_or_default())
+                        })?;
+                        base_obj.set_property(node.property_name.clone(), new_value.clone());
+                        Ok(new_value)
+                    }
+                    Value::NativeObject(ref base_refr) => {
+                        let mut base_obj = it.vm_mut().runtime_mut().resolve_mut(base_refr);
+                        let new_value =
+                            compute_new_value(self, it, || base_obj.property(&node.property_name))?;
+                        base_obj.set_property(&node.property_name, new_value.clone())?;
+                        Ok(new_value)
                     }
                     base_value => todo!("AssignmentExpression::eval: base_value={:?}", base_value),
-                };
-                let new_value = compute_new_value(self, it, || {
-                    Ok(base_obj
-                        .property(&node.property_name)
-                        .cloned()
-                        .unwrap_or_default())
-                })?;
-                base_obj.set_property(node.property_name.clone(), new_value.clone());
-                Ok(new_value)
+                }
             }
             expr => todo!("AssignmentExpression::eval: lhs={:#?}", expr),
         }
@@ -518,35 +535,54 @@ impl Eval for UnaryExpression {
                 assert_matches!(self.op.associativity(), Associativity::RightToLeft);
                 match self.operand.as_ref() {
                     Expression::VariableAccess(node) => {
-                        let mut variable = it
+                        if let Some(mut variable) = it
                             .vm()
                             .stack()
                             .frame()
                             .scope()
-                            .lookup_variable(&node.var_name)?;
-                        let (new_value, result_value) =
-                            compute(self, it, || Ok(variable.value().clone()))?;
-                        variable.set_value(new_value)?;
-                        result_value
+                            .lookup_variable(&node.var_name)
+                        {
+                            let (new_value, result_value) =
+                                compute(self, it, || Ok(variable.value().clone()))?;
+                            variable.set_value(new_value)?;
+                            result_value
+                        } else {
+                            let value =
+                                it.vm().runtime().global_object().property(&node.var_name)?;
+                            let (new_value, result_value) =
+                                compute(self, it, || Ok(value.clone()))?;
+                            it.vm_mut()
+                                .runtime_mut()
+                                .global_object_mut()
+                                .set_property(&node.var_name, new_value)?;
+                            result_value
+                        }
                     }
                     Expression::PropertyAccess(node) => {
                         let base_value = node.base.eval(it)?;
-                        let mut base_obj = match base_value {
+                        match base_value {
                             Value::Reference(ref base_refr) => {
-                                it.vm_mut().heap_mut().resolve_mut(base_refr)
+                                let mut base_obj = it.vm_mut().heap_mut().resolve_mut(base_refr);
+                                let (new_value, result_value) = compute(self, it, || {
+                                    Ok(base_obj
+                                        .property(&node.property_name)
+                                        .cloned()
+                                        .unwrap_or_default())
+                                })?;
+                                base_obj.set_property(node.property_name.clone(), new_value);
+                                result_value
+                            }
+                            Value::NativeObject(ref base_refr) => {
+                                let mut base_obj = it.vm_mut().runtime_mut().resolve_mut(base_refr);
+                                let (new_value, result_value) =
+                                    compute(self, it, || base_obj.property(&node.property_name))?;
+                                base_obj.set_property(&node.property_name, new_value)?;
+                                result_value
                             }
                             base_value => {
                                 todo!("AssignmentExpression::eval: base_value={:?}", base_value)
                             }
-                        };
-                        let (new_value, result_value) = compute(self, it, || {
-                            Ok(base_obj
-                                .property(&node.property_name)
-                                .cloned()
-                                .unwrap_or_default())
-                        })?;
-                        base_obj.set_property(node.property_name.clone(), new_value);
-                        result_value
+                        }
                     }
                     _ => todo!("UnaryExpression::eval: self={:#?}", self),
                 }
@@ -697,18 +733,22 @@ impl Eval for FunctionCallExpression {
                 it.vm_mut().stack_mut().pop_frame();
 
                 Ok(match it.vm_mut().reset_execution_state() {
-                    ExecutionState::Advance => Value::Undefined,
+                    ExecutionState::Advance | ExecutionState::Exit => Value::Undefined,
                     ExecutionState::Return(value) => value,
                     execution_state => panic!("Unexpected execution state: {:?}", execution_state),
                 })
             }
-            Value::NativeFunction(f) => {
-                let mut args = Vec::with_capacity(self.arguments.len());
-                for arg in &self.arguments {
-                    let arg_value = arg.eval(it)?;
+            Value::NativeObject(fn_obj_ref) => {
+                let fn_obj = it.vm().runtime().resolve(&fn_obj_ref);
+
+                let supplied_args = &self.arguments;
+                let mut args = Vec::with_capacity(supplied_args.len());
+                for supplied_arg in supplied_args {
+                    let arg_value = supplied_arg.eval(it)?;
                     args.push(arg_value);
                 }
-                f.apply(it.vm_mut(), &args)
+
+                fn_obj.invoke(it.vm_mut(), &args)
             }
             _ => Err(Error::NotCallable(NotCallableError)),
         }
@@ -720,14 +760,20 @@ impl Eval for PropertyAccessExpression {
 
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let base_value = self.base.eval(it)?;
-        let base_obj = match base_value {
-            Value::Reference(ref base_refr) => it.vm().heap().resolve(base_refr),
-            base_value => todo!("PropertyExpression::eval: base={:?}", base_value),
-        };
-        Ok(base_obj
-            .property(&self.property_name)
-            .cloned()
-            .unwrap_or_default())
+        match base_value {
+            Value::Reference(ref base_refr) => {
+                let base_obj = it.vm().heap().resolve(base_refr);
+                Ok(base_obj
+                    .property(&self.property_name)
+                    .cloned()
+                    .unwrap_or_default())
+            }
+            Value::NativeObject(ref base_refr) => {
+                let base_obj = it.vm().runtime().resolve(base_refr);
+                base_obj.property(&self.property_name)
+            }
+            base_value => todo!("PropertyAccessExpression::eval: base={:?}", base_value),
+        }
     }
 }
 
@@ -753,13 +799,17 @@ impl Eval for VariableAccessExpression {
     type Output = Value;
 
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        let variable = it
+        if let Some(variable) = it
             .vm()
             .stack()
             .frame()
             .scope()
-            .lookup_variable(&self.var_name)?;
-        let value = variable.value().clone();
-        Ok(value)
+            .lookup_variable(&self.var_name)
+        {
+            let value = variable.value().clone();
+            Ok(value)
+        } else {
+            it.vm().runtime().global_object().property(&self.var_name)
+        }
     }
 }

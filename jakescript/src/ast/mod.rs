@@ -317,6 +317,12 @@ impl Node for VariableAccessExpression {}
 #[derive(Clone, Eq, PartialEq, Hash, Debug, Serialize, Deserialize)]
 pub struct Identifier(NonEmptyString);
 
+impl Identifier {
+    pub fn as_str(&self) -> &str {
+        self.0.as_ref()
+    }
+}
+
 impl From<NonEmptyString> for Identifier {
     fn from(s: NonEmptyString) -> Self {
         Self(s)

@@ -1,8 +1,8 @@
 use crate::interpreter::error::InitialisationError;
 use crate::interpreter::heap::Heap;
-use crate::interpreter::stack::{CallFrame, CallStack, Scope};
+use crate::interpreter::stack::{CallFrame, CallStack, Scope, ScopeCtx};
 use crate::interpreter::value::Value;
-use crate::runtime::{DefaultRuntime, Runtime};
+use crate::runtime::{DefaultGlobalObject, Runtime};
 use std::assert_matches::assert_matches;
 use std::mem;
 
@@ -10,25 +10,25 @@ pub struct Vm {
     execution_state: ExecutionState,
     hidden_exception: Option<Value>,
     heap: Heap,
+    runtime: Runtime,
     stack: CallStack,
 }
 
 impl Vm {
     pub fn new() -> Result<Self, InitialisationError> {
-        let runtime = DefaultRuntime::default();
-        Self::with_custom_runtime(&runtime)
+        let runtime = Runtime::new::<DefaultGlobalObject>()?;
+        Ok(Self::with_custom_runtime(runtime))
     }
 
-    pub fn with_custom_runtime(runtime: &dyn Runtime) -> Result<Self, InitialisationError> {
-        let mut heap = Heap::default();
-        let global_ctx = runtime.create_global_context(&mut heap)?;
-        let global_scope = Scope::new(global_ctx);
-        Ok(Self {
+    pub fn with_custom_runtime(runtime: Runtime) -> Self {
+        let stack = CallStack::new(CallFrame::new(Scope::new(ScopeCtx::default())));
+        Self {
             execution_state: ExecutionState::default(),
             hidden_exception: Option::default(),
-            heap,
-            stack: CallStack::new(CallFrame::new(global_scope)),
-        })
+            heap: Heap::default(),
+            runtime,
+            stack,
+        }
     }
 
     pub fn execution_state(&self) -> &ExecutionState {
@@ -135,6 +135,13 @@ impl Vm {
     }
     pub fn heap_mut(&mut self) -> &mut Heap {
         &mut self.heap
+    }
+
+    pub fn runtime(&self) -> &Runtime {
+        &self.runtime
+    }
+    pub fn runtime_mut(&mut self) -> &mut Runtime {
+        &mut self.runtime
     }
 
     pub fn stack(&self) -> &CallStack {

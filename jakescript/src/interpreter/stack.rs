@@ -1,7 +1,5 @@
 use crate::ast::{Identifier, VariableDeclarationKind};
-use crate::interpreter::error::{
-    AssignToConstVariableError, VariableAlreadyDefinedError, VariableNotDefinedError,
-};
+use crate::interpreter::error::{AssignToConstVariableError, VariableAlreadyDefinedError};
 use crate::interpreter::value::Value;
 use std::cell::{Ref, RefCell};
 use std::mem;
@@ -119,10 +117,8 @@ impl Scope {
         ancestor_ref
     }
 
-    pub fn lookup_variable(&self, name: &Identifier) -> Result<Variable, VariableNotDefinedError> {
-        RefCell::borrow(&self.0)
-            .lookup_variable(name)
-            .ok_or(VariableNotDefinedError)
+    pub fn lookup_variable(&self, name: &Identifier) -> Option<Variable> {
+        RefCell::borrow(&self.0).lookup_variable(name)
     }
 
     pub fn declare_variable(
@@ -226,7 +222,6 @@ impl Variable {
                 Ok(())
             }
             VariableKind::Const => Err(AssignToConstVariableError),
-            VariableKind::SilentReadOnly => Ok(()),
         }
     }
 }
@@ -243,9 +238,6 @@ pub enum VariableKind {
     Const,
     Let,
     Var,
-    /// The assignment operator completes successfully, and returns the value you might expect, but
-    /// the value of the variable isn't actually changed.
-    SilentReadOnly,
 }
 
 impl From<VariableDeclarationKind> for VariableKind {
