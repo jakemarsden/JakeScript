@@ -1,5 +1,4 @@
 #![feature(derive_default_enum)]
-#![feature(stdio_locked)]
 
 use enumerate::{Enumerate, EnumerateStr};
 use jakescript::ast::Program;
@@ -46,7 +45,7 @@ fn main() -> Result<(), Error> {
             let (ast, parse_runtime) = parse(lexer)?;
             println!("Parsed in {:?}", parse_runtime);
 
-            let stdout = io::stdout_locked();
+            let stdout = io::stdout().lock();
             match format {
                 Format::Json => serde_json::to_writer_pretty(stdout, &ast).unwrap(),
                 Format::Yaml => serde_yaml::to_writer(stdout, &ast).unwrap(),
@@ -71,7 +70,7 @@ fn main() -> Result<(), Error> {
             );
         }
         Options(Mode::Repl, None, None) => {
-            let mut stdin = io::stdin_locked();
+            let mut stdin = io::stdin().lock();
             let lexer = Lexer::for_chars_fallible(stdin.chars());
             let mut it = Interpreter::new(Vm::new().unwrap());
             Repl::new(lexer).execute(&mut it);
