@@ -1,14 +1,14 @@
+use super::boolean::Boolean;
+use super::console::Console;
+use super::math::Math;
+use super::number::Number;
+use super::string::String;
+use super::{Builtin, NativeHeap, NativeRef};
 use crate::ast::Identifier;
 use crate::interpreter;
 use crate::interpreter::{
     Error, ExecutionState, InitialisationError, Value, VariableNotDefinedError, Vm,
 };
-use crate::runtime::boolean::Boolean;
-use crate::runtime::console::Console;
-use crate::runtime::math::Math;
-use crate::runtime::number::Number;
-use crate::runtime::string::String;
-use crate::runtime::{Builtin, NativeHeap, NativeRef};
 
 pub struct DefaultGlobalObject {
     boolean: Value,

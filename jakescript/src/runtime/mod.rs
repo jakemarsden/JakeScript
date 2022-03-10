@@ -1,3 +1,5 @@
+pub use global::DefaultGlobalObject;
+
 use crate::ast::Identifier;
 use crate::interpreter::{self, ExecutionState, InitialisationError, OutOfMemoryError, Value, Vm};
 use common_macros::hash_map;
@@ -6,8 +8,6 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
-
-pub use global::DefaultGlobalObject;
 
 mod boolean;
 mod console;

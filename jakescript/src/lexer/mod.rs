@@ -1,3 +1,6 @@
+pub use error::*;
+pub use token::*;
+
 use crate::iter::{IntoPeekableNth, PeekableNth};
 use crate::str::NonEmptyString;
 use enumerate::EnumerateStr;
@@ -7,9 +10,6 @@ use error::ErrorKind::{
 use std::io;
 use std::iter::{FilterMap, Map};
 use std::str::{Chars, FromStr};
-
-pub use error::*;
-pub use token::*;
 
 mod error;
 mod token;
@@ -565,7 +565,8 @@ fn into_escaped(ch: char) -> char {
 
 #[cfg(test)]
 mod test {
-    use super::*;
+    use super::token::*;
+    use super::{ErrorKind, Lexer};
     use enumerate::{Enumerate, EnumerateStr};
     use std::assert_matches::assert_matches;
 
@@ -642,7 +643,7 @@ mod test {
     fn tokenise_unclosed_multi_line_comment() {
         let source_code = "/* abc";
         let mut lexer = Lexer::for_str(source_code);
-        assert_matches!(lexer.next(), Some(Err(err)) if err.kind() == Some(UnclosedComment));
+        assert_matches!(lexer.next(), Some(Err(err)) if err.kind() == Some(ErrorKind::UnclosedComment));
         assert_matches!(lexer.next(), None);
     }
 }

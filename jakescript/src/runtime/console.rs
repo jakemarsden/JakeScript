@@ -1,6 +1,6 @@
+use super::{Builtin, NativeHeap, NativeRef};
 use crate::ast::Identifier;
 use crate::interpreter::{self, AssertionError, Error, InitialisationError, Value, Vm};
-use crate::runtime::{Builtin, NativeHeap, NativeRef};
 
 pub struct Console {
     assert: Value,

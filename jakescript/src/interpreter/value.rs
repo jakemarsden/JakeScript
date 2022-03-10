@@ -1,6 +1,6 @@
-use crate::interpreter::error::NumericOverflowError;
-use crate::interpreter::heap::Reference;
-use crate::interpreter::vm::Vm;
+use super::error::NumericOverflowError;
+use super::heap::Reference;
+use super::vm::Vm;
 use crate::runtime::NativeRef;
 use std::ops::{self, BitAnd, BitOr, BitXor};
 use std::str::FromStr;

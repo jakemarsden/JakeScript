@@ -1,4 +1,4 @@
-use crate::lexer::token::Element;
+use super::token::Element;
 use std::{fmt, io};
 
 pub type Result<T = Element> = std::result::Result<T, Error>;

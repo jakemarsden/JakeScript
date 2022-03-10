@@ -1,7 +1,7 @@
+use super::error::OutOfMemoryError;
+use super::stack::Scope;
+use super::value::Value;
 use crate::ast::{Block, Identifier};
-use crate::interpreter::error::OutOfMemoryError;
-use crate::interpreter::stack::Scope;
-use crate::interpreter::value::Value;
 use std::cell::{Ref, RefCell, RefMut};
 use std::collections::HashMap;
 use std::fmt;

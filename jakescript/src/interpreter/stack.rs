@@ -1,6 +1,6 @@
+use super::error::{AssignToConstVariableError, VariableAlreadyDefinedError};
+use super::value::Value;
 use crate::ast::{Identifier, VariableDeclarationKind};
-use crate::interpreter::error::{AssignToConstVariableError, VariableAlreadyDefinedError};
-use crate::interpreter::value::Value;
 use std::cell::{Ref, RefCell};
 use std::mem;
 use std::rc::Rc;

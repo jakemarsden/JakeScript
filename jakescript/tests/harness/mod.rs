@@ -21,7 +21,7 @@ pub fn exec_source_file(source_path: &Path) -> TestCaseReport {
         Ok(file) => io::BufReader::new(file),
         Err(err) => return TestCaseReport::fail(source_name, Duration::ZERO, err.into()),
     };
-    return exec(source_name, Lexer::for_chars_fallible(buf.chars()));
+    exec(source_name, Lexer::for_chars_fallible(buf.chars()))
 }
 
 pub fn exec_source_code(source_code: &str) -> TestCaseReport {

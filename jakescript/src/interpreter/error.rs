@@ -1,4 +1,4 @@
-use crate::interpreter::value::Value;
+use super::value::Value;
 use std::fmt;
 
 pub type Result<T = Value> = std::result::Result<T, Error>;

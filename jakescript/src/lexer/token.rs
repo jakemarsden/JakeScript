@@ -1,4 +1,4 @@
-use crate::lexer::{CR, LF, LS, PS};
+use super::{CR, LF, LS, PS};
 use crate::str::NonEmptyString;
 use enumerate::{Enumerate, EnumerateStr};
 use std::fmt;

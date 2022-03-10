@@ -1,7 +1,7 @@
-use crate::interpreter::error::InitialisationError;
-use crate::interpreter::heap::Heap;
-use crate::interpreter::stack::{CallFrame, CallStack, Scope, ScopeCtx};
-use crate::interpreter::value::Value;
+use super::error::InitialisationError;
+use super::heap::Heap;
+use super::stack::{CallFrame, CallStack, Scope, ScopeCtx};
+use super::value::Value;
 use crate::runtime::{DefaultGlobalObject, Runtime};
 use std::assert_matches::assert_matches;
 use std::mem;

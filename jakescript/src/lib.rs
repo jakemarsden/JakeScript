@@ -6,8 +6,10 @@
 #![feature(iter_intersperse)]
 
 pub mod ast;
-pub mod interpreter;
+
 pub(crate) mod iter;
+
+pub mod interpreter;
 pub mod lexer;
 pub mod parser;
 pub mod runtime;

@@ -198,7 +198,7 @@ impl<I: FusedIterator> FusedIterator for PeekableNth<I> {}
 
 #[cfg(test)]
 mod test {
-    use super::*;
+    use super::IntoPeekableNth;
     use std::convert::Infallible;
 
     #[test]

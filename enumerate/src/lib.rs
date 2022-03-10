@@ -2,9 +2,9 @@
 //!
 //! Traits and macros for working with `enum`s.
 
-use std::fmt;
-
 pub use enumerate_derive::*;
+
+use std::fmt;
 
 /// ## Usage
 ///

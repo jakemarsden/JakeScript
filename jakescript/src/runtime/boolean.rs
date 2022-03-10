@@ -1,5 +1,5 @@
+use super::{Builtin, NativeHeap, NativeRef};
 use crate::interpreter::{self, InitialisationError, Value, Vm};
-use crate::runtime::{Builtin, NativeHeap, NativeRef};
 
 pub struct Boolean;
 

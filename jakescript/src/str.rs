@@ -11,14 +11,13 @@ use std::str::FromStr;
 /// Panics _at runtime_ when used with an empty string literal.
 ///
 /// ```should_panic
-/// # use jakescript::non_empty_str;
-/// # use jakescript::str::NonEmptyString;
+/// use jakescript::non_empty_str;
 /// non_empty_str!("");
 /// ```
 #[macro_export]
 macro_rules! non_empty_str {
     ($s:literal) => {
-        NonEmptyString::try_from($s).unwrap()
+        $crate::str::NonEmptyString::try_from($s).unwrap()
     };
 }
 
@@ -156,7 +155,7 @@ impl<'de> de::Deserialize<'de> for NonEmptyString {
 
 #[cfg(test)]
 mod test {
-    use super::*;
+    use super::NonEmptyString;
     use serde_test::{assert_de_tokens, assert_de_tokens_error, assert_tokens, Token};
 
     #[test]

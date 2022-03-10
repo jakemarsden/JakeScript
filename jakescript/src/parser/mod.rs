@@ -1,14 +1,6 @@
-use crate::ast::{
-    self, AssignmentExpression, AssignmentOperator, BinaryExpression, BinaryOperator, Block,
-    BreakStatement, CatchBlock, ComputedPropertyAccessExpression, ComputedPropertyAccessOperator,
-    ContinueStatement, DeclarationStatement, Expression, FinallyBlock, ForLoop,
-    FunctionCallExpression, FunctionCallOperator, FunctionDeclaration, GroupingExpression,
-    GroupingOperator, Identifier, IfStatement, LiteralExpression, Op, Operator, Precedence,
-    Program, PropertyAccessExpression, PropertyAccessOperator, ReturnStatement, Statement,
-    TernaryExpression, TernaryOperator, ThrowStatement, TryStatement, UnaryExpression,
-    UnaryOperator, VariableAccessExpression, VariableDeclaration, VariableDeclarationEntry,
-    VariableDeclarationKind, WhileLoop,
-};
+pub use error::*;
+
+use crate::ast::{self, *};
 use crate::iter::{IntoPeekableNth, PeekableNth};
 use crate::lexer::{
     self, Keyword, Lexer, Literal, NumericLiteral, Punctuator, StringLiteral, Token, Tokens,
@@ -19,8 +11,6 @@ use error::AllowToken::{AnyOf, Exactly, Unspecified};
 use std::collections::HashMap;
 use std::io;
 use std::iter::Map;
-
-pub use error::*;
 
 mod error;
 
@@ -912,9 +902,9 @@ enum BlockBraces {
 
 #[cfg(test)]
 mod test {
-    use super::*;
+    use super::{AllowToken, ErrorKind, Parser};
     use crate::lexer::{Keyword, Literal, NumericLiteral, Punctuator, Token};
-    use crate::parser::error::ErrorKind::{UnexpectedEoi, UnexpectedToken};
+    use crate::non_empty_str;
     use std::assert_matches::assert_matches;
 
     #[test]
@@ -931,7 +921,9 @@ mod test {
             parser.execute(),
             Err(err) if matches!(
                 err.kind(),
-                UnexpectedEoi(Exactly(Token::Punctuator(Punctuator::CloseBrace)))
+                ErrorKind::UnexpectedEoi(
+                    AllowToken::Exactly(Token::Punctuator(Punctuator::CloseBrace))
+                )
             )
         );
     }
@@ -949,8 +941,8 @@ mod test {
             parser.execute(),
             Err(err) if matches!(
                 err.kind(),
-                UnexpectedToken(
-                    Exactly(Token::Punctuator(Punctuator::CloseParen)),
+                ErrorKind::UnexpectedToken(
+                    AllowToken::Exactly(Token::Punctuator(Punctuator::CloseParen)),
                     Token::Punctuator(Punctuator::OpenBrace)
                 )
             )
@@ -968,8 +960,8 @@ mod test {
             parser.execute(),
             Err(err) if matches!(
                 err.kind(),
-                UnexpectedToken(
-                    Exactly(Token::Identifier(_)),
+                ErrorKind::UnexpectedToken(
+                    AllowToken::Exactly(Token::Identifier(_)),
                     Token::Punctuator(Punctuator::Semicolon)
                 )
             )
@@ -993,7 +985,9 @@ mod test {
             parser.execute(),
             Err(err) if matches!(
                 err.kind(),
-                UnexpectedToken(Unspecified, Token::Punctuator(Punctuator::Semicolon))
+                ErrorKind::UnexpectedToken(
+                    AllowToken::Unspecified, Token::Punctuator(Punctuator::Semicolon)
+                )
             )
         );
     }
