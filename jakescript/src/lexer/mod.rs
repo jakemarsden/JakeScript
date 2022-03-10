@@ -1,4 +1,7 @@
 pub use error::*;
+pub use keyword::*;
+pub use literal::*;
+pub use punctuator::*;
 pub use token::*;
 
 use crate::iter::{IntoPeekableNth, PeekableNth};
@@ -10,8 +13,16 @@ use error::ErrorKind::{
 use std::io;
 use std::iter::{FilterMap, Map};
 use std::str::{Chars, FromStr};
+use symbol::*;
+
+pub mod symbol;
 
 mod error;
+mod keyword;
+mod literal;
+mod punctuator;
+#[cfg(test)]
+mod test;
 mod token;
 
 pub type Tokens<I> = FilterMap<I, fn(Result) -> Option<Result<Token>>>;
@@ -489,162 +500,5 @@ impl<I: Iterator<Item = io::Result<char>>> Iterator for Lexer<I> {
             }
             State::End | State::Error => None,
         }
-    }
-}
-
-/// NULL
-const NUL: char = '\u{0000}';
-/// BACKSPACE
-const BS: char = '\u{0008}';
-/// CHARACTER TABULATION
-const HT: char = '\u{0009}';
-/// LINE FEED (LF)
-const LF: char = '\u{000A}';
-/// LINE TABULATION
-const VT: char = '\u{000B}';
-/// FORM FEED (FF)
-const FF: char = '\u{000C}';
-/// CARRIAGE RETURN (CR)
-const CR: char = '\u{000D}';
-/// SPACE
-const SP: char = '\u{0020}';
-/// NO-BREAK SPACE
-const NBSP: char = '\u{00A0}';
-/// ZERO WIDTH NON-JOINER
-const ZWNJ: char = '\u{200C}';
-/// ZERO WIDTH JOINER
-const ZWJ: char = '\u{200D}';
-/// LINE SEPARATOR
-const LS: char = '\u{2028}';
-/// PARAGRAPH SEPARATOR
-const PS: char = '\u{2029}';
-/// ZERO WIDTH NO-BREAK SPACE
-const ZWNBSP: char = '\u{FEFF}';
-
-fn is_whitespace(ch: char) -> bool {
-    // FIXME: Return `true` for USP (any other code point classified in the "Space_Separator"
-    //  category, which is not the same as the Unicode "White_Space" property).
-    matches!(ch, HT | VT | FF | SP | NBSP | ZWNBSP)
-}
-
-fn is_line_terminator(ch: char) -> bool {
-    matches!(ch, LF | CR | LS | PS)
-}
-
-fn is_identifier_start(ch: char) -> bool {
-    // TODO: Handle Unicode escape sequence.
-    is_unicode_start(ch) || matches!(ch, '$' | '_')
-}
-
-fn is_identifier_part(ch: char) -> bool {
-    // TODO: Handle Unicode escape sequence.
-    is_unicode_continue(ch) || matches!(ch, '$' | ZWNJ | ZWJ)
-}
-
-fn is_unicode_start(ch: char) -> bool {
-    // FIXME: Check for characters with the Unicode "ID_Start" property.
-    ch.is_ascii_alphabetic()
-}
-
-fn is_unicode_continue(ch: char) -> bool {
-    // FIXME: Check for characters with the Unicode "ID_Continue" property.
-    ch.is_ascii_alphabetic() || ch.is_ascii_digit() || ch == '_'
-}
-
-fn into_escaped(ch: char) -> char {
-    match ch {
-        '0' => NUL,
-        'b' => BS,
-        't' => HT,
-        'n' => LF,
-        'v' => VT,
-        'f' => FF,
-        'r' => CR,
-        ch => ch,
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::token::*;
-    use super::{ErrorKind, Lexer};
-    use enumerate::{Enumerate, EnumerateStr};
-    use std::assert_matches::assert_matches;
-
-    #[test]
-    fn tokenise_keywords() {
-        for expected in Keyword::enumerate() {
-            let mut lexer = Lexer::for_str(expected.as_str());
-            assert_matches!(
-                lexer.next(),
-                Some(Ok(Element::Token(Token::Keyword(actual)))) if actual == *expected
-            );
-            assert_matches!(lexer.next(), None);
-        }
-    }
-
-    #[test]
-    fn tokenise_punctuators() {
-        for expected in Punctuator::enumerate() {
-            let mut lexer = Lexer::for_str(expected.as_str());
-            assert_matches!(
-                lexer.next(),
-                Some(Ok(Element::Token(Token::Punctuator(actual)))) if actual == *expected
-            );
-            assert_matches!(lexer.next(), None);
-        }
-    }
-
-    #[test]
-    fn tokenise_string_literal() {
-        fn check_valid(source: &str, expected: &str, single_qt: bool) {
-            let mut lexer = Lexer::for_str(source);
-            if single_qt {
-                assert_matches!(
-                    lexer.next(),
-                    Some(Ok(Element::Token(Token::Literal(Literal::String(
-                        StringLiteral::SingleQuoted(actual)
-                    ))))) if actual == expected
-                );
-            } else {
-                assert_matches!(
-                    lexer.next(),
-                    Some(Ok(Element::Token(Token::Literal(Literal::String(
-                        StringLiteral::DoubleQuoted(actual)
-                    ))))) if actual == expected
-                );
-            }
-            assert_matches!(lexer.next(), None);
-        }
-
-        check_valid(r#""""#, r#""#, false);
-        check_valid(r#""hello, world!""#, r#"hello, world!"#, false);
-        check_valid(
-            r#""hello, \"escaped quotes\"!""#,
-            r#"hello, "escaped quotes"!"#,
-            false,
-        );
-        check_valid(r#""hello, back\\slash""#, r#"hello, back\slash"#, false);
-        check_valid(r#""hello, \\\"\"\\\\""#, r#"hello, \""\\"#, false);
-        check_valid(r#""hello,\n\r\tworld""#, "hello,\n\r\tworld", false);
-
-        check_valid(r#"''"#, r#""#, true);
-        check_valid(r#"'hello, world!'"#, r#"hello, world!"#, true);
-        check_valid(
-            r#"'hello, \'escaped quotes\'!'"#,
-            r#"hello, 'escaped quotes'!"#,
-            true,
-        );
-        check_valid(r#"'hello, back\\slash'"#, r#"hello, back\slash"#, true);
-        check_valid(r#"'hello, \\\'\'\\\\'"#, r#"hello, \''\\"#, true);
-        check_valid(r#"'hello,\n\r\tworld'"#, "hello,\n\r\tworld", true);
-    }
-
-    #[test]
-    fn tokenise_unclosed_multi_line_comment() {
-        let source_code = "/* abc";
-        let mut lexer = Lexer::for_str(source_code);
-        assert_matches!(lexer.next(), Some(Err(err)) if err.kind() == Some(ErrorKind::UnclosedComment));
-        assert_matches!(lexer.next(), None);
     }
 }
