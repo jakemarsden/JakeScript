@@ -1,9 +1,6 @@
 use super::error::ErrorKind;
-use super::keyword::Keyword;
-use super::literal::{Literal, StringLiteral};
-use super::punctuator::Punctuator;
-use super::token::{Element, Token};
 use super::Lexer;
+use crate::token::*;
 use enumerate::{Enumerate, EnumerateStr};
 use std::assert_matches::assert_matches;
 

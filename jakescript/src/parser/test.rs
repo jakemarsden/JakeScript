@@ -1,7 +1,7 @@
 use super::error::{AllowToken, ErrorKind};
 use super::Parser;
-use crate::lexer::{Keyword, Literal, NumericLiteral, Punctuator, Token};
 use crate::non_empty_str;
+use crate::token::*;
 use std::assert_matches::assert_matches;
 
 #[test]

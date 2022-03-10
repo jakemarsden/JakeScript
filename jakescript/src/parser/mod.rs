@@ -2,8 +2,9 @@ pub use error::*;
 
 use crate::ast::*;
 use crate::iter::{IntoPeekableNth, PeekableNth};
-use crate::lexer::{self, Keyword, Lexer, Punctuator, Token, Tokens};
+use crate::lexer::{self, Lexer, Tokens};
 use crate::str::NonEmptyString;
+use crate::token::{Keyword, Punctuator, Token};
 use error::AllowToken::Exactly;
 use std::{io, iter};
 

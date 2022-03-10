@@ -1,29 +1,20 @@
 pub use error::*;
-pub use keyword::*;
-pub use literal::*;
-pub use punctuator::*;
-pub use token::*;
 
 use crate::iter::{IntoPeekableNth, PeekableNth};
 use crate::str::NonEmptyString;
+use crate::token::symbol::*;
+use crate::token::*;
 use enumerate::EnumerateStr;
 use error::ErrorKind::{
     DigitFollowingNumericLiteral, IdentifierFollowingNumericLiteral, UnclosedComment,
 };
-use std::io;
 use std::iter::{FilterMap, Map};
 use std::str::{Chars, FromStr};
-use symbol::*;
-
-pub mod symbol;
+use std::{io, str};
 
 mod error;
-mod keyword;
-mod literal;
-mod punctuator;
 #[cfg(test)]
 mod test;
-mod token;
 
 pub type Tokens<I> = FilterMap<I, fn(Result) -> Option<Result<Token>>>;
 

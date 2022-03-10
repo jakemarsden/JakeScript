@@ -1,6 +1,7 @@
 use jakescript::interpreter::{Eval, ExecutionState, Interpreter};
-use jakescript::lexer::{self, Element, Lexer, Punctuator, Token};
+use jakescript::lexer::{self, Lexer};
 use jakescript::parser::Parser;
+use jakescript::token::{Element, Punctuator, Token};
 use std::{io, mem};
 
 /// Read Evaluate Print Loop (REPL).

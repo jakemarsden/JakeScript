@@ -3,8 +3,9 @@ use super::error::AllowToken::{AnyOf, Exactly};
 use super::error::{Error, Result};
 use super::Parser;
 use crate::ast::*;
-use crate::lexer::{self, Keyword, Punctuator, Token};
+use crate::lexer;
 use crate::non_empty_str;
+use crate::token::{Keyword, Punctuator, Token};
 
 impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
     pub(super) fn parse_function_declaration(&mut self) -> Result<FunctionDeclaration> {

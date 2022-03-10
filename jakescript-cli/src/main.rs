@@ -3,8 +3,9 @@
 use enumerate::{Enumerate, EnumerateStr};
 use jakescript::ast::Program;
 use jakescript::interpreter::{self, Eval, Interpreter, Vm};
-use jakescript::lexer::{self, Element, Lexer};
+use jakescript::lexer::{self, Lexer};
 use jakescript::parser::{self, Parser};
+use jakescript::token::Element;
 use repl::Repl;
 use std::path::PathBuf;
 use std::str::FromStr;

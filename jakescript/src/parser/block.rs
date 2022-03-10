@@ -2,7 +2,8 @@ use super::error::AllowToken::{Exactly, Unspecified};
 use super::error::{Error, Result};
 use super::Parser;
 use crate::ast::*;
-use crate::lexer::{self, Punctuator, Token};
+use crate::lexer;
+use crate::token::{Punctuator, Token};
 
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub(super) enum Braces {

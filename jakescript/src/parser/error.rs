@@ -1,5 +1,6 @@
 use crate::ast::Program;
-use crate::lexer::{self, Token};
+use crate::lexer;
+use crate::token::Token;
 use ansi_term::Style;
 use std::fmt;
 

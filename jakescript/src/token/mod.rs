@@ -1,9 +1,16 @@
-use super::keyword::Keyword;
-use super::literal::Literal;
-use super::punctuator::Punctuator;
-use super::symbol::*;
+pub use keyword::*;
+pub use literal::*;
+pub use punctuator::*;
+
 use crate::str::NonEmptyString;
 use std::fmt;
+use symbol::*;
+
+pub mod symbol;
+
+mod keyword;
+mod literal;
+mod punctuator;
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum Element {

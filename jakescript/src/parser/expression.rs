@@ -3,8 +3,9 @@ use super::error::AllowToken::{AnyOf, Unspecified};
 use super::error::{Error, Result};
 use super::Parser;
 use crate::ast::*;
-use crate::lexer::{self, Keyword, Punctuator, StringLiteral, Token};
+use crate::lexer;
 use crate::non_empty_str;
+use crate::token::{self, Keyword, Punctuator, StringLiteral, Token};
 
 trait TryParse {
     fn try_parse(punc: Punctuator, pos: Position) -> Option<Self>
@@ -88,24 +89,24 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
             }
             Some(Token::Literal(literal)) => Expression::Literal(LiteralExpression {
                 value: match literal {
-                    lexer::Literal::Boolean(value) => Literal::Boolean(value),
-                    lexer::Literal::Numeric(
-                        lexer::NumericLiteral::BinInt(value)
-                        | lexer::NumericLiteral::OctInt(value)
-                        | lexer::NumericLiteral::DecInt(value)
-                        | lexer::NumericLiteral::HexInt(value),
+                    token::Literal::Boolean(value) => Literal::Boolean(value),
+                    token::Literal::Numeric(
+                        token::NumericLiteral::BinInt(value)
+                        | token::NumericLiteral::OctInt(value)
+                        | token::NumericLiteral::DecInt(value)
+                        | token::NumericLiteral::HexInt(value),
                     ) => Literal::Numeric(NumericLiteral::Int(value)),
-                    lexer::Literal::Numeric(lexer::NumericLiteral::Decimal(value)) => {
+                    token::Literal::Numeric(token::NumericLiteral::Decimal(value)) => {
                         todo!("NumericLiteral::Decimal: {}", value)
                     }
-                    lexer::Literal::String(
+                    token::Literal::String(
                         StringLiteral::SingleQuoted(value) | StringLiteral::DoubleQuoted(value),
                     ) => Literal::String(value),
-                    lexer::Literal::RegEx(value) => {
+                    token::Literal::RegEx(value) => {
                         // FIXME: Support Literal::RegEx properly"
                         Literal::String(value.to_string())
                     }
-                    lexer::Literal::Null => Literal::Null,
+                    token::Literal::Null => Literal::Null,
                 },
             }),
             Some(Token::Keyword(Keyword::Function)) => {
