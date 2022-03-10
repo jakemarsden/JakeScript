@@ -4,7 +4,7 @@ use super::identifier::Identifier;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(tag = "kind", content = "value")]
 pub enum Literal {
     Boolean(bool),
@@ -21,7 +21,7 @@ pub enum Literal {
     Null,
 }
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Deserialize, Serialize)]
 pub enum NumericLiteral {
     /// Numeric literal tokens are **always unsigned** (but can be made negative at runtime with the
     /// negation unary operator).

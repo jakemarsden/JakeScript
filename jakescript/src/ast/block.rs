@@ -2,12 +2,12 @@ use super::statement::{DeclarationStatement, Statement};
 use super::Node;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Default, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Program {
     body: Block,
 }
 
-#[derive(Clone, Default, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Block {
     hoisted_decls: Vec<DeclarationStatement>,
     stmts: Vec<Statement>,

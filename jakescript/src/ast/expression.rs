@@ -9,7 +9,7 @@ pub trait Op: Copy + Eq + fmt::Debug {
     fn precedence(&self) -> Precedence;
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(tag = "expression_type")]
 pub enum Expression {
     Assignment(AssignmentExpression),
@@ -25,67 +25,67 @@ pub enum Expression {
     VariableAccess(VariableAccessExpression),
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct AssignmentExpression {
     pub op: AssignmentOperator,
     pub lhs: Box<Expression>,
     pub rhs: Box<Expression>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct BinaryExpression {
     pub op: BinaryOperator,
     pub lhs: Box<Expression>,
     pub rhs: Box<Expression>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct UnaryExpression {
     pub op: UnaryOperator,
     pub operand: Box<Expression>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct TernaryExpression {
     pub condition: Box<Expression>,
     pub lhs: Box<Expression>,
     pub rhs: Box<Expression>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct GroupingExpression {
     pub inner: Box<Expression>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct LiteralExpression {
     pub value: Literal,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct FunctionCallExpression {
     pub function: Box<Expression>,
     pub arguments: Vec<Expression>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct PropertyAccessExpression {
     pub base: Box<Expression>,
     pub property_name: Identifier,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ComputedPropertyAccessExpression {
     pub base: Box<Expression>,
     pub property: Box<Expression>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct VariableAccessExpression {
     pub var_name: Identifier,
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Operator {
     Assignment(AssignmentOperator),
     Binary(BinaryOperator),
@@ -97,7 +97,7 @@ pub enum Operator {
     ComputedPropertyAccess,
 }
 
-#[derive(Copy, Clone, Default, Eq, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub enum AssignmentOperator {
     #[default]
     Assign,
@@ -115,7 +115,7 @@ pub enum AssignmentOperator {
     BitwiseXOrAssign,
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub enum BinaryOperator {
     Add,
     Div,
@@ -141,7 +141,7 @@ pub enum BinaryOperator {
     LogicalOr,
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub enum UnaryOperator {
     DecrementPrefix,
     DecrementPostfix,
@@ -153,28 +153,28 @@ pub enum UnaryOperator {
     NumericPlus,
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct TernaryOperator;
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct GroupingOperator;
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct FunctionCallOperator;
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct PropertyAccessOperator;
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct ComputedPropertyAccessOperator;
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Associativity {
     LeftToRight,
     RightToLeft,
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Precedence(u8);
 
 impl Node for Expression {}

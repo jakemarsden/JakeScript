@@ -2,7 +2,7 @@ use crate::str::NonEmptyString;
 use std::fmt;
 
 // TODO: Support RegEx literals.
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Literal {
     Boolean(bool),
     Numeric(NumericLiteral),
@@ -13,7 +13,7 @@ pub enum Literal {
 
 /// Numeric literal tokens are **always unsigned** (but can be made negative at runtime with the
 /// negation unary operator).
-#[derive(Copy, Clone, PartialEq, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum NumericLiteral {
     BinInt(u64),
     OctInt(u64),
@@ -22,13 +22,13 @@ pub enum NumericLiteral {
     Decimal(f64),
 }
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StringLiteral {
     SingleQuoted(String),
     DoubleQuoted(String),
 }
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RegExLiteral {
     pub content: NonEmptyString,
     pub flags: Vec<char>,

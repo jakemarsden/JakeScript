@@ -6,21 +6,21 @@ use std::str::FromStr;
 
 #[test]
 fn enumerate() {
-    #[derive(Enumerate, Debug)]
+    #[derive(Debug, Enumerate)]
     enum Empty {}
 
-    #[derive(Enumerate, Debug)]
+    #[derive(Debug, Enumerate)]
     enum Single {
         Item1,
     }
 
-    #[derive(Enumerate, Debug)]
+    #[derive(Debug, Enumerate)]
     enum Couple {
         Item1,
         Item2,
     }
 
-    #[derive(Enumerate, Debug)]
+    #[derive(Debug, Enumerate)]
     enum Triple {
         Item1,
         Item2,
@@ -38,21 +38,21 @@ fn enumerate() {
 
 #[test]
 fn enumerate_str() {
-    #[derive(EnumerateStr, Clone, Debug)]
+    #[derive(Clone, Debug, EnumerateStr)]
     enum Empty {}
 
-    #[derive(EnumerateStr, Clone, Debug)]
+    #[derive(Clone, Debug, EnumerateStr)]
     enum Single {
         Item1,
     }
 
-    #[derive(EnumerateStr, Clone, Debug)]
+    #[derive(Clone, Debug, EnumerateStr)]
     enum Couple {
         Item1,
         Item2,
     }
 
-    #[derive(EnumerateStr, Clone, Debug)]
+    #[derive(Clone, Debug, EnumerateStr)]
     enum Rename {
         #[enumerate_str(rename = "The first item...")]
         Item1,
@@ -60,14 +60,14 @@ fn enumerate_str() {
         Item2,
     }
 
-    #[derive(EnumerateStr, Clone, Debug)]
+    #[derive(Clone, Debug, EnumerateStr)]
     #[enumerate_str(rename_all = "lowercase")]
     enum RenameAll {
         Item1,
         Item2,
     }
 
-    #[derive(EnumerateStr, Clone, Debug)]
+    #[derive(Clone, Debug, EnumerateStr)]
     #[enumerate_str(rename_all = "UPPERCASE")]
     enum RenameMix {
         Item1,

@@ -14,7 +14,7 @@ pub struct Vm {
     stack: CallStack,
 }
 
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Debug, Default)]
 pub enum ExecutionState {
     #[default]
     Advance,

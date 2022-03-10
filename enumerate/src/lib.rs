@@ -11,7 +11,7 @@ use std::fmt;
 /// ```rust
 /// use enumerate::Enumerate;
 ///
-/// #[derive(Enumerate, Debug, PartialEq)]
+/// #[derive(Debug, PartialEq, Enumerate)]
 /// enum MyEnum {
 ///     Item1,
 ///     Item2,
@@ -35,7 +35,7 @@ pub trait Enumerate {
 /// use enumerate::{EnumerateStr, NoSuchVariantError};
 /// use std::str::FromStr;
 ///
-/// #[derive(EnumerateStr, Clone, Debug, PartialEq)]
+/// #[derive(Clone, Debug, PartialEq, EnumerateStr)]
 /// #[enumerate_str(rename_all = "UPPERCASE")]
 /// enum MyEnum {
 ///     Item1,
@@ -61,7 +61,7 @@ pub trait EnumerateStr: Clone {
     fn as_str(&self) -> &'static str;
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct NoSuchVariantError;
 
 impl fmt::Display for NoSuchVariantError {

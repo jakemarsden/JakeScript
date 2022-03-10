@@ -13,7 +13,7 @@ trait TryParse {
         Self: Sized;
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub(super) enum Position {
     /// For example:
     /// - `++a`

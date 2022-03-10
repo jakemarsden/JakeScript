@@ -6,7 +6,7 @@ pub type Result<T = Element> = std::result::Result<T, Error>;
 #[derive(Debug)]
 pub struct Error(ErrorInner);
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ErrorKind {
     DigitFollowingNumericLiteral,
     IdentifierFollowingNumericLiteral,

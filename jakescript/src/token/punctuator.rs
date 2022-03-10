@@ -1,6 +1,6 @@
 use enumerate::{Enumerate, EnumerateStr};
 
-#[derive(Enumerate, EnumerateStr, Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Enumerate, EnumerateStr)]
 pub enum Punctuator {
     #[enumerate_str(rename = "&")]
     Ampersand,

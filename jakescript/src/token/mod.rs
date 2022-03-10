@@ -12,7 +12,7 @@ mod keyword;
 mod literal;
 mod punctuator;
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Element {
     Token(Token),
     Comment(Comment),
@@ -20,7 +20,7 @@ pub enum Element {
     Whitespace(char),
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Token {
     Identifier(NonEmptyString),
     Keyword(Keyword),
@@ -28,13 +28,13 @@ pub enum Token {
     Punctuator(Punctuator),
 }
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Comment {
     SingleLine(String),
     MultiLine(String),
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum LineTerminator {
     /// Carriage return + line feed
     Crlf,

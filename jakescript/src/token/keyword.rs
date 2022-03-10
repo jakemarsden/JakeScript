@@ -2,7 +2,7 @@ use enumerate::{Enumerate, EnumerateStr};
 
 // TODO: Some variants should only be _contextually_ disallowed as identifiers, i.e. in certain
 //  circumstances they should be allowed as identifiers.
-#[derive(Enumerate, EnumerateStr, Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Enumerate, EnumerateStr)]
 #[enumerate_str(rename_all = "lowercase")]
 pub enum Keyword {
     As,

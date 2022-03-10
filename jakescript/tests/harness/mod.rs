@@ -64,7 +64,7 @@ pub struct TestCaseReport {
     result: TestCaseResult,
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum TestSuiteSummary {
     Success(usize, Duration),
     Failure(usize, usize, Duration),

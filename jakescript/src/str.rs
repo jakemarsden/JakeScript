@@ -21,7 +21,7 @@ macro_rules! non_empty_str {
     };
 }
 
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct NonEmptyString(String);
 
 impl NonEmptyString {

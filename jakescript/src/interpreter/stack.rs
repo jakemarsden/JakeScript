@@ -26,7 +26,7 @@ struct ScopeInner {
     parent: Option<Rc<RefCell<ScopeInner>>>,
 }
 
-#[derive(Default, Debug)]
+#[derive(Debug, Default)]
 pub struct ScopeCtx {
     declared_variables: Vec<Variable>,
 }
@@ -41,7 +41,7 @@ struct VariableInner {
     value: Value,
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum VariableKind {
     Const,
     Let,

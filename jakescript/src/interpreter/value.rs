@@ -6,7 +6,7 @@ use std::ops::{self, BitAnd, BitOr, BitXor};
 use std::str::FromStr;
 use std::{cmp, fmt, num};
 
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Debug, Default)]
 pub enum Value {
     Boolean(bool),
     Number(Number),

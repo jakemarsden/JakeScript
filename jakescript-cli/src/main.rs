@@ -109,7 +109,7 @@ fn eval(ast: &Program) -> interpreter::Result<(interpreter::Value, Duration)> {
 #[derive(Clone, Debug)]
 struct Options(Mode, Option<Format>, Option<PathBuf>);
 
-#[derive(Enumerate, EnumerateStr, Copy, Clone, Default, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Enumerate, EnumerateStr)]
 enum Mode {
     #[default]
     #[enumerate_str(rename = "--eval")]
@@ -122,7 +122,7 @@ enum Mode {
     Repl,
 }
 
-#[derive(Enumerate, EnumerateStr, Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Enumerate, EnumerateStr)]
 enum Format {
     #[enumerate_str(rename = "--json")]
     Json,

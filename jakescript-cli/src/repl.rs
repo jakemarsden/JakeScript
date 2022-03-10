@@ -14,7 +14,7 @@ where
     token_buf: Vec<Token>,
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub(crate) enum Result {
     ExitNormally,
     ExitWithRuntimeError,

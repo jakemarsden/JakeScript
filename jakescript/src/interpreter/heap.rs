@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
 
-#[derive(Default, Debug)]
+#[derive(Debug, Default)]
 pub struct Heap {
     next_obj_idx: usize,
 }

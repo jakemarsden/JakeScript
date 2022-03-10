@@ -22,7 +22,7 @@ type Fallible<I> = Map<I, fn(char) -> io::Result<char>>;
 
 pub struct Lexer<I: Iterator<Item = io::Result<char>>>(PeekableNth<I>, State);
 
-#[derive(Copy, Clone, Default, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
 enum State {
     #[default]
     Normal,

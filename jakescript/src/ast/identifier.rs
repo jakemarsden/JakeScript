@@ -2,7 +2,7 @@ use crate::str::NonEmptyString;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-#[derive(Clone, Eq, PartialEq, Hash, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash, Deserialize, Serialize)]
 pub struct Identifier(NonEmptyString);
 
 impl Identifier {
