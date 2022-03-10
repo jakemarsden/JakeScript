@@ -7,15 +7,15 @@ pub trait IntoPeekableNth: Iterator {
         Self: Sized;
 }
 
+pub struct PeekableNth<I: Iterator> {
+    source: I,
+    buf: Vec<I::Item>,
+}
+
 impl<I: Iterator> IntoPeekableNth for I {
     fn peekable_nth(self) -> PeekableNth<Self> {
         PeekableNth::with_capacity(self, 32)
     }
-}
-
-pub struct PeekableNth<I: Iterator> {
-    source: I,
-    buf: Vec<I::Item>,
 }
 
 impl<I: Iterator> PeekableNth<I> {

@@ -11,43 +11,12 @@ pub enum Element {
     Whitespace(char),
 }
 
-impl Element {
-    pub fn token(self) -> Option<Token> {
-        match self {
-            Self::Token(token) => Some(token),
-            Self::Comment(..) | Self::LineTerminator(..) | Self::Whitespace(..) => None,
-        }
-    }
-}
-
-impl fmt::Display for Element {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Self::Token(token) => write!(f, "{}", token),
-            Self::Comment(content) => write!(f, "{}", content),
-            Self::LineTerminator(content) => write!(f, "{}", content),
-            Self::Whitespace(content) => write!(f, "{}", content),
-        }
-    }
-}
-
 #[derive(Clone, PartialEq, Debug)]
 pub enum Token {
     Identifier(NonEmptyString),
     Keyword(Keyword),
     Literal(Literal),
     Punctuator(Punctuator),
-}
-
-impl fmt::Display for Token {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Self::Identifier(it) => write!(f, "{}", it),
-            Self::Keyword(it) => write!(f, "{}", it),
-            Self::Literal(it) => write!(f, "{}", it),
-            Self::Punctuator(it) => write!(f, "{}", it),
-        }
-    }
 }
 
 // TODO: Some variants should only be _contextually_ disallowed as identifiers, i.e. in certain
@@ -117,18 +86,6 @@ pub enum Literal {
     Null,
 }
 
-impl fmt::Display for Literal {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Self::Boolean(value) => write!(f, "{}", value),
-            Self::Numeric(value) => write!(f, "{}", value),
-            Self::String(value) => write!(f, "{}", value),
-            Self::RegEx(value) => write!(f, "{}", value),
-            Self::Null => f.write_str("null"),
-        }
-    }
-}
-
 /// Numeric literal tokens are **always unsigned** (but can be made negative at runtime with the
 /// negation unary operator).
 #[derive(Copy, Clone, PartialEq, Debug)]
@@ -140,48 +97,16 @@ pub enum NumericLiteral {
     Decimal(f64),
 }
 
-impl fmt::Display for NumericLiteral {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Self::BinInt(value) => write!(f, "{:#b}", value),
-            Self::OctInt(value) => write!(f, "{:#o}", value),
-            Self::DecInt(value) => write!(f, "{}", value),
-            Self::HexInt(value) => write!(f, "{:#x}", value),
-            Self::Decimal(value) => write!(f, "{}", value),
-        }
-    }
-}
-
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum StringLiteral {
     SingleQuoted(String),
     DoubleQuoted(String),
 }
 
-impl fmt::Display for StringLiteral {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Self::SingleQuoted(value) => write!(f, r#"'{}'"#, value),
-            Self::DoubleQuoted(value) => write!(f, r#""{}""#, value),
-        }
-    }
-}
-
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct RegExLiteral {
     pub content: NonEmptyString,
     pub flags: Vec<char>,
-}
-
-impl fmt::Display for RegExLiteral {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "/{}/{}",
-            self.content,
-            self.flags.iter().collect::<String>()
-        )
-    }
 }
 
 #[derive(Enumerate, EnumerateStr, Copy, Clone, Eq, PartialEq, Debug)]
@@ -294,6 +219,101 @@ pub enum Punctuator {
     TripleMoreThanEqual,
 }
 
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub enum Comment {
+    SingleLine(String),
+    MultiLine(String),
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub enum LineTerminator {
+    /// Carriage return + line feed
+    Crlf,
+    /// Carriage return
+    Cr,
+    /// Line feed
+    Lf,
+    /// Line separator
+    Ls,
+    /// Paragraph separator
+    Ps,
+}
+
+impl Element {
+    pub fn token(self) -> Option<Token> {
+        match self {
+            Self::Token(token) => Some(token),
+            Self::Comment(..) | Self::LineTerminator(..) | Self::Whitespace(..) => None,
+        }
+    }
+}
+
+impl fmt::Display for Element {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Token(token) => write!(f, "{}", token),
+            Self::Comment(content) => write!(f, "{}", content),
+            Self::LineTerminator(content) => write!(f, "{}", content),
+            Self::Whitespace(content) => write!(f, "{}", content),
+        }
+    }
+}
+
+impl fmt::Display for Token {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Identifier(it) => write!(f, "{}", it),
+            Self::Keyword(it) => write!(f, "{}", it),
+            Self::Literal(it) => write!(f, "{}", it),
+            Self::Punctuator(it) => write!(f, "{}", it),
+        }
+    }
+}
+
+impl fmt::Display for Literal {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Boolean(value) => write!(f, "{}", value),
+            Self::Numeric(value) => write!(f, "{}", value),
+            Self::String(value) => write!(f, "{}", value),
+            Self::RegEx(value) => write!(f, "{}", value),
+            Self::Null => f.write_str("null"),
+        }
+    }
+}
+
+impl fmt::Display for NumericLiteral {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::BinInt(value) => write!(f, "{:#b}", value),
+            Self::OctInt(value) => write!(f, "{:#o}", value),
+            Self::DecInt(value) => write!(f, "{}", value),
+            Self::HexInt(value) => write!(f, "{:#x}", value),
+            Self::Decimal(value) => write!(f, "{}", value),
+        }
+    }
+}
+
+impl fmt::Display for StringLiteral {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::SingleQuoted(value) => write!(f, r#"'{}'"#, value),
+            Self::DoubleQuoted(value) => write!(f, r#""{}""#, value),
+        }
+    }
+}
+
+impl fmt::Display for RegExLiteral {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "/{}/{}",
+            self.content,
+            self.flags.iter().collect::<String>()
+        )
+    }
+}
+
 impl Punctuator {
     /// Unlike for [`Self::VALUES`], **order is important**. For multiple punctuators which start
     /// with the same substring, the longest needs to come first. This is relied on by the `Lexer`.
@@ -357,12 +377,6 @@ impl Punctuator {
     }
 }
 
-#[derive(Clone, Eq, PartialEq, Debug)]
-pub enum Comment {
-    SingleLine(String),
-    MultiLine(String),
-}
-
 impl fmt::Display for Comment {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -370,20 +384,6 @@ impl fmt::Display for Comment {
             Self::MultiLine(content) => write!(f, "/*{}*/", content),
         }
     }
-}
-
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
-pub enum LineTerminator {
-    /// Carriage return + line feed
-    Crlf,
-    /// Carriage return
-    Cr,
-    /// Line feed
-    Lf,
-    /// Line separator
-    Ls,
-    /// Paragraph separator
-    Ps,
 }
 
 impl LineTerminator {

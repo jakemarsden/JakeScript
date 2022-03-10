@@ -16,10 +16,48 @@ mod math;
 mod number;
 mod string;
 
+pub trait Builtin {
+    fn register(run: &mut NativeHeap) -> Result<NativeRef, InitialisationError>
+    where
+        Self: Sized;
+
+    fn to_js_string(&self) -> String {
+        "function assert() {\n    [native code]\n}".to_owned()
+    }
+
+    fn invoke(&self, vm: &mut Vm, args: &[Value]) -> interpreter::Result {
+        let arg = args.first().unwrap_or(&Value::Undefined);
+        let exception = Value::String(format!("Type error: {} is not a function", arg));
+        vm.set_execution_state(ExecutionState::Exception(exception));
+        Ok(Value::Undefined)
+    }
+
+    fn property(&self, _: &Identifier) -> interpreter::Result<Option<Value>> {
+        Ok(None)
+    }
+
+    fn set_property(&mut self, _: &Identifier, _: Value) -> interpreter::Result<Option<()>> {
+        Ok(None)
+    }
+}
+
 pub struct Runtime {
     global_object: NativeRef,
     native_heap: NativeHeap,
 }
+
+pub struct NativeObject {
+    builtin: Box<dyn Builtin>,
+    user_properties: HashMap<Identifier, Value>,
+}
+
+#[derive(Default)]
+pub struct NativeHeap {
+    next_obj_idx: usize,
+}
+
+#[derive(Clone)]
+pub struct NativeRef(usize, Rc<RefCell<NativeObject>>);
 
 impl Runtime {
     pub fn new<T: Builtin>() -> Result<Self, InitialisationError> {
@@ -52,45 +90,6 @@ impl Runtime {
     pub fn resolve_mut<'a>(&mut self, refr: &'a NativeRef) -> RefMut<'a, NativeObject> {
         self.native_heap.resolve_mut(refr)
     }
-}
-
-#[derive(Default)]
-pub struct NativeHeap {
-    next_obj_idx: usize,
-}
-
-impl NativeHeap {
-    fn register_builtin(
-        &mut self,
-        builtin: impl Builtin + 'static,
-    ) -> Result<NativeRef, OutOfMemoryError> {
-        let native_obj = NativeObject::new(builtin);
-        self.register(native_obj)
-    }
-
-    // unused_self: May be needed in the future.
-    #[allow(clippy::unused_self)]
-    fn register(&mut self, obj: NativeObject) -> Result<NativeRef, OutOfMemoryError> {
-        let idx = self.next_obj_idx;
-        self.next_obj_idx = self.next_obj_idx.checked_add(1).ok_or(OutOfMemoryError)?;
-        Ok(NativeRef::new(idx, obj))
-    }
-
-    // unused_self: May be needed in the future.
-    #[allow(clippy::unused_self)]
-    pub fn resolve<'a>(&self, refr: &'a NativeRef) -> Ref<'a, NativeObject> {
-        refr.deref()
-    }
-    // unused_self: May be needed in the future.
-    #[allow(clippy::unused_self)]
-    pub fn resolve_mut<'a>(&mut self, refr: &'a NativeRef) -> RefMut<'a, NativeObject> {
-        refr.deref_mut()
-    }
-}
-
-pub struct NativeObject {
-    builtin: Box<dyn Builtin>,
-    user_properties: HashMap<Identifier, Value>,
 }
 
 impl NativeObject {
@@ -134,34 +133,6 @@ impl NativeObject {
     }
 }
 
-pub trait Builtin {
-    fn register(run: &mut NativeHeap) -> Result<NativeRef, InitialisationError>
-    where
-        Self: Sized;
-
-    fn to_js_string(&self) -> String {
-        "function assert() {\n    [native code]\n}".to_owned()
-    }
-
-    fn invoke(&self, vm: &mut Vm, args: &[Value]) -> interpreter::Result {
-        let arg = args.first().unwrap_or(&Value::Undefined);
-        let exception = Value::String(format!("Type error: {} is not a function", arg));
-        vm.set_execution_state(ExecutionState::Exception(exception));
-        Ok(Value::Undefined)
-    }
-
-    fn property(&self, _: &Identifier) -> interpreter::Result<Option<Value>> {
-        Ok(None)
-    }
-
-    fn set_property(&mut self, _: &Identifier, _: Value) -> interpreter::Result<Option<()>> {
-        Ok(None)
-    }
-}
-
-#[derive(Clone)]
-pub struct NativeRef(usize, Rc<RefCell<NativeObject>>);
-
 impl NativeRef {
     fn new(idx: usize, builtin: NativeObject) -> Self {
         Self(idx, Rc::new(RefCell::new(builtin)))
@@ -172,6 +143,35 @@ impl NativeRef {
     }
     fn deref_mut(&self) -> RefMut<NativeObject> {
         RefCell::borrow_mut(&self.1)
+    }
+}
+
+impl NativeHeap {
+    fn register_builtin(
+        &mut self,
+        builtin: impl Builtin + 'static,
+    ) -> Result<NativeRef, OutOfMemoryError> {
+        let native_obj = NativeObject::new(builtin);
+        self.register(native_obj)
+    }
+
+    // unused_self: May be needed in the future.
+    #[allow(clippy::unused_self)]
+    fn register(&mut self, obj: NativeObject) -> Result<NativeRef, OutOfMemoryError> {
+        let idx = self.next_obj_idx;
+        self.next_obj_idx = self.next_obj_idx.checked_add(1).ok_or(OutOfMemoryError)?;
+        Ok(NativeRef::new(idx, obj))
+    }
+
+    // unused_self: May be needed in the future.
+    #[allow(clippy::unused_self)]
+    pub fn resolve<'a>(&self, refr: &'a NativeRef) -> Ref<'a, NativeObject> {
+        refr.deref()
+    }
+    // unused_self: May be needed in the future.
+    #[allow(clippy::unused_self)]
+    pub fn resolve_mut<'a>(&mut self, refr: &'a NativeRef) -> RefMut<'a, NativeObject> {
+        refr.deref_mut()
     }
 }
 

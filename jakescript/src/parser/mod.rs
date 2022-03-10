@@ -16,8 +16,31 @@ mod error;
 
 type Fallible<I> = Map<I, fn(Token) -> lexer::Result<Token>>;
 
+trait TryParse {
+    fn try_parse(punc: Punctuator, pos: Position) -> Option<Self>
+    where
+        Self: Sized;
+}
+
 pub struct Parser<I: Iterator<Item = lexer::Result<Token>>> {
     tokens: PeekableNth<I>,
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+enum Position {
+    /// For example:
+    /// - `++a`
+    Prefix,
+    /// For example:
+    /// - `a++`
+    /// - `a + b`
+    PostfixOrInfix,
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+enum BlockBraces {
+    Allow,
+    Require,
 }
 
 impl<I: Iterator<Item = io::Result<char>>> Parser<Tokens<Lexer<I>>> {
@@ -745,23 +768,6 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
     }
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
-enum Position {
-    /// For example:
-    /// - `++a`
-    Prefix,
-    /// For example:
-    /// - `a++`
-    /// - `a + b`
-    PostfixOrInfix,
-}
-
-trait TryParse {
-    fn try_parse(punc: Punctuator, pos: Position) -> Option<Self>
-    where
-        Self: Sized;
-}
-
 impl TryParse for Operator {
     fn try_parse(punc: Punctuator, pos: Position) -> Option<Self> {
         AssignmentOperator::try_parse(punc, pos)
@@ -892,12 +898,6 @@ impl TryParse for ComputedPropertyAccessOperator {
         )
         .then_some(Self)
     }
-}
-
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
-enum BlockBraces {
-    Allow,
-    Require,
 }
 
 #[cfg(test)]

@@ -15,9 +15,18 @@ mod error;
 mod token;
 
 pub type Tokens<I> = FilterMap<I, fn(Result) -> Option<Result<Token>>>;
+
 type Fallible<I> = Map<I, fn(char) -> io::Result<char>>;
 
 pub struct Lexer<I: Iterator<Item = io::Result<char>>>(PeekableNth<I>, State);
+
+#[derive(Copy, Clone, Default, Eq, PartialEq, Debug)]
+enum State {
+    #[default]
+    Normal,
+    Error,
+    End,
+}
 
 impl<'a> Lexer<Fallible<Chars<'a>>> {
     pub fn for_str(source: &'a str) -> Self {
@@ -481,14 +490,6 @@ impl<I: Iterator<Item = io::Result<char>>> Iterator for Lexer<I> {
             State::End | State::Error => None,
         }
     }
-}
-
-#[derive(Copy, Clone, Default, Eq, PartialEq, Debug)]
-enum State {
-    #[default]
-    Normal,
-    Error,
-    End,
 }
 
 /// NULL

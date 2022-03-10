@@ -15,6 +15,35 @@ pub enum Error {
     VariableNotDefined(VariableNotDefinedError),
 }
 
+#[derive(Clone, Debug)]
+pub struct AssertionError {
+    detail_msg: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct AssignToConstVariableError;
+
+#[derive(Clone, Debug)]
+pub struct VariableAlreadyDefinedError;
+
+#[derive(Clone, Debug)]
+pub struct VariableNotDefinedError;
+
+#[derive(Clone, Debug)]
+pub struct FunctionNotDefinedError;
+
+#[derive(Clone, Debug)]
+pub struct NotCallableError;
+
+#[derive(Clone, Debug)]
+pub struct NumericOverflowError;
+
+#[derive(Clone, Debug)]
+pub struct OutOfMemoryError;
+
+#[derive(Clone, Debug)]
+pub struct InitialisationError(Error);
+
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use std::error::Error;
@@ -35,11 +64,6 @@ impl std::error::Error for Error {
             Self::VariableNotDefined(ref source) => source,
         })
     }
-}
-
-#[derive(Clone, Debug)]
-pub struct AssertionError {
-    detail_msg: String,
 }
 
 impl AssertionError {
@@ -66,9 +90,6 @@ impl From<AssertionError> for Error {
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct AssignToConstVariableError;
-
 impl fmt::Display for AssignToConstVariableError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(r#"Cannot assign to a variable declared as "const""#)
@@ -82,9 +103,6 @@ impl From<AssignToConstVariableError> for Error {
         Self::AssignToConstVariable(source)
     }
 }
-
-#[derive(Clone, Debug)]
-pub struct VariableAlreadyDefinedError;
 
 impl fmt::Display for VariableAlreadyDefinedError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -100,9 +118,6 @@ impl From<VariableAlreadyDefinedError> for Error {
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct VariableNotDefinedError;
-
 impl fmt::Display for VariableNotDefinedError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str("Variable not defined in the current scope")
@@ -116,9 +131,6 @@ impl From<VariableNotDefinedError> for Error {
         Self::VariableNotDefined(source)
     }
 }
-
-#[derive(Clone, Debug)]
-pub struct FunctionNotDefinedError;
 
 impl fmt::Display for FunctionNotDefinedError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -134,9 +146,6 @@ impl From<FunctionNotDefinedError> for Error {
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct NotCallableError;
-
 impl fmt::Display for NotCallableError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str("Object or primitive not callable")
@@ -150,9 +159,6 @@ impl From<NotCallableError> for Error {
         Self::NotCallable(source)
     }
 }
-
-#[derive(Clone, Debug)]
-pub struct NumericOverflowError;
 
 impl fmt::Display for NumericOverflowError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -168,9 +174,6 @@ impl From<NumericOverflowError> for Error {
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct OutOfMemoryError;
-
 impl fmt::Display for OutOfMemoryError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str("Out of memory")
@@ -184,9 +187,6 @@ impl From<OutOfMemoryError> for Error {
         Self::OutOfMemory(source)
     }
 }
-
-#[derive(Clone, Debug)]
-pub struct InitialisationError(Error);
 
 impl fmt::Display for InitialisationError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

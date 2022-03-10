@@ -6,6 +6,8 @@ pub struct Math {
     sqrt: Value,
 }
 
+pub struct MathSqrt;
+
 impl Builtin for Math {
     fn register(run: &mut NativeHeap) -> Result<NativeRef, InitialisationError> {
         let math = Self {
@@ -31,8 +33,6 @@ impl Builtin for Math {
         })
     }
 }
-
-pub struct MathSqrt;
 
 impl Builtin for MathSqrt {
     fn register(run: &mut NativeHeap) -> Result<NativeRef, InitialisationError> {

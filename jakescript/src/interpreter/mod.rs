@@ -15,6 +15,12 @@ mod stack;
 mod value;
 mod vm;
 
+pub trait Eval: Node {
+    type Output = ();
+
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output>;
+}
+
 pub struct Interpreter {
     vm: Vm,
 }
@@ -30,12 +36,6 @@ impl Interpreter {
     pub fn vm_mut(&mut self) -> &mut Vm {
         &mut self.vm
     }
-}
-
-pub trait Eval: Node {
-    type Output = ();
-
-    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output>;
 }
 
 impl Eval for Program {

@@ -12,6 +12,30 @@ pub struct Heap {
     next_obj_idx: usize,
 }
 
+// TODO: Store objects inside the actual `Heap` struct, rather than ref-counting them in the
+//  `Reference` type because currently, the heap stores nothing. This was done for simplicity, and
+//  to avoid needing to worry about garbage collection. Also simplify the `Reference` type to
+//  `#[derive(Copy, Clone)] pub struct Reference(usize)` when possible.
+#[derive(Clone)]
+pub struct Reference(usize, Rc<RefCell<Object>>);
+
+#[derive(Debug)]
+pub struct Object {
+    // TODO: `Identifier` as the key isn't sufficient here because all sorts of things which aren't
+    //  valid identifiers can be used to lookup and set properties (including an empty string, whole
+    //  other objects, etc.).
+    properties: HashMap<Identifier, Value>,
+    callable: Option<Callable>,
+}
+
+#[derive(Debug)]
+pub struct Callable {
+    name: Option<Identifier>,
+    declared_parameters: Vec<Identifier>,
+    declared_scope: Scope,
+    body: Block,
+}
+
 impl Heap {
     pub fn allocate_array(&mut self, values: Vec<Value>) -> Result<Reference, OutOfMemoryError> {
         let props = values
@@ -58,13 +82,6 @@ impl Heap {
     }
 }
 
-// TODO: Store objects inside the actual `Heap` struct, rather than ref-counting them in the
-//  `Reference` type because currently, the heap stores nothing. This was done for simplicity, and
-//  to avoid needing to worry about garbage collection. Also simplify the `Reference` type to
-//  `#[derive(Copy, Clone)] pub struct Reference(usize)` when possible.
-#[derive(Clone)]
-pub struct Reference(usize, Rc<RefCell<Object>>);
-
 impl Eq for Reference {}
 
 impl PartialEq for Reference {
@@ -99,15 +116,6 @@ impl fmt::Debug for Reference {
     }
 }
 
-#[derive(Debug)]
-pub struct Object {
-    // TODO: `Identifier` as the key isn't sufficient here because all sorts of things which aren't
-    //  valid identifiers can be used to lookup and set properties (including an empty string, whole
-    //  other objects, etc.).
-    properties: HashMap<Identifier, Value>,
-    callable: Option<Callable>,
-}
-
 impl Object {
     fn new(properties: HashMap<Identifier, Value>, callable: Option<Callable>) -> Self {
         Self {
@@ -137,14 +145,6 @@ impl Object {
     pub fn js_to_string(&self) -> String {
         "[object Object]".to_owned()
     }
-}
-
-#[derive(Debug)]
-pub struct Callable {
-    name: Option<Identifier>,
-    declared_parameters: Vec<Identifier>,
-    declared_scope: Scope,
-    body: Block,
 }
 
 impl Callable {

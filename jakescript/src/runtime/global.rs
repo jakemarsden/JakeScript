@@ -20,6 +20,10 @@ pub struct DefaultGlobalObject {
     string: Value,
 }
 
+pub struct GlobalExit;
+
+pub struct GlobalIsNan;
+
 impl Builtin for DefaultGlobalObject {
     fn register(run: &mut NativeHeap) -> Result<NativeRef, InitialisationError> {
         let global = Self {
@@ -96,8 +100,6 @@ impl Builtin for DefaultGlobalObject {
     }
 }
 
-pub struct GlobalExit;
-
 impl Builtin for GlobalExit {
     fn register(run: &mut NativeHeap) -> Result<NativeRef, InitialisationError> {
         Ok(run.register_builtin(Self)?)
@@ -108,8 +110,6 @@ impl Builtin for GlobalExit {
         Ok(Value::Undefined)
     }
 }
-
-pub struct GlobalIsNan;
 
 impl Builtin for GlobalIsNan {
     fn register(run: &mut NativeHeap) -> Result<NativeRef, InitialisationError> {

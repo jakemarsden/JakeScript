@@ -6,6 +6,19 @@ pub type Result<T = Element> = std::result::Result<T, Error>;
 #[derive(Debug)]
 pub struct Error(ErrorInner);
 
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub enum ErrorKind {
+    DigitFollowingNumericLiteral,
+    IdentifierFollowingNumericLiteral,
+    UnclosedComment,
+}
+
+#[derive(Debug)]
+enum ErrorInner {
+    Normal(ErrorKind),
+    Io(io::Error),
+}
+
 impl Error {
     pub fn new(kind: ErrorKind) -> Self {
         Self(ErrorInner::Normal(kind))
@@ -51,13 +64,6 @@ impl From<io::Error> for Error {
     }
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
-pub enum ErrorKind {
-    DigitFollowingNumericLiteral,
-    IdentifierFollowingNumericLiteral,
-    UnclosedComment,
-}
-
 impl fmt::Display for ErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(match self {
@@ -66,10 +72,4 @@ impl fmt::Display for ErrorKind {
             Self::UnclosedComment => "Unclosed comment",
         })
     }
-}
-
-#[derive(Debug)]
-enum ErrorInner {
-    Normal(ErrorKind),
-    Io(io::Error),
 }

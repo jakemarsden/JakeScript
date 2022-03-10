@@ -13,6 +13,20 @@ where
     token_buf: Vec<Token>,
 }
 
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub(crate) enum Result {
+    ExitNormally,
+    ExitWithRuntimeError,
+    EndOfInput,
+}
+
+enum BufferState {
+    Execute,
+    KeepBuffering,
+    EndOfInput,
+    Err(lexer::Error),
+}
+
 impl<I> Repl<I>
 where
     I: Iterator<Item = io::Result<char>>,
@@ -119,18 +133,4 @@ where
         }
         BufferState::EndOfInput
     }
-}
-
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
-pub(crate) enum Result {
-    ExitNormally,
-    ExitWithRuntimeError,
-    EndOfInput,
-}
-
-enum BufferState {
-    Execute,
-    KeepBuffering,
-    EndOfInput,
-    Err(lexer::Error),
 }

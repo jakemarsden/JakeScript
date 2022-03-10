@@ -18,6 +18,12 @@ pub enum Value {
     Undefined,
 }
 
+#[derive(Copy, Clone, Debug)]
+pub enum Number {
+    Float(f64),
+    Int(i64),
+}
+
 impl Value {
     pub fn add_or_append(vm: &Vm, lhs: &Self, rhs: &Self) -> Result<Self, NumericOverflowError> {
         if lhs.is_str_or_ref() || rhs.is_str_or_ref() {
@@ -250,12 +256,6 @@ impl fmt::Display for Value {
             Self::Undefined => f.write_str("undefined"),
         }
     }
-}
-
-#[derive(Copy, Clone, Debug)]
-pub enum Number {
-    Float(f64),
-    Int(i64),
 }
 
 impl Number {

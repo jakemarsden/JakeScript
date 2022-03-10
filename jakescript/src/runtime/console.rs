@@ -8,6 +8,12 @@ pub struct Console {
     log: Value,
 }
 
+pub struct ConsoleAssert;
+
+pub struct ConsoleAssertNotReached;
+
+pub struct ConsoleLog;
+
 impl Builtin for Console {
     fn register(run: &mut NativeHeap) -> Result<NativeRef, InitialisationError> {
         let console = Self {
@@ -50,8 +56,6 @@ impl Builtin for Console {
     }
 }
 
-pub struct ConsoleAssert;
-
 impl Builtin for ConsoleAssert {
     fn register(run: &mut NativeHeap) -> Result<NativeRef, InitialisationError> {
         Ok(run.register_builtin(Self)?)
@@ -69,8 +73,6 @@ impl Builtin for ConsoleAssert {
     }
 }
 
-pub struct ConsoleAssertNotReached;
-
 impl Builtin for ConsoleAssertNotReached {
     fn register(run: &mut NativeHeap) -> Result<NativeRef, InitialisationError> {
         Ok(run.register_builtin(Self)?)
@@ -81,8 +83,6 @@ impl Builtin for ConsoleAssertNotReached {
         Err(Error::Assertion(AssertionError::new(detail_msg)))
     }
 }
-
-pub struct ConsoleLog;
 
 impl Builtin for ConsoleLog {
     fn register(run: &mut NativeHeap) -> Result<NativeRef, InitialisationError> {

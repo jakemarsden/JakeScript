@@ -14,6 +14,17 @@ pub struct Vm {
     stack: CallStack,
 }
 
+#[derive(Clone, Default, Debug)]
+pub enum ExecutionState {
+    #[default]
+    Advance,
+    Break,
+    BreakContinue,
+    Return(Value),
+    Exception(Value),
+    Exit,
+}
+
 impl Vm {
     pub fn new() -> Result<Self, InitialisationError> {
         let runtime = Runtime::new::<DefaultGlobalObject>()?;
@@ -156,15 +167,4 @@ impl Vm {
         // Note: Print to stderr as stdout is swallowed when running in the REPL.
         eprintln!("{}", message);
     }
-}
-
-#[derive(Clone, Default, Debug)]
-pub enum ExecutionState {
-    #[default]
-    Advance,
-    Break,
-    BreakContinue,
-    Return(Value),
-    Exception(Value),
-    Exit,
 }

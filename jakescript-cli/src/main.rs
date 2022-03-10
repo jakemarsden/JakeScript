@@ -108,6 +108,35 @@ fn eval(ast: &Program) -> interpreter::Result<(interpreter::Value, Duration)> {
 #[derive(Clone, Debug)]
 struct Options(Mode, Option<Format>, Option<PathBuf>);
 
+#[derive(Enumerate, EnumerateStr, Copy, Clone, Default, Eq, PartialEq, Debug)]
+enum Mode {
+    #[default]
+    #[enumerate_str(rename = "--eval")]
+    Eval,
+    #[enumerate_str(rename = "--parse")]
+    Parse,
+    #[enumerate_str(rename = "--lex")]
+    Lex,
+    #[enumerate_str(rename = "--repl")]
+    Repl,
+}
+
+#[derive(Enumerate, EnumerateStr, Copy, Clone, Eq, PartialEq, Debug)]
+enum Format {
+    #[enumerate_str(rename = "--json")]
+    Json,
+    #[enumerate_str(rename = "--yaml")]
+    Yaml,
+}
+
+enum Error {
+    Options(ParseOptionsError),
+    Lex(lexer::Error),
+    Parse(parser::Error),
+    Eval(interpreter::Error),
+    Io(io::Error),
+}
+
 impl TryFrom<env::Args> for Options {
     type Error = ParseOptionsError;
 
@@ -143,35 +172,6 @@ impl TryFrom<env::Args> for Options {
     }
 }
 
-#[derive(Enumerate, EnumerateStr, Copy, Clone, Default, Eq, PartialEq, Debug)]
-enum Mode {
-    #[default]
-    #[enumerate_str(rename = "--eval")]
-    Eval,
-    #[enumerate_str(rename = "--parse")]
-    Parse,
-    #[enumerate_str(rename = "--lex")]
-    Lex,
-    #[enumerate_str(rename = "--repl")]
-    Repl,
-}
-
-#[derive(Enumerate, EnumerateStr, Copy, Clone, Eq, PartialEq, Debug)]
-enum Format {
-    #[enumerate_str(rename = "--json")]
-    Json,
-    #[enumerate_str(rename = "--yaml")]
-    Yaml,
-}
-
-enum Error {
-    Options(ParseOptionsError),
-    Lex(lexer::Error),
-    Parse(parser::Error),
-    Eval(interpreter::Error),
-    Io(io::Error),
-}
-
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -202,6 +202,11 @@ impl std::error::Error for Error {
     }
 }
 
+#[derive(Debug)]
+struct ParseOptionsError {
+    executable_path: String,
+}
+
 impl From<lexer::Error> for Error {
     fn from(source: lexer::Error) -> Self {
         Self::Lex(source)
@@ -230,11 +235,6 @@ impl From<io::Error> for Error {
     fn from(source: io::Error) -> Self {
         Self::Io(source)
     }
-}
-
-#[derive(Debug)]
-struct ParseOptionsError {
-    executable_path: String,
 }
 
 impl Default for ParseOptionsError {
