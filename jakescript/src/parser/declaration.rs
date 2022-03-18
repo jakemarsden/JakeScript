@@ -84,12 +84,12 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
                 Some(Token::Punctuator(Punctuator::Comma)) => {
                     self.tokens.try_next().unwrap().unwrap();
                 }
-                Some(Token::Punctuator(Punctuator::Semicolon)) => break,
+                Some(Token::Punctuator(Punctuator::Semi)) => break,
                 actual => {
                     return Err(Error::unexpected(
                         AnyOf(
                             Token::Punctuator(Punctuator::Comma),
-                            Token::Punctuator(Punctuator::Semicolon),
+                            Token::Punctuator(Punctuator::Semi),
                             vec![],
                         ),
                         actual.cloned(),
@@ -102,13 +102,12 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
 
     fn parse_variable_declaration_entry(&mut self) -> Result<VariableDeclarationEntry> {
         let var_name = Identifier::from(self.expect_identifier(non_empty_str!("variable_name"))?);
-        let initialiser =
-            if let Some(Token::Punctuator(Punctuator::Equal)) = self.tokens.try_peek()? {
-                self.tokens.try_next().unwrap().unwrap();
-                Some(self.parse_expression()?)
-            } else {
-                None
-            };
+        let initialiser = if let Some(Token::Punctuator(Punctuator::Eq)) = self.tokens.try_peek()? {
+            self.tokens.try_next().unwrap().unwrap();
+            Some(self.parse_expression()?)
+        } else {
+            None
+        };
         Ok(VariableDeclarationEntry {
             var_name,
             initialiser,

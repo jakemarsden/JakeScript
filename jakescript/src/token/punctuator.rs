@@ -3,23 +3,21 @@ use enumerate::{Enumerate, EnumerateStr};
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Enumerate, EnumerateStr)]
 pub enum Punctuator {
     #[enumerate_str(rename = "&")]
-    Ampersand,
+    Amp,
+    #[enumerate_str(rename = "&&")]
+    AmpAmp,
     #[enumerate_str(rename = "&=")]
-    AmpersandEqual,
-    #[enumerate_str(rename = "*")]
-    Asterisk,
-    #[enumerate_str(rename = "*=")]
-    AsteriskEqual,
+    AmpEq,
     #[enumerate_str(rename = "!")]
     Bang,
-    #[enumerate_str(rename = "!==")]
-    BangDoubleEqual,
     #[enumerate_str(rename = "!=")]
-    BangEqual,
+    BangEq,
+    #[enumerate_str(rename = "!==")]
+    BangEqEq,
     #[enumerate_str(rename = "^")]
     Caret,
     #[enumerate_str(rename = "^=")]
-    CaretEqual,
+    CaretEq,
     #[enumerate_str(rename = "}")]
     CloseBrace,
     #[enumerate_str(rename = "]")]
@@ -32,46 +30,42 @@ pub enum Punctuator {
     Comma,
     #[enumerate_str(rename = ".")]
     Dot,
-    #[enumerate_str(rename = "&&")]
-    DoubleAmpersand,
-    #[enumerate_str(rename = "**")]
-    DoubleAsterisk,
-    #[enumerate_str(rename = "**=")]
-    DoubleAsteriskEqual,
-    #[enumerate_str(rename = "==")]
-    DoubleEqual,
-    #[enumerate_str(rename = "<<")]
-    DoubleLessThan,
-    #[enumerate_str(rename = "<<=")]
-    DoubleLessThanEqual,
-    #[enumerate_str(rename = ">>")]
-    DoubleMoreThan,
-    #[enumerate_str(rename = ">>=")]
-    DoubleMoreThanEqual,
-    #[enumerate_str(rename = "--")]
-    DoubleMinus,
-    #[enumerate_str(rename = "||")]
-    DoublePipe,
-    #[enumerate_str(rename = "++")]
-    DoublePlus,
-    #[enumerate_str(rename = "??")]
-    DoubleQuestion,
+    #[enumerate_str(rename = "...")]
+    DotDotDot,
     #[enumerate_str(rename = "=")]
-    Equal,
+    Eq,
+    #[enumerate_str(rename = "==")]
+    EqEq,
+    #[enumerate_str(rename = "===")]
+    EqEqEq,
     #[enumerate_str(rename = "=>")]
-    EqualMoreThan,
+    EqGt,
+    #[enumerate_str(rename = ">")]
+    Gt,
+    #[enumerate_str(rename = ">=")]
+    GtEq,
+    #[enumerate_str(rename = ">>")]
+    GtGt,
+    #[enumerate_str(rename = ">>=")]
+    GtGtEq,
+    #[enumerate_str(rename = ">>>")]
+    GtGtGt,
+    #[enumerate_str(rename = ">>>=")]
+    GtGtGtEq,
     #[enumerate_str(rename = "<")]
-    LessThan,
+    Lt,
     #[enumerate_str(rename = "<=")]
-    LessThanEqual,
+    LtEq,
+    #[enumerate_str(rename = "<<")]
+    LtLt,
+    #[enumerate_str(rename = "<<=")]
+    LtLtEq,
     #[enumerate_str(rename = "-")]
     Minus,
     #[enumerate_str(rename = "-=")]
-    MinusEqual,
-    #[enumerate_str(rename = ">")]
-    MoreThan,
-    #[enumerate_str(rename = ">=")]
-    MoreThanEqual,
+    MinusEq,
+    #[enumerate_str(rename = "--")]
+    MinusMinus,
     #[enumerate_str(rename = "{")]
     OpenBrace,
     #[enumerate_str(rename = "[")]
@@ -81,33 +75,39 @@ pub enum Punctuator {
     #[enumerate_str(rename = "%")]
     Percent,
     #[enumerate_str(rename = "%=")]
-    PercentEqual,
+    PercentEq,
     #[enumerate_str(rename = "|")]
     Pipe,
     #[enumerate_str(rename = "|=")]
-    PipeEqual,
+    PipeEq,
+    #[enumerate_str(rename = "||")]
+    PipePipe,
     #[enumerate_str(rename = "+")]
     Plus,
     #[enumerate_str(rename = "+=")]
-    PlusEqual,
+    PlusEq,
+    #[enumerate_str(rename = "++")]
+    PlusPlus,
     #[enumerate_str(rename = "?")]
     Question,
+    #[enumerate_str(rename = "??")]
+    QuestionQuestion,
     #[enumerate_str(rename = ";")]
-    Semicolon,
+    Semi,
     #[enumerate_str(rename = "/")]
     Slash,
     #[enumerate_str(rename = "/=")]
-    SlashEqual,
+    SlashEq,
+    #[enumerate_str(rename = "*")]
+    Star,
+    #[enumerate_str(rename = "*=")]
+    StarEq,
+    #[enumerate_str(rename = "**")]
+    StarStar,
+    #[enumerate_str(rename = "**=")]
+    StarStarEq,
     #[enumerate_str(rename = "~")]
     Tilde,
-    #[enumerate_str(rename = "...")]
-    TripleDot,
-    #[enumerate_str(rename = "===")]
-    TripleEqual,
-    #[enumerate_str(rename = ">>>")]
-    TripleMoreThan,
-    #[enumerate_str(rename = ">>>=")]
-    TripleMoreThanEqual,
 }
 
 impl Punctuator {
@@ -115,58 +115,58 @@ impl Punctuator {
     /// with the same substring, the longest needs to come first. This is relied on by the `Lexer`.
     pub(crate) fn enumerate_in_lexical_order() -> &'static [Self] {
         const VALUES_IN_LEXICAL_ORDER: &[Punctuator] = &[
-            Punctuator::DoubleAmpersand,
-            Punctuator::AmpersandEqual,
-            Punctuator::Ampersand,
-            Punctuator::DoubleAsteriskEqual,
-            Punctuator::DoubleAsterisk,
-            Punctuator::AsteriskEqual,
-            Punctuator::Asterisk,
-            Punctuator::BangDoubleEqual,
-            Punctuator::BangEqual,
+            Punctuator::AmpAmp,
+            Punctuator::AmpEq,
+            Punctuator::Amp,
+            Punctuator::BangEqEq,
+            Punctuator::BangEq,
             Punctuator::Bang,
-            Punctuator::CaretEqual,
+            Punctuator::CaretEq,
             Punctuator::Caret,
             Punctuator::CloseBrace,
             Punctuator::CloseBracket,
             Punctuator::CloseParen,
             Punctuator::Colon,
             Punctuator::Comma,
-            Punctuator::TripleDot,
+            Punctuator::DotDotDot,
             Punctuator::Dot,
-            Punctuator::TripleEqual,
-            Punctuator::DoubleEqual,
-            Punctuator::EqualMoreThan,
-            Punctuator::Equal,
-            Punctuator::DoubleLessThanEqual,
-            Punctuator::DoubleLessThan,
-            Punctuator::LessThanEqual,
-            Punctuator::LessThan,
-            Punctuator::DoubleMinus,
-            Punctuator::MinusEqual,
+            Punctuator::EqEqEq,
+            Punctuator::EqEq,
+            Punctuator::EqGt,
+            Punctuator::Eq,
+            Punctuator::GtGtEq,
+            Punctuator::GtEq,
+            Punctuator::GtGtGtEq,
+            Punctuator::GtGtGt,
+            Punctuator::GtGt,
+            Punctuator::Gt,
+            Punctuator::LtLtEq,
+            Punctuator::LtEq,
+            Punctuator::LtLt,
+            Punctuator::Lt,
+            Punctuator::MinusEq,
+            Punctuator::MinusMinus,
             Punctuator::Minus,
-            Punctuator::TripleMoreThanEqual,
-            Punctuator::TripleMoreThan,
-            Punctuator::DoubleMoreThanEqual,
-            Punctuator::DoubleMoreThan,
-            Punctuator::MoreThanEqual,
-            Punctuator::MoreThan,
             Punctuator::OpenBrace,
             Punctuator::OpenBracket,
             Punctuator::OpenParen,
-            Punctuator::PercentEqual,
+            Punctuator::PercentEq,
             Punctuator::Percent,
-            Punctuator::DoublePipe,
-            Punctuator::PipeEqual,
+            Punctuator::PipeEq,
+            Punctuator::PipePipe,
             Punctuator::Pipe,
-            Punctuator::DoublePlus,
-            Punctuator::PlusEqual,
+            Punctuator::PlusEq,
+            Punctuator::PlusPlus,
             Punctuator::Plus,
-            Punctuator::DoubleQuestion,
+            Punctuator::QuestionQuestion,
             Punctuator::Question,
-            Punctuator::Semicolon,
-            Punctuator::SlashEqual,
+            Punctuator::Semi,
+            Punctuator::SlashEq,
             Punctuator::Slash,
+            Punctuator::StarStarEq,
+            Punctuator::StarEq,
+            Punctuator::StarStar,
+            Punctuator::Star,
             Punctuator::Tilde,
         ];
         VALUES_IN_LEXICAL_ORDER

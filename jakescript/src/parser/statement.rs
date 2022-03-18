@@ -41,7 +41,7 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
                         .map(Statement::Declaration),
                     _ => self.parse_expression().map(Statement::Expression),
                 }?;
-                self.expect_punctuator(Punctuator::Semicolon)?;
+                self.expect_punctuator(Punctuator::Semi)?;
                 Ok(stmt)
             }
             None => Err(Error::unexpected_eoi(Unspecified)),
@@ -84,16 +84,16 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
         self.expect_punctuator(Punctuator::OpenParen)?;
 
         let initialiser = match self.tokens.try_peek()? {
-            Some(Token::Punctuator(Punctuator::Semicolon)) => None,
+            Some(Token::Punctuator(Punctuator::Semi)) => None,
             _ => Some(self.parse_variable_declaration()?),
         };
-        self.expect_punctuator(Punctuator::Semicolon)?;
+        self.expect_punctuator(Punctuator::Semi)?;
 
         let condition = match self.tokens.try_peek()? {
-            Some(Token::Punctuator(Punctuator::Semicolon)) => None,
+            Some(Token::Punctuator(Punctuator::Semi)) => None,
             _ => Some(self.parse_expression()?),
         };
-        self.expect_punctuator(Punctuator::Semicolon)?;
+        self.expect_punctuator(Punctuator::Semi)?;
 
         let incrementor = match self.tokens.try_peek()? {
             Some(Token::Punctuator(Punctuator::CloseParen)) => None,
@@ -132,7 +132,7 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
     fn parse_return_statement(&mut self) -> Result<ReturnStatement> {
         self.expect_keyword(Keyword::Return)?;
         let expr = match self.tokens.try_peek()? {
-            Some(Token::Punctuator(Punctuator::Semicolon)) => None,
+            Some(Token::Punctuator(Punctuator::Semi)) => None,
             _ => Some(self.parse_expression()?),
         };
         Ok(ReturnStatement { expr })
