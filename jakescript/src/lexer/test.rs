@@ -1,12 +1,11 @@
 use super::error::ErrorKind;
 use super::Lexer;
 use crate::token::*;
-use enumerate::{Enumerate, EnumerateStr};
 use std::assert_matches::assert_matches;
 
 #[test]
 fn tokenise_keywords() {
-    for expected in Keyword::enumerate() {
+    for expected in Keyword::all() {
         let mut lexer = Lexer::for_str(expected.as_str());
         assert_matches!(
             lexer.next(),
@@ -18,7 +17,7 @@ fn tokenise_keywords() {
 
 #[test]
 fn tokenise_punctuators() {
-    for expected in Punctuator::enumerate() {
+    for expected in Punctuator::all() {
         let mut lexer = Lexer::for_str(expected.as_str());
         assert_matches!(
             lexer.next(),

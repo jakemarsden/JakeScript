@@ -4,7 +4,6 @@ use crate::iter::{IntoPeekableNth, PeekableNth};
 use crate::str::NonEmptyString;
 use crate::token::symbol::*;
 use crate::token::*;
-use enumerate::EnumerateStr;
 use error::ErrorKind::{
     DigitFollowingNumericLiteral, IdentifierFollowingNumericLiteral, UnclosedComment,
 };
@@ -89,9 +88,9 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
     }
 
     fn parse_punctuator(&mut self) -> Result<Option<Punctuator>> {
-        for value in Punctuator::enumerate_in_lexical_order() {
+        for value in Punctuator::all_in_lexical_order() {
             if self.0.try_consume_str(value.as_str())? {
-                return Ok(Some(*value));
+                return Ok(Some(value));
             }
         }
         Ok(None)
