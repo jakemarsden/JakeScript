@@ -62,12 +62,6 @@ fn main() -> Result<(), Error> {
                 "{}",
                 elements.iter().map(Element::to_string).collect::<String>()
             );
-
-            println!("Lexed in {:?}", lex_runtime);
-            println!(
-                "{}",
-                elements.iter().map(Element::to_string).collect::<String>()
-            );
         }
         Options(Mode::Repl, None, None) => {
             let mut stdin = io::stdin().lock();
