@@ -1,6 +1,5 @@
 #![feature(derive_default_enum)]
 
-use enumerate::{Enumerate, EnumerateStr};
 use jakescript::ast::Program;
 use jakescript::interpreter::{self, Eval, Interpreter, Vm};
 use jakescript::lexer::{self, Lexer};
@@ -109,24 +108,18 @@ fn eval(ast: &Program) -> interpreter::Result<(interpreter::Value, Duration)> {
 #[derive(Clone, Debug)]
 struct Options(Mode, Option<Format>, Option<PathBuf>);
 
-#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Enumerate, EnumerateStr)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash)]
 enum Mode {
     #[default]
-    #[enumerate_str(rename = "--eval")]
     Eval,
-    #[enumerate_str(rename = "--parse")]
     Parse,
-    #[enumerate_str(rename = "--lex")]
     Lex,
-    #[enumerate_str(rename = "--repl")]
     Repl,
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Enumerate, EnumerateStr)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 enum Format {
-    #[enumerate_str(rename = "--json")]
     Json,
-    #[enumerate_str(rename = "--yaml")]
     Yaml,
 }
 
@@ -170,6 +163,32 @@ impl TryFrom<env::Args> for Options {
             return Err(ParseOptionsError::new(executable_path));
         }
         Ok(Self(mode, format, source_path))
+    }
+}
+
+impl FromStr for Mode {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "--eval" => Ok(Self::Eval),
+            "--parse" => Ok(Self::Parse),
+            "--lex" => Ok(Self::Lex),
+            "--repl" => Ok(Self::Repl),
+            _ => Err(()),
+        }
+    }
+}
+
+impl FromStr for Format {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "--json" => Ok(Self::Json),
+            "--yaml" => Ok(Self::Yaml),
+            _ => Err(()),
+        }
     }
 }
 

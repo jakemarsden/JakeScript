@@ -6,7 +6,6 @@ edition = "2021"
 publish = false
 
 [dependencies]
-enumerate = { path = "../enumerate" }
 jakescript = { path = "../jakescript" }
 ansi_term = "0.12"
 serde_json = "1.0"
