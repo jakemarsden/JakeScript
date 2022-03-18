@@ -4,7 +4,7 @@ use super::Node;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-pub trait Op: Copy + Eq + fmt::Debug {
+pub trait Op: Copy + fmt::Debug + Eq {
     fn associativity(&self) -> Associativity;
     fn precedence(&self) -> Precedence;
 }
