@@ -17,12 +17,8 @@ cargo build --release --workspace
 ./target/release/jakescript-cli  --repl                                     # Enter an interactive REPL
 ```
 
-## Packages
+## Crates
 
-- &#x1F56E; [`enumerate`][file-enumerate]
-  Utility traits and macros for working with enums.
-- &#x1F56E; [`enumerate-derive`][file-enumerate-derive]
-  Implementation of the procedural macros provided by `enumerate`.
 - &#x1F56E; [`jakescript`][file-jakescript]
   The core of the project. Contains code for the lexer, parser, interpreter, and
   most of the tests.
@@ -45,8 +41,6 @@ in the [`tests-js`][file-tests-js] directory:
 cargo test --package jakescript --test js_tests -- --nocapture
 ```
 
-[file-enumerate]: enumerate
-[file-enumerate-derive]: enumerate-derive
 [file-jakescript]: jakescript
 [file-jakescript-cli]: jakescript-cli
 [file-tests-js]: jakescript/tests-js

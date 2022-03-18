@@ -1,7 +1,5 @@
 [workspace]
 members = [
-    "enumerate",
-    "enumerate-derive",
     "jakescript",
     "jakescript-cli",
 ]

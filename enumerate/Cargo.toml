@@ -1,9 +1,0 @@
-[package]
-name = "enumerate"
-version = "0.1.0"
-authors = ["Jake Marsden <jakemarsdenjm@gmail.com>"]
-edition = "2021"
-publish = false
-
-[dependencies]
-enumerate-derive = { path = "../enumerate-derive" }
