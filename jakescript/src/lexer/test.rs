@@ -78,5 +78,5 @@ fn tokenise_unclosed_multi_line_comment() {
     let source_code = "/* abc";
     let mut lexer = Lexer::for_str(source_code);
     assert_matches!(lexer.next(), Err(err) if err.kind() == Some(ErrorKind::UnclosedComment));
-    assert_matches!(lexer.next(), Ok(None));
+    assert_matches!(lexer.next(), Err(err) if err.kind() == Some(ErrorKind::UnclosedComment));
 }
