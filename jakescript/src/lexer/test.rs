@@ -1,6 +1,7 @@
 use super::error::ErrorKind;
 use super::Lexer;
 use crate::token::*;
+use fallible_iterator::FallibleIterator;
 use std::assert_matches::assert_matches;
 
 #[test]
@@ -9,9 +10,9 @@ fn tokenise_keywords() {
         let mut lexer = Lexer::for_str(expected.as_str());
         assert_matches!(
             lexer.next(),
-            Some(Ok(Element::Token(Token::Keyword(actual)))) if actual == *expected
+            Ok(Some(Element::Token(Token::Keyword(actual)))) if actual == *expected
         );
-        assert_matches!(lexer.next(), None);
+        assert_matches!(lexer.next(), Ok(None));
     }
 }
 
@@ -21,9 +22,9 @@ fn tokenise_punctuators() {
         let mut lexer = Lexer::for_str(expected.as_str());
         assert_matches!(
             lexer.next(),
-            Some(Ok(Element::Token(Token::Punctuator(actual)))) if actual == *expected
+            Ok(Some(Element::Token(Token::Punctuator(actual)))) if actual == *expected
         );
-        assert_matches!(lexer.next(), None);
+        assert_matches!(lexer.next(), Ok(None));
     }
 }
 
@@ -34,19 +35,19 @@ fn tokenise_string_literal() {
         if single_qt {
             assert_matches!(
                 lexer.next(),
-                Some(Ok(Element::Token(Token::Literal(Literal::String(
+                Ok(Some(Element::Token(Token::Literal(Literal::String(
                     StringLiteral::SingleQuoted(actual)
                 ))))) if actual == expected
             );
         } else {
             assert_matches!(
                 lexer.next(),
-                Some(Ok(Element::Token(Token::Literal(Literal::String(
+                Ok(Some(Element::Token(Token::Literal(Literal::String(
                     StringLiteral::DoubleQuoted(actual)
                 ))))) if actual == expected
             );
         }
-        assert_matches!(lexer.next(), None);
+        assert_matches!(lexer.next(), Ok(None));
     }
 
     check_valid(r#""""#, r#""#, false);
@@ -76,6 +77,6 @@ fn tokenise_string_literal() {
 fn tokenise_unclosed_multi_line_comment() {
     let source_code = "/* abc";
     let mut lexer = Lexer::for_str(source_code);
-    assert_matches!(lexer.next(), Some(Err(err)) if err.kind() == Some(ErrorKind::UnclosedComment));
-    assert_matches!(lexer.next(), None);
+    assert_matches!(lexer.next(), Err(err) if err.kind() == Some(ErrorKind::UnclosedComment));
+    assert_matches!(lexer.next(), Ok(None));
 }

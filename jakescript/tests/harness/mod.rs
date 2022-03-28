@@ -1,4 +1,5 @@
 use ansi_term::{Color, Style};
+use fallible_iterator::FallibleIterator;
 use jakescript::interpreter::{self, Eval, ExecutionState, Interpreter, Vm};
 use jakescript::lexer::Lexer;
 use jakescript::parser::{self, Parser};
@@ -21,14 +22,17 @@ pub fn exec_source_file(source_path: &Path) -> TestCaseReport {
         Ok(file) => io::BufReader::new(file),
         Err(err) => return TestCaseReport::fail(source_name, Duration::ZERO, err.into()),
     };
-    exec(source_name, Lexer::for_chars_fallible(buf.chars()))
+    exec(
+        source_name,
+        Lexer::for_chars_fallible(fallible_iterator::convert(buf.chars())),
+    )
 }
 
 pub fn exec_source_code(source_code: &str) -> TestCaseReport {
     exec("untitled".to_owned(), Lexer::for_str(source_code))
 }
 
-fn exec<I: Iterator<Item = io::Result<char>>>(
+fn exec<I: FallibleIterator<Item = char, Error = io::Error>>(
     source_name: String,
     source: Lexer<I>,
 ) -> TestCaseReport {

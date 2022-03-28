@@ -3,9 +3,11 @@ use super::error::AllowToken::{AnyOf, Unspecified};
 use super::error::{Error, Result};
 use super::Parser;
 use crate::ast::*;
+use crate::iter::peek_fallible::PeekableNthFallibleIterator;
 use crate::lexer;
 use crate::non_empty_str;
 use crate::token::{self, Keyword, Punctuator, StringLiteral, Token};
+use fallible_iterator::FallibleIterator;
 
 trait TryParse {
     fn try_parse(punc: Punctuator, pos: Position) -> Option<Self>
@@ -24,17 +26,17 @@ pub(super) enum Position {
     PostfixOrInfix,
 }
 
-impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
+impl<I: FallibleIterator<Item = Token, Error = lexer::Error>> Parser<I> {
     pub(super) fn parse_expression(&mut self) -> Result<Expression> {
         self.parse_expression_impl(Precedence::MIN)
     }
 
     fn parse_expression_impl(&mut self, min_precedence: Precedence) -> Result<Expression> {
         let mut expression = self.parse_primary_expression()?;
-        while let Some(&Token::Punctuator(punctuator)) = self.tokens.try_peek()? {
+        while let Some(&Token::Punctuator(punctuator)) = self.tokens.peek()? {
             if let Some(op_kind) = Operator::try_parse(punctuator, Position::PostfixOrInfix) {
                 if op_kind.precedence() > min_precedence {
-                    self.tokens.try_next().unwrap().unwrap();
+                    self.tokens.next().unwrap().unwrap();
                     expression = self.parse_secondary_expression(expression, op_kind)?;
                 } else {
                     break;
@@ -47,7 +49,7 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
     }
 
     fn parse_primary_expression(&mut self) -> Result<Expression> {
-        Ok(match self.tokens.try_next()? {
+        Ok(match self.tokens.next()? {
             Some(Token::Identifier(var_name)) => {
                 Expression::VariableAccess(VariableAccessExpression {
                     var_name: Identifier::from(var_name),
@@ -110,7 +112,7 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
                 },
             }),
             Some(Token::Keyword(Keyword::Function)) => {
-                let name = match self.tokens.try_peek()? {
+                let name = match self.tokens.peek()? {
                     Some(Token::Identifier(_)) => {
                         let name = self
                             .expect_identifier(non_empty_str!("function_name"))
@@ -214,7 +216,7 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
         }
         if self
             .tokens
-            .try_next_if_eq(&Token::Punctuator(Punctuator::CloseParen))?
+            .next_if_eq(&Token::Punctuator(Punctuator::CloseParen))?
             .is_some()
         {
             return Ok(Vec::with_capacity(0));
@@ -223,7 +225,7 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
         let mut args = Vec::new();
         loop {
             args.push(self.parse_expression()?);
-            match self.tokens.try_next()? {
+            match self.tokens.next()? {
                 Some(Token::Punctuator(Punctuator::Comma)) => {}
                 Some(Token::Punctuator(Punctuator::CloseParen)) => break Ok(args),
                 actual => {

@@ -2,8 +2,10 @@ use super::error::AllowToken::{Exactly, Unspecified};
 use super::error::{Error, Result};
 use super::Parser;
 use crate::ast::*;
+use crate::iter::peek_fallible::PeekableNthFallibleIterator;
 use crate::lexer;
 use crate::token::{Punctuator, Token};
+use fallible_iterator::FallibleIterator;
 
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub(super) enum Braces {
@@ -11,9 +13,9 @@ pub(super) enum Braces {
     Require,
 }
 
-impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
+impl<I: FallibleIterator<Item = Token, Error = lexer::Error>> Parser<I> {
     pub(super) fn parse_block(&mut self, braces: Braces) -> Result<Block> {
-        match self.tokens.try_peek()? {
+        match self.tokens.peek()? {
             Some(Token::Punctuator(Punctuator::OpenBrace)) => match braces {
                 Braces::Allow | Braces::Require => {
                     self.expect_punctuator(Punctuator::OpenBrace)?;
@@ -57,7 +59,7 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
         let mut hoisted_decls = Vec::new();
         let mut stmts = Vec::new();
         while !matches!(
-            self.tokens.try_peek()?,
+            self.tokens.peek()?,
             Some(Token::Punctuator(Punctuator::CloseBrace)) | None
         ) {
             match self.parse_statement()? {

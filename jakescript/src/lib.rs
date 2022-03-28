@@ -4,6 +4,7 @@
 #![feature(derive_default_enum)]
 #![feature(iter_advance_by)]
 #![feature(iter_intersperse)]
+#![feature(let_chains)]
 
 pub mod ast;
 

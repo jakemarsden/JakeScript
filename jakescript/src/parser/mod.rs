@@ -1,11 +1,12 @@
 pub use error::*;
 
 use crate::ast::*;
-use crate::iter::{IntoPeekableNth, PeekableNth};
+use crate::iter::peek_fallible::{IntoPeekableNthFallible, PeekableNthFallible};
 use crate::lexer::{self, Lexer, Tokens};
 use crate::str::NonEmptyString;
 use crate::token::{Keyword, Punctuator, Token};
 use error::AllowToken::Exactly;
+use fallible_iterator::FallibleIterator;
 use std::{io, iter};
 
 mod block;
@@ -17,13 +18,13 @@ mod statement;
 #[cfg(test)]
 mod test;
 
-type Fallible<I> = iter::Map<I, fn(Token) -> lexer::Result<Token>>;
+type Fallible<I> = fallible_iterator::Convert<iter::Map<I, fn(Token) -> lexer::Result<Token>>>;
 
-pub struct Parser<I: Iterator<Item = lexer::Result<Token>>> {
-    tokens: PeekableNth<I>,
+pub struct Parser<I: FallibleIterator<Item = Token, Error = lexer::Error>> {
+    tokens: PeekableNthFallible<I>,
 }
 
-impl<I: Iterator<Item = io::Result<char>>> Parser<Tokens<Lexer<I>>> {
+impl<I: FallibleIterator<Item = char, Error = io::Error>> Parser<Tokens<Lexer<I>>> {
     pub fn for_lexer(source: Lexer<I>) -> Self {
         Self::for_tokens_fallible(source.tokens())
     }
@@ -31,14 +32,14 @@ impl<I: Iterator<Item = io::Result<char>>> Parser<Tokens<Lexer<I>>> {
 
 impl<I: Iterator<Item = Token>> Parser<Fallible<I>> {
     pub fn for_tokens(source: I) -> Self {
-        Self::for_tokens_fallible(source.map(Ok))
+        Self::for_tokens_fallible(fallible_iterator::convert(source.map(Ok)))
     }
 }
 
-impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
+impl<I: FallibleIterator<Item = Token, Error = lexer::Error>> Parser<I> {
     pub fn for_tokens_fallible(source: I) -> Self {
         Self {
-            tokens: source.peekable_nth(),
+            tokens: source.peekable_nth_fallible(),
         }
     }
 
@@ -56,7 +57,7 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
     }
 
     fn expect_identifier(&mut self, placeholder: NonEmptyString) -> Result<NonEmptyString> {
-        match self.tokens.try_next()? {
+        match self.tokens.next()? {
             Some(Token::Identifier(id)) => Ok(id),
             actual => Err(Error::unexpected(
                 Exactly(Token::Identifier(placeholder)),
@@ -66,7 +67,7 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
     }
 
     fn expect_token(&mut self, expected: Token) -> Result<()> {
-        match self.tokens.try_next()? {
+        match self.tokens.next()? {
             Some(actual) if actual == expected => Ok(()),
             actual => Err(Error::unexpected(Exactly(expected), actual)),
         }

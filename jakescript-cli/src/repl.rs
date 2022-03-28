@@ -1,3 +1,4 @@
+use fallible_iterator::FallibleIterator;
 use jakescript::interpreter::{Eval, ExecutionState, Interpreter};
 use jakescript::lexer::{self, Lexer};
 use jakescript::parser::Parser;
@@ -7,7 +8,7 @@ use std::{io, mem};
 /// Read Evaluate Print Loop (REPL).
 pub(crate) struct Repl<I>
 where
-    I: Iterator<Item = io::Result<char>>,
+    I: FallibleIterator<Item = char, Error = io::Error>,
 {
     input: Lexer<I>,
     brace_depth: usize,
@@ -30,7 +31,7 @@ enum BufferState {
 
 impl<I> Repl<I>
 where
-    I: Iterator<Item = io::Result<char>>,
+    I: FallibleIterator<Item = char, Error = io::Error>,
 {
     pub(crate) fn new(input: Lexer<I>) -> Self {
         Self {
@@ -104,10 +105,11 @@ where
     }
 
     fn read_next_tokens(&mut self) -> BufferState {
-        for element in &mut self.input {
-            let element = match element {
-                Ok(element) => element,
-                Err(lex_err) => return BufferState::Err(lex_err),
+        loop {
+            let element = match self.input.next() {
+                Ok(Some(element)) => element,
+                Ok(None) => break BufferState::EndOfInput,
+                Err(lex_err) => break BufferState::Err(lex_err),
             };
             match element {
                 Element::Token(t @ Token::Punctuator(Punctuator::OpenBrace)) => {
@@ -132,6 +134,5 @@ where
                 Element::Comment(..) | Element::Whitespace(..) => {}
             }
         }
-        BufferState::EndOfInput
     }
 }

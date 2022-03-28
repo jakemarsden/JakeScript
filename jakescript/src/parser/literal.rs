@@ -2,15 +2,17 @@ use super::error::AllowToken::{AnyOf, Exactly};
 use super::error::{Error, Result};
 use super::Parser;
 use crate::ast::*;
+use crate::iter::peek_fallible::PeekableNthFallibleIterator;
 use crate::lexer;
 use crate::non_empty_str;
 use crate::token::{Punctuator, Token};
+use fallible_iterator::FallibleIterator;
 use std::collections::HashMap;
 
-impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
+impl<I: FallibleIterator<Item = Token, Error = lexer::Error>> Parser<I> {
     pub(super) fn parse_array_literal_elements(&mut self) -> Result<Vec<Expression>> {
         if matches!(
-            self.tokens.try_peek()?,
+            self.tokens.peek()?,
             Some(Token::Punctuator(Punctuator::CloseBracket))
         ) {
             return Ok(Vec::with_capacity(0));
@@ -18,10 +20,12 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
         let mut elems = Vec::new();
         loop {
             elems.push(self.parse_expression()?);
-            match self.tokens.try_peek()? {
+            match self.tokens.peek()? {
                 Some(&Token::Punctuator(Punctuator::Comma)) => {
-                    self.tokens
-                        .try_next_exact(&Token::Punctuator(Punctuator::Comma))?;
+                    assert!(self
+                        .tokens
+                        .next_if_eq(&Token::Punctuator(Punctuator::Comma))?
+                        .is_some());
                 }
                 Some(&Token::Punctuator(Punctuator::CloseBracket)) => break Ok(elems),
                 token => {
@@ -41,7 +45,7 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
     pub(super) fn parse_object_properties(&mut self) -> Result<HashMap<Identifier, Expression>> {
         let mut props = HashMap::default();
         Ok(loop {
-            match self.tokens.try_peek()? {
+            match self.tokens.peek()? {
                 Some(Token::Punctuator(Punctuator::CloseBrace)) => break props,
                 Some(Token::Identifier(_)) => {
                     let (key, value) = self.parse_object_property()?;
@@ -58,11 +62,12 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
                     ))
                 }
             }
-            match self.tokens.try_peek()? {
+            match self.tokens.peek()? {
                 Some(Token::Punctuator(Punctuator::CloseBrace)) => break props,
-                Some(Token::Punctuator(Punctuator::Comma)) => self
+                Some(Token::Punctuator(Punctuator::Comma)) => assert!(self
                     .tokens
-                    .try_next_exact(&Token::Punctuator(Punctuator::Comma))?,
+                    .next_if_eq(&Token::Punctuator(Punctuator::Comma))?
+                    .is_some()),
                 actual => {
                     return Err(Error::unexpected(
                         AnyOf(
@@ -78,7 +83,7 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
     }
 
     fn parse_object_property(&mut self) -> Result<(Identifier, Expression)> {
-        let key = match self.tokens.try_next()? {
+        let key = match self.tokens.next()? {
             Some(Token::Identifier(id)) => Identifier::from(id),
             actual => {
                 return Err(Error::unexpected(

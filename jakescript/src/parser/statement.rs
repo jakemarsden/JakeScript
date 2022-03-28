@@ -3,13 +3,15 @@ use super::error::AllowToken::{AnyOf, Exactly, Unspecified};
 use super::error::{Error, Result};
 use super::Parser;
 use crate::ast::*;
+use crate::iter::peek_fallible::PeekableNthFallibleIterator;
 use crate::lexer;
 use crate::non_empty_str;
 use crate::token::{Keyword, Punctuator, Token};
+use fallible_iterator::FallibleIterator;
 
-impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
+impl<I: FallibleIterator<Item = Token, Error = lexer::Error>> Parser<I> {
     pub(super) fn parse_statement(&mut self) -> Result<Statement> {
-        match self.tokens.try_peek()? {
+        match self.tokens.peek()? {
             Some(Token::Keyword(Keyword::If)) => self.parse_if_statement().map(Statement::If),
             Some(Token::Keyword(Keyword::Function)) => self
                 .parse_function_declaration()
@@ -56,10 +58,10 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
         let success_block = self.parse_block(Braces::Allow)?;
         let else_block = if self
             .tokens
-            .try_next_if_eq(&Token::Keyword(Keyword::Else))?
+            .next_if_eq(&Token::Keyword(Keyword::Else))?
             .is_some()
         {
-            if matches!(self.tokens.try_peek()?, Some(Token::Keyword(Keyword::If))) {
+            if matches!(self.tokens.peek()?, Some(Token::Keyword(Keyword::If))) {
                 // Recursively parse `else if { .. }` blocks
                 Some(Block::new(
                     vec![],
@@ -83,19 +85,19 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
         self.expect_keyword(Keyword::For)?;
         self.expect_punctuator(Punctuator::OpenParen)?;
 
-        let initialiser = match self.tokens.try_peek()? {
+        let initialiser = match self.tokens.peek()? {
             Some(Token::Punctuator(Punctuator::Semi)) => None,
             _ => Some(self.parse_variable_declaration()?),
         };
         self.expect_punctuator(Punctuator::Semi)?;
 
-        let condition = match self.tokens.try_peek()? {
+        let condition = match self.tokens.peek()? {
             Some(Token::Punctuator(Punctuator::Semi)) => None,
             _ => Some(self.parse_expression()?),
         };
         self.expect_punctuator(Punctuator::Semi)?;
 
-        let incrementor = match self.tokens.try_peek()? {
+        let incrementor = match self.tokens.peek()? {
             Some(Token::Punctuator(Punctuator::CloseParen)) => None,
             _ => Some(self.parse_expression()?),
         };
@@ -131,7 +133,7 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
 
     fn parse_return_statement(&mut self) -> Result<ReturnStatement> {
         self.expect_keyword(Keyword::Return)?;
-        let expr = match self.tokens.try_peek()? {
+        let expr = match self.tokens.peek()? {
             Some(Token::Punctuator(Punctuator::Semi)) => None,
             _ => Some(self.parse_expression()?),
         };
@@ -147,18 +149,13 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
     fn parse_try_statement(&mut self) -> Result<TryStatement> {
         self.expect_keyword(Keyword::Try)?;
         let body = self.parse_block(Braces::Require)?;
-        let catch_block = if matches!(
-            self.tokens.try_peek()?,
-            Some(Token::Keyword(Keyword::Catch))
-        ) {
+        let catch_block = if matches!(self.tokens.peek()?, Some(Token::Keyword(Keyword::Catch))) {
             Some(self.parse_catch_block()?)
         } else {
             None
         };
-        let finally_block = if matches!(
-            self.tokens.try_peek()?,
-            Some(Token::Keyword(Keyword::Finally))
-        ) {
+        let finally_block = if matches!(self.tokens.peek()?, Some(Token::Keyword(Keyword::Finally)))
+        {
             self.expect_keyword(Keyword::Finally)?;
             Some(FinallyBlock {
                 inner: self.parse_block(Braces::Require)?,
@@ -179,7 +176,7 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
                     Token::Keyword(Keyword::Finally),
                     vec![],
                 ),
-                self.tokens.try_peek()?.cloned(),
+                self.tokens.peek()?.cloned(),
             ))
         }
     }
@@ -187,11 +184,11 @@ impl<I: Iterator<Item = lexer::Result<Token>>> Parser<I> {
     fn parse_catch_block(&mut self) -> Result<CatchBlock> {
         self.expect_keyword(Keyword::Catch)?;
         let exception_identifier = if matches!(
-            self.tokens.try_peek()?,
+            self.tokens.peek()?,
             Some(Token::Punctuator(Punctuator::OpenParen))
         ) {
             self.expect_punctuator(Punctuator::OpenParen)?;
-            let identifier = match self.tokens.try_next()? {
+            let identifier = match self.tokens.next()? {
                 Some(Token::Identifier(id)) => Identifier::from(id),
                 token => {
                     return Err(Error::unexpected(

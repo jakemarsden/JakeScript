@@ -1,5 +1,6 @@
 #![feature(derive_default_enum)]
 
+use fallible_iterator::FallibleIterator;
 use jakescript::ast::Program;
 use jakescript::interpreter::{self, Eval, Interpreter, Vm};
 use jakescript::lexer::{self, Lexer};
@@ -24,7 +25,7 @@ fn main() -> Result<(), Error> {
         Options(Mode::Eval, None, Some(ref source_path)) => {
             let source_file = fs::File::open(source_path)?;
             let mut buf = io::BufReader::new(source_file);
-            let lexer = Lexer::for_chars_fallible(buf.chars());
+            let lexer = Lexer::for_chars_fallible(fallible_iterator::convert(buf.chars()));
 
             let (ast, parse_runtime) = parse(lexer)?;
             println!("Parsed in {:?}", parse_runtime);
@@ -40,7 +41,7 @@ fn main() -> Result<(), Error> {
         Options(Mode::Parse, Some(format), Some(ref source_path)) => {
             let source_file = fs::File::open(source_path)?;
             let mut buf = io::BufReader::new(source_file);
-            let lexer = Lexer::for_chars_fallible(buf.chars());
+            let lexer = Lexer::for_chars_fallible(fallible_iterator::convert(buf.chars()));
 
             let (ast, parse_runtime) = parse(lexer)?;
             println!("Parsed in {:?}", parse_runtime);
@@ -54,7 +55,7 @@ fn main() -> Result<(), Error> {
         Options(Mode::Lex, None, Some(ref source_path)) => {
             let source_file = fs::File::open(source_path)?;
             let mut buf = io::BufReader::new(source_file);
-            let lexer = Lexer::for_chars_fallible(buf.chars());
+            let lexer = Lexer::for_chars_fallible(fallible_iterator::convert(buf.chars()));
 
             let (elements, lex_runtime) = lex_and_print(lexer)?;
             println!("Lexed in {:?}", lex_runtime);
@@ -65,7 +66,7 @@ fn main() -> Result<(), Error> {
         }
         Options(Mode::Repl, None, None) => {
             let mut stdin = io::stdin().lock();
-            let lexer = Lexer::for_chars_fallible(stdin.chars());
+            let lexer = Lexer::for_chars_fallible(fallible_iterator::convert(stdin.chars()));
             let mut it = Interpreter::new(Vm::new().unwrap());
             Repl::new(lexer).execute(&mut it);
         }
@@ -74,18 +75,18 @@ fn main() -> Result<(), Error> {
     Ok(())
 }
 
-fn lex_and_print<I: Iterator<Item = io::Result<char>>>(
+fn lex_and_print<I: FallibleIterator<Item = char, Error = io::Error>>(
     lexer: Lexer<I>,
 ) -> lexer::Result<(Vec<Element>, Duration)> {
     let start_time = Instant::now();
     let mut elements = Vec::new();
-    for element in lexer {
+    for element in lexer.iterator() {
         elements.push(element?);
     }
     Ok((elements, start_time.elapsed()))
 }
 
-fn parse<I: Iterator<Item = io::Result<char>>>(
+fn parse<I: FallibleIterator<Item = char, Error = io::Error>>(
     lexer: Lexer<I>,
 ) -> parser::Result<(Program, Duration)> {
     let start_time = Instant::now();
