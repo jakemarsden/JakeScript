@@ -125,10 +125,9 @@ impl<I: Iterator<Item = io::Result<char>>> Lexer<I> {
     }
 
     fn parse_numeric_literal(&mut self) -> Result<Option<NumericLiteral>> {
-        let value = if let Some(value) = self.parse_non_decimal_int_literal()? {
-            Some(value)
-        } else {
-            self.parse_decimal_literal()?
+        let value = match self.parse_non_decimal_int_literal()? {
+            Some(value) => Some(value),
+            None => self.parse_decimal_literal()?,
         };
         if let Some(value) = value {
             // Ensure the character following the numeric literal is valid
