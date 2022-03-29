@@ -17,8 +17,7 @@ pub struct Block {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum BlockItem {
     Declaration(Declaration),
-    /// Boxed only due to large size difference.
-    Statement(Box<Statement>),
+    Statement(Statement),
 }
 
 impl Program {
@@ -53,9 +52,3 @@ impl Block {
 impl Node for Block {}
 
 impl Node for BlockItem {}
-
-impl From<Statement> for BlockItem {
-    fn from(node: Statement) -> Self {
-        Self::Statement(Box::new(node))
-    }
-}

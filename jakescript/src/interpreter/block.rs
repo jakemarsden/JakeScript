@@ -32,7 +32,7 @@ impl Eval for Block {
                 assert!(!decl.is_hoisted());
             }
             result = match node {
-                BlockItem::Statement(box Statement::Expression(expr)) => expr.eval(it),
+                BlockItem::Statement(Statement::Expression(expr)) => expr.eval(it),
                 item => item.eval(it).map(|()| Value::default()),
             }?;
         }

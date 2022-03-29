@@ -41,7 +41,7 @@ impl<I: FallibleIterator<Item = Token, Error = lexer::Error>> Parser<I> {
                 let (decl, initialisers) = decl.into_declaration_and_initialiser();
                 let initialisers = initialisers
                     .into_iter()
-                    .map(|expr| BlockItem::from(Statement::Expression(expr)))
+                    .map(|expr| BlockItem::Statement(Statement::Expression(expr)))
                     .collect();
                 Block::new(vec![decl], initialisers)
             }
@@ -61,7 +61,7 @@ impl<I: FallibleIterator<Item = Token, Error = lexer::Error>> Parser<I> {
                     let (decl, initialisers) = decl.into_declaration_and_initialiser();
                     let initialisers = initialisers
                         .into_iter()
-                        .map(|expr| BlockItem::from(Statement::Expression(expr)));
+                        .map(|expr| BlockItem::Statement(Statement::Expression(expr)));
                     hoisted_decls.push(decl);
                     body.extend(initialisers);
                 }
@@ -76,7 +76,7 @@ impl<I: FallibleIterator<Item = Token, Error = lexer::Error>> Parser<I> {
             Some(Token::Keyword(
                 Keyword::Const | Keyword::Function | Keyword::Let | Keyword::Var,
             )) => self.parse_declaration().map(BlockItem::Declaration),
-            _ => self.parse_statement().map(BlockItem::from),
+            _ => self.parse_statement().map(BlockItem::Statement),
         }
     }
 }

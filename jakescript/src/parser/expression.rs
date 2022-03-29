@@ -56,17 +56,19 @@ impl<I: FallibleIterator<Item = Token, Error = lexer::Error>> Parser<I> {
                 })
             }
             Some(Token::Punctuator(Punctuator::OpenBracket)) => {
-                let elems = self.parse_array_literal_elements()?;
+                let declared_elements = self.parse_array_literal_elements()?;
                 self.expect_punctuator(Punctuator::CloseBracket)?;
                 Expression::Literal(LiteralExpression {
-                    value: Literal::Array(elems),
+                    value: Literal::Array(ArrayLiteral { declared_elements }),
                 })
             }
             Some(Token::Punctuator(Punctuator::OpenBrace)) => {
-                let props = self.parse_object_properties()?;
+                let declared_properties = self.parse_object_properties()?;
                 self.expect_punctuator(Punctuator::CloseBrace)?;
                 Expression::Literal(LiteralExpression {
-                    value: Literal::Object(props),
+                    value: Literal::Object(Box::new(ObjectLiteral {
+                        declared_properties,
+                    })),
                 })
             }
             Some(Token::Punctuator(punc)) => {
@@ -134,11 +136,11 @@ impl<I: FallibleIterator<Item = Token, Error = lexer::Error>> Parser<I> {
                 let param_names = self.parse_fn_parameters()?;
                 let body = self.parse_block(Braces::Require)?;
                 Expression::Literal(LiteralExpression {
-                    value: Literal::Function {
+                    value: Literal::Function(Box::new(FunctionLiteral {
                         name,
                         param_names,
                         body,
-                    },
+                    })),
                 })
             }
             actual => return Err(Error::unexpected(Unspecified, actual)),

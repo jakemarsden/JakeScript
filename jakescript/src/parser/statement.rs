@@ -57,7 +57,9 @@ impl<I: FallibleIterator<Item = Token, Error = lexer::Error>> Parser<I> {
                 // Recursively parse `else if { .. }` blocks
                 Some(Block::new(
                     vec![],
-                    vec![BlockItem::from(Statement::If(self.parse_if_statement()?))],
+                    vec![BlockItem::Statement(Statement::If(
+                        self.parse_if_statement()?,
+                    ))],
                 ))
             } else {
                 // Parse `else { .. }` blocks

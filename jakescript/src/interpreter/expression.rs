@@ -311,35 +311,35 @@ impl Eval for LiteralExpression {
                 Value::Number(Number::try_from(*value).unwrap())
             }
             Literal::String(ref value) => Value::String(value.clone()),
-            Literal::Array(ref elem_exprs) => {
-                let mut elems = Vec::with_capacity(elem_exprs.len());
-                for elem_expr in elem_exprs {
+            Literal::Array(ref value) => {
+                let mut elems = Vec::with_capacity(value.declared_elements.len());
+                for elem_expr in &value.declared_elements {
                     elems.push(elem_expr.eval(it)?);
                 }
                 let obj_ref = it.vm_mut().heap_mut().allocate_array(elems)?;
                 Value::Reference(obj_ref)
             }
-            Literal::Function {
-                ref name,
-                ref param_names,
-                ref body,
-            } => {
+            Literal::Function(ref value) => {
                 let declared_scope = it.vm().stack().frame().scope().clone();
-                let callable = match name {
-                    Some(name) => Callable::new_named(
+                let callable = match value.name {
+                    Some(ref name) => Callable::new_named(
                         name.clone(),
-                        param_names.clone(),
+                        value.param_names.clone(),
                         declared_scope,
-                        body.clone(),
+                        value.body.clone(),
                     ),
-                    None => Callable::new(param_names.clone(), declared_scope, body.clone()),
+                    None => Callable::new(
+                        value.param_names.clone(),
+                        declared_scope,
+                        value.body.clone(),
+                    ),
                 };
                 let fn_obj_ref = it.vm_mut().heap_mut().allocate_callable_object(callable)?;
                 Value::Reference(fn_obj_ref)
             }
-            Literal::Object(ref declared_props) => {
-                let mut resolved_props = HashMap::with_capacity(declared_props.len());
-                for (key, expr) in declared_props {
+            Literal::Object(ref value) => {
+                let mut resolved_props = HashMap::with_capacity(value.declared_properties.len());
+                for (key, expr) in &value.declared_properties {
                     let value = expr.eval(it)?;
                     resolved_props.insert(key.clone(), value);
                 }
