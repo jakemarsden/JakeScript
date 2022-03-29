@@ -41,7 +41,11 @@ impl<I: FallibleIterator<Item = Token, Error = lexer::Error>> Parser<I> {
                 let (decl, initialisers) = decl.into_declaration_and_initialiser();
                 let initialisers = initialisers
                     .into_iter()
-                    .map(|expr| BlockItem::Statement(Statement::Expression(expr)))
+                    .map(|expr| {
+                        BlockItem::Statement(Statement::Expression(ExpressionStatement {
+                            expression: expr,
+                        }))
+                    })
                     .collect();
                 Block::new(vec![decl], initialisers)
             }
@@ -59,9 +63,11 @@ impl<I: FallibleIterator<Item = Token, Error = lexer::Error>> Parser<I> {
             match self.parse_declaration_or_statement()? {
                 BlockItem::Declaration(decl) if decl.is_hoisted() => {
                     let (decl, initialisers) = decl.into_declaration_and_initialiser();
-                    let initialisers = initialisers
-                        .into_iter()
-                        .map(|expr| BlockItem::Statement(Statement::Expression(expr)));
+                    let initialisers = initialisers.into_iter().map(|expr| {
+                        BlockItem::Statement(Statement::Expression(ExpressionStatement {
+                            expression: expr,
+                        }))
+                    });
                     hoisted_decls.push(decl);
                     body.extend(initialisers);
                 }

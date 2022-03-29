@@ -1,7 +1,7 @@
 #![feature(derive_default_enum)]
 
 use fallible_iterator::FallibleIterator;
-use jakescript::ast::Program;
+use jakescript::ast::Script;
 use jakescript::interpreter::{self, Eval, Interpreter, Vm};
 use jakescript::lexer::{self, Lexer};
 use jakescript::parser::{self, Parser};
@@ -88,13 +88,13 @@ fn lex_and_print<I: FallibleIterator<Item = char, Error = io::Error>>(
 
 fn parse<I: FallibleIterator<Item = char, Error = io::Error>>(
     lexer: Lexer<I>,
-) -> parser::Result<(Program, Duration)> {
+) -> parser::Result<(Script, Duration)> {
     let start_time = Instant::now();
     let parser = Parser::for_lexer(lexer);
     parser.execute().map(|ast| (ast, start_time.elapsed()))
 }
 
-fn eval(ast: &Program) -> interpreter::Result<(interpreter::Value, Duration)> {
+fn eval(ast: &Script) -> interpreter::Result<(interpreter::Value, Duration)> {
     let start_time = Instant::now();
     let mut it = Interpreter::new(Vm::new().unwrap());
     ast.eval(&mut it).map(|value| (value, start_time.elapsed()))

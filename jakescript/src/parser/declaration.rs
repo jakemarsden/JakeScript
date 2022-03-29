@@ -33,12 +33,12 @@ impl<I: FallibleIterator<Item = Token, Error = lexer::Error>> Parser<I> {
 
     fn parse_function_declaration(&mut self) -> Result<FunctionDeclaration> {
         self.expect_keyword(Keyword::Function)?;
-        let fn_name = Identifier::from(self.expect_identifier(non_empty_str!("function_name"))?);
-        let param_names = self.parse_fn_parameters()?;
+        let binding = Identifier::from(self.expect_identifier(non_empty_str!("function_name"))?);
+        let formal_parameters = self.parse_fn_parameters()?;
         let body = self.parse_block(Braces::Require)?;
         Ok(FunctionDeclaration {
-            fn_name,
-            param_names,
+            binding,
+            formal_parameters,
             body,
         })
     }
@@ -99,9 +99,9 @@ impl<I: FallibleIterator<Item = Token, Error = lexer::Error>> Parser<I> {
                 ))
             }
         };
-        let mut entries = Vec::new();
+        let mut bindings = Vec::new();
         loop {
-            entries.push(self.parse_variable_declaration_entry()?);
+            bindings.push(self.parse_variable_binding()?);
 
             match self.tokens.peek()? {
                 Some(Token::Punctuator(Punctuator::Comma)) => {
@@ -120,19 +120,19 @@ impl<I: FallibleIterator<Item = Token, Error = lexer::Error>> Parser<I> {
                 }
             }
         }
-        Ok(VariableDeclaration { kind, entries })
+        Ok(VariableDeclaration { kind, bindings })
     }
 
-    fn parse_variable_declaration_entry(&mut self) -> Result<VariableDeclarationEntry> {
-        let var_name = Identifier::from(self.expect_identifier(non_empty_str!("variable_name"))?);
+    fn parse_variable_binding(&mut self) -> Result<VariableBinding> {
+        let identifier = Identifier::from(self.expect_identifier(non_empty_str!("variable_name"))?);
         let initialiser = if let Some(Token::Punctuator(Punctuator::Eq)) = self.tokens.peek()? {
             self.tokens.next().unwrap().unwrap();
             Some(self.parse_expression()?)
         } else {
             None
         };
-        Ok(VariableDeclarationEntry {
-            var_name,
+        Ok(VariableBinding {
+            identifier,
             initialiser,
         })
     }

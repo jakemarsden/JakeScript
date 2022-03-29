@@ -7,7 +7,6 @@ use crate::lexer;
 use crate::non_empty_str;
 use crate::token::{Punctuator, Token};
 use fallible_iterator::FallibleIterator;
-use std::collections::HashMap;
 
 impl<I: FallibleIterator<Item = Token, Error = lexer::Error>> Parser<I> {
     pub(super) fn parse_array_literal_elements(&mut self) -> Result<Vec<Expression>> {
@@ -42,14 +41,13 @@ impl<I: FallibleIterator<Item = Token, Error = lexer::Error>> Parser<I> {
         }
     }
 
-    pub(super) fn parse_object_properties(&mut self) -> Result<HashMap<Identifier, Expression>> {
-        let mut props = HashMap::default();
+    pub(super) fn parse_object_properties(&mut self) -> Result<Vec<DeclaredProperty>> {
+        let mut props = Vec::new();
         Ok(loop {
             match self.tokens.peek()? {
                 Some(Token::Punctuator(Punctuator::CloseBrace)) => break props,
                 Some(Token::Identifier(_)) => {
-                    let (key, value) = self.parse_object_property()?;
-                    props.insert(key, value);
+                    props.push(self.parse_object_property()?);
                 }
                 actual => {
                     return Err(Error::unexpected(
@@ -82,9 +80,10 @@ impl<I: FallibleIterator<Item = Token, Error = lexer::Error>> Parser<I> {
         })
     }
 
-    fn parse_object_property(&mut self) -> Result<(Identifier, Expression)> {
-        let key = match self.tokens.next()? {
-            Some(Token::Identifier(id)) => Identifier::from(id),
+    fn parse_object_property(&mut self) -> Result<DeclaredProperty> {
+        let name = match self.tokens.next()? {
+            // TODO: Parse non-identifier declared property names.
+            Some(Token::Identifier(id)) => DeclaredPropertyName::Identifier(Identifier::from(id)),
             actual => {
                 return Err(Error::unexpected(
                     Exactly(Token::Identifier(non_empty_str!("property_key"))),
@@ -93,7 +92,7 @@ impl<I: FallibleIterator<Item = Token, Error = lexer::Error>> Parser<I> {
             }
         };
         self.expect_punctuator(Punctuator::Colon)?;
-        let value = self.parse_expression()?;
-        Ok((key, value))
+        let initialiser = self.parse_expression()?;
+        Ok(DeclaredProperty { name, initialiser })
     }
 }

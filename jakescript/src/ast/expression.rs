@@ -1,28 +1,68 @@
 use super::identifier::Identifier;
-use super::literal::Literal;
+use super::literal::{Literal, NumericLiteral, StringLiteral};
 use super::Node;
+use crate::ast::Block;
 use serde::{Deserialize, Serialize};
-use std::fmt;
-
-pub trait Op: Copy + fmt::Debug + Eq {
-    fn associativity(&self) -> Associativity;
-    fn precedence(&self) -> Precedence;
-}
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(tag = "expression_type")]
 pub enum Expression {
+    IdentifierReference(IdentifierReferenceExpression),
+    Literal(LiteralExpression),
+    Array(ArrayExpression),
+    Object(ObjectExpression),
+    /// Boxed due to large size only.
+    Function(Box<FunctionExpression>),
+
     Assignment(AssignmentExpression),
     Binary(BinaryExpression),
+    Relational(RelationalExpression),
     Unary(UnaryExpression),
-    Ternary(TernaryExpression),
+    Update(UpdateExpression),
+    Member(MemberExpression),
     Grouping(GroupingExpression),
-    FunctionCall(FunctionCallExpression),
-    PropertyAccess(PropertyAccessExpression),
-    ComputedPropertyAccess(ComputedPropertyAccessExpression),
+    Ternary(TernaryExpression),
+}
 
-    Literal(LiteralExpression),
-    VariableAccess(VariableAccessExpression),
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct IdentifierReferenceExpression {
+    pub identifier: Identifier,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct LiteralExpression {
+    pub value: Literal,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct ArrayExpression {
+    pub declared_elements: Vec<Expression>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct ObjectExpression {
+    pub declared_properties: Vec<DeclaredProperty>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum DeclaredPropertyName {
+    Identifier(Identifier),
+    NumericLiteral(NumericLiteral),
+    StringLiteral(StringLiteral),
+    Computed(Expression),
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct DeclaredProperty {
+    pub name: DeclaredPropertyName,
+    pub initialiser: Expression,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct FunctionExpression {
+    pub binding: Option<Identifier>,
+    pub formal_parameters: Vec<Identifier>,
+    pub body: Block,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -40,26 +80,29 @@ pub struct BinaryExpression {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct RelationalExpression {
+    pub op: RelationalOperator,
+    pub lhs: Box<Expression>,
+    pub rhs: Box<Expression>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct UnaryExpression {
     pub op: UnaryOperator,
     pub operand: Box<Expression>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct TernaryExpression {
-    pub condition: Box<Expression>,
-    pub lhs: Box<Expression>,
-    pub rhs: Box<Expression>,
+pub struct UpdateExpression {
+    pub op: UpdateOperator,
+    pub operand: Box<Expression>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct GroupingExpression {
-    pub inner: Box<Expression>,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct LiteralExpression {
-    pub value: Literal,
+pub enum MemberExpression {
+    FunctionCall(FunctionCallExpression),
+    MemberAccess(MemberAccessExpression),
+    ComputedMemberAccess(ComputedMemberAccessExpression),
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -69,104 +112,106 @@ pub struct FunctionCallExpression {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct PropertyAccessExpression {
+pub struct MemberAccessExpression {
     pub base: Box<Expression>,
-    pub property_name: Identifier,
+    pub member: Identifier,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct ComputedPropertyAccessExpression {
+pub struct ComputedMemberAccessExpression {
     pub base: Box<Expression>,
-    pub property: Box<Expression>,
+    pub member: Box<Expression>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct VariableAccessExpression {
-    pub var_name: Identifier,
+pub struct GroupingExpression {
+    pub inner: Box<Expression>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct TernaryExpression {
+    pub condition: Box<Expression>,
+    pub lhs: Box<Expression>,
+    pub rhs: Box<Expression>,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Operator {
     Assignment(AssignmentOperator),
     Binary(BinaryOperator),
+    Relational(RelationalOperator),
     Unary(UnaryOperator),
-    Ternary,
+    Update(UpdateOperator),
+    Member(MemberOperator),
     Grouping,
-    FunctionCall,
-    PropertyAccess,
-    ComputedPropertyAccess,
+    Ternary,
 }
 
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub enum AssignmentOperator {
     #[default]
     Assign,
-    AddAssign,
-    DivAssign,
-    ModAssign,
-    MulAssign,
-    PowAssign,
-    SubAssign,
-    ShiftLeftAssign,
-    ShiftRightAssign,
-    ShiftRightUnsignedAssign,
-    BitwiseAndAssign,
-    BitwiseOrAssign,
-    BitwiseXOrAssign,
+    ComputeAssign(BinaryOperator),
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub enum BinaryOperator {
-    Add,
-    Div,
-    Mod,
-    Mul,
-    Pow,
-    Sub,
-    Equal,
-    NotEqual,
-    Identical,
-    NotIdentical,
-    LessThan,
-    LessThanOrEqual,
-    MoreThan,
-    MoreThanOrEqual,
-    ShiftLeft,
-    ShiftRight,
-    ShiftRightUnsigned,
+    Addition,
+    Subtraction,
+    Multiplication,
+    Division,
+    Modulus,
+    Exponentiation,
     BitwiseAnd,
     BitwiseOr,
     BitwiseXOr,
     LogicalAnd,
     LogicalOr,
+    BitwiseLeftShift,
+    BitwiseRightShift,
+    BitwiseRightShiftUnsigned,
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+pub enum RelationalOperator {
+    Equality,
+    Inequality,
+    StrictEquality,
+    StrictInequality,
+    GreaterThan,
+    GreaterThanOrEqual,
+    LessThan,
+    LessThanOrEqual,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub enum UnaryOperator {
-    DecrementPrefix,
-    DecrementPostfix,
-    IncrementPrefix,
-    IncrementPostfix,
+    NumericPlus,
+    NumericNegation,
     BitwiseNot,
     LogicalNot,
-    NumericNegate,
-    NumericPlus,
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub struct TernaryOperator;
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+pub enum UpdateOperator {
+    GetAndIncrement,
+    IncrementAndGet,
+    GetAndDecrement,
+    DecrementAndGet,
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+pub enum MemberOperator {
+    FunctionCall,
+    MemberAccess,
+    ComputedMemberAccess,
+}
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct GroupingOperator;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub struct FunctionCallOperator;
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub struct PropertyAccessOperator;
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub struct ComputedPropertyAccessOperator;
+pub struct TernaryOperator;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Associativity {
@@ -179,82 +224,96 @@ pub struct Precedence(u8);
 
 impl Node for Expression {}
 
+impl Node for IdentifierReferenceExpression {}
+
+impl Node for LiteralExpression {}
+
+impl Node for ArrayExpression {}
+
+impl Node for ObjectExpression {}
+
+impl Node for FunctionExpression {}
+
 impl Node for AssignmentExpression {}
 
 impl Node for BinaryExpression {}
 
+impl Node for RelationalExpression {}
+
 impl Node for UnaryExpression {}
 
-impl Node for TernaryExpression {}
+impl Node for UpdateExpression {}
 
-impl Node for GroupingExpression {}
-
-impl Node for LiteralExpression {}
+impl Node for MemberExpression {}
 
 impl Node for FunctionCallExpression {}
 
-impl Node for PropertyAccessExpression {}
+impl Node for MemberAccessExpression {}
 
-impl Node for ComputedPropertyAccessExpression {}
+impl Node for ComputedMemberAccessExpression {}
 
-impl Node for VariableAccessExpression {}
+impl Node for GroupingExpression {}
 
-impl Op for Operator {
-    fn associativity(&self) -> Associativity {
+impl Node for TernaryExpression {}
+
+impl Operator {
+    pub fn associativity(&self) -> Associativity {
         match self {
             Self::Assignment(kind) => kind.associativity(),
             Self::Binary(kind) => kind.associativity(),
+            Self::Relational(kind) => kind.associativity(),
             Self::Unary(kind) => kind.associativity(),
-            Self::Ternary => TernaryOperator.associativity(),
-            Self::Grouping => GroupingOperator.associativity(),
-            Self::FunctionCall => FunctionCallOperator.associativity(),
-            Self::PropertyAccess => PropertyAccessOperator.associativity(),
-            Self::ComputedPropertyAccess => ComputedPropertyAccessOperator.associativity(),
+            Self::Update(kind) => kind.associativity(),
+            Self::Member(kind) => kind.associativity(),
+            Self::Grouping => GroupingOperator::associativity(),
+            Self::Ternary => TernaryOperator::associativity(),
         }
     }
 
-    fn precedence(&self) -> Precedence {
+    pub fn precedence(&self) -> Precedence {
         match self {
             Self::Assignment(kind) => kind.precedence(),
             Self::Binary(kind) => kind.precedence(),
+            Self::Relational(kind) => kind.precedence(),
             Self::Unary(kind) => kind.precedence(),
-            Self::Ternary => TernaryOperator.precedence(),
-            Self::Grouping => GroupingOperator.precedence(),
-            Self::FunctionCall => FunctionCallOperator.precedence(),
-            Self::PropertyAccess => PropertyAccessOperator.precedence(),
-            Self::ComputedPropertyAccess => ComputedPropertyAccessOperator.precedence(),
+            Self::Update(kind) => kind.precedence(),
+            Self::Member(kind) => kind.precedence(),
+            Self::Grouping => GroupingOperator::precedence(),
+            Self::Ternary => TernaryOperator::precedence(),
         }
     }
 }
 
-impl Op for AssignmentOperator {
-    fn associativity(&self) -> Associativity {
-        Associativity::RightToLeft
+impl AssignmentOperator {
+    pub fn associativity(&self) -> Associativity {
+        match self {
+            Self::Assign | Self::ComputeAssign(..) => Associativity::RightToLeft,
+        }
     }
 
-    fn precedence(&self) -> Precedence {
-        Precedence(3)
+    pub fn precedence(&self) -> Precedence {
+        match self {
+            Self::Assign | Self::ComputeAssign(..) => Precedence(3),
+        }
     }
 }
 
-impl Op for BinaryOperator {
-    fn associativity(&self) -> Associativity {
+impl BinaryOperator {
+    pub fn associativity(&self) -> Associativity {
         match self {
-            Self::Pow => Associativity::RightToLeft,
+            Self::Exponentiation => Associativity::RightToLeft,
             _ => Associativity::LeftToRight,
         }
     }
 
-    fn precedence(&self) -> Precedence {
+    pub fn precedence(&self) -> Precedence {
         match self {
-            Self::Pow => Precedence(16),
-            Self::Mul | Self::Div | Self::Mod => Precedence(15),
-            Self::Add | Self::Sub => Precedence(14),
-            Self::ShiftLeft | Self::ShiftRight | Self::ShiftRightUnsigned => Precedence(13),
-            Self::LessThan | Self::LessThanOrEqual | Self::MoreThan | Self::MoreThanOrEqual => {
-                Precedence(12)
+            Self::Exponentiation => Precedence(16),
+            Self::Multiplication | Self::Division | Self::Modulus => Precedence(15),
+            Self::Addition | Self::Subtraction => Precedence(14),
+            Self::BitwiseLeftShift | Self::BitwiseRightShift | Self::BitwiseRightShiftUnsigned => {
+                Precedence(13)
             }
-            Self::Equal | Self::NotEqual | Self::Identical | Self::NotIdentical => Precedence(11),
             Self::BitwiseAnd => Precedence(10),
             Self::BitwiseXOr => Precedence(9),
             Self::BitwiseOr => Precedence(8),
@@ -264,71 +323,102 @@ impl Op for BinaryOperator {
     }
 }
 
-impl Op for UnaryOperator {
-    fn associativity(&self) -> Associativity {
-        Associativity::RightToLeft
+impl RelationalOperator {
+    pub fn associativity(&self) -> Associativity {
+        match self {
+            Self::Equality
+            | Self::Inequality
+            | Self::StrictEquality
+            | Self::StrictInequality
+            | Self::GreaterThan
+            | Self::GreaterThanOrEqual
+            | Self::LessThan
+            | Self::LessThanOrEqual => Associativity::LeftToRight,
+        }
     }
 
-    fn precedence(&self) -> Precedence {
+    pub fn precedence(&self) -> Precedence {
         match self {
-            Self::IncrementPostfix | Self::DecrementPostfix => Precedence(18),
-            Self::LogicalNot
-            | Self::BitwiseNot
-            | Self::NumericPlus
-            | Self::NumericNegate
-            | Self::IncrementPrefix
-            | Self::DecrementPrefix => Precedence(17),
+            Self::GreaterThan
+            | Self::GreaterThanOrEqual
+            | Self::LessThan
+            | Self::LessThanOrEqual => Precedence(12),
+            Self::Equality | Self::Inequality | Self::StrictEquality | Self::StrictInequality => {
+                Precedence(11)
+            }
         }
     }
 }
 
-impl Op for TernaryOperator {
-    fn associativity(&self) -> Associativity {
-        Associativity::RightToLeft
+impl UnaryOperator {
+    pub fn associativity(&self) -> Associativity {
+        match self {
+            Self::NumericPlus | Self::NumericNegation | Self::BitwiseNot | Self::LogicalNot => {
+                Associativity::RightToLeft
+            }
+        }
     }
 
-    fn precedence(&self) -> Precedence {
-        Precedence(4)
+    pub fn precedence(&self) -> Precedence {
+        match self {
+            Self::NumericPlus | Self::NumericNegation | Self::BitwiseNot | Self::LogicalNot => {
+                Precedence(17)
+            }
+        }
     }
 }
 
-impl Op for GroupingOperator {
-    fn associativity(&self) -> Associativity {
+impl UpdateOperator {
+    pub fn associativity(&self) -> Associativity {
+        match self {
+            Self::GetAndIncrement
+            | Self::IncrementAndGet
+            | Self::GetAndDecrement
+            | Self::DecrementAndGet => Associativity::RightToLeft,
+        }
+    }
+
+    pub fn precedence(&self) -> Precedence {
+        match self {
+            Self::GetAndIncrement | Self::GetAndDecrement => Precedence(18),
+            Self::IncrementAndGet | Self::DecrementAndGet => Precedence(17),
+        }
+    }
+}
+
+impl MemberOperator {
+    pub fn associativity(&self) -> Associativity {
+        match self {
+            Self::FunctionCall | Self::MemberAccess | Self::ComputedMemberAccess => {
+                Associativity::LeftToRight
+            }
+        }
+    }
+
+    pub fn precedence(&self) -> Precedence {
+        match self {
+            Self::FunctionCall | Self::MemberAccess | Self::ComputedMemberAccess => Precedence(20),
+        }
+    }
+}
+
+impl GroupingOperator {
+    pub fn associativity() -> Associativity {
         Associativity::LeftToRight
     }
 
-    fn precedence(&self) -> Precedence {
+    pub fn precedence() -> Precedence {
         Precedence(21)
     }
 }
 
-impl Op for FunctionCallOperator {
-    fn associativity(&self) -> Associativity {
-        Associativity::LeftToRight
+impl TernaryOperator {
+    pub fn associativity() -> Associativity {
+        Associativity::RightToLeft
     }
 
-    fn precedence(&self) -> Precedence {
-        Precedence(20)
-    }
-}
-
-impl Op for PropertyAccessOperator {
-    fn associativity(&self) -> Associativity {
-        Associativity::LeftToRight
-    }
-
-    fn precedence(&self) -> Precedence {
-        Precedence(20)
-    }
-}
-
-impl Op for ComputedPropertyAccessOperator {
-    fn associativity(&self) -> Associativity {
-        Associativity::LeftToRight
-    }
-
-    fn precedence(&self) -> Precedence {
-        Precedence(20)
+    pub fn precedence() -> Precedence {
+        Precedence(4)
     }
 }
 

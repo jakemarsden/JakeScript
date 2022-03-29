@@ -45,7 +45,7 @@ impl<I: FallibleIterator<Item = Token, Error = lexer::Error>> Parser<I> {
 
     pub fn execute(mut self) -> Result {
         let body = self.parse_multi_statement_block_body()?;
-        Ok(Program::new(body))
+        Ok(Script::new(body))
     }
 
     fn expect_keyword(&mut self, expected: Keyword) -> Result<()> {

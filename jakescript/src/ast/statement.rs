@@ -8,41 +8,43 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(tag = "statement_type")]
 pub enum Statement {
-    Break(BreakStatement),
-    Continue(ContinueStatement),
-    Expression(Expression),
+    Expression(ExpressionStatement),
+
     If(IfStatement),
+    WhileLoop(WhileStatement),
+    ForLoop(ForStatement),
+
+    Continue(ContinueStatement),
+    Break(BreakStatement),
     Return(ReturnStatement),
     Throw(ThrowStatement),
     Try(TryStatement),
-    ForLoop(ForLoop),
-    WhileLoop(WhileLoop),
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct ExpressionStatement {
+    pub expression: Expression,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct IfStatement {
     pub condition: Expression,
-    pub success_block: Block,
-    pub else_block: Option<Block>,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct ForLoop {
-    pub initialiser: Option<VariableDeclaration>,
-    pub condition: Option<Expression>,
-    pub incrementor: Option<Expression>,
     pub body: Block,
+    pub else_body: Option<Block>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct WhileLoop {
+pub struct WhileStatement {
     pub condition: Expression,
     pub body: Block,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct BreakStatement {
-    // TODO: Support labels.
+pub struct ForStatement {
+    pub initialiser: Option<VariableDeclaration>,
+    pub condition: Option<Expression>,
+    pub incrementor: Option<Expression>,
+    pub body: Block,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -51,8 +53,13 @@ pub struct ContinueStatement {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct BreakStatement {
+    // TODO: Support labels.
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ReturnStatement {
-    pub expr: Option<Expression>,
+    pub value: Option<Expression>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -63,32 +70,34 @@ pub struct ThrowStatement {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct TryStatement {
     pub body: Block,
-    pub catch_block: Option<CatchBlock>,
-    pub finally_block: Option<FinallyBlock>,
+    pub catch: Option<Catch>,
+    pub finally: Option<Finally>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct CatchBlock {
-    pub exception_identifier: Option<Identifier>,
+pub struct Catch {
+    pub parameter: Option<Identifier>,
     pub body: Block,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct FinallyBlock {
-    pub inner: Block,
+pub struct Finally {
+    pub body: Block,
 }
 
 impl Node for Statement {}
 
+impl Node for ExpressionStatement {}
+
 impl Node for IfStatement {}
 
-impl Node for ForLoop {}
+impl Node for WhileStatement {}
 
-impl Node for WhileLoop {}
-
-impl Node for BreakStatement {}
+impl Node for ForStatement {}
 
 impl Node for ContinueStatement {}
+
+impl Node for BreakStatement {}
 
 impl Node for ReturnStatement {}
 
@@ -96,6 +105,6 @@ impl Node for ThrowStatement {}
 
 impl Node for TryStatement {}
 
-impl Node for CatchBlock {}
+impl Node for Catch {}
 
-impl Node for FinallyBlock {}
+impl Node for Finally {}

@@ -4,7 +4,7 @@ use super::vm::ExecutionState;
 use super::{Eval, Interpreter};
 use crate::ast::*;
 
-impl Eval for Program {
+impl Eval for Script {
     type Output = Value;
 
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
@@ -32,7 +32,7 @@ impl Eval for Block {
                 assert!(!decl.is_hoisted());
             }
             result = match node {
-                BlockItem::Statement(Statement::Expression(expr)) => expr.eval(it),
+                BlockItem::Statement(Statement::Expression(expr)) => expr.expression.eval(it),
                 item => item.eval(it).map(|()| Value::default()),
             }?;
         }

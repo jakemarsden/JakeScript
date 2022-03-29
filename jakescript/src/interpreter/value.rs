@@ -472,14 +472,6 @@ impl cmp::PartialOrd for Number {
     }
 }
 
-impl TryFrom<u64> for Number {
-    type Error = num::TryFromIntError;
-
-    fn try_from(value: u64) -> Result<Self, Self::Error> {
-        i64::try_from(value).map(Self::Int)
-    }
-}
-
 impl fmt::Display for Number {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {

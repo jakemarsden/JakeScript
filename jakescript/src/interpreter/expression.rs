@@ -14,18 +14,114 @@ impl Eval for Expression {
 
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         match self {
+            Self::IdentifierReference(ref node) => node.eval(it),
+            Self::Literal(ref node) => node.eval(it),
+            Self::Array(ref node) => node.eval(it),
+            Self::Object(ref node) => node.eval(it),
+            Self::Function(ref node) => node.eval(it),
             Self::Assignment(ref node) => node.eval(it),
             Self::Binary(ref node) => node.eval(it),
+            Self::Relational(ref node) => node.eval(it),
             Self::Unary(ref node) => node.eval(it),
-            Self::Ternary(ref node) => node.eval(it),
+            Self::Update(ref node) => node.eval(it),
+            Self::Member(ref node) => node.eval(it),
             Self::Grouping(ref node) => node.eval(it),
-            Self::FunctionCall(ref node) => node.eval(it),
-            Self::PropertyAccess(ref node) => node.eval(it),
-            Self::ComputedPropertyAccess(ref node) => node.eval(it),
-
-            Self::Literal(ref node) => node.eval(it),
-            Self::VariableAccess(ref node) => node.eval(it),
+            Self::Ternary(ref node) => node.eval(it),
         }
+    }
+}
+
+impl Eval for IdentifierReferenceExpression {
+    type Output = Value;
+
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
+        if let Some(variable) = it
+            .vm()
+            .stack()
+            .frame()
+            .scope()
+            .lookup_variable(&self.identifier)
+        {
+            let value = variable.value().clone();
+            Ok(value)
+        } else {
+            it.vm().runtime().global_object().property(&self.identifier)
+        }
+    }
+}
+
+impl Eval for LiteralExpression {
+    type Output = Value;
+
+    fn eval(&self, _: &mut Interpreter) -> Result<Self::Output> {
+        Ok(match self.value {
+            Literal::Boolean(value) => Value::Boolean(value),
+            Literal::Numeric(value) => Value::Number(match value {
+                NumericLiteral::Int(value) => Number::Int(i64::try_from(value).unwrap()),
+                NumericLiteral::Float(value) => Number::Float(value),
+            }),
+            Literal::String(ref value) => Value::String(value.value.clone()),
+            Literal::Null => Value::Null,
+        })
+    }
+}
+
+impl Eval for ArrayExpression {
+    type Output = Value;
+
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
+        let mut elems = Vec::with_capacity(self.declared_elements.len());
+        for elem_expr in &self.declared_elements {
+            elems.push(elem_expr.eval(it)?);
+        }
+        let obj_ref = it.vm_mut().heap_mut().allocate_array(elems)?;
+        Ok(Value::Reference(obj_ref))
+    }
+}
+
+impl Eval for ObjectExpression {
+    type Output = Value;
+
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
+        let mut resolved_props = HashMap::with_capacity(self.declared_properties.len());
+        for prop in &self.declared_properties {
+            let name = match prop.name {
+                DeclaredPropertyName::Identifier(ref value) => value.clone(),
+                DeclaredPropertyName::NumericLiteral(..)
+                | DeclaredPropertyName::StringLiteral(..)
+                | DeclaredPropertyName::Computed(..) => todo!(
+                    "ObjectExpression::eval: Non-identifier property name: {:?}",
+                    prop.name,
+                ),
+            };
+            let value = prop.initialiser.eval(it)?;
+            resolved_props.insert(name, value);
+        }
+        let obj_ref = it.vm_mut().heap_mut().allocate_object(resolved_props)?;
+        Ok(Value::Reference(obj_ref))
+    }
+}
+
+impl Eval for FunctionExpression {
+    type Output = Value;
+
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
+        let declared_scope = it.vm().stack().frame().scope().clone();
+        let callable = match self.binding {
+            Some(ref binding) => Callable::new_named(
+                binding.clone(),
+                self.formal_parameters.clone(),
+                declared_scope,
+                self.body.clone(),
+            ),
+            None => Callable::new(
+                self.formal_parameters.clone(),
+                declared_scope,
+                self.body.clone(),
+            ),
+        };
+        let fn_obj_ref = it.vm_mut().heap_mut().allocate_callable_object(callable)?;
+        Ok(Value::Reference(fn_obj_ref))
     }
 }
 
@@ -41,58 +137,73 @@ impl Eval for AssignmentExpression {
             let rhs = self_.rhs.eval(it)?;
             Ok(match self_.op {
                 AssignmentOperator::Assign => rhs,
-                AssignmentOperator::AddAssign => Value::add_or_append(it.vm(), &getter()?, &rhs)?,
-                AssignmentOperator::SubAssign => Value::sub(&getter()?, &rhs)?,
-                AssignmentOperator::MulAssign => Value::mul(&getter()?, &rhs)?,
-                AssignmentOperator::DivAssign => Value::div(&getter()?, &rhs)?,
-                AssignmentOperator::ModAssign => Value::rem(&getter()?, &rhs)?,
-                AssignmentOperator::PowAssign => Value::pow(&getter()?, &rhs)?,
-                kind => todo!("AssignmentExpression::eval: kind={:?}", kind),
+                AssignmentOperator::ComputeAssign(BinaryOperator::Addition) => {
+                    Value::add_or_append(it.vm(), &getter()?, &rhs)?
+                }
+                AssignmentOperator::ComputeAssign(BinaryOperator::Subtraction) => {
+                    Value::sub(&getter()?, &rhs)?
+                }
+                AssignmentOperator::ComputeAssign(BinaryOperator::Multiplication) => {
+                    Value::mul(&getter()?, &rhs)?
+                }
+                AssignmentOperator::ComputeAssign(BinaryOperator::Division) => {
+                    Value::div(&getter()?, &rhs)?
+                }
+                AssignmentOperator::ComputeAssign(BinaryOperator::Modulus) => {
+                    Value::rem(&getter()?, &rhs)?
+                }
+                AssignmentOperator::ComputeAssign(BinaryOperator::Exponentiation) => {
+                    Value::pow(&getter()?, &rhs)?
+                }
+                kind @ AssignmentOperator::ComputeAssign(..) => {
+                    todo!("AssignmentExpression::eval: kind={:?}", kind)
+                }
             })
         }
 
         assert_matches!(self.op.associativity(), Associativity::RightToLeft);
         match self.lhs.as_ref() {
-            Expression::VariableAccess(node) => {
+            Expression::IdentifierReference(node) => {
                 if let Some(mut variable) = it
                     .vm()
                     .stack()
                     .frame()
                     .scope()
-                    .lookup_variable(&node.var_name)
+                    .lookup_variable(&node.identifier)
                 {
                     let new_value = compute_new_value(self, it, || Ok(variable.value().clone()))?;
                     variable.set_value(new_value.clone())?;
                     Ok(new_value)
                 } else {
-                    let value = it.vm().runtime().global_object().property(&node.var_name)?;
+                    let value = it
+                        .vm()
+                        .runtime()
+                        .global_object()
+                        .property(&node.identifier)?;
                     let new_value = compute_new_value(self, it, || Ok(value.clone()))?;
                     it.vm_mut()
                         .runtime_mut()
                         .global_object_mut()
-                        .set_property(&node.var_name, value.clone())?;
+                        .set_property(&node.identifier, value.clone())?;
                     Ok(new_value)
                 }
             }
-            Expression::PropertyAccess(node) => {
+            Expression::Member(MemberExpression::MemberAccess(node)) => {
                 let base_value = node.base.eval(it)?;
                 match base_value {
                     Value::Reference(ref base_refr) => {
                         let mut base_obj = it.vm_mut().heap_mut().resolve_mut(base_refr);
                         let new_value = compute_new_value(self, it, || {
-                            Ok(base_obj
-                                .property(&node.property_name)
-                                .cloned()
-                                .unwrap_or_default())
+                            Ok(base_obj.property(&node.member).cloned().unwrap_or_default())
                         })?;
-                        base_obj.set_property(node.property_name.clone(), new_value.clone());
+                        base_obj.set_property(node.member.clone(), new_value.clone());
                         Ok(new_value)
                     }
                     Value::NativeObject(ref base_refr) => {
                         let mut base_obj = it.vm_mut().runtime_mut().resolve_mut(base_refr);
                         let new_value =
-                            compute_new_value(self, it, || base_obj.property(&node.property_name))?;
-                        base_obj.set_property(&node.property_name, new_value.clone())?;
+                            compute_new_value(self, it, || base_obj.property(&node.member))?;
+                        base_obj.set_property(&node.member, new_value.clone())?;
                         Ok(new_value)
                     }
                     base_value => todo!("AssignmentExpression::eval: base_value={:?}", base_value),
@@ -145,32 +256,40 @@ impl Eval for BinaryExpression {
                         unreachable_unchecked()
                     },
 
-                    BinaryOperator::Add => Value::add_or_append(it.vm(), lhs, rhs)?,
-                    BinaryOperator::Div => Value::div(lhs, rhs)?,
-                    BinaryOperator::Mod => Value::rem(lhs, rhs)?,
-                    BinaryOperator::Mul => Value::mul(lhs, rhs)?,
-                    BinaryOperator::Pow => Value::pow(lhs, rhs)?,
-                    BinaryOperator::Sub => Value::sub(lhs, rhs)?,
-
-                    BinaryOperator::Equal => Value::eq(it.vm(), lhs, rhs),
-                    BinaryOperator::NotEqual => Value::ne(it.vm(), lhs, rhs),
-                    BinaryOperator::Identical => Value::identical(it.vm(), lhs, rhs),
-                    BinaryOperator::NotIdentical => Value::not_identical(it.vm(), lhs, rhs),
-
-                    BinaryOperator::LessThan => Value::lt(it.vm(), lhs, rhs),
-                    BinaryOperator::LessThanOrEqual => Value::le(it.vm(), lhs, rhs),
-                    BinaryOperator::MoreThan => Value::gt(it.vm(), lhs, rhs),
-                    BinaryOperator::MoreThanOrEqual => Value::ge(it.vm(), lhs, rhs),
-
-                    BinaryOperator::ShiftLeft => Value::shl(lhs, rhs)?,
-                    BinaryOperator::ShiftRight => Value::shr_signed(lhs, rhs)?,
-                    BinaryOperator::ShiftRightUnsigned => Value::shr_unsigned(lhs, rhs)?,
-
+                    BinaryOperator::Addition => Value::add_or_append(it.vm(), lhs, rhs)?,
+                    BinaryOperator::Subtraction => Value::sub(lhs, rhs)?,
+                    BinaryOperator::Multiplication => Value::mul(lhs, rhs)?,
+                    BinaryOperator::Division => Value::div(lhs, rhs)?,
+                    BinaryOperator::Modulus => Value::rem(lhs, rhs)?,
+                    BinaryOperator::Exponentiation => Value::pow(lhs, rhs)?,
                     BinaryOperator::BitwiseAnd => Value::bitand(lhs, rhs),
                     BinaryOperator::BitwiseOr => Value::bitor(lhs, rhs),
                     BinaryOperator::BitwiseXOr => Value::bitxor(lhs, rhs),
+                    BinaryOperator::BitwiseLeftShift => Value::shl(lhs, rhs)?,
+                    BinaryOperator::BitwiseRightShift => Value::shr_signed(lhs, rhs)?,
+                    BinaryOperator::BitwiseRightShiftUnsigned => Value::shr_unsigned(lhs, rhs)?,
                 }
             }
+        })
+    }
+}
+
+impl Eval for RelationalExpression {
+    type Output = Value;
+
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
+        assert_matches!(self.op.associativity(), Associativity::LeftToRight);
+        let lhs = &self.lhs.eval(it)?;
+        let rhs = &self.rhs.eval(it)?;
+        Ok(match self.op {
+            RelationalOperator::Equality => Value::eq(it.vm(), lhs, rhs),
+            RelationalOperator::Inequality => Value::ne(it.vm(), lhs, rhs),
+            RelationalOperator::StrictEquality => Value::identical(it.vm(), lhs, rhs),
+            RelationalOperator::StrictInequality => Value::not_identical(it.vm(), lhs, rhs),
+            RelationalOperator::GreaterThan => Value::gt(it.vm(), lhs, rhs),
+            RelationalOperator::GreaterThanOrEqual => Value::ge(it.vm(), lhs, rhs),
+            RelationalOperator::LessThan => Value::lt(it.vm(), lhs, rhs),
+            RelationalOperator::LessThanOrEqual => Value::le(it.vm(), lhs, rhs),
         })
     }
 }
@@ -181,173 +300,110 @@ impl Eval for UnaryExpression {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let operand = &self.operand.eval(it)?;
         Ok(match self.op {
-            UnaryOperator::IncrementPrefix
-            | UnaryOperator::IncrementPostfix
-            | UnaryOperator::DecrementPrefix
-            | UnaryOperator::DecrementPostfix => {
-                fn compute(
-                    self_: &UnaryExpression,
-                    it: &mut Interpreter,
-                    getter: impl FnOnce() -> Result,
-                ) -> Result<(Value, Value)> {
-                    const ONE: Value = Value::Number(Number::Int(1));
-                    let old_value = getter()?;
-
-                    // The new value to assign to the variable or property
-                    let new_value = match self_.op {
-                        UnaryOperator::IncrementPrefix | UnaryOperator::IncrementPostfix => {
-                            Value::add_or_append(it.vm(), &old_value, &ONE)?
-                        }
-                        UnaryOperator::DecrementPrefix | UnaryOperator::DecrementPostfix => {
-                            Value::sub(&old_value, &ONE)?
-                        }
-                        _ => unreachable!("{:?}", self_.op),
-                    };
-                    // The value to use as the result of the expression
-                    let result_value = match self_.op {
-                        UnaryOperator::IncrementPrefix | UnaryOperator::DecrementPrefix => {
-                            new_value.clone()
-                        }
-                        UnaryOperator::IncrementPostfix | UnaryOperator::DecrementPostfix => {
-                            old_value
-                        }
-                        _ => unreachable!("{:?}", self_.op),
-                    };
-                    Ok((new_value, result_value))
-                }
-
-                assert_matches!(self.op.associativity(), Associativity::RightToLeft);
-                match self.operand.as_ref() {
-                    Expression::VariableAccess(node) => {
-                        if let Some(mut variable) = it
-                            .vm()
-                            .stack()
-                            .frame()
-                            .scope()
-                            .lookup_variable(&node.var_name)
-                        {
-                            let (new_value, result_value) =
-                                compute(self, it, || Ok(variable.value().clone()))?;
-                            variable.set_value(new_value)?;
-                            result_value
-                        } else {
-                            let value =
-                                it.vm().runtime().global_object().property(&node.var_name)?;
-                            let (new_value, result_value) =
-                                compute(self, it, || Ok(value.clone()))?;
-                            it.vm_mut()
-                                .runtime_mut()
-                                .global_object_mut()
-                                .set_property(&node.var_name, new_value)?;
-                            result_value
-                        }
-                    }
-                    Expression::PropertyAccess(node) => {
-                        let base_value = node.base.eval(it)?;
-                        match base_value {
-                            Value::Reference(ref base_refr) => {
-                                let mut base_obj = it.vm_mut().heap_mut().resolve_mut(base_refr);
-                                let (new_value, result_value) = compute(self, it, || {
-                                    Ok(base_obj
-                                        .property(&node.property_name)
-                                        .cloned()
-                                        .unwrap_or_default())
-                                })?;
-                                base_obj.set_property(node.property_name.clone(), new_value);
-                                result_value
-                            }
-                            Value::NativeObject(ref base_refr) => {
-                                let mut base_obj = it.vm_mut().runtime_mut().resolve_mut(base_refr);
-                                let (new_value, result_value) =
-                                    compute(self, it, || base_obj.property(&node.property_name))?;
-                                base_obj.set_property(&node.property_name, new_value)?;
-                                result_value
-                            }
-                            base_value => {
-                                todo!("AssignmentExpression::eval: base_value={:?}", base_value)
-                            }
-                        }
-                    }
-                    _ => todo!("UnaryExpression::eval: self={:#?}", self),
-                }
-            }
-
             UnaryOperator::BitwiseNot => Value::bitnot(operand),
             UnaryOperator::LogicalNot => Value::not(operand),
-            UnaryOperator::NumericNegate => Value::neg(operand)?,
+            UnaryOperator::NumericNegation => Value::neg(operand)?,
             UnaryOperator::NumericPlus => Value::plus(operand),
         })
     }
 }
 
-impl Eval for TernaryExpression {
+impl Eval for UpdateExpression {
     type Output = Value;
 
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        let condition = self.condition.eval(it)?;
-        if condition.is_truthy() {
-            self.lhs.eval(it)
-        } else {
-            self.rhs.eval(it)
+        fn compute(
+            self_: &UpdateExpression,
+            it: &mut Interpreter,
+            getter: impl FnOnce() -> Result,
+        ) -> Result<(Value, Value)> {
+            const ONE: Value = Value::Number(Number::Int(1));
+            let old_value = getter()?;
+
+            // The new value to assign to the variable or property
+            let new_value = match self_.op {
+                UpdateOperator::GetAndIncrement | UpdateOperator::IncrementAndGet => {
+                    Value::add_or_append(it.vm(), &old_value, &ONE)?
+                }
+                UpdateOperator::GetAndDecrement | UpdateOperator::DecrementAndGet => {
+                    Value::sub(&old_value, &ONE)?
+                }
+            };
+            // The value to use as the result of the expression
+            let result_value = match self_.op {
+                UpdateOperator::GetAndIncrement | UpdateOperator::GetAndDecrement => old_value,
+                UpdateOperator::IncrementAndGet | UpdateOperator::DecrementAndGet => {
+                    new_value.clone()
+                }
+            };
+            Ok((new_value, result_value))
         }
-    }
-}
 
-impl Eval for GroupingExpression {
-    type Output = Value;
-
-    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        self.inner.eval(it)
-    }
-}
-
-impl Eval for LiteralExpression {
-    type Output = Value;
-
-    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        Ok(match self.value {
-            Literal::Boolean(ref value) => Value::Boolean(*value),
-            Literal::Numeric(NumericLiteral::Int(ref value)) => {
-                Value::Number(Number::try_from(*value).unwrap())
-            }
-            Literal::String(ref value) => Value::String(value.clone()),
-            Literal::Array(ref value) => {
-                let mut elems = Vec::with_capacity(value.declared_elements.len());
-                for elem_expr in &value.declared_elements {
-                    elems.push(elem_expr.eval(it)?);
+        assert_matches!(self.op.associativity(), Associativity::RightToLeft);
+        Ok(match self.operand.as_ref() {
+            Expression::IdentifierReference(node) => {
+                if let Some(mut variable) = it
+                    .vm()
+                    .stack()
+                    .frame()
+                    .scope()
+                    .lookup_variable(&node.identifier)
+                {
+                    let (new_value, result_value) =
+                        compute(self, it, || Ok(variable.value().clone()))?;
+                    variable.set_value(new_value)?;
+                    result_value
+                } else {
+                    let value = it
+                        .vm()
+                        .runtime()
+                        .global_object()
+                        .property(&node.identifier)?;
+                    let (new_value, result_value) = compute(self, it, || Ok(value.clone()))?;
+                    it.vm_mut()
+                        .runtime_mut()
+                        .global_object_mut()
+                        .set_property(&node.identifier, new_value)?;
+                    result_value
                 }
-                let obj_ref = it.vm_mut().heap_mut().allocate_array(elems)?;
-                Value::Reference(obj_ref)
             }
-            Literal::Function(ref value) => {
-                let declared_scope = it.vm().stack().frame().scope().clone();
-                let callable = match value.name {
-                    Some(ref name) => Callable::new_named(
-                        name.clone(),
-                        value.param_names.clone(),
-                        declared_scope,
-                        value.body.clone(),
-                    ),
-                    None => Callable::new(
-                        value.param_names.clone(),
-                        declared_scope,
-                        value.body.clone(),
-                    ),
-                };
-                let fn_obj_ref = it.vm_mut().heap_mut().allocate_callable_object(callable)?;
-                Value::Reference(fn_obj_ref)
-            }
-            Literal::Object(ref value) => {
-                let mut resolved_props = HashMap::with_capacity(value.declared_properties.len());
-                for (key, expr) in &value.declared_properties {
-                    let value = expr.eval(it)?;
-                    resolved_props.insert(key.clone(), value);
+            Expression::Member(MemberExpression::MemberAccess(node)) => {
+                let base_value = node.base.eval(it)?;
+                match base_value {
+                    Value::Reference(ref base_refr) => {
+                        let mut base_obj = it.vm_mut().heap_mut().resolve_mut(base_refr);
+                        let (new_value, result_value) = compute(self, it, || {
+                            Ok(base_obj.property(&node.member).cloned().unwrap_or_default())
+                        })?;
+                        base_obj.set_property(node.member.clone(), new_value);
+                        result_value
+                    }
+                    Value::NativeObject(ref base_refr) => {
+                        let mut base_obj = it.vm_mut().runtime_mut().resolve_mut(base_refr);
+                        let (new_value, result_value) =
+                            compute(self, it, || base_obj.property(&node.member))?;
+                        base_obj.set_property(&node.member, new_value)?;
+                        result_value
+                    }
+                    base_value => {
+                        todo!("AssignmentExpression::eval: base_value={:?}", base_value)
+                    }
                 }
-                let obj_ref = it.vm_mut().heap_mut().allocate_object(resolved_props)?;
-                Value::Reference(obj_ref)
             }
-            Literal::Null => Value::Null,
+            _ => todo!("UnaryExpression::eval: self={:#?}", self),
         })
+    }
+}
+
+impl Eval for MemberExpression {
+    type Output = Value;
+
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
+        match self {
+            Self::FunctionCall(node) => node.eval(it),
+            Self::MemberAccess(node) => node.eval(it),
+            Self::ComputedMemberAccess(node) => node.eval(it),
+        }
     }
 }
 
@@ -439,7 +495,7 @@ impl Eval for FunctionCallExpression {
     }
 }
 
-impl Eval for PropertyAccessExpression {
+impl Eval for MemberAccessExpression {
     type Output = Value;
 
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
@@ -447,21 +503,18 @@ impl Eval for PropertyAccessExpression {
         match base_value {
             Value::Reference(ref base_refr) => {
                 let base_obj = it.vm().heap().resolve(base_refr);
-                Ok(base_obj
-                    .property(&self.property_name)
-                    .cloned()
-                    .unwrap_or_default())
+                Ok(base_obj.property(&self.member).cloned().unwrap_or_default())
             }
             Value::NativeObject(ref base_refr) => {
                 let base_obj = it.vm().runtime().resolve(base_refr);
-                base_obj.property(&self.property_name)
+                base_obj.property(&self.member)
             }
             base_value => todo!("PropertyAccessExpression::eval: base={:?}", base_value),
         }
     }
 }
 
-impl Eval for ComputedPropertyAccessExpression {
+impl Eval for ComputedMemberAccessExpression {
     type Output = Value;
 
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
@@ -470,7 +523,7 @@ impl Eval for ComputedPropertyAccessExpression {
             Value::Reference(ref base_refr) => it.vm().heap().resolve(base_refr),
             base_value => todo!("ComputedPropertyExpression::eval: base={:?}", base_value),
         };
-        let property_value = self.property.eval(it)?;
+        let property_value = self.member.eval(it)?;
         let property = match property_value {
             Value::Number(Number::Int(n)) => Identifier::from(n),
             property => todo!("ComputedPropertyExpression::eval: property={:?}", property),
@@ -479,21 +532,23 @@ impl Eval for ComputedPropertyAccessExpression {
     }
 }
 
-impl Eval for VariableAccessExpression {
+impl Eval for GroupingExpression {
     type Output = Value;
 
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        if let Some(variable) = it
-            .vm()
-            .stack()
-            .frame()
-            .scope()
-            .lookup_variable(&self.var_name)
-        {
-            let value = variable.value().clone();
-            Ok(value)
+        self.inner.eval(it)
+    }
+}
+
+impl Eval for TernaryExpression {
+    type Output = Value;
+
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
+        let condition = self.condition.eval(it)?;
+        if condition.is_truthy() {
+            self.lhs.eval(it)
         } else {
-            it.vm().runtime().global_object().property(&self.var_name)
+            self.rhs.eval(it)
         }
     }
 }

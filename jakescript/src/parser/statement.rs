@@ -33,7 +33,9 @@ impl<I: FallibleIterator<Item = Token, Error = lexer::Error>> Parser<I> {
                     Token::Keyword(Keyword::Throw) => {
                         self.parse_throw_statement().map(Statement::Throw)
                     }
-                    _ => self.parse_expression().map(Statement::Expression),
+                    _ => self.parse_expression().map(|expr| {
+                        Statement::Expression(ExpressionStatement { expression: expr })
+                    }),
                 }?;
                 self.expect_punctuator(Punctuator::Semi)?;
                 Ok(stmt)
@@ -47,8 +49,8 @@ impl<I: FallibleIterator<Item = Token, Error = lexer::Error>> Parser<I> {
         self.expect_punctuator(Punctuator::OpenParen)?;
         let condition = self.parse_expression()?;
         self.expect_punctuator(Punctuator::CloseParen)?;
-        let success_block = self.parse_block(Braces::Allow)?;
-        let else_block = if self
+        let body = self.parse_block(Braces::Allow)?;
+        let else_body = if self
             .tokens
             .next_if_eq(&Token::Keyword(Keyword::Else))?
             .is_some()
@@ -70,12 +72,12 @@ impl<I: FallibleIterator<Item = Token, Error = lexer::Error>> Parser<I> {
         };
         Ok(IfStatement {
             condition,
-            success_block,
-            else_block,
+            body,
+            else_body,
         })
     }
 
-    fn parse_for_loop(&mut self) -> Result<ForLoop> {
+    fn parse_for_loop(&mut self) -> Result<ForStatement> {
         self.expect_keyword(Keyword::For)?;
         self.expect_punctuator(Punctuator::OpenParen)?;
 
@@ -98,7 +100,7 @@ impl<I: FallibleIterator<Item = Token, Error = lexer::Error>> Parser<I> {
         self.expect_punctuator(Punctuator::CloseParen)?;
 
         let body = self.parse_block(Braces::Allow)?;
-        Ok(ForLoop {
+        Ok(ForStatement {
             initialiser,
             condition,
             incrementor,
@@ -106,13 +108,13 @@ impl<I: FallibleIterator<Item = Token, Error = lexer::Error>> Parser<I> {
         })
     }
 
-    fn parse_while_loop(&mut self) -> Result<WhileLoop> {
+    fn parse_while_loop(&mut self) -> Result<WhileStatement> {
         self.expect_keyword(Keyword::While)?;
         self.expect_punctuator(Punctuator::OpenParen)?;
         let condition = self.parse_expression()?;
         self.expect_punctuator(Punctuator::CloseParen)?;
         let body = self.parse_block(Braces::Allow)?;
-        Ok(WhileLoop { condition, body })
+        Ok(WhileStatement { condition, body })
     }
 
     fn parse_break_statement(&mut self) -> Result<BreakStatement> {
@@ -127,11 +129,11 @@ impl<I: FallibleIterator<Item = Token, Error = lexer::Error>> Parser<I> {
 
     fn parse_return_statement(&mut self) -> Result<ReturnStatement> {
         self.expect_keyword(Keyword::Return)?;
-        let expr = match self.tokens.peek()? {
+        let value = match self.tokens.peek()? {
             Some(Token::Punctuator(Punctuator::Semi)) => None,
             _ => Some(self.parse_expression()?),
         };
-        Ok(ReturnStatement { expr })
+        Ok(ReturnStatement { value })
     }
 
     fn parse_throw_statement(&mut self) -> Result<ThrowStatement> {
@@ -143,25 +145,24 @@ impl<I: FallibleIterator<Item = Token, Error = lexer::Error>> Parser<I> {
     fn parse_try_statement(&mut self) -> Result<TryStatement> {
         self.expect_keyword(Keyword::Try)?;
         let body = self.parse_block(Braces::Require)?;
-        let catch_block = if matches!(self.tokens.peek()?, Some(Token::Keyword(Keyword::Catch))) {
+        let catch = if matches!(self.tokens.peek()?, Some(Token::Keyword(Keyword::Catch))) {
             Some(self.parse_catch_block()?)
         } else {
             None
         };
-        let finally_block = if matches!(self.tokens.peek()?, Some(Token::Keyword(Keyword::Finally)))
-        {
+        let finally = if matches!(self.tokens.peek()?, Some(Token::Keyword(Keyword::Finally))) {
             self.expect_keyword(Keyword::Finally)?;
-            Some(FinallyBlock {
-                inner: self.parse_block(Braces::Require)?,
+            Some(Finally {
+                body: self.parse_block(Braces::Require)?,
             })
         } else {
             None
         };
-        if catch_block.is_some() || finally_block.is_some() {
+        if catch.is_some() || finally.is_some() {
             Ok(TryStatement {
                 body,
-                catch_block,
-                finally_block,
+                catch,
+                finally,
             })
         } else {
             Err(Error::unexpected(
@@ -175,9 +176,9 @@ impl<I: FallibleIterator<Item = Token, Error = lexer::Error>> Parser<I> {
         }
     }
 
-    fn parse_catch_block(&mut self) -> Result<CatchBlock> {
+    fn parse_catch_block(&mut self) -> Result<Catch> {
         self.expect_keyword(Keyword::Catch)?;
-        let exception_identifier = if matches!(
+        let parameter = if matches!(
             self.tokens.peek()?,
             Some(Token::Punctuator(Punctuator::OpenParen))
         ) {
@@ -197,9 +198,6 @@ impl<I: FallibleIterator<Item = Token, Error = lexer::Error>> Parser<I> {
             None
         };
         let body = self.parse_block(Braces::Require)?;
-        Ok(CatchBlock {
-            exception_identifier,
-            body,
-        })
+        Ok(Catch { parameter, body })
     }
 }

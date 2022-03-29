@@ -1,6 +1,6 @@
 use super::block::Block;
 use super::expression::{
-    AssignmentExpression, AssignmentOperator, Expression, VariableAccessExpression,
+    AssignmentExpression, AssignmentOperator, Expression, IdentifierReferenceExpression,
 };
 use super::identifier::Identifier;
 use super::Node;
@@ -15,15 +15,15 @@ pub enum Declaration {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct FunctionDeclaration {
-    pub fn_name: Identifier,
-    pub param_names: Vec<Identifier>,
+    pub binding: Identifier,
+    pub formal_parameters: Vec<Identifier>,
     pub body: Block,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct VariableDeclaration {
     pub kind: VariableDeclarationKind,
-    pub entries: Vec<VariableDeclarationEntry>,
+    pub bindings: Vec<VariableBinding>,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
@@ -34,8 +34,8 @@ pub enum VariableDeclarationKind {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct VariableDeclarationEntry {
-    pub var_name: Identifier,
+pub struct VariableBinding {
+    pub identifier: Identifier,
     pub initialiser: Option<Expression>,
 }
 
@@ -65,14 +65,14 @@ impl Node for FunctionDeclaration {}
 impl VariableDeclaration {
     pub fn is_escalated(&self) -> bool {
         match self.kind {
-            VariableDeclarationKind::Let | VariableDeclarationKind::Const => false,
+            VariableDeclarationKind::Const | VariableDeclarationKind::Let => false,
             VariableDeclarationKind::Var => true,
         }
     }
 
     pub fn is_hoisted(&self) -> bool {
         match self.kind {
-            VariableDeclarationKind::Let | VariableDeclarationKind::Const => false,
+            VariableDeclarationKind::Const | VariableDeclarationKind::Let => false,
             VariableDeclarationKind::Var => true,
         }
     }
@@ -83,14 +83,14 @@ impl VariableDeclaration {
     /// 2. a new, synthesised [`Expression`] to initialise each entry, for each entry which started
     /// with an initialiser.
     pub fn into_declaration_and_initialiser(mut self) -> (Self, Vec<Expression>) {
-        let mut initialisers = Vec::with_capacity(self.entries.len());
-        for entry in &mut self.entries {
+        let mut initialisers = Vec::with_capacity(self.bindings.len());
+        for entry in &mut self.bindings {
             if let Some(initialiser) = entry.initialiser.take() {
                 // Synthesise an assignment expression to initialise the variable
                 initialisers.push(Expression::Assignment(AssignmentExpression {
                     op: AssignmentOperator::Assign,
-                    lhs: Box::new(Expression::VariableAccess(VariableAccessExpression {
-                        var_name: entry.var_name.clone(),
+                    lhs: Box::new(Expression::IdentifierReference(IdentifierReferenceExpression {
+                        identifier: entry.identifier.clone(),
                     })),
                     rhs: Box::new(initialiser),
                 }));

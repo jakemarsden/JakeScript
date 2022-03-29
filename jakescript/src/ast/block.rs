@@ -4,13 +4,13 @@ use super::Node;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
-pub struct Program {
+pub struct Script {
     body: Block,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Block {
-    hoisted_decls: Vec<Declaration>,
+    hoisted_declarations: Vec<Declaration>,
     body: Vec<BlockItem>,
 }
 
@@ -20,7 +20,7 @@ pub enum BlockItem {
     Statement(Statement),
 }
 
-impl Program {
+impl Script {
     pub fn new(body: Block) -> Self {
         Self { body }
     }
@@ -30,18 +30,18 @@ impl Program {
     }
 }
 
-impl Node for Program {}
+impl Node for Script {}
 
 impl Block {
-    pub fn new(hoisted_decls: Vec<Declaration>, body: Vec<BlockItem>) -> Self {
+    pub fn new(hoisted_declarations: Vec<Declaration>, body: Vec<BlockItem>) -> Self {
         Self {
-            hoisted_decls,
+            hoisted_declarations,
             body,
         }
     }
 
     pub fn hoisted_declarations(&self) -> &[Declaration] {
-        &self.hoisted_decls
+        &self.hoisted_declarations
     }
 
     pub fn body(&self) -> &[BlockItem] {

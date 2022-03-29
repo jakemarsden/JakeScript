@@ -1,10 +1,10 @@
-use crate::ast::Program;
+use crate::ast::Script;
 use crate::lexer;
 use crate::token::Token;
 use ansi_term::Style;
 use std::fmt;
 
-pub type Result<T = Program> = std::result::Result<T, Error>;
+pub type Result<T = Script> = std::result::Result<T, Error>;
 
 #[derive(Debug)]
 pub struct Error(ErrorKind);
