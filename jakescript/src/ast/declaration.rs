@@ -7,6 +7,13 @@ use super::Node;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(tag = "declaration_type")]
+pub enum Declaration {
+    Function(FunctionDeclaration),
+    Variable(VariableDeclaration),
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct FunctionDeclaration {
     pub fn_name: Identifier,
     pub param_names: Vec<Identifier>,
@@ -31,6 +38,27 @@ pub struct VariableDeclarationEntry {
     pub var_name: Identifier,
     pub initialiser: Option<Expression>,
 }
+
+impl Declaration {
+    pub fn is_hoisted(&self) -> bool {
+        match self {
+            Self::Function(..) => true,
+            Self::Variable(node) => node.is_hoisted(),
+        }
+    }
+
+    pub fn into_declaration_and_initialiser(self) -> (Self, Vec<Expression>) {
+        match self {
+            Self::Function(..) => (self, vec![]),
+            Self::Variable(node) => {
+                let (decl, initialisers) = node.into_declaration_and_initialiser();
+                (Self::Variable(decl), initialisers)
+            }
+        }
+    }
+}
+
+impl Node for Declaration {}
 
 impl Node for FunctionDeclaration {}
 

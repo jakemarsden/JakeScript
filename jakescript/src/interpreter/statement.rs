@@ -10,7 +10,6 @@ impl Eval for Statement {
         match self {
             Self::Break(node) => node.eval(it),
             Self::Continue(node) => node.eval(it),
-            Self::Declaration(node) => node.eval(it),
             Self::Expression(node) => node.eval(it).map(|_| ()),
             Self::If(node) => node.eval(it),
             Self::Return(node) => node.eval(it),
@@ -18,15 +17,6 @@ impl Eval for Statement {
             Self::Try(node) => node.eval(it),
             Self::ForLoop(node) => node.eval(it),
             Self::WhileLoop(node) => node.eval(it),
-        }
-    }
-}
-
-impl Eval for DeclarationStatement {
-    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        match self {
-            DeclarationStatement::Function(node) => node.eval(it),
-            DeclarationStatement::Variable(node) => node.eval(it),
         }
     }
 }

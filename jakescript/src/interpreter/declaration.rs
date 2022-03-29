@@ -5,6 +5,15 @@ use super::value::Value;
 use super::{Eval, Interpreter};
 use crate::ast::*;
 
+impl Eval for Declaration {
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
+        match self {
+            Self::Function(node) => node.eval(it),
+            Self::Variable(node) => node.eval(it),
+        }
+    }
+}
+
 impl Eval for FunctionDeclaration {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let declared_scope = it.vm().stack().frame().scope().clone();

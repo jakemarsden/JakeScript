@@ -10,7 +10,28 @@ use crate::token::{Keyword, Punctuator, Token};
 use fallible_iterator::FallibleIterator;
 
 impl<I: FallibleIterator<Item = Token, Error = lexer::Error>> Parser<I> {
-    pub(super) fn parse_function_declaration(&mut self) -> Result<FunctionDeclaration> {
+    pub(super) fn parse_declaration(&mut self) -> Result<Declaration> {
+        match self.tokens.peek()? {
+            Some(Token::Keyword(Keyword::Function)) => {
+                self.parse_function_declaration().map(Declaration::Function)
+            }
+            Some(Token::Keyword(Keyword::Const | Keyword::Let | Keyword::Var)) => {
+                let decl = self.parse_variable_declaration()?;
+                self.expect_punctuator(Punctuator::Semi)?;
+                Ok(Declaration::Variable(decl))
+            }
+            actual => Err(Error::unexpected(
+                AnyOf(
+                    Token::Keyword(Keyword::Const),
+                    Token::Keyword(Keyword::Function),
+                    vec![Token::Keyword(Keyword::Let), Token::Keyword(Keyword::Var)],
+                ),
+                actual.cloned(),
+            )),
+        }
+    }
+
+    fn parse_function_declaration(&mut self) -> Result<FunctionDeclaration> {
         self.expect_keyword(Keyword::Function)?;
         let fn_name = Identifier::from(self.expect_identifier(non_empty_str!("function_name"))?);
         let param_names = self.parse_fn_parameters()?;

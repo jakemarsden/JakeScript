@@ -24,18 +24,27 @@ impl Eval for Block {
             assert!(decl.is_hoisted());
             decl.eval(it)?;
         }
-        for stmt in self.statements() {
+        for node in self.body() {
             if !matches!(it.vm().execution_state(), ExecutionState::Advance) {
                 break;
             }
-            if let Statement::Declaration(decl) = stmt {
+            if let BlockItem::Declaration(decl) = node {
                 assert!(!decl.is_hoisted());
             }
-            result = match stmt {
-                Statement::Expression(expr) => expr.eval(it),
-                stmt => stmt.eval(it).map(|()| Value::default()),
+            result = match node {
+                BlockItem::Statement(box Statement::Expression(expr)) => expr.eval(it),
+                item => item.eval(it).map(|()| Value::default()),
             }?;
         }
         Ok(result)
+    }
+}
+
+impl Eval for BlockItem {
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
+        match self {
+            Self::Declaration(node) => node.eval(it),
+            Self::Statement(node) => node.eval(it),
+        }
     }
 }

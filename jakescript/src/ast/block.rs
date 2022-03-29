@@ -1,4 +1,5 @@
-use super::statement::{DeclarationStatement, Statement};
+use super::declaration::Declaration;
+use super::statement::Statement;
 use super::Node;
 use serde::{Deserialize, Serialize};
 
@@ -9,8 +10,15 @@ pub struct Program {
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Block {
-    hoisted_decls: Vec<DeclarationStatement>,
-    stmts: Vec<Statement>,
+    hoisted_decls: Vec<Declaration>,
+    body: Vec<BlockItem>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum BlockItem {
+    Declaration(Declaration),
+    /// Boxed only due to large size difference.
+    Statement(Box<Statement>),
 }
 
 impl Program {
@@ -26,20 +34,28 @@ impl Program {
 impl Node for Program {}
 
 impl Block {
-    pub fn new(hoisted_decls: Vec<DeclarationStatement>, stmts: Vec<Statement>) -> Self {
+    pub fn new(hoisted_decls: Vec<Declaration>, body: Vec<BlockItem>) -> Self {
         Self {
             hoisted_decls,
-            stmts,
+            body,
         }
     }
 
-    pub fn hoisted_declarations(&self) -> &[DeclarationStatement] {
+    pub fn hoisted_declarations(&self) -> &[Declaration] {
         &self.hoisted_decls
     }
 
-    pub fn statements(&self) -> &[Statement] {
-        &self.stmts
+    pub fn body(&self) -> &[BlockItem] {
+        &self.body
     }
 }
 
 impl Node for Block {}
+
+impl Node for BlockItem {}
+
+impl From<Statement> for BlockItem {
+    fn from(node: Statement) -> Self {
+        Self::Statement(Box::new(node))
+    }
+}

@@ -1,5 +1,5 @@
 use super::block::Block;
-use super::declaration::{FunctionDeclaration, VariableDeclaration};
+use super::declaration::VariableDeclaration;
 use super::expression::Expression;
 use super::identifier::Identifier;
 use super::Node;
@@ -10,7 +10,6 @@ use serde::{Deserialize, Serialize};
 pub enum Statement {
     Break(BreakStatement),
     Continue(ContinueStatement),
-    Declaration(DeclarationStatement),
     Expression(Expression),
     If(IfStatement),
     Return(ReturnStatement),
@@ -18,13 +17,6 @@ pub enum Statement {
     Try(TryStatement),
     ForLoop(ForLoop),
     WhileLoop(WhileLoop),
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(tag = "declaration_type")]
-pub enum DeclarationStatement {
-    Function(FunctionDeclaration),
-    Variable(VariableDeclaration),
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -87,17 +79,6 @@ pub struct FinallyBlock {
 }
 
 impl Node for Statement {}
-
-impl DeclarationStatement {
-    pub fn is_hoisted(&self) -> bool {
-        match self {
-            Self::Function(..) => true,
-            Self::Variable(decl) => decl.is_hoisted(),
-        }
-    }
-}
-
-impl Node for DeclarationStatement {}
 
 impl Node for IfStatement {}
 

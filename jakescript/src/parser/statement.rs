@@ -13,10 +13,6 @@ impl<I: FallibleIterator<Item = Token, Error = lexer::Error>> Parser<I> {
     pub(super) fn parse_statement(&mut self) -> Result<Statement> {
         match self.tokens.peek()? {
             Some(Token::Keyword(Keyword::If)) => self.parse_if_statement().map(Statement::If),
-            Some(Token::Keyword(Keyword::Function)) => self
-                .parse_function_declaration()
-                .map(DeclarationStatement::Function)
-                .map(Statement::Declaration),
             Some(Token::Keyword(Keyword::Try)) => self.parse_try_statement().map(Statement::Try),
             Some(Token::Keyword(Keyword::For)) => self.parse_for_loop().map(Statement::ForLoop),
             Some(Token::Keyword(Keyword::While)) => {
@@ -37,10 +33,6 @@ impl<I: FallibleIterator<Item = Token, Error = lexer::Error>> Parser<I> {
                     Token::Keyword(Keyword::Throw) => {
                         self.parse_throw_statement().map(Statement::Throw)
                     }
-                    Token::Keyword(Keyword::Const | Keyword::Let | Keyword::Var) => self
-                        .parse_variable_declaration()
-                        .map(DeclarationStatement::Variable)
-                        .map(Statement::Declaration),
                     _ => self.parse_expression().map(Statement::Expression),
                 }?;
                 self.expect_punctuator(Punctuator::Semi)?;
@@ -65,7 +57,7 @@ impl<I: FallibleIterator<Item = Token, Error = lexer::Error>> Parser<I> {
                 // Recursively parse `else if { .. }` blocks
                 Some(Block::new(
                     vec![],
-                    vec![Statement::If(self.parse_if_statement()?)],
+                    vec![BlockItem::from(Statement::If(self.parse_if_statement()?))],
                 ))
             } else {
                 // Parse `else { .. }` blocks

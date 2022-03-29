@@ -4,7 +4,7 @@ use super::Parser;
 use crate::ast::*;
 use crate::iter::peek_fallible::PeekableNthFallibleIterator;
 use crate::lexer;
-use crate::token::{Punctuator, Token};
+use crate::token::{Keyword, Punctuator, Token};
 use fallible_iterator::FallibleIterator;
 
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
@@ -36,46 +36,47 @@ impl<I: FallibleIterator<Item = Token, Error = lexer::Error>> Parser<I> {
     }
 
     fn parse_single_statement_block_body(&mut self) -> Result<Block> {
-        Ok(match self.parse_statement()? {
-            Statement::Declaration(decl) if decl.is_hoisted() => match decl {
-                decl_stmt @ DeclarationStatement::Function(_) => {
-                    Block::new(vec![decl_stmt], vec![])
-                }
-                DeclarationStatement::Variable(var_decl) => {
-                    let (var_decl, initialisers) = var_decl.into_declaration_and_initialiser();
-                    let decl_stmt = DeclarationStatement::Variable(var_decl);
-                    let init_stmts = initialisers
-                        .into_iter()
-                        .map(Statement::Expression)
-                        .collect();
-                    Block::new(vec![decl_stmt], init_stmts)
-                }
-            },
-            stmt => Block::new(vec![], vec![stmt]),
+        Ok(match self.parse_declaration_or_statement()? {
+            BlockItem::Declaration(decl) if decl.is_hoisted() => {
+                let (decl, initialisers) = decl.into_declaration_and_initialiser();
+                let initialisers = initialisers
+                    .into_iter()
+                    .map(|expr| BlockItem::from(Statement::Expression(expr)))
+                    .collect();
+                Block::new(vec![decl], initialisers)
+            }
+            node => Block::new(vec![], vec![node]),
         })
     }
 
     pub(super) fn parse_multi_statement_block_body(&mut self) -> Result<Block> {
         let mut hoisted_decls = Vec::new();
-        let mut stmts = Vec::new();
+        let mut body = Vec::new();
         while !matches!(
             self.tokens.peek()?,
             Some(Token::Punctuator(Punctuator::CloseBrace)) | None
         ) {
-            match self.parse_statement()? {
-                Statement::Declaration(decl) if decl.is_hoisted() => match decl {
-                    decl_stmt @ DeclarationStatement::Function(_) => {
-                        hoisted_decls.push(decl_stmt);
-                    }
-                    DeclarationStatement::Variable(var_decl) => {
-                        let (var_decl, initialisers) = var_decl.into_declaration_and_initialiser();
-                        stmts.extend(initialisers.into_iter().map(Statement::Expression));
-                        hoisted_decls.push(DeclarationStatement::Variable(var_decl));
-                    }
-                },
-                stmt => stmts.push(stmt),
+            match self.parse_declaration_or_statement()? {
+                BlockItem::Declaration(decl) if decl.is_hoisted() => {
+                    let (decl, initialisers) = decl.into_declaration_and_initialiser();
+                    let initialisers = initialisers
+                        .into_iter()
+                        .map(|expr| BlockItem::from(Statement::Expression(expr)));
+                    hoisted_decls.push(decl);
+                    body.extend(initialisers);
+                }
+                node => body.push(node),
             }
         }
-        Ok(Block::new(hoisted_decls, stmts))
+        Ok(Block::new(hoisted_decls, body))
+    }
+
+    fn parse_declaration_or_statement(&mut self) -> Result<BlockItem> {
+        match self.tokens.peek()? {
+            Some(Token::Keyword(
+                Keyword::Const | Keyword::Function | Keyword::Let | Keyword::Var,
+            )) => self.parse_declaration().map(BlockItem::Declaration),
+            _ => self.parse_statement().map(BlockItem::from),
+        }
     }
 }
