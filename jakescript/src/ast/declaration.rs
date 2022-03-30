@@ -89,9 +89,11 @@ impl VariableDeclaration {
                 // Synthesise an assignment expression to initialise the variable
                 initialisers.push(Expression::Assignment(AssignmentExpression {
                     op: AssignmentOperator::Assign,
-                    lhs: Box::new(Expression::IdentifierReference(IdentifierReferenceExpression {
-                        identifier: entry.identifier.clone(),
-                    })),
+                    lhs: Box::new(Expression::IdentifierReference(
+                        IdentifierReferenceExpression {
+                            identifier: entry.identifier.clone(),
+                        },
+                    )),
                     rhs: Box::new(initialiser),
                 }));
             }
