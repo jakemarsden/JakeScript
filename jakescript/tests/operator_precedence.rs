@@ -1,6 +1,4 @@
 #![feature(assert_matches)]
-#![feature(process_exitcode_placeholder)]
-#![feature(termination_trait_lib)]
 
 // TODO: Do something useful with this test (e.g. check the actual AST), or get rid of it, because
 //  it doesn't seem to have much over the straight "js_tests/operator_precedence.js" at the moment.

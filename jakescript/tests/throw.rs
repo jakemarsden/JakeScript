@@ -1,6 +1,4 @@
 #![feature(assert_matches)]
-#![feature(process_exitcode_placeholder)]
-#![feature(termination_trait_lib)]
 
 use jakescript::interpreter::{ExecutionState, Number, Value};
 use std::assert_matches::assert_matches;

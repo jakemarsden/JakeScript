@@ -1,6 +1,4 @@
 #![feature(assert_matches)]
-#![feature(process_exitcode_placeholder)]
-#![feature(termination_trait_lib)]
 
 use harness::FailureReason;
 use jakescript::interpreter::Error;

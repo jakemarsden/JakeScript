@@ -1,6 +1,3 @@
-#![feature(process_exitcode_placeholder)]
-#![feature(termination_trait_lib)]
-
 use harness::{TestCaseReport, TestSuiteReport, TestSuiteSummary};
 use walkdir::{DirEntry, WalkDir};
 
