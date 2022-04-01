@@ -23,9 +23,15 @@ pub enum NumericLiteral {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum StringLiteral {
-    SingleQuoted(String),
-    DoubleQuoted(String),
+pub struct StringLiteral {
+    pub kind: StringLiteralKind,
+    pub value: String,
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum StringLiteralKind {
+    SingleQuoted,
+    DoubleQuoted,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -60,9 +66,9 @@ impl fmt::Display for NumericLiteral {
 
 impl fmt::Display for StringLiteral {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Self::SingleQuoted(value) => write!(f, r#"'{}'"#, value),
-            Self::DoubleQuoted(value) => write!(f, r#""{}""#, value),
+        match self.kind {
+            StringLiteralKind::SingleQuoted => write!(f, r#"'{}'"#, self.value),
+            StringLiteralKind::DoubleQuoted => write!(f, r#""{}""#, self.value),
         }
     }
 }

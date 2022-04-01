@@ -30,47 +30,51 @@ fn tokenise_punctuators() {
 
 #[test]
 fn tokenise_string_literal() {
-    fn check_valid(source: &str, expected: &str, single_qt: bool) {
+    use crate::token::StringLiteralKind::{DoubleQuoted, SingleQuoted};
+
+    fn check_valid(source: &str, expected: &str, expected_kind: StringLiteralKind) {
         let mut lexer = Lexer::for_str(source);
-        if single_qt {
-            assert_matches!(
-                lexer.next(),
-                Ok(Some(Element::Token(Token::Literal(Literal::String(
-                    StringLiteral::SingleQuoted(actual)
-                ))))) if actual == expected
-            );
-        } else {
-            assert_matches!(
-                lexer.next(),
-                Ok(Some(Element::Token(Token::Literal(Literal::String(
-                    StringLiteral::DoubleQuoted(actual)
-                ))))) if actual == expected
-            );
-        }
+        assert_eq!(
+            lexer.next().unwrap(),
+            Some(Element::Token(Token::Literal(Literal::String(
+                StringLiteral {
+                    kind: expected_kind,
+                    value: expected.to_owned(),
+                }
+            ))))
+        );
         assert_matches!(lexer.next(), Ok(None));
     }
 
-    check_valid(r#""""#, r#""#, false);
-    check_valid(r#""hello, world!""#, r#"hello, world!"#, false);
+    check_valid(r#""""#, r#""#, DoubleQuoted);
+    check_valid(r#""hello, world!""#, r#"hello, world!"#, DoubleQuoted);
     check_valid(
         r#""hello, \"escaped quotes\"!""#,
         r#"hello, "escaped quotes"!"#,
-        false,
+        DoubleQuoted,
     );
-    check_valid(r#""hello, back\\slash""#, r#"hello, back\slash"#, false);
-    check_valid(r#""hello, \\\"\"\\\\""#, r#"hello, \""\\"#, false);
-    check_valid(r#""hello,\n\r\tworld""#, "hello,\n\r\tworld", false);
+    check_valid(
+        r#""hello, back\\slash""#,
+        r#"hello, back\slash"#,
+        DoubleQuoted,
+    );
+    check_valid(r#""hello, \\\"\"\\\\""#, r#"hello, \""\\"#, DoubleQuoted);
+    check_valid(r#""hello,\n\r\tworld""#, "hello,\n\r\tworld", DoubleQuoted);
 
-    check_valid(r#"''"#, r#""#, true);
-    check_valid(r#"'hello, world!'"#, r#"hello, world!"#, true);
+    check_valid(r#"''"#, r#""#, SingleQuoted);
+    check_valid(r#"'hello, world!'"#, r#"hello, world!"#, SingleQuoted);
     check_valid(
         r#"'hello, \'escaped quotes\'!'"#,
         r#"hello, 'escaped quotes'!"#,
-        true,
+        SingleQuoted,
     );
-    check_valid(r#"'hello, back\\slash'"#, r#"hello, back\slash"#, true);
-    check_valid(r#"'hello, \\\'\'\\\\'"#, r#"hello, \''\\"#, true);
-    check_valid(r#"'hello,\n\r\tworld'"#, "hello,\n\r\tworld", true);
+    check_valid(
+        r#"'hello, back\\slash'"#,
+        r#"hello, back\slash"#,
+        SingleQuoted,
+    );
+    check_valid(r#"'hello, \\\'\'\\\\'"#, r#"hello, \''\\"#, SingleQuoted);
+    check_valid(r#"'hello,\n\r\tworld'"#, "hello,\n\r\tworld", SingleQuoted);
 }
 
 #[test]

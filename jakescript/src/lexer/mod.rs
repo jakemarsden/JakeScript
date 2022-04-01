@@ -212,12 +212,14 @@ impl<I: FallibleIterator<Item = char, Error = io::Error>> Lexer<I> {
     ///     " DoubleStringCharacters(opt) "
     ///     ' SingleStringCharacters(opt) '
     fn parse_string_literal(&mut self) -> Result<Option<StringLiteral>> {
-        Ok(if let Some(value) = self.parse_string_literal_impl('\'')? {
-            Some(StringLiteral::SingleQuoted(value))
+        let (kind, value) = if let Some(value) = self.parse_string_literal_impl('\'')? {
+            (StringLiteralKind::SingleQuoted, value)
+        } else if let Some(value) = self.parse_string_literal_impl('"')? {
+            (StringLiteralKind::DoubleQuoted, value)
         } else {
-            self.parse_string_literal_impl('"')?
-                .map(StringLiteral::DoubleQuoted)
-        })
+            return Ok(None);
+        };
+        Ok(Some(StringLiteral { kind, value }))
     }
 
     fn parse_string_literal_impl(&mut self, qt: char) -> Result<Option<String>> {
@@ -390,8 +392,16 @@ impl<I: FallibleIterator<Item = char, Error = io::Error>> Lexer<I> {
         }
     }
 
-    fn parse_whitespace(&mut self) -> Result<Option<char>> {
-        Ok(self.source.next_if(|ch| is_whitespace(*ch))?)
+    fn parse_whitespace(&mut self) -> Result<Option<Whitespace>> {
+        if let Some(ch0) = self.source.next_if(|ch| is_whitespace(*ch))? {
+            let mut content = NonEmptyString::from(ch0);
+            while let Some(ch) = self.source.next_if(|ch| is_whitespace(*ch))? {
+                content.push(ch);
+            }
+            Ok(Some(Whitespace::from(content)))
+        } else {
+            Ok(None)
+        }
     }
 
     fn parse_line_terminator(&mut self) -> Result<Option<LineTerminator>> {
@@ -422,14 +432,14 @@ impl<I: FallibleIterator<Item = char, Error = io::Error>> Lexer<I> {
     }
 
     fn parse_comment(&mut self) -> Result<Option<Comment>> {
-        Ok(if let Some(content) = self.parse_single_line_comment()? {
-            Some(Comment::SingleLine(content))
+        if let Some(comment) = self.parse_single_line_comment()? {
+            Ok(Some(comment))
         } else {
-            self.parse_multi_line_comment()?.map(Comment::MultiLine)
-        })
+            self.parse_multi_line_comment()
+        }
     }
 
-    fn parse_single_line_comment(&mut self) -> Result<Option<String>> {
+    fn parse_single_line_comment(&mut self) -> Result<Option<Comment>> {
         if self.source.peek()? == Some(&'/') && self.source.peek_nth(1)? == Some(&'/') {
             assert!(self.source.next_if_eq(&'/')?.is_some());
             assert!(self.source.next_if_eq(&'/')?.is_some());
@@ -437,13 +447,16 @@ impl<I: FallibleIterator<Item = char, Error = io::Error>> Lexer<I> {
             while let Some(ch) = self.source.next_if(|ch| !is_line_terminator(*ch))? {
                 content.push(ch);
             }
-            Ok(Some(content))
+            Ok(Some(Comment {
+                kind: CommentKind::SingleLine,
+                value: content,
+            }))
         } else {
             Ok(None)
         }
     }
 
-    fn parse_multi_line_comment(&mut self) -> Result<Option<String>> {
+    fn parse_multi_line_comment(&mut self) -> Result<Option<Comment>> {
         if self.source.peek()? != Some(&'/') || self.source.peek_nth(1)? != Some(&'*') {
             return Ok(None);
         }
@@ -463,7 +476,10 @@ impl<I: FallibleIterator<Item = char, Error = io::Error>> Lexer<I> {
         self.source.advance_by(content.len())?.unwrap();
         assert!(self.source.next_if_eq(&'*')?.is_some());
         assert!(self.source.next_if_eq(&'/')?.is_some());
-        Ok(Some(content))
+        Ok(Some(Comment {
+            kind: CommentKind::MultiLine,
+            value: content,
+        }))
     }
 }
 

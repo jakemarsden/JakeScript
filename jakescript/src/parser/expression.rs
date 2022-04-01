@@ -67,10 +67,9 @@ impl<I: FallibleIterator<Item = Token, Error = lexer::Error>> Parser<I> {
                     token::Literal::Numeric(token::NumericLiteral::Decimal(value)) => {
                         Literal::Numeric(NumericLiteral::Float(value))
                     }
-                    token::Literal::String(
-                        token::StringLiteral::SingleQuoted(value)
-                        | token::StringLiteral::DoubleQuoted(value),
-                    ) => Literal::String(StringLiteral { value }),
+                    token::Literal::String(value) => {
+                        Literal::String(StringLiteral { value: value.value })
+                    }
                     token::Literal::RegEx(value) => {
                         // FIXME: Support Literal::RegEx properly.
                         Literal::String(StringLiteral {
