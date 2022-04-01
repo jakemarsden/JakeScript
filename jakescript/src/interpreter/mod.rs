@@ -11,6 +11,7 @@ mod declaration;
 mod error;
 mod expression;
 mod heap;
+mod literal;
 mod stack;
 mod statement;
 mod value;
