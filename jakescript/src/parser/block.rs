@@ -4,7 +4,9 @@ use super::Parser;
 use crate::ast::*;
 use crate::iter::peek_fallible::PeekableNthFallibleIterator;
 use crate::lexer;
-use crate::token::{Element, Keyword, Punctuator, Token};
+use crate::token::Keyword::{Const, Function, Let, Var};
+use crate::token::Punctuator::{CloseBrace, OpenBrace};
+use crate::token::{Element, Token};
 use fallible_iterator::FallibleIterator;
 
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
@@ -16,28 +18,28 @@ pub(super) enum Braces {
 impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
     pub(super) fn parse_block(&mut self, braces: Braces) -> Result<Block> {
         match self.source.peek()? {
-            Some(Element::Token(Token::Punctuator(Punctuator::OpenBrace))) => match braces {
+            Some(Element::Token(Token::Punctuator(OpenBrace))) => match braces {
                 Braces::Allow | Braces::Require => {
-                    self.expect_punctuator(Punctuator::OpenBrace)?;
+                    self.expect_punctuator(OpenBrace)?;
                     self.skip_non_tokens()?;
                     let block = self.parse_multi_statement_block_body()?;
                     self.skip_non_tokens()?;
-                    self.expect_punctuator(Punctuator::CloseBrace)?;
+                    self.expect_punctuator(CloseBrace)?;
                     Ok(block)
                 }
             },
             Some(actual) => match braces {
                 Braces::Allow => self.parse_single_statement_block_body(),
                 Braces::Require => Err(Error::unexpected_token(
-                    Exactly(Token::Punctuator(Punctuator::OpenBrace)),
+                    Exactly(Token::Punctuator(OpenBrace)),
                     actual.clone(),
                 )),
             },
             None => match braces {
                 Braces::Allow => Err(Error::unexpected_eoi(Unspecified)),
-                Braces::Require => Err(Error::unexpected_eoi(Exactly(Token::Punctuator(
-                    Punctuator::OpenBrace,
-                )))),
+                Braces::Require => {
+                    Err(Error::unexpected_eoi(Exactly(Token::Punctuator(OpenBrace))))
+                }
             },
         }
     }
@@ -67,7 +69,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             self.skip_non_tokens()?;
             if matches!(
                 self.source.peek()?,
-                Some(Element::Token(Token::Punctuator(Punctuator::CloseBrace))) | None
+                Some(Element::Token(Token::Punctuator(CloseBrace))) | None
             ) {
                 break;
             }
@@ -90,9 +92,9 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
 
     fn parse_declaration_or_statement(&mut self) -> Result<BlockItem> {
         match self.source.peek()? {
-            Some(Element::Token(Token::Keyword(
-                Keyword::Const | Keyword::Function | Keyword::Let | Keyword::Var,
-            ))) => self.parse_declaration().map(BlockItem::Declaration),
+            Some(Element::Token(Token::Keyword(Const | Function | Let | Var))) => {
+                self.parse_declaration().map(BlockItem::Declaration)
+            }
             _ => self.parse_statement().map(BlockItem::Statement),
         }
     }

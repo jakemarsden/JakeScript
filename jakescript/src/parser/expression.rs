@@ -1,4 +1,3 @@
-use super::block::Braces;
 use super::error::AllowToken::{AnyOf, Unspecified};
 use super::error::{Error, Result};
 use super::Parser;
@@ -6,7 +5,15 @@ use crate::ast::*;
 use crate::iter::peek_fallible::PeekableNthFallibleIterator;
 use crate::lexer;
 use crate::non_empty_str;
-use crate::token::{self, Element, Keyword, Punctuator, Token};
+use crate::token::Keyword::Function;
+use crate::token::Punctuator::{
+    self, Amp, AmpAmp, AmpEq, Bang, BangEq, BangEqEq, Caret, CaretEq, CloseBracket, CloseParen,
+    Colon, Comma, Dot, Eq, EqEq, EqEqEq, Gt, GtEq, GtGt, GtGtEq, GtGtGt, GtGtGtEq, Lt, LtEq, LtLt,
+    LtLtEq, Minus, MinusEq, MinusMinus, OpenBrace, OpenBracket, OpenParen, Percent, PercentEq,
+    Pipe, PipeEq, PipePipe, Plus, PlusEq, PlusPlus, Question, Slash, SlashEq, Star, StarEq,
+    StarStar, StarStarEq, Tilde,
+};
+use crate::token::{Element, Token};
 use fallible_iterator::FallibleIterator;
 
 trait TryParse {
@@ -62,14 +69,14 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             Some(Element::Token(Token::Literal(_))) => {
                 Expression::Literal(self.parse_literal_expression()?)
             }
-            Some(Element::Token(Token::Punctuator(Punctuator::OpenBracket))) => {
-                Expression::Array(self.parse_array_expression()?)
+            Some(Element::Token(Token::Punctuator(OpenBracket))) => {
+                Expression::Array(self.parse_array_literal_expression()?)
             }
-            Some(Element::Token(Token::Punctuator(Punctuator::OpenBrace))) => {
-                Expression::Object(self.parse_object_expression()?)
+            Some(Element::Token(Token::Punctuator(OpenBrace))) => {
+                Expression::Object(self.parse_object_literal_expression()?)
             }
-            Some(Element::Token(Token::Keyword(Keyword::Function))) => {
-                Expression::Function(Box::new(self.parse_function_expression()?))
+            Some(Element::Token(Token::Keyword(Function))) => {
+                Expression::Function(Box::new(self.parse_function_literal_expression()?))
             }
             Some(Element::Token(Token::Punctuator(_))) => self.parse_primary_prefix_expression()?,
             actual => return Err(Error::unexpected(Unspecified, actual.cloned())),
@@ -102,7 +109,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                 self.skip_non_tokens()?;
                 let inner = self.parse_expression()?;
                 self.skip_non_tokens()?;
-                self.expect_punctuator(Punctuator::CloseParen)?;
+                self.expect_punctuator(CloseParen)?;
                 Expression::Grouping(GroupingExpression {
                     inner: Box::new(inner),
                 })
@@ -174,7 +181,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                 self.skip_non_tokens()?;
                 let arguments = self.parse_fn_arguments()?;
                 self.skip_non_tokens()?;
-                self.expect_punctuator(Punctuator::CloseParen)?;
+                self.expect_punctuator(CloseParen)?;
                 Expression::Member(MemberExpression::FunctionCall(FunctionCallExpression {
                     function: Box::new(lhs),
                     arguments,
@@ -199,7 +206,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                 self.skip_non_tokens()?;
                 let rhs = self.parse_expression()?;
                 self.skip_non_tokens()?;
-                self.expect_punctuator(Punctuator::CloseBracket)?;
+                self.expect_punctuator(CloseBracket)?;
                 Expression::Member(MemberExpression::ComputedMemberAccess(
                     ComputedMemberAccessExpression {
                         base: Box::new(lhs),
@@ -209,7 +216,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             }
             Operator::Grouping => {
                 self.skip_non_tokens()?;
-                self.expect_punctuator(Punctuator::CloseParen)?;
+                self.expect_punctuator(CloseParen)?;
                 Expression::Grouping(GroupingExpression {
                     inner: Box::new(lhs),
                 })
@@ -219,7 +226,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                 self.skip_non_tokens()?;
                 let lhs = self.parse_expression_impl(op_kind.precedence())?;
                 self.skip_non_tokens()?;
-                self.expect_punctuator(Punctuator::Colon)?;
+                self.expect_punctuator(Colon)?;
                 self.skip_non_tokens()?;
                 let rhs = self.parse_expression_impl(op_kind.precedence())?;
                 Expression::Ternary(TernaryExpression {
@@ -237,84 +244,10 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         Ok(IdentifierReferenceExpression { identifier })
     }
 
-    fn parse_literal_expression(&mut self) -> Result<LiteralExpression> {
-        let value = match self.expect_literal()? {
-            token::Literal::Boolean(value) => Literal::Boolean(value),
-            token::Literal::Numeric(
-                token::NumericLiteral::BinInt(value)
-                | token::NumericLiteral::OctInt(value)
-                | token::NumericLiteral::DecInt(value)
-                | token::NumericLiteral::HexInt(value),
-            ) => Literal::Numeric(NumericLiteral::Int(value)),
-            token::Literal::Numeric(token::NumericLiteral::Decimal(value)) => {
-                Literal::Numeric(NumericLiteral::Float(value))
-            }
-            token::Literal::String(value) => Literal::String(StringLiteral { value: value.value }),
-            token::Literal::RegEx(value) => {
-                // FIXME: Support Literal::RegEx properly.
-                Literal::String(StringLiteral {
-                    value: value.to_string(),
-                })
-            }
-            token::Literal::Null => Literal::Null,
-        };
-        Ok(LiteralExpression { value })
-    }
-
-    fn parse_array_expression(&mut self) -> Result<ArrayExpression> {
-        self.expect_punctuator(Punctuator::OpenBracket)?;
-        self.skip_non_tokens()?;
-        let declared_elements = self.parse_array_elements()?;
-        self.skip_non_tokens()?;
-        self.expect_punctuator(Punctuator::CloseBracket)?;
-        Ok(ArrayExpression { declared_elements })
-    }
-
-    fn parse_object_expression(&mut self) -> Result<ObjectExpression> {
-        self.expect_punctuator(Punctuator::OpenBrace)?;
-        self.skip_non_tokens()?;
-        let declared_properties = self.parse_object_properties()?;
-        self.skip_non_tokens()?;
-        self.expect_punctuator(Punctuator::CloseBrace)?;
-        Ok(ObjectExpression {
-            declared_properties,
-        })
-    }
-
-    fn parse_function_expression(&mut self) -> Result<FunctionExpression> {
-        self.expect_keyword(Keyword::Function)?;
-        self.skip_non_tokens()?;
-        let binding = match self.source.peek()? {
-            Some(Element::Token(Token::Identifier(_))) => {
-                Some(self.expect_identifier(non_empty_str!("function_name"))?)
-            }
-            Some(Element::Token(Token::Punctuator(Punctuator::OpenParen))) => None,
-            actual => {
-                return Err(Error::unexpected(
-                    AnyOf(
-                        Token::Punctuator(Punctuator::OpenParen),
-                        Token::Identifier(non_empty_str!("function_name")),
-                        vec![],
-                    ),
-                    actual.cloned(),
-                ))
-            }
-        };
-        self.skip_non_tokens()?;
-        let formal_parameters = self.parse_fn_parameters()?;
-        self.skip_non_tokens()?;
-        let body = self.parse_block(Braces::Require)?;
-        Ok(FunctionExpression {
-            binding,
-            formal_parameters,
-            body,
-        })
-    }
-
     fn parse_fn_arguments(&mut self) -> Result<Vec<Expression>> {
         if matches!(
             self.source.peek()?,
-            Some(Element::Token(Token::Punctuator(Punctuator::CloseParen)))
+            Some(Element::Token(Token::Punctuator(CloseParen)))
         ) {
             return Ok(vec![]);
         }
@@ -324,17 +257,17 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             self.skip_non_tokens()?;
             args.push(self.parse_expression()?);
             match self.source.peek()? {
-                Some(Element::Token(Token::Punctuator(Punctuator::Comma))) => {
+                Some(Element::Token(Token::Punctuator(Comma))) => {
                     self.source.next()?.unwrap();
                 }
-                Some(Element::Token(Token::Punctuator(Punctuator::CloseParen))) => {
+                Some(Element::Token(Token::Punctuator(CloseParen))) => {
                     break Ok(args);
                 }
                 actual => {
                     return Err(Error::unexpected(
                         AnyOf(
-                            Token::Punctuator(Punctuator::Comma),
-                            Token::Punctuator(Punctuator::CloseParen),
+                            Token::Punctuator(Comma),
+                            Token::Punctuator(CloseParen),
                             vec![],
                         ),
                         actual.cloned(),
@@ -365,19 +298,19 @@ impl TryParse for AssignmentOperator {
             return None;
         }
         Some(match punc {
-            Punctuator::Eq => Self::Assign,
-            Punctuator::PlusEq => Self::ComputeAssign(BinaryOperator::Addition),
-            Punctuator::MinusEq => Self::ComputeAssign(BinaryOperator::Subtraction),
-            Punctuator::StarEq => Self::ComputeAssign(BinaryOperator::Multiplication),
-            Punctuator::SlashEq => Self::ComputeAssign(BinaryOperator::Division),
-            Punctuator::PercentEq => Self::ComputeAssign(BinaryOperator::Modulus),
-            Punctuator::StarStarEq => Self::ComputeAssign(BinaryOperator::Exponentiation),
-            Punctuator::AmpEq => Self::ComputeAssign(BinaryOperator::BitwiseAnd),
-            Punctuator::PipeEq => Self::ComputeAssign(BinaryOperator::BitwiseOr),
-            Punctuator::CaretEq => Self::ComputeAssign(BinaryOperator::BitwiseXOr),
-            Punctuator::LtLtEq => Self::ComputeAssign(BinaryOperator::BitwiseLeftShift),
-            Punctuator::GtGtEq => Self::ComputeAssign(BinaryOperator::BitwiseRightShift),
-            Punctuator::GtGtGtEq => Self::ComputeAssign(BinaryOperator::BitwiseRightShiftUnsigned),
+            Eq => Self::Assign,
+            PlusEq => Self::ComputeAssign(BinaryOperator::Addition),
+            MinusEq => Self::ComputeAssign(BinaryOperator::Subtraction),
+            StarEq => Self::ComputeAssign(BinaryOperator::Multiplication),
+            SlashEq => Self::ComputeAssign(BinaryOperator::Division),
+            PercentEq => Self::ComputeAssign(BinaryOperator::Modulus),
+            StarStarEq => Self::ComputeAssign(BinaryOperator::Exponentiation),
+            AmpEq => Self::ComputeAssign(BinaryOperator::BitwiseAnd),
+            PipeEq => Self::ComputeAssign(BinaryOperator::BitwiseOr),
+            CaretEq => Self::ComputeAssign(BinaryOperator::BitwiseXOr),
+            LtLtEq => Self::ComputeAssign(BinaryOperator::BitwiseLeftShift),
+            GtGtEq => Self::ComputeAssign(BinaryOperator::BitwiseRightShift),
+            GtGtGtEq => Self::ComputeAssign(BinaryOperator::BitwiseRightShiftUnsigned),
             _ => return None,
         })
     }
@@ -389,20 +322,20 @@ impl TryParse for BinaryOperator {
             return None;
         }
         Some(match punc {
-            Punctuator::Plus => Self::Addition,
-            Punctuator::Minus => Self::Subtraction,
-            Punctuator::Star => Self::Multiplication,
-            Punctuator::Slash => Self::Division,
-            Punctuator::Percent => Self::Modulus,
-            Punctuator::StarStar => Self::Exponentiation,
-            Punctuator::Amp => Self::BitwiseAnd,
-            Punctuator::Pipe => Self::BitwiseOr,
-            Punctuator::Caret => Self::BitwiseXOr,
-            Punctuator::AmpAmp => Self::LogicalAnd,
-            Punctuator::PipePipe => Self::LogicalOr,
-            Punctuator::LtLt => Self::BitwiseLeftShift,
-            Punctuator::GtGt => Self::BitwiseRightShift,
-            Punctuator::GtGtGt => Self::BitwiseRightShiftUnsigned,
+            Plus => Self::Addition,
+            Minus => Self::Subtraction,
+            Star => Self::Multiplication,
+            Slash => Self::Division,
+            Percent => Self::Modulus,
+            StarStar => Self::Exponentiation,
+            Amp => Self::BitwiseAnd,
+            Pipe => Self::BitwiseOr,
+            Caret => Self::BitwiseXOr,
+            AmpAmp => Self::LogicalAnd,
+            PipePipe => Self::LogicalOr,
+            LtLt => Self::BitwiseLeftShift,
+            GtGt => Self::BitwiseRightShift,
+            GtGtGt => Self::BitwiseRightShiftUnsigned,
             _ => return None,
         })
     }
@@ -414,14 +347,14 @@ impl TryParse for RelationalOperator {
             return None;
         }
         Some(match punc {
-            Punctuator::EqEq => Self::Equality,
-            Punctuator::BangEq => Self::Inequality,
-            Punctuator::EqEqEq => Self::StrictEquality,
-            Punctuator::BangEqEq => Self::StrictInequality,
-            Punctuator::Gt => Self::GreaterThan,
-            Punctuator::GtEq => Self::GreaterThanOrEqual,
-            Punctuator::Lt => Self::LessThan,
-            Punctuator::LtEq => Self::LessThanOrEqual,
+            EqEq => Self::Equality,
+            BangEq => Self::Inequality,
+            EqEqEq => Self::StrictEquality,
+            BangEqEq => Self::StrictInequality,
+            Gt => Self::GreaterThan,
+            GtEq => Self::GreaterThanOrEqual,
+            Lt => Self::LessThan,
+            LtEq => Self::LessThanOrEqual,
             _ => return None,
         })
     }
@@ -430,10 +363,10 @@ impl TryParse for RelationalOperator {
 impl TryParse for UnaryOperator {
     fn try_parse(punc: Punctuator, pos: Position) -> Option<Self> {
         Some(match (punc, pos) {
-            (Punctuator::Plus, Position::Prefix) => Self::NumericPlus,
-            (Punctuator::Minus, Position::Prefix) => Self::NumericNegation,
-            (Punctuator::Tilde, Position::Prefix) => Self::BitwiseNot,
-            (Punctuator::Bang, Position::Prefix) => Self::LogicalNot,
+            (Plus, Position::Prefix) => Self::NumericPlus,
+            (Minus, Position::Prefix) => Self::NumericNegation,
+            (Tilde, Position::Prefix) => Self::BitwiseNot,
+            (Bang, Position::Prefix) => Self::LogicalNot,
             (_, _) => return None,
         })
     }
@@ -442,10 +375,10 @@ impl TryParse for UnaryOperator {
 impl TryParse for UpdateOperator {
     fn try_parse(punc: Punctuator, pos: Position) -> Option<Self> {
         Some(match (punc, pos) {
-            (Punctuator::PlusPlus, Position::PostfixOrInfix) => Self::GetAndIncrement,
-            (Punctuator::PlusPlus, Position::Prefix) => Self::IncrementAndGet,
-            (Punctuator::MinusMinus, Position::PostfixOrInfix) => Self::GetAndDecrement,
-            (Punctuator::MinusMinus, Position::Prefix) => Self::DecrementAndGet,
+            (PlusPlus, Position::PostfixOrInfix) => Self::GetAndIncrement,
+            (PlusPlus, Position::Prefix) => Self::IncrementAndGet,
+            (MinusMinus, Position::PostfixOrInfix) => Self::GetAndDecrement,
+            (MinusMinus, Position::Prefix) => Self::DecrementAndGet,
             (_, _) => return None,
         })
     }
@@ -454,9 +387,9 @@ impl TryParse for UpdateOperator {
 impl TryParse for MemberOperator {
     fn try_parse(punc: Punctuator, pos: Position) -> Option<Self> {
         Some(match (punc, pos) {
-            (Punctuator::OpenParen, Position::PostfixOrInfix) => Self::FunctionCall,
-            (Punctuator::Dot, Position::PostfixOrInfix) => Self::MemberAccess,
-            (Punctuator::OpenBracket, Position::PostfixOrInfix) => Self::ComputedMemberAccess,
+            (OpenParen, Position::PostfixOrInfix) => Self::FunctionCall,
+            (Dot, Position::PostfixOrInfix) => Self::MemberAccess,
+            (OpenBracket, Position::PostfixOrInfix) => Self::ComputedMemberAccess,
             (_, _) => return None,
         })
     }
@@ -464,16 +397,12 @@ impl TryParse for MemberOperator {
 
 impl TryParse for GroupingOperator {
     fn try_parse(punc: Punctuator, pos: Position) -> Option<Self> {
-        matches!((punc, pos), (Punctuator::OpenParen, Position::Prefix)).then_some(Self)
+        matches!((punc, pos), (OpenParen, Position::Prefix)).then_some(Self)
     }
 }
 
 impl TryParse for TernaryOperator {
     fn try_parse(punc: Punctuator, pos: Position) -> Option<Self> {
-        matches!(
-            (punc, pos),
-            (Punctuator::Question, Position::PostfixOrInfix)
-        )
-        .then_some(Self)
+        matches!((punc, pos), (Question, Position::PostfixOrInfix)).then_some(Self)
     }
 }

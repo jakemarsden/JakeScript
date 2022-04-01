@@ -6,26 +6,28 @@ use crate::ast::*;
 use crate::iter::peek_fallible::PeekableNthFallibleIterator;
 use crate::lexer;
 use crate::non_empty_str;
-use crate::token::{Element, Keyword, Punctuator, Token};
+use crate::token::Keyword::{Const, Function, Let, Var};
+use crate::token::Punctuator::{CloseParen, Comma, Eq, OpenParen, Semi};
+use crate::token::{Element, Token};
 use fallible_iterator::FallibleIterator;
 
 impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
     pub(super) fn parse_declaration(&mut self) -> Result<Declaration> {
         match self.source.peek()? {
-            Some(Element::Token(Token::Keyword(Keyword::Function))) => {
+            Some(Element::Token(Token::Keyword(Function))) => {
                 self.parse_function_declaration().map(Declaration::Function)
             }
-            Some(Element::Token(Token::Keyword(Keyword::Const | Keyword::Let | Keyword::Var))) => {
+            Some(Element::Token(Token::Keyword(Const | Let | Var))) => {
                 let decl = self.parse_variable_declaration()?;
                 self.skip_non_tokens()?;
-                self.expect_punctuator(Punctuator::Semi)?;
+                self.expect_punctuator(Semi)?;
                 Ok(Declaration::Variable(decl))
             }
             actual => Err(Error::unexpected(
                 AnyOf(
-                    Token::Keyword(Keyword::Const),
-                    Token::Keyword(Keyword::Function),
-                    vec![Token::Keyword(Keyword::Let), Token::Keyword(Keyword::Var)],
+                    Token::Keyword(Const),
+                    Token::Keyword(Function),
+                    vec![Token::Keyword(Let), Token::Keyword(Var)],
                 ),
                 actual.cloned(),
             )),
@@ -33,7 +35,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
     }
 
     fn parse_function_declaration(&mut self) -> Result<FunctionDeclaration> {
-        self.expect_keyword(Keyword::Function)?;
+        self.expect_keyword(Function)?;
         self.skip_non_tokens()?;
         let binding = self.expect_identifier(non_empty_str!("function_name"))?;
         self.skip_non_tokens()?;
@@ -48,11 +50,11 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
     }
 
     pub(super) fn parse_fn_parameters(&mut self) -> Result<Vec<Identifier>> {
-        self.expect_punctuator(Punctuator::OpenParen)?;
+        self.expect_punctuator(OpenParen)?;
         self.skip_non_tokens()?;
         if self
             .source
-            .next_if_eq(&Element::Token(Token::Punctuator(Punctuator::CloseParen)))?
+            .next_if_eq(&Element::Token(Token::Punctuator(CloseParen)))?
             .is_some()
         {
             return Ok(vec![]);
@@ -64,15 +66,15 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             params.push(self.expect_identifier(non_empty_str!("parameter_name"))?);
             self.skip_non_tokens()?;
             match self.source.next()? {
-                Some(Element::Token(Token::Punctuator(Punctuator::Comma))) => {}
-                Some(Element::Token(Token::Punctuator(Punctuator::CloseParen))) => {
+                Some(Element::Token(Token::Punctuator(Comma))) => {}
+                Some(Element::Token(Token::Punctuator(CloseParen))) => {
                     break Ok(params);
                 }
                 actual => {
                     return Err(Error::unexpected(
                         AnyOf(
-                            Token::Punctuator(Punctuator::Comma),
-                            Token::Punctuator(Punctuator::CloseParen),
+                            Token::Punctuator(Comma),
+                            Token::Punctuator(CloseParen),
                             vec![],
                         ),
                         actual,
@@ -84,15 +86,15 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
 
     pub(super) fn parse_variable_declaration(&mut self) -> Result<VariableDeclaration> {
         let kind = match self.source.next()? {
-            Some(Element::Token(Token::Keyword(Keyword::Const))) => VariableDeclarationKind::Const,
-            Some(Element::Token(Token::Keyword(Keyword::Let))) => VariableDeclarationKind::Let,
-            Some(Element::Token(Token::Keyword(Keyword::Var))) => VariableDeclarationKind::Var,
+            Some(Element::Token(Token::Keyword(Const))) => VariableDeclarationKind::Const,
+            Some(Element::Token(Token::Keyword(Let))) => VariableDeclarationKind::Let,
+            Some(Element::Token(Token::Keyword(Var))) => VariableDeclarationKind::Var,
             actual => {
                 return Err(Error::unexpected(
                     AnyOf(
-                        Token::Keyword(Keyword::Const),
-                        Token::Keyword(Keyword::Let),
-                        vec![Token::Keyword(Keyword::Var)],
+                        Token::Keyword(Const),
+                        Token::Keyword(Let),
+                        vec![Token::Keyword(Var)],
                     ),
                     actual,
                 ))
@@ -105,17 +107,13 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             self.skip_non_tokens()?;
 
             match self.source.peek()? {
-                Some(Element::Token(Token::Punctuator(Punctuator::Comma))) => {
+                Some(Element::Token(Token::Punctuator(Comma))) => {
                     self.source.next()?.unwrap();
                 }
-                Some(Element::Token(Token::Punctuator(Punctuator::Semi))) => break,
+                Some(Element::Token(Token::Punctuator(Semi))) => break,
                 actual => {
                     return Err(Error::unexpected(
-                        AnyOf(
-                            Token::Punctuator(Punctuator::Comma),
-                            Token::Punctuator(Punctuator::Semi),
-                            vec![],
-                        ),
+                        AnyOf(Token::Punctuator(Comma), Token::Punctuator(Semi), vec![]),
                         actual.cloned(),
                     ))
                 }
@@ -128,18 +126,18 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         let identifier = self.expect_identifier(non_empty_str!("variable_name"))?;
         self.skip_non_tokens()?;
         let initialiser = match self.source.peek()? {
-            Some(Element::Token(Token::Punctuator(Punctuator::Eq))) => {
+            Some(Element::Token(Token::Punctuator(Eq))) => {
                 self.source.next()?.unwrap();
                 self.skip_non_tokens()?;
                 Some(self.parse_expression()?)
             }
-            Some(Element::Token(Token::Punctuator(Punctuator::Comma | Punctuator::Semi))) => None,
+            Some(Element::Token(Token::Punctuator(Comma | Semi))) => None,
             actual => {
                 return Err(Error::unexpected(
                     AnyOf(
-                        Token::Punctuator(Punctuator::Eq),
-                        Token::Punctuator(Punctuator::Comma),
-                        vec![Token::Punctuator(Punctuator::Semi)],
+                        Token::Punctuator(Eq),
+                        Token::Punctuator(Comma),
+                        vec![Token::Punctuator(Semi)],
                     ),
                     actual.cloned(),
                 ))
