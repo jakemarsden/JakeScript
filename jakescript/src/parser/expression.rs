@@ -42,11 +42,9 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         let mut expression = self.parse_primary_expression()?;
         loop {
             self.skip_non_tokens()?;
-            if !matches!(
-                self.source.peek()?,
-                Some(Element::Token(Token::Punctuator(_)))
-            ) {
-                break;
+            match self.source.peek()? {
+                Some(elem) if elem.punctuator().is_some() => {}
+                _ => break,
             }
             match self.parse_secondary_expression(expression, min_precedence)? {
                 Ok(secondary_expression) => {
@@ -63,30 +61,30 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
 
     fn parse_primary_expression(&mut self) -> Result<Expression> {
         Ok(match self.source.peek()? {
-            Some(Element::Token(Token::Identifier(_))) => {
+            Some(elem) if elem.identifier().is_some() => {
                 Expression::IdentifierReference(self.parse_identifier_reference_expression()?)
             }
-            Some(Element::Token(Token::Literal(_))) => {
+            Some(elem) if elem.literal().is_some() => {
                 Expression::Literal(self.parse_literal_expression()?)
             }
-            Some(Element::Token(Token::Punctuator(OpenBracket))) => {
+            Some(elem) if elem.punctuator() == Some(OpenBracket) => {
                 Expression::Array(self.parse_array_literal_expression()?)
             }
-            Some(Element::Token(Token::Punctuator(OpenBrace))) => {
+            Some(elem) if elem.punctuator() == Some(OpenBrace) => {
                 Expression::Object(self.parse_object_literal_expression()?)
             }
-            Some(Element::Token(Token::Keyword(Function))) => {
+            Some(elem) if elem.keyword() == Some(Function) => {
                 Expression::Function(Box::new(self.parse_function_literal_expression()?))
             }
-            Some(Element::Token(Token::Punctuator(_))) => self.parse_primary_prefix_expression()?,
-            actual => return Err(Error::unexpected(Unspecified, actual.cloned())),
+            Some(elem) if elem.punctuator().is_some() => self.parse_primary_prefix_expression()?,
+            elem => return Err(Error::unexpected(Unspecified, elem.cloned())),
         })
     }
 
     fn parse_primary_prefix_expression(&mut self) -> Result<Expression> {
-        let punc = match self.source.next()? {
-            Some(Element::Token(Token::Punctuator(punc))) => punc,
-            actual => return Err(Error::unexpected(Unspecified, actual)),
+        let (elem, punc) = match self.source.next()? {
+            Some(elem) if let Some(punc) = elem.punctuator() => (elem, punc),
+            elem => return Err(Error::unexpected(Unspecified, elem)),
         };
         Ok(match Operator::try_parse(punc, Position::Prefix) {
             Some(Operator::Unary(op_kind)) => {
@@ -116,10 +114,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             }
             Some(op_kind) => unreachable!("{:?}", op_kind),
             None => {
-                return Err(Error::unexpected_token(
-                    Unspecified,
-                    Element::Token(Token::Punctuator(punc)),
-                ));
+                return Err(Error::unexpected_token(Unspecified, elem));
             }
         })
     }
@@ -130,10 +125,10 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         min_precedence: Precedence,
     ) -> Result<std::result::Result<Expression, Expression>> {
         let punc = match self.source.peek()? {
-            Some(Element::Token(Token::Punctuator(punc))) => punc,
-            actual => return Err(Error::unexpected(Unspecified, actual.cloned())),
+            Some(elem) if let Some(punc) = elem.punctuator() => punc,
+            elem => return Err(Error::unexpected(Unspecified, elem.cloned())),
         };
-        let op_kind = match Operator::try_parse(*punc, Position::PostfixOrInfix) {
+        let op_kind = match Operator::try_parse(punc, Position::PostfixOrInfix) {
             Some(op) => op,
             None => return Ok(Err(lhs)),
         };
@@ -245,10 +240,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
     }
 
     fn parse_fn_arguments(&mut self) -> Result<Vec<Expression>> {
-        if matches!(
-            self.source.peek()?,
-            Some(Element::Token(Token::Punctuator(CloseParen)))
-        ) {
+        if let Some(elem) = self.source.peek()? && elem.punctuator() == Some(CloseParen) {
             return Ok(vec![]);
         }
 
@@ -257,20 +249,20 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             self.skip_non_tokens()?;
             args.push(self.parse_expression()?);
             match self.source.peek()? {
-                Some(Element::Token(Token::Punctuator(Comma))) => {
+                Some(elem) if elem.punctuator() == Some(Comma) => {
                     self.source.next()?.unwrap();
                 }
-                Some(Element::Token(Token::Punctuator(CloseParen))) => {
+                Some(elem) if elem.punctuator() == Some(CloseParen) => {
                     break Ok(args);
                 }
-                actual => {
+                elem => {
                     return Err(Error::unexpected(
                         AnyOf(
                             Token::Punctuator(Comma),
                             Token::Punctuator(CloseParen),
                             vec![],
                         ),
-                        actual.cloned(),
+                        elem.cloned(),
                     ))
                 }
             }

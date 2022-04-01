@@ -2,7 +2,7 @@ use fallible_iterator::FallibleIterator;
 use jakescript::interpreter::{Eval, ExecutionState, Interpreter};
 use jakescript::lexer::{self, Lexer};
 use jakescript::parser::Parser;
-use jakescript::token::{Element, Punctuator, Token};
+use jakescript::token::{Element, ElementKind, Punctuator, Token};
 use std::{io, mem};
 
 /// Read Evaluate Print Loop (REPL).
@@ -111,8 +111,8 @@ where
                 Ok(None) => break BufferState::EndOfInput,
                 Err(lex_err) => break BufferState::Err(lex_err),
             };
-            match element {
-                Element::LineTerminator(..) => {
+            match element.kind() {
+                ElementKind::LineTerminator(..) => {
                     self.input_buf.push(element);
                     break if self.brace_depth == 0 {
                         BufferState::Execute
@@ -120,16 +120,16 @@ where
                         BufferState::KeepBuffering
                     };
                 }
-                Element::Token(Token::Punctuator(Punctuator::OpenBrace)) => {
+                ElementKind::Token(Token::Punctuator(Punctuator::OpenBrace)) => {
                     self.brace_depth = self.brace_depth.checked_add(1).unwrap();
                     self.input_buf.push(element);
                 }
-                Element::Token(Token::Punctuator(Punctuator::CloseBrace)) => {
+                ElementKind::Token(Token::Punctuator(Punctuator::CloseBrace)) => {
                     // Leave it to the parser to deal with mismatched braces
                     self.brace_depth = self.brace_depth.saturating_sub(1);
                     self.input_buf.push(element);
                 }
-                Element::Token(_) | Element::Comment(..) | Element::Whitespace(..) => {
+                ElementKind::Token(..) | ElementKind::Comment(..) | ElementKind::Whitespace(..) => {
                     self.input_buf.push(element);
                 }
             };

@@ -52,40 +52,43 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
     }
 
     fn skip_non_tokens(&mut self) -> lexer::Result<()> {
-        self.source
-            .advance_while(|elem| !matches!(elem, Element::Token(..)))
-            .map(|_| ())
+        self.source.advance_while(|elem| elem.token().is_none())?;
+        Ok(())
     }
 
     fn expect_keyword(&mut self, expected: Keyword) -> Result<()> {
-        self.expect_token(Token::Keyword(expected))
+        match self.source.next()? {
+            Some(elem) if elem.keyword() == Some(expected) => Ok(()),
+            elem => Err(Error::unexpected(Exactly(Token::Keyword(expected)), elem)),
+        }
     }
 
     fn expect_punctuator(&mut self, expected: Punctuator) -> Result<()> {
-        self.expect_token(Token::Punctuator(expected))
+        match self.source.next()? {
+            Some(elem) if elem.punctuator() == Some(expected) => Ok(()),
+            elem => Err(Error::unexpected(
+                Exactly(Token::Punctuator(expected)),
+                elem,
+            )),
+        }
     }
 
     fn expect_identifier(&mut self, placeholder: NonEmptyString) -> Result<Identifier> {
         match self.source.next()? {
-            Some(Element::Token(Token::Identifier(id))) => Ok(Identifier::from(id)),
-            actual => Err(Error::unexpected(
+            Some(elem) if elem.identifier().is_some() => {
+                Ok(Identifier::from(elem.into_identifier().unwrap()))
+            }
+            elem => Err(Error::unexpected(
                 Exactly(Token::Identifier(placeholder)),
-                actual,
+                elem,
             )),
         }
     }
 
     fn expect_literal(&mut self) -> Result<token::Literal> {
         match self.source.next()? {
-            Some(Element::Token(Token::Literal(literal))) => Ok(literal),
-            actual => Err(Error::unexpected(Unspecified, actual)),
-        }
-    }
-
-    fn expect_token(&mut self, expected: Token) -> Result<()> {
-        match self.source.next()? {
-            Some(Element::Token(actual)) if actual == expected => Ok(()),
-            actual => Err(Error::unexpected(Exactly(expected), actual)),
+            Some(elem) if elem.literal().is_some() => Ok(elem.into_literal().unwrap()),
+            elem => Err(Error::unexpected(Unspecified, elem)),
         }
     }
 }

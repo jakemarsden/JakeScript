@@ -8,11 +8,8 @@ use std::assert_matches::assert_matches;
 fn tokenise_keywords() {
     for expected in Keyword::all() {
         let mut lexer = Lexer::for_str(expected.as_str());
-        assert_matches!(
-            lexer.next(),
-            Ok(Some(Element::Token(Token::Keyword(actual)))) if actual == *expected
-        );
-        assert_matches!(lexer.next(), Ok(None));
+        assert_eq!(lexer.next().unwrap(), Some(Element::new_keyword(*expected)));
+        assert_eq!(lexer.next().unwrap(), None);
     }
 }
 
@@ -20,11 +17,11 @@ fn tokenise_keywords() {
 fn tokenise_punctuators() {
     for expected in Punctuator::all() {
         let mut lexer = Lexer::for_str(expected.as_str());
-        assert_matches!(
-            lexer.next(),
-            Ok(Some(Element::Token(Token::Punctuator(actual)))) if actual == *expected
+        assert_eq!(
+            lexer.next().unwrap(),
+            Some(Element::new_punctuator(*expected))
         );
-        assert_matches!(lexer.next(), Ok(None));
+        assert_eq!(lexer.next().unwrap(), None);
     }
 }
 
@@ -36,14 +33,12 @@ fn tokenise_string_literal() {
         let mut lexer = Lexer::for_str(source);
         assert_eq!(
             lexer.next().unwrap(),
-            Some(Element::Token(Token::Literal(Literal::String(
-                StringLiteral {
-                    kind: expected_kind,
-                    value: expected.to_owned(),
-                }
-            ))))
+            Some(Element::new_literal(Literal::String(StringLiteral {
+                kind: expected_kind,
+                value: expected.to_owned(),
+            })))
         );
-        assert_matches!(lexer.next(), Ok(None));
+        assert_eq!(lexer.next().unwrap(), None);
     }
 
     check_valid(r#""""#, r#""#, DoubleQuoted);

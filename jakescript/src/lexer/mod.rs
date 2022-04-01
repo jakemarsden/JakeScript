@@ -44,13 +44,13 @@ impl<I: FallibleIterator<Item = char, Error = io::Error>> Lexer<I> {
 
     fn parse_element(&mut self) -> Result {
         Ok(if let Some(it) = self.parse_whitespace()? {
-            Element::Whitespace(it)
+            Element::new_whitespace(it)
         } else if let Some(it) = self.parse_line_terminator()? {
-            Element::LineTerminator(it)
+            Element::new_line_terminator(it)
         } else if let Some(it) = self.parse_comment()? {
-            Element::Comment(it)
+            Element::new_comment(it)
         } else if let Some(it) = self.parse_token()? {
-            Element::Token(it)
+            Element::new_token(it)
         } else {
             let ch = self.source.peek()?.unwrap();
             todo!("Lexer::parse_element: ch={}", ch)

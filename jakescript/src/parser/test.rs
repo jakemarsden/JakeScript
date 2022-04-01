@@ -17,7 +17,7 @@ mod simple {
         let parser = Parser::for_elements(
             source_elements()
                 .into_iter()
-                .filter(|elem| matches!(elem, Element::Token(..))),
+                .filter(|elem| elem.line_terminator().is_none() && elem.whitespace().is_none()),
         );
         assert_eq!(parser.execute().unwrap(), expected());
     }
@@ -29,42 +29,38 @@ mod simple {
     }
 
     fn source_elements() -> Vec<Element> {
-        let sp = Element::Whitespace(Whitespace::from(non_empty_str!(" ")));
-        let indent = Element::Whitespace(Whitespace::from(non_empty_str!("    ")));
-        let lf = Element::LineTerminator(LineTerminator::Lf);
+        let sp = Element::new_whitespace(Whitespace::from(non_empty_str!(" ")));
+        let indent = Element::new_whitespace(Whitespace::from(non_empty_str!("    ")));
+        let lf = Element::new_line_terminator(LineTerminator::Lf);
 
         vec![
-            Element::Token(Token::Identifier(non_empty_str!("square"))),
-            Element::Token(Token::Punctuator(OpenParen)),
-            Element::Token(Token::Literal(token::Literal::Numeric(
-                token::NumericLiteral::DecInt(4),
-            ))),
-            Element::Token(Token::Punctuator(CloseParen)),
-            Element::Token(Token::Punctuator(Semi)),
+            Element::new_identifier(non_empty_str!("square")),
+            Element::new_punctuator(OpenParen),
+            Element::new_literal(token::Literal::Numeric(token::NumericLiteral::DecInt(4))),
+            Element::new_punctuator(CloseParen),
+            Element::new_punctuator(Semi),
             lf.clone(),
             lf.clone(),
-            Element::Token(Token::Keyword(Function)),
+            Element::new_keyword(Function),
             sp.clone(),
-            Element::Token(Token::Identifier(non_empty_str!("square"))),
-            Element::Token(Token::Punctuator(OpenParen)),
-            Element::Token(Token::Identifier(non_empty_str!("n"))),
-            Element::Token(Token::Punctuator(CloseParen)),
+            Element::new_identifier(non_empty_str!("square")),
+            Element::new_punctuator(OpenParen),
+            Element::new_identifier(non_empty_str!("n")),
+            Element::new_punctuator(CloseParen),
             sp.clone(),
-            Element::Token(Token::Punctuator(OpenBrace)),
+            Element::new_punctuator(OpenBrace),
             lf.clone(),
             indent,
-            Element::Token(Token::Keyword(Return)),
+            Element::new_keyword(Return),
             sp.clone(),
-            Element::Token(Token::Identifier(non_empty_str!("n"))),
+            Element::new_identifier(non_empty_str!("n")),
             sp.clone(),
-            Element::Token(Token::Punctuator(StarStar)),
+            Element::new_punctuator(StarStar),
             sp,
-            Element::Token(Token::Literal(token::Literal::Numeric(
-                token::NumericLiteral::DecInt(2),
-            ))),
-            Element::Token(Token::Punctuator(Semi)),
+            Element::new_literal(token::Literal::Numeric(token::NumericLiteral::DecInt(2))),
+            Element::new_punctuator(Semi),
             lf.clone(),
-            Element::Token(Token::Punctuator(CloseBrace)),
+            Element::new_punctuator(CloseBrace),
             lf.clone(),
             lf,
         ]
@@ -122,15 +118,12 @@ fn parse_unclosed_block() {
         Token::Punctuator(OpenBrace),
     ];
 
-    let parser = Parser::for_elements(source.into_iter().map(Element::Token));
+    let parser = Parser::for_elements(source.into_iter().map(Element::new_token));
     assert_matches!(
         parser.execute(),
         Err(err) if matches!(
             err.kind(),
-            ErrorKind::UnexpectedEoi(
-                AllowToken::Exactly(Token::Punctuator(CloseBrace))
-            )
-        )
+            ErrorKind::UnexpectedEoi(AllowToken::Exactly(Token::Punctuator(CloseBrace))))
     );
 }
 
@@ -143,15 +136,13 @@ fn parse_unclosed_paren() {
         Token::Punctuator(OpenBrace),
     ];
 
-    let parser = Parser::for_elements(source.into_iter().map(Element::Token));
+    let parser = Parser::for_elements(source.into_iter().map(Element::new_token));
     assert_matches!(
         parser.execute(),
         Err(err) if matches!(
             err.kind(),
-            ErrorKind::UnexpectedToken(
-                AllowToken::Exactly(Token::Punctuator(CloseParen)),
-                Element::Token(Token::Punctuator(OpenBrace))
-            )
+            ErrorKind::UnexpectedToken(AllowToken::Exactly(Token::Punctuator(CloseParen)), actual)
+            if actual.punctuator() == Some(OpenBrace),
         )
     );
 }
@@ -160,15 +151,13 @@ fn parse_unclosed_paren() {
 fn parse_unfinished_variable_decl() {
     let source = vec![Token::Keyword(Let), Token::Punctuator(Semi)];
 
-    let parser = Parser::for_elements(source.into_iter().map(Element::Token));
+    let parser = Parser::for_elements(source.into_iter().map(Element::new_token));
     assert_matches!(
         parser.execute(),
         Err(err) if matches!(
             err.kind(),
-            ErrorKind::UnexpectedToken(
-                AllowToken::Exactly(Token::Identifier(_)),
-                Element::Token(Token::Punctuator(Semi))
-            )
+            ErrorKind::UnexpectedToken(AllowToken::Exactly(Token::Identifier(_)), actual)
+            if actual.punctuator() == Some(Semi)
         )
     );
 }
@@ -186,14 +175,13 @@ fn parse_unfinished_binary_expression() {
         Token::Punctuator(Semi),
     ];
 
-    let parser = Parser::for_elements(source.into_iter().map(Element::Token));
+    let parser = Parser::for_elements(source.into_iter().map(Element::new_token));
     assert_matches!(
         parser.execute(),
         Err(err) if matches!(
             err.kind(),
-            ErrorKind::UnexpectedToken(
-                AllowToken::Unspecified, Element::Token(Token::Punctuator(Semi))
-            )
+            ErrorKind::UnexpectedToken(AllowToken::Unspecified, actual)
+            if actual.punctuator() == Some(Semi)
         )
     );
 }
