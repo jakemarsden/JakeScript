@@ -1,6 +1,6 @@
 use crate::ast::Script;
 use crate::lexer;
-use crate::token::Token;
+use crate::token::{Element, Token};
 use ansi_term::Style;
 use std::fmt;
 
@@ -13,7 +13,7 @@ pub struct Error(ErrorKind);
 pub enum ErrorKind {
     Lexical(lexer::Error),
     UnexpectedEoi(AllowToken),
-    UnexpectedToken(AllowToken, Token),
+    UnexpectedToken(AllowToken, Element),
 }
 
 #[derive(Debug)]
@@ -29,7 +29,7 @@ impl Error {
         Self(ErrorKind::Lexical(source))
     }
 
-    pub fn unexpected(expected: AllowToken, actual: Option<Token>) -> Self {
+    pub fn unexpected(expected: AllowToken, actual: Option<Element>) -> Self {
         match actual {
             Some(actual) => Self::unexpected_token(expected, actual),
             None => Self::unexpected_eoi(expected),
@@ -40,7 +40,7 @@ impl Error {
         Self(ErrorKind::UnexpectedEoi(expected))
     }
 
-    pub fn unexpected_token(expected: AllowToken, actual: Token) -> Self {
+    pub fn unexpected_token(expected: AllowToken, actual: Element) -> Self {
         Self(ErrorKind::UnexpectedToken(expected, actual))
     }
 

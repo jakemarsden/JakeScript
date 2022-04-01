@@ -5,36 +5,38 @@ use crate::ast::*;
 use crate::iter::peek_fallible::PeekableNthFallibleIterator;
 use crate::lexer;
 use crate::non_empty_str;
-use crate::token::{Punctuator, Token};
+use crate::token::{Element, Punctuator, Token};
 use fallible_iterator::FallibleIterator;
 
-impl<I: FallibleIterator<Item = Token, Error = lexer::Error>> Parser<I> {
-    pub(super) fn parse_array_literal_elements(&mut self) -> Result<Vec<Expression>> {
+impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
+    pub(super) fn parse_array_elements(&mut self) -> Result<Vec<Expression>> {
         if matches!(
-            self.tokens.peek()?,
-            Some(Token::Punctuator(Punctuator::CloseBracket))
+            self.source.peek()?,
+            Some(Element::Token(Token::Punctuator(Punctuator::CloseBracket)))
         ) {
-            return Ok(Vec::with_capacity(0));
+            return Ok(vec![]);
         }
+
         let mut elems = Vec::new();
         loop {
+            self.skip_non_tokens()?;
             elems.push(self.parse_expression()?);
-            match self.tokens.peek()? {
-                Some(&Token::Punctuator(Punctuator::Comma)) => {
-                    assert!(self
-                        .tokens
-                        .next_if_eq(&Token::Punctuator(Punctuator::Comma))?
-                        .is_some());
+            self.skip_non_tokens()?;
+            match self.source.peek()? {
+                Some(Element::Token(Token::Punctuator(Punctuator::Comma))) => {
+                    self.source.next()?.unwrap();
                 }
-                Some(&Token::Punctuator(Punctuator::CloseBracket)) => break Ok(elems),
-                token => {
+                Some(Element::Token(Token::Punctuator(Punctuator::CloseBracket))) => {
+                    break Ok(elems);
+                }
+                actual => {
                     break Err(Error::unexpected(
                         AnyOf(
                             Token::Punctuator(Punctuator::Comma),
                             Token::Punctuator(Punctuator::CloseBracket),
                             vec![],
                         ),
-                        token.cloned(),
+                        actual.cloned(),
                     ))
                 }
             }
@@ -44,9 +46,10 @@ impl<I: FallibleIterator<Item = Token, Error = lexer::Error>> Parser<I> {
     pub(super) fn parse_object_properties(&mut self) -> Result<Vec<DeclaredProperty>> {
         let mut props = Vec::new();
         Ok(loop {
-            match self.tokens.peek()? {
-                Some(Token::Punctuator(Punctuator::CloseBrace)) => break props,
-                Some(Token::Identifier(_)) => {
+            self.skip_non_tokens()?;
+            match self.source.peek()? {
+                Some(Element::Token(Token::Punctuator(Punctuator::CloseBrace))) => break props,
+                Some(Element::Token(Token::Identifier(_))) => {
                     props.push(self.parse_object_property()?);
                 }
                 actual => {
@@ -60,12 +63,12 @@ impl<I: FallibleIterator<Item = Token, Error = lexer::Error>> Parser<I> {
                     ))
                 }
             }
-            match self.tokens.peek()? {
-                Some(Token::Punctuator(Punctuator::CloseBrace)) => break props,
-                Some(Token::Punctuator(Punctuator::Comma)) => assert!(self
-                    .tokens
-                    .next_if_eq(&Token::Punctuator(Punctuator::Comma))?
-                    .is_some()),
+            self.skip_non_tokens()?;
+            match self.source.peek()? {
+                Some(Element::Token(Token::Punctuator(Punctuator::CloseBrace))) => break props,
+                Some(Element::Token(Token::Punctuator(Punctuator::Comma))) => {
+                    self.source.next()?.unwrap();
+                }
                 actual => {
                     return Err(Error::unexpected(
                         AnyOf(
@@ -81,9 +84,11 @@ impl<I: FallibleIterator<Item = Token, Error = lexer::Error>> Parser<I> {
     }
 
     fn parse_object_property(&mut self) -> Result<DeclaredProperty> {
-        let name = match self.tokens.next()? {
+        let name = match self.source.next()? {
             // TODO: Parse non-identifier declared property names.
-            Some(Token::Identifier(id)) => DeclaredPropertyName::Identifier(Identifier::from(id)),
+            Some(Element::Token(Token::Identifier(id))) => {
+                DeclaredPropertyName::Identifier(Identifier::from(id))
+            }
             actual => {
                 return Err(Error::unexpected(
                     Exactly(Token::Identifier(non_empty_str!("property_key"))),
@@ -91,7 +96,9 @@ impl<I: FallibleIterator<Item = Token, Error = lexer::Error>> Parser<I> {
                 ))
             }
         };
+        self.skip_non_tokens()?;
         self.expect_punctuator(Punctuator::Colon)?;
+        self.skip_non_tokens()?;
         let initialiser = self.parse_expression()?;
         Ok(DeclaredProperty { name, initialiser })
     }

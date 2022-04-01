@@ -17,8 +17,6 @@ mod error;
 #[cfg(test)]
 mod test;
 
-pub type Tokens<I> = fallible_iterator::FilterMap<I, fn(Element) -> Result<Option<Token>>>;
-
 type Fallible<I> = fallible_iterator::Convert<iter::Map<I, fn(char) -> io::Result<char>>>;
 
 pub struct Lexer<I: FallibleIterator<Item = char, Error = io::Error>> {
@@ -42,10 +40,6 @@ impl<I: FallibleIterator<Item = char, Error = io::Error>> Lexer<I> {
         Self {
             source: source.peekable_nth_fallible(),
         }
-    }
-
-    pub fn tokens(self) -> Tokens<Self> {
-        self.filter_map(|elem| Ok(elem.token()))
     }
 
     fn parse_element(&mut self) -> Result {
@@ -97,7 +91,8 @@ impl<I: FallibleIterator<Item = char, Error = io::Error>> Lexer<I> {
         } else if let Some(value) = self.parse_string_literal()? {
             Some(Literal::String(value))
         } else {
-            self.parse_regex_literal()?.map(Literal::RegEx)
+            self.parse_regex_literal()?
+                .map(|value| Literal::RegEx(Box::new(value)))
         })
     }
 

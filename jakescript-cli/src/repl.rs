@@ -11,8 +11,8 @@ where
     I: FallibleIterator<Item = char, Error = io::Error>,
 {
     input: Lexer<I>,
+    input_buf: Vec<Element>,
     brace_depth: usize,
-    token_buf: Vec<Token>,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -36,8 +36,8 @@ where
     pub(crate) fn new(input: Lexer<I>) -> Self {
         Self {
             input,
+            input_buf: Vec::new(),
             brace_depth: 0,
-            token_buf: Vec::new(),
         }
     }
 
@@ -50,44 +50,44 @@ where
                 | ExecutionState::Return(..) => unreachable!(),
                 ExecutionState::Exception(ex) => {
                     eprintln!("Exception: {}", ex);
-                    self.token_buf.clear();
+                    self.input_buf.clear();
                     return Result::ExitWithRuntimeError;
                 }
                 ExecutionState::Exit => {
                     eprintln!("Exit");
-                    self.token_buf.clear();
+                    self.input_buf.clear();
                     return Result::ExitNormally;
                 }
             }
 
             eprint!("> {}", "  ".repeat(self.brace_depth));
-            match self.read_next_tokens() {
+            match self.read_next_elements() {
                 BufferState::Execute => {}
                 BufferState::KeepBuffering => {
                     continue;
                 }
                 BufferState::Err(lex_err) => {
                     eprintln!("Lex error: {}", lex_err);
-                    self.token_buf.clear();
+                    self.input_buf.clear();
                     continue;
                 }
                 BufferState::EndOfInput => {
                     eprintln!("Exit");
-                    self.token_buf.clear();
+                    self.input_buf.clear();
                     return Result::EndOfInput;
                 }
             }
 
             // TODO: Optimise: Don't recreate the buffer every time.
-            let buf_size = self.token_buf.len();
-            let stolen_tokens = mem::replace(&mut self.token_buf, Vec::with_capacity(buf_size));
+            let buf_size = self.input_buf.len();
+            let stolen_tokens = mem::replace(&mut self.input_buf, Vec::with_capacity(buf_size));
 
-            let parser = Parser::for_tokens(stolen_tokens.into_iter());
+            let parser = Parser::for_elements(stolen_tokens.into_iter());
             let ast = match parser.execute() {
                 Ok(ast) => ast,
                 Err(err) => {
                     eprintln!("Parse error: {}", err);
-                    self.token_buf.clear();
+                    self.input_buf.clear();
                     continue;
                 }
             };
@@ -96,7 +96,7 @@ where
                 Ok(value) => value,
                 Err(err) => {
                     eprintln!("Runtime error: {}", err);
-                    self.token_buf.clear();
+                    self.input_buf.clear();
                     continue;
                 }
             };
@@ -104,7 +104,7 @@ where
         }
     }
 
-    fn read_next_tokens(&mut self) -> BufferState {
+    fn read_next_elements(&mut self) -> BufferState {
         loop {
             let element = match self.input.next() {
                 Ok(Some(element)) => element,
@@ -112,27 +112,27 @@ where
                 Err(lex_err) => break BufferState::Err(lex_err),
             };
             match element {
-                Element::Token(t @ Token::Punctuator(Punctuator::OpenBrace)) => {
-                    self.brace_depth = self.brace_depth.checked_add(1).unwrap();
-                    self.token_buf.push(t);
-                }
-                Element::Token(t @ Token::Punctuator(Punctuator::CloseBrace)) => {
-                    // Leave it to the parser to deal with mismatched braces
-                    self.brace_depth = self.brace_depth.saturating_sub(1);
-                    self.token_buf.push(t);
-                }
-                Element::Token(t) => {
-                    self.token_buf.push(t);
-                }
                 Element::LineTerminator(..) => {
-                    return if self.brace_depth == 0 {
+                    self.input_buf.push(element);
+                    break if self.brace_depth == 0 {
                         BufferState::Execute
                     } else {
                         BufferState::KeepBuffering
                     };
                 }
-                Element::Comment(..) | Element::Whitespace(..) => {}
-            }
+                Element::Token(Token::Punctuator(Punctuator::OpenBrace)) => {
+                    self.brace_depth = self.brace_depth.checked_add(1).unwrap();
+                    self.input_buf.push(element);
+                }
+                Element::Token(Token::Punctuator(Punctuator::CloseBrace)) => {
+                    // Leave it to the parser to deal with mismatched braces
+                    self.brace_depth = self.brace_depth.saturating_sub(1);
+                    self.input_buf.push(element);
+                }
+                Element::Token(_) | Element::Comment(..) | Element::Whitespace(..) => {
+                    self.input_buf.push(element);
+                }
+            };
         }
     }
 }

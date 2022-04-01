@@ -4,7 +4,7 @@ use super::Parser;
 use crate::ast::*;
 use crate::iter::peek_fallible::PeekableNthFallibleIterator;
 use crate::lexer;
-use crate::token::{Keyword, Punctuator, Token};
+use crate::token::{Element, Keyword, Punctuator, Token};
 use fallible_iterator::FallibleIterator;
 
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
@@ -13,15 +13,17 @@ pub(super) enum Braces {
     Require,
 }
 
-impl<I: FallibleIterator<Item = Token, Error = lexer::Error>> Parser<I> {
+impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
     pub(super) fn parse_block(&mut self, braces: Braces) -> Result<Block> {
-        match self.tokens.peek()? {
-            Some(Token::Punctuator(Punctuator::OpenBrace)) => match braces {
+        match self.source.peek()? {
+            Some(Element::Token(Token::Punctuator(Punctuator::OpenBrace))) => match braces {
                 Braces::Allow | Braces::Require => {
                     self.expect_punctuator(Punctuator::OpenBrace)?;
-                    let block = self.parse_multi_statement_block_body();
+                    self.skip_non_tokens()?;
+                    let block = self.parse_multi_statement_block_body()?;
+                    self.skip_non_tokens()?;
                     self.expect_punctuator(Punctuator::CloseBrace)?;
-                    block
+                    Ok(block)
                 }
             },
             Some(actual) => match braces {
@@ -31,7 +33,12 @@ impl<I: FallibleIterator<Item = Token, Error = lexer::Error>> Parser<I> {
                     actual.clone(),
                 )),
             },
-            None => Err(Error::unexpected_eoi(Unspecified)),
+            None => match braces {
+                Braces::Allow => Err(Error::unexpected_eoi(Unspecified)),
+                Braces::Require => Err(Error::unexpected_eoi(Exactly(Token::Punctuator(
+                    Punctuator::OpenBrace,
+                )))),
+            },
         }
     }
 
@@ -56,10 +63,14 @@ impl<I: FallibleIterator<Item = Token, Error = lexer::Error>> Parser<I> {
     pub(super) fn parse_multi_statement_block_body(&mut self) -> Result<Block> {
         let mut hoisted_decls = Vec::new();
         let mut body = Vec::new();
-        while !matches!(
-            self.tokens.peek()?,
-            Some(Token::Punctuator(Punctuator::CloseBrace)) | None
-        ) {
+        loop {
+            self.skip_non_tokens()?;
+            if matches!(
+                self.source.peek()?,
+                Some(Element::Token(Token::Punctuator(Punctuator::CloseBrace))) | None
+            ) {
+                break;
+            }
             match self.parse_declaration_or_statement()? {
                 BlockItem::Declaration(decl) if decl.is_hoisted() => {
                     let (decl, initialisers) = decl.into_declaration_and_initialiser();
@@ -78,10 +89,10 @@ impl<I: FallibleIterator<Item = Token, Error = lexer::Error>> Parser<I> {
     }
 
     fn parse_declaration_or_statement(&mut self) -> Result<BlockItem> {
-        match self.tokens.peek()? {
-            Some(Token::Keyword(
+        match self.source.peek()? {
+            Some(Element::Token(Token::Keyword(
                 Keyword::Const | Keyword::Function | Keyword::Let | Keyword::Var,
-            )) => self.parse_declaration().map(BlockItem::Declaration),
+            ))) => self.parse_declaration().map(BlockItem::Declaration),
             _ => self.parse_statement().map(BlockItem::Statement),
         }
     }

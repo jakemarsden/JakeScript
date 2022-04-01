@@ -13,7 +13,7 @@ fn parse_unclosed_block() {
         Token::Punctuator(Punctuator::CloseParen),
         Token::Punctuator(Punctuator::OpenBrace),
     ];
-    let parser = Parser::for_tokens(tokens.into_iter());
+    let parser = Parser::for_elements(tokens.into_iter().map(Element::Token));
     assert_matches!(
         parser.execute(),
         Err(err) if matches!(
@@ -33,14 +33,14 @@ fn parse_unclosed_paren() {
         Token::Literal(Literal::Boolean(true)),
         Token::Punctuator(Punctuator::OpenBrace),
     ];
-    let parser = Parser::for_tokens(tokens.into_iter());
+    let parser = Parser::for_elements(tokens.into_iter().map(Element::Token));
     assert_matches!(
         parser.execute(),
         Err(err) if matches!(
             err.kind(),
             ErrorKind::UnexpectedToken(
                 AllowToken::Exactly(Token::Punctuator(Punctuator::CloseParen)),
-                Token::Punctuator(Punctuator::OpenBrace)
+                Element::Token(Token::Punctuator(Punctuator::OpenBrace))
             )
         )
     );
@@ -52,14 +52,14 @@ fn parse_unfinished_variable_decl() {
         Token::Keyword(Keyword::Let),
         Token::Punctuator(Punctuator::Semi),
     ];
-    let parser = Parser::for_tokens(tokens.into_iter());
+    let parser = Parser::for_elements(tokens.into_iter().map(Element::Token));
     assert_matches!(
         parser.execute(),
         Err(err) if matches!(
             err.kind(),
             ErrorKind::UnexpectedToken(
                 AllowToken::Exactly(Token::Identifier(_)),
-                Token::Punctuator(Punctuator::Semi)
+                Element::Token(Token::Punctuator(Punctuator::Semi))
             )
         )
     );
@@ -77,13 +77,13 @@ fn parse_unfinished_binary_expression() {
         Token::Punctuator(Punctuator::Plus),
         Token::Punctuator(Punctuator::Semi),
     ];
-    let parser = Parser::for_tokens(tokens.into_iter());
+    let parser = Parser::for_elements(tokens.into_iter().map(Element::Token));
     assert_matches!(
         parser.execute(),
         Err(err) if matches!(
             err.kind(),
             ErrorKind::UnexpectedToken(
-                AllowToken::Unspecified, Token::Punctuator(Punctuator::Semi)
+                AllowToken::Unspecified, Element::Token(Token::Punctuator(Punctuator::Semi))
             )
         )
     );

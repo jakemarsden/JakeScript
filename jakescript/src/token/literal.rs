@@ -7,7 +7,7 @@ pub enum Literal {
     Boolean(bool),
     Numeric(NumericLiteral),
     String(StringLiteral),
-    RegEx(RegExLiteral),
+    RegEx(Box<RegExLiteral>),
     Null,
 }
 
