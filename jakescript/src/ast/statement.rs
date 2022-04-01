@@ -5,7 +5,7 @@ use super::identifier::Identifier;
 use super::Node;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 #[serde(tag = "statement_type")]
 pub enum Statement {
     Expression(ExpressionStatement),
@@ -21,25 +21,25 @@ pub enum Statement {
     Try(TryStatement),
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct ExpressionStatement {
     pub expression: Expression,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct IfStatement {
     pub condition: Expression,
     pub body: Block,
     pub else_body: Option<Block>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct WhileStatement {
     pub condition: Expression,
     pub body: Block,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct ForStatement {
     pub initialiser: Option<VariableDeclaration>,
     pub condition: Option<Expression>,
@@ -47,40 +47,40 @@ pub struct ForStatement {
     pub body: Block,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct ContinueStatement {
     // TODO: Support labels.
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct BreakStatement {
     // TODO: Support labels.
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct ReturnStatement {
     pub value: Option<Expression>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct ThrowStatement {
     pub exception: Expression,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct TryStatement {
     pub body: Block,
     pub catch: Option<Catch>,
     pub finally: Option<Finally>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct Catch {
     pub parameter: Option<Identifier>,
     pub body: Block,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct Finally {
     pub body: Block,
 }

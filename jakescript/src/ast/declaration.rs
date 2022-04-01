@@ -6,21 +6,21 @@ use super::identifier::Identifier;
 use super::Node;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 #[serde(tag = "declaration_type")]
 pub enum Declaration {
     Function(FunctionDeclaration),
     Variable(VariableDeclaration),
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct FunctionDeclaration {
     pub binding: Identifier,
     pub formal_parameters: Vec<Identifier>,
     pub body: Block,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct VariableDeclaration {
     pub kind: VariableDeclarationKind,
     pub bindings: Vec<VariableBinding>,
@@ -33,7 +33,7 @@ pub enum VariableDeclarationKind {
     Var,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct VariableBinding {
     pub identifier: Identifier,
     pub initialiser: Option<Expression>,

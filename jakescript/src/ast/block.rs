@@ -3,18 +3,18 @@ use super::statement::Statement;
 use super::Node;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, PartialEq, Deserialize, Serialize)]
 pub struct Script {
     body: Block,
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, PartialEq, Deserialize, Serialize)]
 pub struct Block {
     hoisted_declarations: Vec<Declaration>,
     body: Vec<BlockItem>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub enum BlockItem {
     Declaration(Declaration),
     Statement(Statement),

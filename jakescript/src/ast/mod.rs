@@ -5,6 +5,7 @@ pub use identifier::*;
 pub use literal::*;
 pub use statement::*;
 
+use serde::{de, ser};
 use std::fmt;
 
 mod block;
@@ -14,4 +15,4 @@ mod identifier;
 mod literal;
 mod statement;
 
-pub trait Node: Clone + fmt::Debug {}
+pub trait Node: Clone + fmt::Debug + PartialEq + de::DeserializeOwned + ser::Serialize {}

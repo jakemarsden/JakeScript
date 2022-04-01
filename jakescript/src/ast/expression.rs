@@ -4,7 +4,7 @@ use super::Node;
 use crate::ast::Block;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 #[serde(tag = "expression_type")]
 pub enum Expression {
     IdentifierReference(IdentifierReferenceExpression),
@@ -24,27 +24,27 @@ pub enum Expression {
     Ternary(TernaryExpression),
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct IdentifierReferenceExpression {
     pub identifier: Identifier,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct LiteralExpression {
     pub value: Literal,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct ArrayExpression {
     pub declared_elements: Vec<Expression>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct ObjectExpression {
     pub declared_properties: Vec<DeclaredProperty>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub enum DeclaredPropertyName {
     Identifier(Identifier),
     NumericLiteral(NumericLiteral),
@@ -52,83 +52,83 @@ pub enum DeclaredPropertyName {
     Computed(Expression),
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct DeclaredProperty {
     pub name: DeclaredPropertyName,
     pub initialiser: Expression,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct FunctionExpression {
     pub binding: Option<Identifier>,
     pub formal_parameters: Vec<Identifier>,
     pub body: Block,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct AssignmentExpression {
     pub op: AssignmentOperator,
     pub lhs: Box<Expression>,
     pub rhs: Box<Expression>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct BinaryExpression {
     pub op: BinaryOperator,
     pub lhs: Box<Expression>,
     pub rhs: Box<Expression>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct RelationalExpression {
     pub op: RelationalOperator,
     pub lhs: Box<Expression>,
     pub rhs: Box<Expression>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct UnaryExpression {
     pub op: UnaryOperator,
     pub operand: Box<Expression>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct UpdateExpression {
     pub op: UpdateOperator,
     pub operand: Box<Expression>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub enum MemberExpression {
     FunctionCall(FunctionCallExpression),
     MemberAccess(MemberAccessExpression),
     ComputedMemberAccess(ComputedMemberAccessExpression),
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct FunctionCallExpression {
     pub function: Box<Expression>,
     pub arguments: Vec<Expression>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct MemberAccessExpression {
     pub base: Box<Expression>,
     pub member: Identifier,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct ComputedMemberAccessExpression {
     pub base: Box<Expression>,
     pub member: Box<Expression>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct GroupingExpression {
     pub inner: Box<Expression>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct TernaryExpression {
     pub condition: Box<Expression>,
     pub lhs: Box<Expression>,
