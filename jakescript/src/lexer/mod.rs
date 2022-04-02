@@ -1,8 +1,6 @@
 pub use error::*;
 
-use crate::iter::peek_fallible::{
-    IntoPeekableNthFallible, PeekableNthFallible, PeekableNthFallibleIterator,
-};
+use crate::iter::peek_fallible::PeekableNthFallibleIterator;
 use crate::str::NonEmptyString;
 use crate::token::symbol::*;
 use crate::token::*;
@@ -10,46 +8,47 @@ use error::ErrorKind::{
     DigitFollowingNumericLiteral, IdentifierFollowingNumericLiteral, UnclosedComment,
 };
 use fallible_iterator::FallibleIterator;
+use source::{Fallible, SourceCode};
+use std::io;
 use std::str::{Chars, FromStr};
-use std::{io, iter, str};
 
 mod error;
+mod source;
 #[cfg(test)]
 mod test;
 
-type Fallible<I> = fallible_iterator::Convert<iter::Map<I, fn(char) -> io::Result<char>>>;
-
 pub struct Lexer<I: FallibleIterator<Item = char, Error = io::Error>> {
-    source: PeekableNthFallible<I>,
-    loc: SourceLocation,
+    source: SourceCode<I>,
 }
 
 impl<'a> Lexer<Fallible<Chars<'a>>> {
     pub fn for_str(source: &'a str, start_loc: SourceLocation) -> Self {
-        Self::for_chars(source.chars(), start_loc)
+        Self::new(SourceCode::for_str(source, start_loc))
     }
 }
 
 impl<I: Iterator<Item = char>> Lexer<Fallible<I>> {
     pub fn for_chars(source: I, start_loc: SourceLocation) -> Lexer<Fallible<I>> {
-        Self::for_chars_fallible(fallible_iterator::convert(source.map(Ok)), start_loc)
+        Self::new(SourceCode::for_chars(source, start_loc))
     }
 }
 
 impl<I: FallibleIterator<Item = char, Error = io::Error>> Lexer<I> {
     pub fn for_chars_fallible(source: I, start_loc: SourceLocation) -> Self {
-        Self {
-            source: source.peekable_nth_fallible(),
-            loc: start_loc,
-        }
+        Self::new(SourceCode::for_chars_fallible(source, start_loc))
+    }
+
+    fn new(source: SourceCode<I>) -> Self {
+        Self { source }
     }
 
     pub fn source_location(&self) -> &SourceLocation {
-        &self.loc
+        self.source.location()
     }
 
     fn parse_element(&mut self) -> Result {
-        let loc = self.source_location().clone();
+        let loc = self.source.location().clone();
+
         Ok(if let Some(it) = self.parse_whitespace()? {
             Element::new_whitespace(it, loc)
         } else if let Some(it) = self.parse_line_terminator()? {

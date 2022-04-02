@@ -25,6 +25,14 @@ impl SourceLocation {
         }
     }
 
+    pub fn location(&self) -> &Path {
+        self.location.as_ref()
+    }
+
+    pub fn position(&self) -> &SourcePosition {
+        &self.position
+    }
+
     pub fn at(&self, position: SourcePosition) -> Self {
         Self {
             location: Rc::clone(&self.location),
@@ -32,12 +40,12 @@ impl SourceLocation {
         }
     }
 
-    pub fn location(&self) -> &Path {
-        self.location.as_ref()
+    pub fn advance_line(&mut self) {
+        self.position = self.position.plus_lines(1);
     }
 
-    pub fn position(&self) -> &SourcePosition {
-        &self.position
+    pub fn advance_column(&mut self) {
+        self.position = self.position.plus_columns(1);
     }
 }
 
