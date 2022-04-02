@@ -5,7 +5,7 @@ use jakescript::ast::Script;
 use jakescript::interpreter::{self, Eval, Interpreter, Vm};
 use jakescript::lexer::{self, Lexer};
 use jakescript::parser::{self, Parser};
-use jakescript::token::Element;
+use jakescript::token::{Element, SourceLocation};
 use repl::Repl;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -21,11 +21,13 @@ fn main() -> Result<(), Error> {
     #[cfg(windows)]
     ansi_term::enable_ansi_support().ok();
 
+    let start_loc = SourceLocation::at_start_of("stdin");
     match Options::try_from(env::args())? {
         Options(Mode::Eval, None, Some(ref source_path)) => {
             let source_file = fs::File::open(source_path)?;
             let mut buf = io::BufReader::new(source_file);
-            let lexer = Lexer::for_chars_fallible(fallible_iterator::convert(buf.chars()));
+            let lexer =
+                Lexer::for_chars_fallible(fallible_iterator::convert(buf.chars()), start_loc);
 
             let (ast, parse_runtime) = parse(lexer)?;
             println!("Parsed in {:?}", parse_runtime);
@@ -41,7 +43,8 @@ fn main() -> Result<(), Error> {
         Options(Mode::Parse, Some(format), Some(ref source_path)) => {
             let source_file = fs::File::open(source_path)?;
             let mut buf = io::BufReader::new(source_file);
-            let lexer = Lexer::for_chars_fallible(fallible_iterator::convert(buf.chars()));
+            let lexer =
+                Lexer::for_chars_fallible(fallible_iterator::convert(buf.chars()), start_loc);
 
             let (ast, parse_runtime) = parse(lexer)?;
             println!("Parsed in {:?}", parse_runtime);
@@ -55,7 +58,8 @@ fn main() -> Result<(), Error> {
         Options(Mode::Lex, None, Some(ref source_path)) => {
             let source_file = fs::File::open(source_path)?;
             let mut buf = io::BufReader::new(source_file);
-            let lexer = Lexer::for_chars_fallible(fallible_iterator::convert(buf.chars()));
+            let lexer =
+                Lexer::for_chars_fallible(fallible_iterator::convert(buf.chars()), start_loc);
 
             let (elements, lex_runtime) = lex_and_print(lexer)?;
             println!("Lexed in {:?}", lex_runtime);
@@ -66,7 +70,8 @@ fn main() -> Result<(), Error> {
         }
         Options(Mode::Repl, None, None) => {
             let mut stdin = io::stdin().lock();
-            let lexer = Lexer::for_chars_fallible(fallible_iterator::convert(stdin.chars()));
+            let lexer =
+                Lexer::for_chars_fallible(fallible_iterator::convert(stdin.chars()), start_loc);
             let mut it = Interpreter::new(Vm::new().unwrap());
             Repl::new(lexer).execute(&mut it);
         }

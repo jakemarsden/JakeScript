@@ -21,36 +21,43 @@ type Fallible<I> = fallible_iterator::Convert<iter::Map<I, fn(char) -> io::Resul
 
 pub struct Lexer<I: FallibleIterator<Item = char, Error = io::Error>> {
     source: PeekableNthFallible<I>,
+    loc: SourceLocation,
 }
 
 impl<'a> Lexer<Fallible<Chars<'a>>> {
-    pub fn for_str(source: &'a str) -> Self {
-        Self::for_chars(source.chars())
+    pub fn for_str(source: &'a str, start_loc: SourceLocation) -> Self {
+        Self::for_chars(source.chars(), start_loc)
     }
 }
 
 impl<I: Iterator<Item = char>> Lexer<Fallible<I>> {
-    pub fn for_chars(source: I) -> Lexer<Fallible<I>> {
-        Self::for_chars_fallible(fallible_iterator::convert(source.map(Ok)))
+    pub fn for_chars(source: I, start_loc: SourceLocation) -> Lexer<Fallible<I>> {
+        Self::for_chars_fallible(fallible_iterator::convert(source.map(Ok)), start_loc)
     }
 }
 
 impl<I: FallibleIterator<Item = char, Error = io::Error>> Lexer<I> {
-    pub fn for_chars_fallible(source: I) -> Self {
+    pub fn for_chars_fallible(source: I, start_loc: SourceLocation) -> Self {
         Self {
             source: source.peekable_nth_fallible(),
+            loc: start_loc,
         }
     }
 
+    pub fn source_location(&self) -> &SourceLocation {
+        &self.loc
+    }
+
     fn parse_element(&mut self) -> Result {
+        let loc = self.source_location().clone();
         Ok(if let Some(it) = self.parse_whitespace()? {
-            Element::new_whitespace(it)
+            Element::new_whitespace(it, loc)
         } else if let Some(it) = self.parse_line_terminator()? {
-            Element::new_line_terminator(it)
+            Element::new_line_terminator(it, loc)
         } else if let Some(it) = self.parse_comment()? {
-            Element::new_comment(it)
+            Element::new_comment(it, loc)
         } else if let Some(it) = self.parse_token()? {
-            Element::new_token(it)
+            Element::new_token(it, loc)
         } else {
             let ch = self.source.peek()?.unwrap();
             todo!("Lexer::parse_element: ch={}", ch)

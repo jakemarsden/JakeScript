@@ -3,6 +3,7 @@ use fallible_iterator::FallibleIterator;
 use jakescript::interpreter::{self, Eval, ExecutionState, Interpreter, Vm};
 use jakescript::lexer::Lexer;
 use jakescript::parser::{self, Parser};
+use jakescript::token::SourceLocation;
 use std::path::Path;
 use std::time::{Duration, Instant};
 use std::{fmt, fs, io, process, sync};
@@ -17,6 +18,7 @@ pub fn init() {
 }
 
 pub fn exec_source_file(source_path: &Path) -> TestCaseReport {
+    let start_loc = SourceLocation::at_start_of(source_path);
     let source_name = source_path.display().to_string();
     let mut buf = match fs::File::open(source_path) {
         Ok(file) => io::BufReader::new(file),
@@ -24,12 +26,16 @@ pub fn exec_source_file(source_path: &Path) -> TestCaseReport {
     };
     exec(
         source_name,
-        Lexer::for_chars_fallible(fallible_iterator::convert(buf.chars())),
+        Lexer::for_chars_fallible(fallible_iterator::convert(buf.chars()), start_loc),
     )
 }
 
 pub fn exec_source_code(source_code: &str) -> TestCaseReport {
-    exec("untitled".to_owned(), Lexer::for_str(source_code))
+    let start_loc = SourceLocation::at_start_of("untitled");
+    exec(
+        "untitled".to_owned(),
+        Lexer::for_str(source_code, start_loc),
+    )
 }
 
 fn exec<I: FallibleIterator<Item = char, Error = io::Error>>(

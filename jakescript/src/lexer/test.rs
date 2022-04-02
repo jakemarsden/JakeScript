@@ -7,8 +7,14 @@ use std::assert_matches::assert_matches;
 #[test]
 fn tokenise_keywords() {
     for expected in Keyword::all() {
-        let mut lexer = Lexer::for_str(expected.as_str());
-        assert_eq!(lexer.next().unwrap(), Some(Element::new_keyword(*expected)));
+        let mut lexer = Lexer::for_str(expected.as_str(), SourceLocation::default());
+        assert_eq!(
+            lexer.next().unwrap(),
+            Some(Element::new_keyword(
+                *expected,
+                SourceLocation::new("", SourcePosition::at(0, 0))
+            ))
+        );
         assert_eq!(lexer.next().unwrap(), None);
     }
 }
@@ -16,10 +22,13 @@ fn tokenise_keywords() {
 #[test]
 fn tokenise_punctuators() {
     for expected in Punctuator::all() {
-        let mut lexer = Lexer::for_str(expected.as_str());
+        let mut lexer = Lexer::for_str(expected.as_str(), SourceLocation::default());
         assert_eq!(
             lexer.next().unwrap(),
-            Some(Element::new_punctuator(*expected))
+            Some(Element::new_punctuator(
+                *expected,
+                SourceLocation::new("", SourcePosition::at(0, 0))
+            ))
         );
         assert_eq!(lexer.next().unwrap(), None);
     }
@@ -30,13 +39,16 @@ fn tokenise_string_literal() {
     use crate::token::StringLiteralKind::{DoubleQuoted, SingleQuoted};
 
     fn check_valid(source: &str, expected: &str, expected_kind: StringLiteralKind) {
-        let mut lexer = Lexer::for_str(source);
+        let mut lexer = Lexer::for_str(source, SourceLocation::default());
         assert_eq!(
             lexer.next().unwrap(),
-            Some(Element::new_literal(Literal::String(StringLiteral {
-                kind: expected_kind,
-                value: expected.to_owned(),
-            })))
+            Some(Element::new_literal(
+                Literal::String(StringLiteral {
+                    kind: expected_kind,
+                    value: expected.to_owned(),
+                }),
+                SourceLocation::new("", SourcePosition::at(0, 0))
+            ))
         );
         assert_eq!(lexer.next().unwrap(), None);
     }
@@ -75,7 +87,7 @@ fn tokenise_string_literal() {
 #[test]
 fn tokenise_unclosed_multi_line_comment() {
     let source_code = "/* abc";
-    let mut lexer = Lexer::for_str(source_code);
+    let mut lexer = Lexer::for_str(source_code, SourceLocation::default());
     assert_matches!(lexer.next(), Err(err) if err.kind() == Some(ErrorKind::UnclosedComment));
     assert_matches!(lexer.next(), Err(err) if err.kind() == Some(ErrorKind::UnclosedComment));
 }

@@ -1,5 +1,6 @@
 pub use keyword::*;
 pub use literal::*;
+pub use location::*;
 pub use punctuator::*;
 
 use crate::str::NonEmptyString;
@@ -10,11 +11,13 @@ pub mod symbol;
 
 mod keyword;
 mod literal;
+mod location;
 mod punctuator;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Element {
     kind: ElementKind,
+    loc: SourceLocation,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -65,8 +68,8 @@ pub struct Whitespace {
 }
 
 impl Element {
-    pub fn new_identifier(it: NonEmptyString) -> Self {
-        Self::new_token(Token::Identifier(it))
+    pub fn new_identifier(it: NonEmptyString, loc: SourceLocation) -> Self {
+        Self::new_token(Token::Identifier(it), loc)
     }
 
     pub fn into_identifier(self) -> Option<NonEmptyString> {
@@ -83,8 +86,8 @@ impl Element {
         }
     }
 
-    pub fn new_keyword(it: Keyword) -> Self {
-        Self::new_token(Token::Keyword(it))
+    pub fn new_keyword(it: Keyword, loc: SourceLocation) -> Self {
+        Self::new_token(Token::Keyword(it), loc)
     }
 
     pub fn keyword(&self) -> Option<Keyword> {
@@ -94,8 +97,8 @@ impl Element {
         }
     }
 
-    pub fn new_literal(it: Literal) -> Self {
-        Self::new_token(Token::Literal(it))
+    pub fn new_literal(it: Literal, loc: SourceLocation) -> Self {
+        Self::new_token(Token::Literal(it), loc)
     }
 
     pub fn into_literal(self) -> Option<Literal> {
@@ -112,8 +115,8 @@ impl Element {
         }
     }
 
-    pub fn new_punctuator(it: Punctuator) -> Self {
-        Self::new_token(Token::Punctuator(it))
+    pub fn new_punctuator(it: Punctuator, loc: SourceLocation) -> Self {
+        Self::new_token(Token::Punctuator(it), loc)
     }
 
     pub fn punctuator(&self) -> Option<Punctuator> {
@@ -123,8 +126,8 @@ impl Element {
         }
     }
 
-    pub fn new_token(it: Token) -> Self {
-        Self::new(ElementKind::Token(it))
+    pub fn new_token(it: Token, loc: SourceLocation) -> Self {
+        Self::new(ElementKind::Token(it), loc)
     }
 
     pub fn into_token(self) -> Option<Token> {
@@ -141,8 +144,8 @@ impl Element {
         }
     }
 
-    pub fn new_comment(it: Comment) -> Self {
-        Self::new(ElementKind::Comment(it))
+    pub fn new_comment(it: Comment, loc: SourceLocation) -> Self {
+        Self::new(ElementKind::Comment(it), loc)
     }
 
     pub fn into_comment(self) -> Option<Comment> {
@@ -159,8 +162,8 @@ impl Element {
         }
     }
 
-    pub fn new_line_terminator(it: LineTerminator) -> Self {
-        Self::new(ElementKind::LineTerminator(it))
+    pub fn new_line_terminator(it: LineTerminator, loc: SourceLocation) -> Self {
+        Self::new(ElementKind::LineTerminator(it), loc)
     }
 
     pub fn into_line_terminator(self) -> Option<LineTerminator> {
@@ -177,8 +180,8 @@ impl Element {
         }
     }
 
-    pub fn new_whitespace(it: Whitespace) -> Self {
-        Self::new(ElementKind::Whitespace(it))
+    pub fn new_whitespace(it: Whitespace, loc: SourceLocation) -> Self {
+        Self::new(ElementKind::Whitespace(it), loc)
     }
 
     pub fn into_whitespace(self) -> Option<Whitespace> {
@@ -195,8 +198,8 @@ impl Element {
         }
     }
 
-    fn new(kind: ElementKind) -> Self {
-        Self { kind }
+    fn new(kind: ElementKind, loc: SourceLocation) -> Self {
+        Self { kind, loc }
     }
 
     pub fn into_kind(self) -> ElementKind {
@@ -205,6 +208,10 @@ impl Element {
 
     pub fn kind(&self) -> &ElementKind {
         &self.kind
+    }
+
+    pub fn source_location(&self) -> &SourceLocation {
+        &self.loc
     }
 }
 
