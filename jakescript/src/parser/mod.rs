@@ -6,7 +6,7 @@ use crate::iter::peek_fallible::{
 };
 use crate::lexer::{self, Lexer};
 use crate::str::NonEmptyString;
-use crate::token::{self, Element, Keyword, Punctuator, Token};
+use crate::token::{self, Element, Keyword, Punctuator, SourceLocation, Token};
 use error::AllowToken::{Exactly, Unspecified};
 use fallible_iterator::FallibleIterator;
 use std::{io, iter};
@@ -46,8 +46,16 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
     }
 
     pub fn execute(mut self) -> Result {
+        let loc = self
+            .source
+            .peek()?
+            .map(Element::source_location)
+            .cloned()
+            // FIXME: Path is discarded for empty scripts.
+            .unwrap_or_default();
+
         self.skip_non_tokens()?;
-        let body = self.parse_multi_statement_block_body()?;
+        let body = self.parse_multi_statement_block_body(loc)?;
         Ok(Script::new(body))
     }
 
@@ -56,16 +64,16 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         Ok(())
     }
 
-    fn expect_keyword(&mut self, expected: Keyword) -> Result<()> {
+    fn expect_keyword(&mut self, expected: Keyword) -> Result<SourceLocation> {
         match self.source.next()? {
-            Some(elem) if elem.keyword() == Some(expected) => Ok(()),
+            Some(elem) if elem.keyword() == Some(expected) => Ok(elem.source_location().clone()),
             elem => Err(Error::unexpected(Exactly(Token::Keyword(expected)), elem)),
         }
     }
 
-    fn expect_punctuator(&mut self, expected: Punctuator) -> Result<()> {
+    fn expect_punctuator(&mut self, expected: Punctuator) -> Result<SourceLocation> {
         match self.source.next()? {
-            Some(elem) if elem.punctuator() == Some(expected) => Ok(()),
+            Some(elem) if elem.punctuator() == Some(expected) => Ok(elem.source_location().clone()),
             elem => Err(Error::unexpected(
                 Exactly(Token::Punctuator(expected)),
                 elem,
@@ -73,10 +81,14 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         }
     }
 
-    fn expect_identifier(&mut self, placeholder: NonEmptyString) -> Result<Identifier> {
+    fn expect_identifier(
+        &mut self,
+        placeholder: NonEmptyString,
+    ) -> Result<(Identifier, SourceLocation)> {
         match self.source.next()? {
             Some(elem) if elem.identifier().is_some() => {
-                Ok(Identifier::from(elem.into_identifier().unwrap()))
+                let loc = elem.source_location().clone();
+                Ok((Identifier::from(elem.into_identifier().unwrap()), loc))
             }
             elem => Err(Error::unexpected(
                 Exactly(Token::Identifier(placeholder)),
@@ -85,9 +97,12 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         }
     }
 
-    fn expect_literal(&mut self) -> Result<token::Literal> {
+    fn expect_literal(&mut self) -> Result<(token::Literal, SourceLocation)> {
         match self.source.next()? {
-            Some(elem) if elem.literal().is_some() => Ok(elem.into_literal().unwrap()),
+            Some(elem) if elem.literal().is_some() => {
+                let loc = elem.source_location().clone();
+                Ok((elem.into_literal().unwrap(), loc))
+            }
             elem => Err(Error::unexpected(Unspecified, elem)),
         }
     }

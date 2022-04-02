@@ -2,6 +2,7 @@ use super::identifier::Identifier;
 use super::literal::{Literal, NumericLiteral, StringLiteral};
 use super::Node;
 use crate::ast::Block;
+use crate::token::SourceLocation;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
@@ -27,21 +28,25 @@ pub enum Expression {
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct IdentifierReferenceExpression {
     pub identifier: Identifier,
+    pub loc: SourceLocation,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct LiteralExpression {
     pub value: Literal,
+    pub loc: SourceLocation,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct ArrayExpression {
     pub declared_elements: Vec<Expression>,
+    pub loc: SourceLocation,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct ObjectExpression {
     pub declared_properties: Vec<DeclaredProperty>,
+    pub loc: SourceLocation,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
@@ -63,6 +68,7 @@ pub struct FunctionExpression {
     pub binding: Option<Identifier>,
     pub formal_parameters: Vec<Identifier>,
     pub body: Block,
+    pub loc: SourceLocation,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
@@ -70,6 +76,7 @@ pub struct AssignmentExpression {
     pub op: AssignmentOperator,
     pub lhs: Box<Expression>,
     pub rhs: Box<Expression>,
+    pub loc: SourceLocation,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
@@ -77,6 +84,7 @@ pub struct BinaryExpression {
     pub op: BinaryOperator,
     pub lhs: Box<Expression>,
     pub rhs: Box<Expression>,
+    pub loc: SourceLocation,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
@@ -84,18 +92,21 @@ pub struct RelationalExpression {
     pub op: RelationalOperator,
     pub lhs: Box<Expression>,
     pub rhs: Box<Expression>,
+    pub loc: SourceLocation,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct UnaryExpression {
     pub op: UnaryOperator,
     pub operand: Box<Expression>,
+    pub loc: SourceLocation,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct UpdateExpression {
     pub op: UpdateOperator,
     pub operand: Box<Expression>,
+    pub loc: SourceLocation,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
@@ -109,23 +120,27 @@ pub enum MemberExpression {
 pub struct FunctionCallExpression {
     pub function: Box<Expression>,
     pub arguments: Vec<Expression>,
+    pub loc: SourceLocation,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct MemberAccessExpression {
     pub base: Box<Expression>,
     pub member: Identifier,
+    pub loc: SourceLocation,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct ComputedMemberAccessExpression {
     pub base: Box<Expression>,
     pub member: Box<Expression>,
+    pub loc: SourceLocation,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct GroupingExpression {
     pub inner: Box<Expression>,
+    pub loc: SourceLocation,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
@@ -133,6 +148,7 @@ pub struct TernaryExpression {
     pub condition: Box<Expression>,
     pub lhs: Box<Expression>,
     pub rhs: Box<Expression>,
+    pub loc: SourceLocation,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -222,39 +238,125 @@ pub enum Associativity {
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Precedence(u8);
 
-impl Node for Expression {}
+impl Node for Expression {
+    fn source_location(&self) -> &SourceLocation {
+        match self {
+            Self::IdentifierReference(node) => node.source_location(),
+            Self::Literal(node) => node.source_location(),
+            Self::Array(node) => node.source_location(),
+            Self::Object(node) => node.source_location(),
+            Self::Function(node) => node.source_location(),
+            Self::Assignment(node) => node.source_location(),
+            Self::Binary(node) => node.source_location(),
+            Self::Relational(node) => node.source_location(),
+            Self::Unary(node) => node.source_location(),
+            Self::Update(node) => node.source_location(),
+            Self::Member(node) => node.source_location(),
+            Self::Grouping(node) => node.source_location(),
+            Self::Ternary(node) => node.source_location(),
+        }
+    }
+}
 
-impl Node for IdentifierReferenceExpression {}
+impl Node for IdentifierReferenceExpression {
+    fn source_location(&self) -> &SourceLocation {
+        &self.loc
+    }
+}
 
-impl Node for LiteralExpression {}
+impl Node for LiteralExpression {
+    fn source_location(&self) -> &SourceLocation {
+        &self.loc
+    }
+}
 
-impl Node for ArrayExpression {}
+impl Node for ArrayExpression {
+    fn source_location(&self) -> &SourceLocation {
+        &self.loc
+    }
+}
 
-impl Node for ObjectExpression {}
+impl Node for ObjectExpression {
+    fn source_location(&self) -> &SourceLocation {
+        &self.loc
+    }
+}
 
-impl Node for FunctionExpression {}
+impl Node for FunctionExpression {
+    fn source_location(&self) -> &SourceLocation {
+        &self.loc
+    }
+}
 
-impl Node for AssignmentExpression {}
+impl Node for AssignmentExpression {
+    fn source_location(&self) -> &SourceLocation {
+        &self.loc
+    }
+}
 
-impl Node for BinaryExpression {}
+impl Node for BinaryExpression {
+    fn source_location(&self) -> &SourceLocation {
+        &self.loc
+    }
+}
 
-impl Node for RelationalExpression {}
+impl Node for RelationalExpression {
+    fn source_location(&self) -> &SourceLocation {
+        &self.loc
+    }
+}
 
-impl Node for UnaryExpression {}
+impl Node for UnaryExpression {
+    fn source_location(&self) -> &SourceLocation {
+        &self.loc
+    }
+}
 
-impl Node for UpdateExpression {}
+impl Node for UpdateExpression {
+    fn source_location(&self) -> &SourceLocation {
+        &self.loc
+    }
+}
 
-impl Node for MemberExpression {}
+impl Node for MemberExpression {
+    fn source_location(&self) -> &SourceLocation {
+        match self {
+            Self::FunctionCall(node) => node.source_location(),
+            Self::MemberAccess(node) => node.source_location(),
+            Self::ComputedMemberAccess(node) => node.source_location(),
+        }
+    }
+}
 
-impl Node for FunctionCallExpression {}
+impl Node for FunctionCallExpression {
+    fn source_location(&self) -> &SourceLocation {
+        &self.loc
+    }
+}
 
-impl Node for MemberAccessExpression {}
+impl Node for MemberAccessExpression {
+    fn source_location(&self) -> &SourceLocation {
+        &self.loc
+    }
+}
 
-impl Node for ComputedMemberAccessExpression {}
+impl Node for ComputedMemberAccessExpression {
+    fn source_location(&self) -> &SourceLocation {
+        &self.loc
+    }
+}
 
-impl Node for GroupingExpression {}
+impl Node for GroupingExpression {
+    fn source_location(&self) -> &SourceLocation {
+        &self.loc
+    }
+}
 
-impl Node for TernaryExpression {}
+impl Node for TernaryExpression {
+    fn source_location(&self) -> &SourceLocation {
+        &self.loc
+    }
+}
 
 impl Operator {
     pub fn associativity(&self) -> Associativity {

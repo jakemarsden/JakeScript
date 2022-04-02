@@ -86,6 +86,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             Some(elem) if let Some(punc) = elem.punctuator() => (elem, punc),
             elem => return Err(Error::unexpected(Unspecified, elem)),
         };
+        let loc = elem.source_location().clone();
         Ok(match Operator::try_parse(punc, Position::Prefix) {
             Some(Operator::Unary(op_kind)) => {
                 self.skip_non_tokens()?;
@@ -93,6 +94,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                 Expression::Unary(UnaryExpression {
                     op: op_kind,
                     operand: Box::new(operand),
+                    loc,
                 })
             }
             Some(Operator::Update(op_kind)) => {
@@ -101,6 +103,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                 Expression::Update(UpdateExpression {
                     op: op_kind,
                     operand: Box::new(operand),
+                    loc,
                 })
             }
             Some(Operator::Grouping) => {
@@ -110,6 +113,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                 self.expect_punctuator(CloseParen)?;
                 Expression::Grouping(GroupingExpression {
                     inner: Box::new(inner),
+                    loc,
                 })
             }
             Some(op_kind) => unreachable!("{:?}", op_kind),
@@ -135,6 +139,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         if op_kind.precedence() <= min_precedence {
             return Ok(Err(lhs));
         }
+        let loc = lhs.source_location().clone();
         self.source.next()?.unwrap();
         let secondary_expression = match op_kind {
             Operator::Assignment(kind) => {
@@ -144,6 +149,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                     op: kind,
                     lhs: Box::new(lhs),
                     rhs: Box::new(rhs),
+                    loc,
                 })
             }
             Operator::Binary(kind) => {
@@ -153,6 +159,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                     op: kind,
                     lhs: Box::new(lhs),
                     rhs: Box::new(rhs),
+                    loc,
                 })
             }
             Operator::Relational(kind) => {
@@ -162,15 +169,18 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                     op: kind,
                     lhs: Box::new(lhs),
                     rhs: Box::new(rhs),
+                    loc,
                 })
             }
             Operator::Unary(kind) => Expression::Unary(UnaryExpression {
                 op: kind,
                 operand: Box::new(lhs),
+                loc,
             }),
             Operator::Update(kind) => Expression::Update(UpdateExpression {
                 op: kind,
                 operand: Box::new(lhs),
+                loc,
             }),
             Operator::Member(MemberOperator::FunctionCall) => {
                 self.skip_non_tokens()?;
@@ -180,6 +190,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                 Expression::Member(MemberExpression::FunctionCall(FunctionCallExpression {
                     function: Box::new(lhs),
                     arguments,
+                    loc,
                 }))
             }
             Operator::Member(MemberOperator::MemberAccess) => {
@@ -195,6 +206,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                 Expression::Member(MemberExpression::MemberAccess(MemberAccessExpression {
                     base: Box::new(lhs),
                     member: rhs,
+                    loc,
                 }))
             }
             Operator::Member(MemberOperator::ComputedMemberAccess) => {
@@ -206,6 +218,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                     ComputedMemberAccessExpression {
                         base: Box::new(lhs),
                         member: Box::new(rhs),
+                        loc,
                     },
                 ))
             }
@@ -214,6 +227,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                 self.expect_punctuator(CloseParen)?;
                 Expression::Grouping(GroupingExpression {
                     inner: Box::new(lhs),
+                    loc,
                 })
             }
             Operator::Ternary => {
@@ -228,6 +242,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                     condition: Box::new(condition),
                     lhs: Box::new(lhs),
                     rhs: Box::new(rhs),
+                    loc,
                 })
             }
         };
@@ -235,8 +250,8 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
     }
 
     fn parse_identifier_reference_expression(&mut self) -> Result<IdentifierReferenceExpression> {
-        let identifier = self.expect_identifier(non_empty_str!("identifier_reference"))?;
-        Ok(IdentifierReferenceExpression { identifier })
+        let (identifier, loc) = self.expect_identifier(non_empty_str!("identifier_reference"))?;
+        Ok(IdentifierReferenceExpression { identifier, loc })
     }
 
     fn parse_fn_arguments(&mut self) -> Result<Vec<Expression>> {

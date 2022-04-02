@@ -32,7 +32,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
     }
 
     fn parse_if_statement(&mut self) -> Result<IfStatement> {
-        self.expect_keyword(If)?;
+        let loc = self.expect_keyword(If)?;
         self.skip_non_tokens()?;
         self.expect_punctuator(OpenParen)?;
         self.skip_non_tokens()?;
@@ -50,11 +50,12 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             self.skip_non_tokens()?;
             if let Some(elem) = self.source.peek()? && elem.keyword() == Some(If) {
                 // Recursively parse `else if { .. }` blocks
+                let else_if_stmt = self.parse_if_statement()?;
+                let else_if_loc =else_if_stmt.source_location().clone();
                 Some(Block::new(
                     vec![],
-                    vec![
-                        BlockItem::Statement(Statement::If(self.parse_if_statement()?))
-                    ],
+                    vec![BlockItem::Statement(Statement::If(else_if_stmt))],
+                    else_if_loc,
                 ))
             } else {
                 // Parse `else { .. }` blocks
@@ -67,11 +68,12 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             condition,
             body,
             else_body,
+            loc,
         })
     }
 
     fn parse_for_loop(&mut self) -> Result<ForStatement> {
-        self.expect_keyword(For)?;
+        let loc = self.expect_keyword(For)?;
         self.skip_non_tokens()?;
         self.expect_punctuator(OpenParen)?;
         self.skip_non_tokens()?;
@@ -106,11 +108,12 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             condition,
             incrementor,
             body,
+            loc,
         })
     }
 
     fn parse_while_loop(&mut self) -> Result<WhileStatement> {
-        self.expect_keyword(While)?;
+        let loc = self.expect_keyword(While)?;
         self.skip_non_tokens()?;
         self.expect_punctuator(OpenParen)?;
         self.skip_non_tokens()?;
@@ -119,7 +122,11 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         self.expect_punctuator(CloseParen)?;
         self.skip_non_tokens()?;
         let body = self.parse_block(Braces::Allow)?;
-        Ok(WhileStatement { condition, body })
+        Ok(WhileStatement {
+            condition,
+            body,
+            loc,
+        })
     }
 
     fn parse_expression_statement(&mut self) -> Result<ExpressionStatement> {
@@ -130,21 +137,21 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
     }
 
     fn parse_break_statement(&mut self) -> Result<BreakStatement> {
-        self.expect_keyword(Break)?;
+        let loc = self.expect_keyword(Break)?;
         self.skip_non_tokens()?;
         self.expect_punctuator(Semi)?;
-        Ok(BreakStatement {})
+        Ok(BreakStatement { loc })
     }
 
     fn parse_continue_statement(&mut self) -> Result<ContinueStatement> {
-        self.expect_keyword(Continue)?;
+        let loc = self.expect_keyword(Continue)?;
         self.skip_non_tokens()?;
         self.expect_punctuator(Semi)?;
-        Ok(ContinueStatement {})
+        Ok(ContinueStatement { loc })
     }
 
     fn parse_return_statement(&mut self) -> Result<ReturnStatement> {
-        self.expect_keyword(Return)?;
+        let loc = self.expect_keyword(Return)?;
         self.skip_non_tokens()?;
         let value = match self.source.peek()? {
             Some(elem) if elem.punctuator() == Some(Semi) => None,
@@ -152,20 +159,20 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         };
         self.skip_non_tokens()?;
         self.expect_punctuator(Semi)?;
-        Ok(ReturnStatement { value })
+        Ok(ReturnStatement { value, loc })
     }
 
     fn parse_throw_statement(&mut self) -> Result<ThrowStatement> {
-        self.expect_keyword(Throw)?;
+        let loc = self.expect_keyword(Throw)?;
         self.skip_non_tokens()?;
         let exception = self.parse_expression()?;
         self.skip_non_tokens()?;
         self.expect_punctuator(Semi)?;
-        Ok(ThrowStatement { exception })
+        Ok(ThrowStatement { exception, loc })
     }
 
     fn parse_try_statement(&mut self) -> Result<TryStatement> {
-        self.expect_keyword(Try)?;
+        let loc = self.expect_keyword(Try)?;
         self.skip_non_tokens()?;
         let body = self.parse_block(Braces::Require)?;
 
@@ -186,6 +193,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                 body,
                 catch,
                 finally,
+                loc,
             })
         } else {
             Err(Error::unexpected(
@@ -196,7 +204,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
     }
 
     fn parse_catch(&mut self) -> Result<ast::Catch> {
-        self.expect_keyword(Catch)?;
+        let loc = self.expect_keyword(Catch)?;
         self.skip_non_tokens()?;
         let parameter = if self
             .source
@@ -204,7 +212,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             .is_some()
         {
             self.skip_non_tokens()?;
-            let parameter = self.expect_identifier(non_empty_str!("catch_parameter"))?;
+            let (parameter, _) = self.expect_identifier(non_empty_str!("catch_parameter"))?;
             self.skip_non_tokens()?;
             self.expect_punctuator(CloseParen)?;
             Some(parameter)
@@ -213,13 +221,17 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         };
         self.skip_non_tokens()?;
         let body = self.parse_block(Braces::Require)?;
-        Ok(ast::Catch { parameter, body })
+        Ok(ast::Catch {
+            parameter,
+            body,
+            loc,
+        })
     }
 
     fn parse_finally(&mut self) -> Result<ast::Finally> {
-        self.expect_keyword(Finally)?;
+        let loc = self.expect_keyword(Finally)?;
         self.skip_non_tokens()?;
         let body = self.parse_block(Braces::Require)?;
-        Ok(ast::Finally { body })
+        Ok(ast::Finally { body, loc })
     }
 }

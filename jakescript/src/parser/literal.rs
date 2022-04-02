@@ -15,7 +15,8 @@ use fallible_iterator::FallibleIterator;
 
 impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
     pub(super) fn parse_literal_expression(&mut self) -> Result<LiteralExpression> {
-        let value = match self.expect_literal()? {
+        let (value, loc) = self.expect_literal()?;
+        let value = match value {
             token::Literal::Boolean(value) => ast::Literal::Boolean(value),
             token::Literal::Numeric(
                 token::NumericLiteral::BinInt(value)
@@ -37,16 +38,19 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             }
             token::Literal::Null => ast::Literal::Null,
         };
-        Ok(LiteralExpression { value })
+        Ok(LiteralExpression { value, loc })
     }
 
     pub(super) fn parse_array_literal_expression(&mut self) -> Result<ArrayExpression> {
-        self.expect_punctuator(OpenBracket)?;
+        let loc = self.expect_punctuator(OpenBracket)?;
         self.skip_non_tokens()?;
         let declared_elements = self.parse_array_elements()?;
         self.skip_non_tokens()?;
         self.expect_punctuator(CloseBracket)?;
-        Ok(ArrayExpression { declared_elements })
+        Ok(ArrayExpression {
+            declared_elements,
+            loc,
+        })
     }
 
     fn parse_array_elements(&mut self) -> Result<Vec<Expression>> {
@@ -81,13 +85,14 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
     }
 
     pub(super) fn parse_object_literal_expression(&mut self) -> Result<ObjectExpression> {
-        self.expect_punctuator(OpenBrace)?;
+        let loc = self.expect_punctuator(OpenBrace)?;
         self.skip_non_tokens()?;
         let declared_properties = self.parse_object_properties()?;
         self.skip_non_tokens()?;
         self.expect_punctuator(CloseBrace)?;
         Ok(ObjectExpression {
             declared_properties,
+            loc,
         })
     }
 
@@ -152,11 +157,12 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
     }
 
     pub(super) fn parse_function_literal_expression(&mut self) -> Result<FunctionExpression> {
-        self.expect_keyword(Function)?;
+        let loc = self.expect_keyword(Function)?;
         self.skip_non_tokens()?;
         let binding = match self.source.peek()? {
             Some(elem) if elem.identifier().is_some() => {
-                Some(self.expect_identifier(non_empty_str!("function_name"))?)
+                let (binding, _) = self.expect_identifier(non_empty_str!("function_name"))?;
+                Some(binding)
             }
             Some(elem) if elem.punctuator() == Some(OpenParen) => None,
             elem => {
@@ -178,6 +184,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             binding,
             formal_parameters,
             body,
+            loc,
         })
     }
 }

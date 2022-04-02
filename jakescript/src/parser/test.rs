@@ -16,19 +16,16 @@ macro_rules! at {
 }
 
 macro_rules! line_terminator {
-    [$value:ident, $loc:expr] => {
-        $crate::token::Element::new_line_terminator(
-            $crate::token::LineTerminator::$value,
-            $loc
-        )
+    ($value:ident, $loc:expr) => {
+        $crate::token::Element::new_line_terminator($crate::token::LineTerminator::$value, $loc)
     };
 }
 
 macro_rules! whitespace {
-    [$value:literal, $loc:expr] => {
+    ($value:literal, $loc:expr) => {
         $crate::token::Element::new_whitespace(
             $crate::token::Whitespace::from(non_empty_str!($value)),
-            $loc
+            $loc,
         )
     };
 }
@@ -94,6 +91,8 @@ mod simple {
     }
 
     fn expected() -> Script {
+        let loc = SourceLocation::at_start_of("test");
+
         Script::new(Block::new(
             vec![Declaration::Function(FunctionDeclaration {
                 binding: Identifier::from(non_empty_str!("square")),
@@ -106,14 +105,20 @@ mod simple {
                             lhs: Box::new(Expression::IdentifierReference(
                                 IdentifierReferenceExpression {
                                     identifier: Identifier::from(non_empty_str!("n")),
+                                    loc: at![loc@3:11],
                                 },
                             )),
                             rhs: Box::new(Expression::Literal(LiteralExpression {
                                 value: ast::Literal::Numeric(ast::NumericLiteral::Int(2)),
+                                loc: at![loc@3:16],
                             })),
+                            loc: at![loc@3:11],
                         })),
+                        loc: at![loc@3:4],
                     }))],
+                    at![loc@2:19],
                 ),
+                loc: at![loc@2:0],
             })],
             vec![BlockItem::Statement(Statement::Expression(
                 ExpressionStatement {
@@ -122,15 +127,19 @@ mod simple {
                             function: Box::new(Expression::IdentifierReference(
                                 IdentifierReferenceExpression {
                                     identifier: Identifier::from(non_empty_str!("square")),
+                                    loc: at![loc@0:0],
                                 },
                             )),
                             arguments: vec![Expression::Literal(LiteralExpression {
                                 value: Literal::Numeric(NumericLiteral::Int(4)),
+                                loc: at![loc@0:7],
                             })],
+                            loc: at![loc@0:0],
                         },
                     )),
                 },
             ))],
+            at![loc@0:0],
         ))
     }
 }

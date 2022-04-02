@@ -6,7 +6,7 @@ use crate::iter::peek_fallible::PeekableNthFallibleIterator;
 use crate::lexer;
 use crate::token::Keyword::{Const, Function, Let, Var};
 use crate::token::Punctuator::{CloseBrace, OpenBrace};
-use crate::token::{Element, Token};
+use crate::token::{Element, SourceLocation, Token};
 use fallible_iterator::FallibleIterator;
 
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
@@ -20,9 +20,9 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         match self.source.peek()? {
             Some(elem) if elem.punctuator() == Some(OpenBrace) => match braces {
                 Braces::Allow | Braces::Require => {
-                    self.expect_punctuator(OpenBrace)?;
+                    let loc = self.expect_punctuator(OpenBrace)?;
                     self.skip_non_tokens()?;
-                    let block = self.parse_multi_statement_block_body()?;
+                    let block = self.parse_multi_statement_block_body(loc)?;
                     self.skip_non_tokens()?;
                     self.expect_punctuator(CloseBrace)?;
                     Ok(block)
@@ -46,6 +46,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         Ok(match self.parse_declaration_or_statement()? {
             BlockItem::Declaration(decl) if decl.is_hoisted() => {
                 let (decl, initialisers) = decl.into_declaration_and_initialiser();
+                let loc = decl.source_location().clone();
                 let initialisers = initialisers
                     .into_iter()
                     .map(|expr| {
@@ -54,13 +55,20 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                         }))
                     })
                     .collect();
-                Block::new(vec![decl], initialisers)
+                Block::new(vec![decl], initialisers, loc)
             }
-            node => Block::new(vec![], vec![node]),
+            node => {
+                let loc = node.source_location().clone();
+                Block::new(vec![], vec![node], loc)
+            }
         })
     }
 
-    pub(super) fn parse_multi_statement_block_body(&mut self) -> Result<Block> {
+    /// - `loc` - Location of the opening brace.
+    pub(super) fn parse_multi_statement_block_body(
+        &mut self,
+        loc: SourceLocation,
+    ) -> Result<Block> {
         let mut hoisted_decls = Vec::new();
         let mut body = Vec::new();
         loop {
@@ -84,7 +92,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                 node => body.push(node),
             }
         }
-        Ok(Block::new(hoisted_decls, body))
+        Ok(Block::new(hoisted_decls, body, loc))
     }
 
     fn parse_declaration_or_statement(&mut self) -> Result<BlockItem> {

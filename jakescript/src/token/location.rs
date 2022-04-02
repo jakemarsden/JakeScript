@@ -1,6 +1,8 @@
+use serde::{de, ser};
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
+use std::str::FromStr;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd)]
 pub struct SourceLocation {
@@ -45,6 +47,43 @@ impl fmt::Display for SourceLocation {
     }
 }
 
+impl FromStr for SourceLocation {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let (loc_str, pos_str) = s.split_once('@').ok_or(())?;
+        let pos = SourcePosition::from_str(pos_str)?;
+        Ok(Self::new(loc_str, pos))
+    }
+}
+
+impl<'de> de::Deserialize<'de> for SourceLocation {
+    fn deserialize<D: de::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        struct Visitor;
+
+        impl<'de> de::Visitor<'de> for Visitor {
+            type Value = SourceLocation;
+
+            fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                f.write_str(r#"a string in the format "path@line:col""#)
+            }
+
+            fn visit_str<E: de::Error>(self, v: &str) -> Result<Self::Value, E> {
+                SourceLocation::from_str(v)
+                    .map_err(|()| E::invalid_value(de::Unexpected::Str(v), &self))
+            }
+        }
+
+        d.deserialize_str(Visitor)
+    }
+}
+
+impl ser::Serialize for SourceLocation {
+    fn serialize<S: ser::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        s.serialize_str(&self.to_string())
+    }
+}
+
 impl SourcePosition {
     /// - `line` - Zero-based.
     /// - `column` - Zero-based.
@@ -82,5 +121,43 @@ impl fmt::Display for SourcePosition {
             self.line().saturating_add(1),
             self.column().saturating_add(1)
         )
+    }
+}
+
+impl FromStr for SourcePosition {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let (line_str, col_str) = s.split_once(':').ok_or(())?;
+        let line = usize::from_str(line_str).map_err(|_| ())?;
+        let col = usize::from_str(col_str).map_err(|_| ())?;
+        Ok(Self::at(line.saturating_sub(1), col.saturating_sub(1)))
+    }
+}
+
+impl<'de> de::Deserialize<'de> for SourcePosition {
+    fn deserialize<D: de::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        struct Visitor;
+
+        impl<'de> de::Visitor<'de> for Visitor {
+            type Value = SourcePosition;
+
+            fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                f.write_str(r#"a string in the format "line:col""#)
+            }
+
+            fn visit_str<E: de::Error>(self, v: &str) -> Result<Self::Value, E> {
+                SourcePosition::from_str(v)
+                    .map_err(|()| E::invalid_value(de::Unexpected::Str(v), &self))
+            }
+        }
+
+        d.deserialize_str(Visitor)
+    }
+}
+
+impl ser::Serialize for SourcePosition {
+    fn serialize<S: ser::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        s.serialize_str(&self.to_string())
     }
 }

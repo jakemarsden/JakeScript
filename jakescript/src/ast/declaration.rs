@@ -4,6 +4,7 @@ use super::expression::{
 };
 use super::identifier::Identifier;
 use super::Node;
+use crate::token::SourceLocation;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
@@ -18,12 +19,14 @@ pub struct FunctionDeclaration {
     pub binding: Identifier,
     pub formal_parameters: Vec<Identifier>,
     pub body: Block,
+    pub loc: SourceLocation,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct VariableDeclaration {
     pub kind: VariableDeclarationKind,
     pub bindings: Vec<VariableBinding>,
+    pub loc: SourceLocation,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
@@ -37,6 +40,7 @@ pub enum VariableDeclarationKind {
 pub struct VariableBinding {
     pub identifier: Identifier,
     pub initialiser: Option<Expression>,
+    pub loc: SourceLocation,
 }
 
 impl Declaration {
@@ -58,9 +62,20 @@ impl Declaration {
     }
 }
 
-impl Node for Declaration {}
+impl Node for Declaration {
+    fn source_location(&self) -> &SourceLocation {
+        match self {
+            Self::Function(node) => node.source_location(),
+            Self::Variable(node) => node.source_location(),
+        }
+    }
+}
 
-impl Node for FunctionDeclaration {}
+impl Node for FunctionDeclaration {
+    fn source_location(&self) -> &SourceLocation {
+        &self.loc
+    }
+}
 
 impl VariableDeclaration {
     pub fn is_escalated(&self) -> bool {
@@ -92,9 +107,11 @@ impl VariableDeclaration {
                     lhs: Box::new(Expression::IdentifierReference(
                         IdentifierReferenceExpression {
                             identifier: entry.identifier.clone(),
+                            loc: entry.source_location().clone(),
                         },
                     )),
                     rhs: Box::new(initialiser),
+                    loc: entry.source_location().clone(),
                 }));
             }
         }
@@ -102,4 +119,14 @@ impl VariableDeclaration {
     }
 }
 
-impl Node for VariableDeclaration {}
+impl Node for VariableDeclaration {
+    fn source_location(&self) -> &SourceLocation {
+        &self.loc
+    }
+}
+
+impl VariableBinding {
+    pub fn source_location(&self) -> &SourceLocation {
+        &self.loc
+    }
+}

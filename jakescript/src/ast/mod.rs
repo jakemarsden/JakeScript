@@ -5,6 +5,7 @@ pub use identifier::*;
 pub use literal::*;
 pub use statement::*;
 
+use crate::token::SourceLocation;
 use serde::{de, ser};
 use std::fmt;
 
@@ -15,4 +16,6 @@ mod identifier;
 mod literal;
 mod statement;
 
-pub trait Node: Clone + fmt::Debug + PartialEq + de::DeserializeOwned + ser::Serialize {}
+pub trait Node: Clone + fmt::Debug + PartialEq + de::DeserializeOwned + ser::Serialize {
+    fn source_location(&self) -> &SourceLocation;
+}
