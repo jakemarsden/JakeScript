@@ -1,10 +1,17 @@
 use super::value::Value;
+use crate::token::SourceLocation;
 use std::fmt;
 
 pub type Result<T = Value> = std::result::Result<T, Error>;
 
 #[derive(Clone, Debug)]
-pub enum Error {
+pub struct Error {
+    kind: ErrorKind,
+    loc: SourceLocation,
+}
+
+#[derive(Clone, Debug)]
+pub enum ErrorKind {
     Assertion(AssertionError),
     AssignToConstVariable(AssignToConstVariableError),
     FunctionNotDefined(FunctionNotDefinedError),
@@ -42,27 +49,62 @@ pub struct NumericOverflowError;
 pub struct OutOfMemoryError;
 
 #[derive(Clone, Debug)]
-pub struct InitialisationError(Error);
+pub struct InitialisationError(ErrorKind);
+
+impl Error {
+    pub fn new(source: impl Into<ErrorKind>, loc: &SourceLocation) -> Self {
+        Self {
+            kind: source.into(),
+            loc: loc.clone(),
+        }
+    }
+
+    pub fn into_kind(self) -> ErrorKind {
+        self.kind
+    }
+
+    pub fn kind(&self) -> &ErrorKind {
+        &self.kind
+    }
+
+    pub fn source_location(&self) -> &SourceLocation {
+        &self.loc
+    }
+}
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use std::error::Error;
-        write!(f, "{}", self.source().unwrap())
+        write!(f, "{} - {}", self.source_location(), self.kind())
     }
 }
 
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        Some(match self {
-            Self::Assertion(ref source) => source,
-            Self::AssignToConstVariable(ref source) => source,
-            Self::FunctionNotDefined(ref source) => source,
-            Self::NumericOverflow(ref source) => source,
-            Self::NotCallable(ref source) => source,
-            Self::OutOfMemory(ref source) => source,
-            Self::VariableAlreadyDefined(ref source) => source,
-            Self::VariableNotDefined(ref source) => source,
+        Some(match self.kind() {
+            ErrorKind::Assertion(source) => source,
+            ErrorKind::AssignToConstVariable(source) => source,
+            ErrorKind::FunctionNotDefined(source) => source,
+            ErrorKind::NumericOverflow(source) => source,
+            ErrorKind::NotCallable(source) => source,
+            ErrorKind::OutOfMemory(source) => source,
+            ErrorKind::VariableAlreadyDefined(source) => source,
+            ErrorKind::VariableNotDefined(source) => source,
         })
+    }
+}
+
+impl fmt::Display for ErrorKind {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Assertion(source) => write!(f, "{}", source),
+            Self::AssignToConstVariable(source) => write!(f, "{}", source),
+            Self::FunctionNotDefined(source) => write!(f, "{}", source),
+            Self::NotCallable(source) => write!(f, "{}", source),
+            Self::NumericOverflow(source) => write!(f, "{}", source),
+            Self::OutOfMemory(source) => write!(f, "{}", source),
+            Self::VariableAlreadyDefined(source) => write!(f, "{}", source),
+            Self::VariableNotDefined(source) => write!(f, "{}", source),
+        }
     }
 }
 
@@ -84,7 +126,7 @@ impl fmt::Display for AssertionError {
 
 impl std::error::Error for AssertionError {}
 
-impl From<AssertionError> for Error {
+impl From<AssertionError> for ErrorKind {
     fn from(source: AssertionError) -> Self {
         Self::Assertion(source)
     }
@@ -98,7 +140,7 @@ impl fmt::Display for AssignToConstVariableError {
 
 impl std::error::Error for AssignToConstVariableError {}
 
-impl From<AssignToConstVariableError> for Error {
+impl From<AssignToConstVariableError> for ErrorKind {
     fn from(source: AssignToConstVariableError) -> Self {
         Self::AssignToConstVariable(source)
     }
@@ -112,7 +154,7 @@ impl fmt::Display for VariableAlreadyDefinedError {
 
 impl std::error::Error for VariableAlreadyDefinedError {}
 
-impl From<VariableAlreadyDefinedError> for Error {
+impl From<VariableAlreadyDefinedError> for ErrorKind {
     fn from(source: VariableAlreadyDefinedError) -> Self {
         Self::VariableAlreadyDefined(source)
     }
@@ -126,7 +168,7 @@ impl fmt::Display for VariableNotDefinedError {
 
 impl std::error::Error for VariableNotDefinedError {}
 
-impl From<VariableNotDefinedError> for Error {
+impl From<VariableNotDefinedError> for ErrorKind {
     fn from(source: VariableNotDefinedError) -> Self {
         Self::VariableNotDefined(source)
     }
@@ -140,7 +182,7 @@ impl fmt::Display for FunctionNotDefinedError {
 
 impl std::error::Error for FunctionNotDefinedError {}
 
-impl From<FunctionNotDefinedError> for Error {
+impl From<FunctionNotDefinedError> for ErrorKind {
     fn from(source: FunctionNotDefinedError) -> Self {
         Self::FunctionNotDefined(source)
     }
@@ -154,7 +196,7 @@ impl fmt::Display for NotCallableError {
 
 impl std::error::Error for NotCallableError {}
 
-impl From<NotCallableError> for Error {
+impl From<NotCallableError> for ErrorKind {
     fn from(source: NotCallableError) -> Self {
         Self::NotCallable(source)
     }
@@ -168,7 +210,7 @@ impl fmt::Display for NumericOverflowError {
 
 impl std::error::Error for NumericOverflowError {}
 
-impl From<NumericOverflowError> for Error {
+impl From<NumericOverflowError> for ErrorKind {
     fn from(source: NumericOverflowError) -> Self {
         Self::NumericOverflow(source)
     }
@@ -182,9 +224,19 @@ impl fmt::Display for OutOfMemoryError {
 
 impl std::error::Error for OutOfMemoryError {}
 
-impl From<OutOfMemoryError> for Error {
+impl From<OutOfMemoryError> for ErrorKind {
     fn from(source: OutOfMemoryError) -> Self {
         Self::OutOfMemory(source)
+    }
+}
+
+impl InitialisationError {
+    pub fn into_kind(self) -> ErrorKind {
+        self.0
+    }
+
+    pub fn kind(&self) -> &ErrorKind {
+        &self.0
     }
 }
 
@@ -194,17 +246,13 @@ impl fmt::Display for InitialisationError {
     }
 }
 
-impl std::error::Error for InitialisationError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        Some(&self.0)
-    }
-}
+impl std::error::Error for InitialisationError {}
 
 impl<T> From<T> for InitialisationError
 where
-    Error: From<T>,
+    ErrorKind: From<T>,
 {
     fn from(source: T) -> Self {
-        Self(Error::from(source))
+        Self(ErrorKind::from(source))
     }
 }

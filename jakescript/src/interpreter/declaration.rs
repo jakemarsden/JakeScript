@@ -1,4 +1,4 @@
-use super::error::Result;
+use super::error::{Error, Result};
 use super::heap::Callable;
 use super::stack::{Variable, VariableKind};
 use super::value::Value;
@@ -22,7 +22,11 @@ impl Eval for FunctionDeclaration {
             declared_scope,
             self.body.clone(),
         );
-        let fn_obj_ref = it.vm_mut().heap_mut().allocate_callable_object(callable)?;
+        let fn_obj_ref = it
+            .vm_mut()
+            .heap_mut()
+            .allocate_callable_object(callable)
+            .map_err(|err| Error::new(err, self.source_location()))?;
         let variable = Variable::new(
             VariableKind::Var,
             self.binding.clone(),
@@ -32,7 +36,8 @@ impl Eval for FunctionDeclaration {
             .stack_mut()
             .frame_mut()
             .scope_mut()
-            .declare_variable(variable)?;
+            .declare_variable(variable)
+            .map_err(|err| Error::new(err, self.source_location()))?;
         Ok(())
     }
 }
@@ -53,7 +58,9 @@ impl Eval for VariableDeclaration {
             } else {
                 curr_scope.clone()
             };
-            declared_scope.declare_variable(variable)?;
+            declared_scope
+                .declare_variable(variable)
+                .map_err(|err| Error::new(err, self.source_location()))?;
         }
         Ok(())
     }

@@ -86,7 +86,7 @@ impl fmt::Display for ErrorKind {
             Self::UnexpectedToken(expected, actual) => {
                 write!(
                     f,
-                    "Unexpected token at {}: Expected {} but was {}",
+                    "{} - Unexpected token: Expected {} but was {}",
                     actual.source_location(),
                     expected,
                     highlight(actual.to_string()),

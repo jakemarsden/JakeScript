@@ -1,4 +1,4 @@
-use super::error::Result;
+use super::error::{Error, Result};
 use super::heap::Callable;
 use super::value::{Number, Value};
 use super::{Eval, Interpreter};
@@ -29,7 +29,11 @@ impl Eval for ArrayExpression {
         for elem_expr in &self.declared_elements {
             elems.push(elem_expr.eval(it)?);
         }
-        let obj_ref = it.vm_mut().heap_mut().allocate_array(elems)?;
+        let obj_ref = it
+            .vm_mut()
+            .heap_mut()
+            .allocate_array(elems)
+            .map_err(|err| Error::new(err, self.source_location()))?;
         Ok(Value::Reference(obj_ref))
     }
 }
@@ -52,7 +56,11 @@ impl Eval for ObjectExpression {
             let value = prop.initialiser.eval(it)?;
             resolved_props.insert(name, value);
         }
-        let obj_ref = it.vm_mut().heap_mut().allocate_object(resolved_props)?;
+        let obj_ref = it
+            .vm_mut()
+            .heap_mut()
+            .allocate_object(resolved_props)
+            .map_err(|err| Error::new(err, self.source_location()))?;
         Ok(Value::Reference(obj_ref))
     }
 }
@@ -75,7 +83,11 @@ impl Eval for FunctionExpression {
                 self.body.clone(),
             ),
         };
-        let fn_obj_ref = it.vm_mut().heap_mut().allocate_callable_object(callable)?;
+        let fn_obj_ref = it
+            .vm_mut()
+            .heap_mut()
+            .allocate_callable_object(callable)
+            .map_err(|err| Error::new(err, self.source_location()))?;
         Ok(Value::Reference(fn_obj_ref))
     }
 }

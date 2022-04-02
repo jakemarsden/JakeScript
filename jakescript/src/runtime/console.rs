@@ -1,6 +1,6 @@
 use super::{Builtin, NativeHeap, NativeRef};
 use crate::ast::Identifier;
-use crate::interpreter::{self, AssertionError, Error, InitialisationError, Value, Vm};
+use crate::interpreter::{AssertionError, ErrorKind, InitialisationError, Value, Vm};
 
 pub struct Console {
     assert: Value,
@@ -28,7 +28,7 @@ impl Builtin for Console {
         "[object Object]".to_owned()
     }
 
-    fn property(&self, name: &Identifier) -> interpreter::Result<Option<Value>> {
+    fn property(&self, name: &Identifier) -> Result<Option<Value>, ErrorKind> {
         Ok(match name.as_str() {
             "assert" => Some(self.assert.clone()),
             "assertNotReached" => Some(self.assert_not_reached.clone()),
@@ -37,7 +37,7 @@ impl Builtin for Console {
         })
     }
 
-    fn set_property(&mut self, name: &Identifier, value: Value) -> interpreter::Result<Option<()>> {
+    fn set_property(&mut self, name: &Identifier, value: Value) -> Result<Option<()>, ErrorKind> {
         Ok(match name.as_str() {
             "assert" => {
                 self.assert = value;
@@ -61,14 +61,14 @@ impl Builtin for ConsoleAssert {
         Ok(run.register_builtin(Self)?)
     }
 
-    fn invoke(&self, vm: &mut Vm, args: &[Value]) -> interpreter::Result {
+    fn invoke(&self, vm: &mut Vm, args: &[Value]) -> Result<Value, ErrorKind> {
         let mut args = args.iter();
         let assertion = args.next().unwrap_or(&Value::Undefined);
         if assertion.is_truthy() {
             Ok(Value::Undefined)
         } else {
             let detail_msg = build_msg(vm, args);
-            Err(Error::Assertion(AssertionError::new(detail_msg)))
+            Err(ErrorKind::from(AssertionError::new(detail_msg)))
         }
     }
 }
@@ -78,9 +78,9 @@ impl Builtin for ConsoleAssertNotReached {
         Ok(run.register_builtin(Self)?)
     }
 
-    fn invoke(&self, vm: &mut Vm, args: &[Value]) -> interpreter::Result {
+    fn invoke(&self, vm: &mut Vm, args: &[Value]) -> Result<Value, ErrorKind> {
         let detail_msg = build_msg(vm, args.iter());
-        Err(Error::Assertion(AssertionError::new(detail_msg)))
+        Err(ErrorKind::from(AssertionError::new(detail_msg)))
     }
 }
 
@@ -89,7 +89,7 @@ impl Builtin for ConsoleLog {
         Ok(run.register_builtin(Self)?)
     }
 
-    fn invoke(&self, vm: &mut Vm, args: &[Value]) -> interpreter::Result {
+    fn invoke(&self, vm: &mut Vm, args: &[Value]) -> Result<Value, ErrorKind> {
         let msg = build_msg(vm, args.iter());
         vm.write_message(&msg);
         Ok(Value::Undefined)

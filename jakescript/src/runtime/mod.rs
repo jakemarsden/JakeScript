@@ -1,7 +1,9 @@
 pub use global::DefaultGlobalObject;
 
 use crate::ast::Identifier;
-use crate::interpreter::{self, ExecutionState, InitialisationError, OutOfMemoryError, Value, Vm};
+use crate::interpreter::{
+    ErrorKind, ExecutionState, InitialisationError, OutOfMemoryError, Value, Vm,
+};
 use common_macros::hash_map;
 use std::cell::{Ref, RefCell, RefMut};
 use std::collections::hash_map::Entry;
@@ -25,18 +27,18 @@ pub trait Builtin {
         "function assert() {\n    [native code]\n}".to_owned()
     }
 
-    fn invoke(&self, vm: &mut Vm, args: &[Value]) -> interpreter::Result {
+    fn invoke(&self, vm: &mut Vm, args: &[Value]) -> Result<Value, ErrorKind> {
         let arg = args.first().unwrap_or(&Value::Undefined);
         let exception = Value::String(format!("Type error: {} is not a function", arg));
         vm.set_execution_state(ExecutionState::Exception(exception));
         Ok(Value::Undefined)
     }
 
-    fn property(&self, _: &Identifier) -> interpreter::Result<Option<Value>> {
+    fn property(&self, _: &Identifier) -> Result<Option<Value>, ErrorKind> {
         Ok(None)
     }
 
-    fn set_property(&mut self, _: &Identifier, _: Value) -> interpreter::Result<Option<()>> {
+    fn set_property(&mut self, _: &Identifier, _: Value) -> Result<Option<()>, ErrorKind> {
         Ok(None)
     }
 }
@@ -104,11 +106,11 @@ impl NativeObject {
         self.builtin.to_js_string()
     }
 
-    pub fn invoke(&self, vm: &mut Vm, args: &[Value]) -> interpreter::Result {
+    pub fn invoke(&self, vm: &mut Vm, args: &[Value]) -> Result<Value, ErrorKind> {
         self.builtin.invoke(vm, args)
     }
 
-    pub fn property(&self, name: &Identifier) -> interpreter::Result {
+    pub fn property(&self, name: &Identifier) -> Result<Value, ErrorKind> {
         Ok(if let Some(user_value) = self.user_properties.get(name) {
             user_value.clone()
         } else if let Some(builtin_value) = self.builtin.property(name)? {
@@ -118,7 +120,7 @@ impl NativeObject {
         })
     }
 
-    pub fn set_property(&mut self, name: &Identifier, value: Value) -> interpreter::Result<()> {
+    pub fn set_property(&mut self, name: &Identifier, value: Value) -> Result<(), ErrorKind> {
         match self.user_properties.entry(name.clone()) {
             Entry::Occupied(mut entry) => {
                 entry.insert(value);

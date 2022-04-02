@@ -1,6 +1,6 @@
 use super::{Builtin, NativeHeap, NativeRef};
 use crate::ast::Identifier;
-use crate::interpreter::{self, InitialisationError, Number, Value, Vm};
+use crate::interpreter::{ErrorKind, InitialisationError, Number, Value, Vm};
 
 pub struct Math {
     sqrt: Value,
@@ -16,14 +16,14 @@ impl Builtin for Math {
         Ok(run.register_builtin(math)?)
     }
 
-    fn property(&self, name: &Identifier) -> interpreter::Result<Option<Value>> {
+    fn property(&self, name: &Identifier) -> Result<Option<Value>, ErrorKind> {
         Ok(match name.as_str() {
             "sqrt" => Some(self.sqrt.clone()),
             _ => None,
         })
     }
 
-    fn set_property(&mut self, name: &Identifier, value: Value) -> interpreter::Result<Option<()>> {
+    fn set_property(&mut self, name: &Identifier, value: Value) -> Result<Option<()>, ErrorKind> {
         Ok(match name.as_str() {
             "sqrt" => {
                 self.sqrt = value;
@@ -39,7 +39,7 @@ impl Builtin for MathSqrt {
         Ok(run.register_builtin(Self)?)
     }
 
-    fn invoke(&self, _: &mut Vm, args: &[Value]) -> interpreter::Result {
+    fn invoke(&self, _: &mut Vm, args: &[Value]) -> Result<Value, ErrorKind> {
         let arg = args.first();
         Ok(Value::Number(match arg {
             Some(arg) => arg.coerce_to_number().sqrt(),

@@ -7,7 +7,7 @@ use super::{Builtin, NativeHeap, NativeRef};
 use crate::ast::Identifier;
 use crate::interpreter;
 use crate::interpreter::{
-    Error, ExecutionState, InitialisationError, Value, VariableNotDefinedError, Vm,
+    ErrorKind, ExecutionState, InitialisationError, Value, VariableNotDefinedError, Vm,
 };
 
 pub struct DefaultGlobalObject {
@@ -42,7 +42,7 @@ impl Builtin for DefaultGlobalObject {
         "[object Window]".to_owned()
     }
 
-    fn property(&self, name: &Identifier) -> interpreter::Result<Option<Value>> {
+    fn property(&self, name: &Identifier) -> Result<Option<Value>, ErrorKind> {
         Ok(match name.as_str() {
             "Infinity" => Some(Value::Number(interpreter::Number::POS_INF)),
             "NaN" => Some(Value::Number(interpreter::Number::NAN)),
@@ -55,11 +55,11 @@ impl Builtin for DefaultGlobalObject {
             "console" => Some(self.console.clone()),
             "exit" => Some(self.exit.clone()),
             "isNaN" => Some(self.is_nan.clone()),
-            _ => return Err(Error::VariableNotDefined(VariableNotDefinedError)),
+            _ => return Err(ErrorKind::from(VariableNotDefinedError)),
         })
     }
 
-    fn set_property(&mut self, name: &Identifier, value: Value) -> interpreter::Result<Option<()>> {
+    fn set_property(&mut self, name: &Identifier, value: Value) -> Result<Option<()>, ErrorKind> {
         // TODO: Silently ignore setting: `Infinity`, `NaN`, `undefined`
         Ok(match name.as_str() {
             "Infinity" | "NaN" | "undefined" => {
@@ -95,7 +95,7 @@ impl Builtin for DefaultGlobalObject {
                 self.is_nan = value;
                 Some(())
             }
-            _ => return Err(Error::VariableNotDefined(VariableNotDefinedError)),
+            _ => return Err(ErrorKind::from(VariableNotDefinedError)),
         })
     }
 }
@@ -105,7 +105,7 @@ impl Builtin for GlobalExit {
         Ok(run.register_builtin(Self)?)
     }
 
-    fn invoke(&self, vm: &mut Vm, _: &[Value]) -> interpreter::Result {
+    fn invoke(&self, vm: &mut Vm, _: &[Value]) -> Result<Value, ErrorKind> {
         vm.set_execution_state(ExecutionState::Exit);
         Ok(Value::Undefined)
     }
@@ -116,7 +116,7 @@ impl Builtin for GlobalIsNan {
         Ok(run.register_builtin(Self)?)
     }
 
-    fn invoke(&self, _: &mut Vm, args: &[Value]) -> interpreter::Result {
+    fn invoke(&self, _: &mut Vm, args: &[Value]) -> Result<Value, ErrorKind> {
         let arg = args.first().unwrap_or(&Value::Undefined);
         Ok(Value::Boolean(match arg {
             Value::Boolean(_)

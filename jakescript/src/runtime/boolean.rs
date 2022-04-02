@@ -1,5 +1,5 @@
 use super::{Builtin, NativeHeap, NativeRef};
-use crate::interpreter::{self, InitialisationError, Value, Vm};
+use crate::interpreter::{ErrorKind, InitialisationError, Value, Vm};
 
 pub struct Boolean;
 
@@ -8,7 +8,7 @@ impl Builtin for Boolean {
         Ok(run.register_builtin(Self)?)
     }
 
-    fn invoke(&self, _: &mut Vm, args: &[Value]) -> interpreter::Result {
+    fn invoke(&self, _: &mut Vm, args: &[Value]) -> Result<Value, ErrorKind> {
         let arg = args.first();
         Ok(Value::Boolean(match arg {
             Some(arg) => arg.coerce_to_bool(),

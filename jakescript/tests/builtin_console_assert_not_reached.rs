@@ -1,8 +1,8 @@
 #![feature(assert_matches)]
 
 use harness::FailureReason;
-use jakescript::interpreter::Error;
-use std::assert_matches::assert_matches;
+use jakescript::interpreter::ErrorKind;
+use jakescript::token::SourceLocation;
 
 pub mod harness;
 
@@ -31,13 +31,17 @@ fn assertion_fails_with_detail_msg() {
 
 fn assert_fails(source_code: &str, expected_detail_msg: &str) {
     let report = harness::exec_source_code(source_code);
-    assert_matches!(
-        report.failure_reason(),
-        Some(FailureReason::Runtime(Error::Assertion(..)))
-    );
-    if let Some(FailureReason::Runtime(Error::Assertion(err))) = report.failure_reason() {
-        assert_eq!(err.detail_msg(), expected_detail_msg);
+    let err = match report.failure_reason() {
+        Some(FailureReason::Runtime(err)) => err,
+        err => unreachable!("{:#?}", err),
+    };
+    if let ErrorKind::Assertion(err_source) = err.kind() {
+        assert_eq!(err_source.detail_msg(), expected_detail_msg);
+        assert_eq!(
+            err.source_location(),
+            &SourceLocation::at_start_of("untitled")
+        );
     } else {
-        unreachable!();
+        unreachable!("{:#?}", err);
     }
 }

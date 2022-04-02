@@ -1,7 +1,8 @@
 #![feature(assert_matches)]
 
 use harness::FailureReason;
-use jakescript::interpreter::{Error, Value};
+use jakescript::interpreter::{ErrorKind, Value};
+use jakescript::token::{SourceLocation, SourcePosition};
 use std::assert_matches::assert_matches;
 
 pub mod harness;
@@ -25,8 +26,16 @@ const a = 10;
 a = 20;
 "##;
     let report = harness::exec_source_code(source_code);
-    assert_matches!(
-        report.failure_reason(),
-        Some(FailureReason::Runtime(Error::AssignToConstVariable(..)))
-    );
+    let err = match report.failure_reason() {
+        Some(FailureReason::Runtime(err)) => err,
+        err => unreachable!("{:#?}", err),
+    };
+    if let ErrorKind::AssignToConstVariable(_) = err.kind() {
+        assert_eq!(
+            err.source_location(),
+            &SourceLocation::new("untitled", SourcePosition::at(2, 0))
+        );
+    } else {
+        unreachable!("{:#?}", err);
+    }
 }
