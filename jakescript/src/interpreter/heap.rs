@@ -1,11 +1,18 @@
-use super::error::OutOfMemoryError;
+use super::error::{ErrorKind, OutOfMemoryError, VariableNotDefinedError};
 use super::stack::Scope;
 use super::value::Value;
+use super::vm::Vm;
 use crate::ast::{Block, Identifier};
+use crate::runtime::NativeFn;
+use crate::str::NonEmptyString;
+use common_macros::hash_map;
 use std::cell::{Ref, RefCell, RefMut};
-use std::collections::HashMap;
+use std::collections::{hash_map, HashMap};
 use std::fmt;
 use std::rc::Rc;
+
+// TODO: Introduce a newtype for property keys?
+type PropertyKey = NonEmptyString;
 
 #[derive(Debug, Default)]
 pub struct Heap {
@@ -21,53 +28,51 @@ pub struct Reference(usize, Rc<RefCell<Object>>);
 
 #[derive(Debug)]
 pub struct Object {
-    // TODO: `Identifier` as the key isn't sufficient here because all sorts of things which aren't
-    //  valid identifiers can be used to lookup and set properties (including an empty string, whole
-    //  other objects, etc.).
-    properties: HashMap<Identifier, Value>,
-    callable: Option<Callable>,
+    extensible: bool,
+    // TODO: Introduce a newtype for property keys?
+    properties: HashMap<PropertyKey, Property>,
+    call: Option<Call>,
+}
+
+#[derive(Clone, Debug)]
+pub struct Property {
+    modifiable: bool,
+    value: Value,
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum SetPropertyResult {
+    /// The property was present and modifiable, so its value was updated.
+    Updated,
+    /// The property was present and unmodifiable, so its value was not updated.
+    NotUpdated,
+    /// The property was absent and the object was extensible, so a new property was added.
+    Added,
+    /// The property was absent and the object was inextensible, so a new property was not added.
+    NotAdded,
 }
 
 #[derive(Debug)]
-pub struct Callable {
+pub enum Call {
+    User(UserFunction),
+    Native(NativeFunction),
+}
+
+#[derive(Debug)]
+pub struct UserFunction {
     name: Option<Identifier>,
     declared_parameters: Vec<Identifier>,
     declared_scope: Scope,
     body: Block,
 }
 
+pub struct NativeFunction(&'static NativeFn);
+
 impl Heap {
-    pub fn allocate_array(&mut self, values: Vec<Value>) -> Result<Reference, OutOfMemoryError> {
-        let props = values
-            .into_iter()
-            .enumerate()
-            .map(|(idx, value)| (Identifier::from(idx as i64), value))
-            .collect();
-        self.alloc(|| Object::new(props, None))
-    }
-
-    pub fn allocate_object(
-        &mut self,
-        properties: HashMap<Identifier, Value>,
-    ) -> Result<Reference, OutOfMemoryError> {
-        self.alloc(|| Object::new(properties, None))
-    }
-
-    pub fn allocate_callable_object(
-        &mut self,
-        callable: Callable,
-    ) -> Result<Reference, OutOfMemoryError> {
-        self.alloc(|| Object::new(HashMap::default(), Some(callable)))
-    }
-
-    fn alloc(
-        &mut self,
-        constructor: impl FnOnce() -> Object,
-    ) -> Result<Reference, OutOfMemoryError> {
+    pub fn allocate(&mut self, obj: Object) -> Result<Reference, OutOfMemoryError> {
         let obj_idx = self.next_obj_idx;
         self.next_obj_idx = self.next_obj_idx.checked_add(1).ok_or(OutOfMemoryError)?;
-        let new_obj = constructor();
-        Ok(Reference::new(obj_idx, new_obj))
+        Ok(Reference::new(obj_idx, obj))
     }
 
     // unused_self: Will be used in the future, see comment about storing objects inside the heap.
@@ -117,27 +122,77 @@ impl fmt::Debug for Reference {
 }
 
 impl Object {
-    fn new(properties: HashMap<Identifier, Value>, callable: Option<Callable>) -> Self {
-        Self {
+    pub fn new_array(elements: Vec<Value>) -> Self {
+        let properties = elements
+            .into_iter()
+            .enumerate()
+            .map(|(idx, value)| (PropertyKey::from(idx), Property::new(true, value)))
+            .collect();
+        Self::new(true, properties, None)
+    }
+
+    pub fn new_object(properties: HashMap<PropertyKey, Value>) -> Self {
+        let properties = properties
+            .into_iter()
+            .map(|(key, value)| (key, Property::new(true, value)))
+            .collect();
+        Self::new(true, properties, None)
+    }
+
+    pub fn new_function(user_fn: UserFunction) -> Self {
+        Self::new(true, hash_map![], Some(Call::User(user_fn)))
+    }
+
+    pub fn new_builtin(
+        extensible: bool,
+        properties: HashMap<PropertyKey, Property>,
+        call: Option<&'static NativeFn>,
+    ) -> Self {
+        Self::new(
+            extensible,
             properties,
-            callable,
+            call.map(|f| Call::Native(NativeFunction::new(f))),
+        )
+    }
+
+    fn new(
+        extensible: bool,
+        properties: HashMap<PropertyKey, Property>,
+        call: Option<Call>,
+    ) -> Self {
+        Self {
+            extensible,
+            properties,
+            call,
         }
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.properties.is_empty()
+    pub fn get(&self, key: &PropertyKey) -> Option<&Value> {
+        self.properties.get(key).map(Property::value)
     }
 
-    pub fn property(&self, name: &Identifier) -> Option<&Value> {
-        self.properties.get(name)
+    pub fn set(&mut self, key: PropertyKey, value: Value) -> SetPropertyResult {
+        match self.properties.entry(key) {
+            hash_map::Entry::Occupied(mut entry) => {
+                if entry.get_mut().set_value(value) {
+                    SetPropertyResult::Updated
+                } else {
+                    SetPropertyResult::NotUpdated
+                }
+            }
+            hash_map::Entry::Vacant(entry) => {
+                if self.extensible {
+                    entry.insert(Property::new(true, value));
+                    SetPropertyResult::Added
+                } else {
+                    SetPropertyResult::NotAdded
+                }
+            }
+        }
     }
 
-    pub fn set_property(&mut self, name: Identifier, value: Value) {
-        self.properties.insert(name, value);
-    }
-
-    pub fn callable(&self) -> Option<&Callable> {
-        self.callable.as_ref()
+    pub fn call(&self) -> Option<&Call> {
+        self.call.as_ref()
     }
 
     // TODO: Call `.toString()` on the object if it exists.
@@ -147,24 +202,46 @@ impl Object {
     }
 }
 
-impl Callable {
-    pub fn new(declared_parameters: Vec<Identifier>, declared_scope: Scope, body: Block) -> Self {
-        Self {
-            name: None,
-            declared_parameters,
-            declared_scope,
-            body,
-        }
+impl Property {
+    pub fn new(modifiable: bool, value: Value) -> Self {
+        Self { modifiable, value }
     }
 
-    pub fn new_named(
-        name: Identifier,
+    pub fn modifiable(&self) -> bool {
+        self.modifiable
+    }
+
+    pub fn value(&self) -> &Value {
+        &self.value
+    }
+
+    pub fn set_value(&mut self, value: Value) -> bool {
+        if self.modifiable {
+            self.value = value;
+        }
+        self.modifiable
+    }
+}
+
+impl SetPropertyResult {
+    pub fn into_result(self) -> Result<bool, VariableNotDefinedError> {
+        match self {
+            Self::Updated | Self::Added => Ok(true),
+            Self::NotUpdated => Ok(false),
+            Self::NotAdded => Err(VariableNotDefinedError),
+        }
+    }
+}
+
+impl UserFunction {
+    pub fn new(
+        name: Option<Identifier>,
         declared_parameters: Vec<Identifier>,
         declared_scope: Scope,
         body: Block,
     ) -> Self {
         Self {
-            name: Some(name),
+            name,
             declared_parameters,
             declared_scope,
             body,
@@ -185,5 +262,21 @@ impl Callable {
 
     pub fn body(&self) -> &Block {
         &self.body
+    }
+}
+
+impl NativeFunction {
+    pub fn new(f: &'static NativeFn) -> Self {
+        Self(f)
+    }
+
+    pub fn call(&self, vm: &mut Vm, args: &[Value]) -> Result<Value, ErrorKind> {
+        self.0(vm, args)
+    }
+}
+
+impl fmt::Debug for NativeFunction {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "NativeFunction({:p})", self.0)
     }
 }

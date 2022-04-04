@@ -70,6 +70,14 @@ impl From<char> for NonEmptyString {
     }
 }
 
+impl From<usize> for NonEmptyString {
+    fn from(n: usize) -> Self {
+        let s = n.to_string();
+        // Safety: The string can't be empty because it was created from a number.
+        unsafe { Self::from_unchecked(s) }
+    }
+}
+
 impl FromStr for NonEmptyString {
     type Err = ();
 

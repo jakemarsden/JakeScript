@@ -6,8 +6,16 @@ use std::fmt;
 pub struct Identifier(NonEmptyString);
 
 impl Identifier {
+    pub fn into_inner(self) -> NonEmptyString {
+        self.0
+    }
+
+    pub fn inner(&self) -> &NonEmptyString {
+        &self.0
+    }
+
     pub fn as_str(&self) -> &str {
-        self.0.as_ref()
+        self.inner().as_ref()
     }
 }
 
@@ -27,6 +35,6 @@ impl From<i64> for Identifier {
 
 impl fmt::Display for Identifier {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0)
+        write!(f, "{}", self.inner())
     }
 }

@@ -1,49 +1,37 @@
-use super::{Builtin, NativeHeap, NativeRef};
-use crate::ast::Identifier;
-use crate::interpreter::{ErrorKind, InitialisationError, Number, Value, Vm};
+use super::{register_builtin, Builtin};
+use crate::interpreter::{
+    ErrorKind, Heap, InitialisationError, Number, Object, Property, Reference, Value, Vm,
+};
+use crate::non_empty_str;
+use common_macros::hash_map;
 
-pub struct Math {
-    sqrt: Value,
-}
-
+pub struct Math;
 pub struct MathSqrt;
 
 impl Builtin for Math {
-    fn register(run: &mut NativeHeap) -> Result<NativeRef, InitialisationError> {
-        let math = Self {
-            sqrt: Value::NativeObject(MathSqrt::register(run)?),
-        };
-        Ok(run.register_builtin(math)?)
-    }
-
-    fn property(&self, name: &Identifier) -> Result<Option<Value>, ErrorKind> {
-        Ok(match name.as_str() {
-            "sqrt" => Some(self.sqrt.clone()),
-            _ => None,
-        })
-    }
-
-    fn set_property(&mut self, name: &Identifier, value: Value) -> Result<Option<()>, ErrorKind> {
-        Ok(match name.as_str() {
-            "sqrt" => {
-                self.sqrt = value;
-                Some(())
-            }
-            _ => None,
-        })
+    fn register(heap: &mut Heap) -> Result<Reference, InitialisationError> {
+        let properties = hash_map![
+            non_empty_str!("sqrt") => Property::new(true, Value::Object(MathSqrt::register(heap)?)),
+        ];
+        let obj = Object::new_builtin(true, properties, None);
+        register_builtin(heap, obj)
     }
 }
 
-impl Builtin for MathSqrt {
-    fn register(run: &mut NativeHeap) -> Result<NativeRef, InitialisationError> {
-        Ok(run.register_builtin(Self)?)
-    }
-
-    fn invoke(&self, _: &mut Vm, args: &[Value]) -> Result<Value, ErrorKind> {
+impl MathSqrt {
+    #[allow(clippy::unnecessary_wraps)]
+    fn invoke(_: &mut Vm, args: &[Value]) -> Result<Value, ErrorKind> {
         let arg = args.first();
         Ok(Value::Number(match arg {
             Some(arg) => arg.coerce_to_number().sqrt(),
             None => Number::NAN,
         }))
+    }
+}
+
+impl Builtin for MathSqrt {
+    fn register(heap: &mut Heap) -> Result<Reference, InitialisationError> {
+        let obj = Object::new_builtin(true, hash_map![], Some(&Self::invoke));
+        register_builtin(heap, obj)
     }
 }

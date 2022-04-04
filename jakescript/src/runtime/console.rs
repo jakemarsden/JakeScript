@@ -1,67 +1,32 @@
-use super::{Builtin, NativeHeap, NativeRef};
-use crate::ast::Identifier;
-use crate::interpreter::{AssertionError, ErrorKind, InitialisationError, Value, Vm};
+use super::{register_builtin, Builtin};
+use crate::interpreter::{
+    AssertionError, ErrorKind, Heap, InitialisationError, Object, Property, Reference, Value, Vm,
+};
+use crate::non_empty_str;
+use common_macros::hash_map;
 
-pub struct Console {
-    assert: Value,
-    assert_not_reached: Value,
-    log: Value,
-}
-
+pub struct Console;
 pub struct ConsoleAssert;
-
 pub struct ConsoleAssertNotReached;
-
 pub struct ConsoleLog;
 
 impl Builtin for Console {
-    fn register(run: &mut NativeHeap) -> Result<NativeRef, InitialisationError> {
-        let console = Self {
-            assert: Value::NativeObject(ConsoleAssert::register(run)?),
-            assert_not_reached: Value::NativeObject(ConsoleAssertNotReached::register(run)?),
-            log: Value::NativeObject(ConsoleLog::register(run)?),
-        };
-        Ok(run.register_builtin(console)?)
-    }
-
-    fn to_js_string(&self) -> String {
-        "[object Object]".to_owned()
-    }
-
-    fn property(&self, name: &Identifier) -> Result<Option<Value>, ErrorKind> {
-        Ok(match name.as_str() {
-            "assert" => Some(self.assert.clone()),
-            "assertNotReached" => Some(self.assert_not_reached.clone()),
-            "log" => Some(self.log.clone()),
-            _ => None,
-        })
-    }
-
-    fn set_property(&mut self, name: &Identifier, value: Value) -> Result<Option<()>, ErrorKind> {
-        Ok(match name.as_str() {
-            "assert" => {
-                self.assert = value;
-                Some(())
-            }
-            "assertNotReached" => {
-                self.assert_not_reached = value;
-                Some(())
-            }
-            "log" => {
-                self.log = value;
-                Some(())
-            }
-            _ => None,
-        })
+    fn register(heap: &mut Heap) -> Result<Reference, InitialisationError> {
+        let properties = hash_map![
+            non_empty_str!("assert")
+                => Property::new(true, Value::Object(ConsoleAssert::register(heap)?)),
+            non_empty_str!("assertNotReached")
+                => Property::new(true, Value::Object(ConsoleAssertNotReached::register(heap)?)),
+            non_empty_str!("log")
+                => Property::new(true, Value::Object(ConsoleLog::register(heap)?)),
+        ];
+        let obj = Object::new_builtin(true, properties, None);
+        register_builtin(heap, obj)
     }
 }
 
-impl Builtin for ConsoleAssert {
-    fn register(run: &mut NativeHeap) -> Result<NativeRef, InitialisationError> {
-        Ok(run.register_builtin(Self)?)
-    }
-
-    fn invoke(&self, vm: &mut Vm, args: &[Value]) -> Result<Value, ErrorKind> {
+impl ConsoleAssert {
+    fn invoke(vm: &mut Vm, args: &[Value]) -> Result<Value, ErrorKind> {
         let mut args = args.iter();
         let assertion = args.next().unwrap_or(&Value::Undefined);
         if assertion.is_truthy() {
@@ -73,26 +38,40 @@ impl Builtin for ConsoleAssert {
     }
 }
 
-impl Builtin for ConsoleAssertNotReached {
-    fn register(run: &mut NativeHeap) -> Result<NativeRef, InitialisationError> {
-        Ok(run.register_builtin(Self)?)
+impl Builtin for ConsoleAssert {
+    fn register(heap: &mut Heap) -> Result<Reference, InitialisationError> {
+        let obj = Object::new_builtin(true, hash_map![], Some(&Self::invoke));
+        register_builtin(heap, obj)
     }
+}
 
-    fn invoke(&self, vm: &mut Vm, args: &[Value]) -> Result<Value, ErrorKind> {
+impl ConsoleAssertNotReached {
+    fn invoke(vm: &mut Vm, args: &[Value]) -> Result<Value, ErrorKind> {
         let detail_msg = build_msg(vm, args.iter());
         Err(ErrorKind::from(AssertionError::new(detail_msg)))
     }
 }
 
-impl Builtin for ConsoleLog {
-    fn register(run: &mut NativeHeap) -> Result<NativeRef, InitialisationError> {
-        Ok(run.register_builtin(Self)?)
+impl Builtin for ConsoleAssertNotReached {
+    fn register(heap: &mut Heap) -> Result<Reference, InitialisationError> {
+        let obj = Object::new_builtin(true, hash_map![], Some(&Self::invoke));
+        register_builtin(heap, obj)
     }
+}
 
-    fn invoke(&self, vm: &mut Vm, args: &[Value]) -> Result<Value, ErrorKind> {
+impl ConsoleLog {
+    #[allow(clippy::unnecessary_wraps)]
+    fn invoke(vm: &mut Vm, args: &[Value]) -> Result<Value, ErrorKind> {
         let msg = build_msg(vm, args.iter());
         vm.write_message(&msg);
         Ok(Value::Undefined)
+    }
+}
+
+impl Builtin for ConsoleLog {
+    fn register(heap: &mut Heap) -> Result<Reference, InitialisationError> {
+        let obj = Object::new_builtin(true, hash_map![], Some(&Self::invoke));
+        register_builtin(heap, obj)
     }
 }
 

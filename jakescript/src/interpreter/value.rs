@@ -1,7 +1,6 @@
 use super::error::NumericOverflowError;
 use super::heap::Reference;
 use super::vm::Vm;
-use crate::runtime::NativeRef;
 use std::ops::{self, BitAnd, BitOr, BitXor};
 use std::str::FromStr;
 use std::{cmp, fmt, num};
@@ -10,9 +9,8 @@ use std::{cmp, fmt, num};
 pub enum Value {
     Boolean(bool),
     Number(Number),
+    Object(Reference),
     String(String),
-    Reference(Reference),
-    NativeObject(NativeRef),
     Null,
     #[default]
     Undefined,
@@ -59,9 +57,8 @@ impl Value {
         let result = match (lhs, rhs) {
             (Self::Boolean(lhs), Self::Boolean(rhs)) => lhs == rhs,
             (Self::Number(lhs), Self::Number(rhs)) => lhs == rhs,
+            (Self::Object(lhs), Self::Object(rhs)) => lhs == rhs,
             (Self::String(lhs), Self::String(rhs)) => lhs == rhs,
-            (Self::Reference(lhs), Self::Reference(rhs)) => lhs == rhs,
-            (Self::NativeObject(lhs), Self::NativeObject(rhs)) => lhs == rhs,
             (Self::Null, Self::Null) | (Self::Undefined, Self::Undefined) => true,
             (_, _) => false,
         };
@@ -80,21 +77,14 @@ impl Value {
         Self::Boolean(match lhs {
             Self::Boolean(lhs) => *lhs == rhs.coerce_to_bool(),
             Self::Number(lhs) => *lhs == rhs.coerce_to_number(),
+            Self::Object(lhs) => {
+                if let Self::Object(rhs) = rhs {
+                    lhs == rhs
+                } else {
+                    false
+                }
+            }
             Self::String(lhs) => lhs == rhs.coerce_to_string(vm).as_str(),
-            Self::Reference(lhs) => {
-                if let Self::Reference(rhs) = rhs {
-                    lhs == rhs
-                } else {
-                    false
-                }
-            }
-            Self::NativeObject(lhs) => {
-                if let Self::NativeObject(rhs) = rhs {
-                    lhs == rhs
-                } else {
-                    false
-                }
-            }
             Self::Null | Self::Undefined => matches!(rhs, Self::Null | Self::Undefined),
         })
     }
@@ -173,15 +163,15 @@ impl Value {
     }
 
     fn is_str_or_ref(&self) -> bool {
-        matches!(self, Self::String(..) | Self::Reference(..))
+        matches!(self, Self::Object(..) | Self::String(..))
     }
 
     pub fn coerce_to_bool(&self) -> bool {
         match self {
             Self::Boolean(value) => *value,
             Self::Number(value) => !value.is_zero() && !value.is_nan(),
+            Self::Object(..) => true,
             Self::String(value) => !value.is_empty(),
-            Self::Reference(..) | Self::NativeObject(_) => true,
             Self::Null | Self::Undefined => false,
         }
     }
@@ -192,7 +182,7 @@ impl Value {
             Self::Number(value) => *value,
             Self::String(value) => Number::from_str(value).unwrap_or(Number::NAN),
             Self::Null => Number::Int(0),
-            Self::Reference(..) | Self::NativeObject(_) | Self::Undefined => Number::NAN,
+            Self::Object(..) | Self::Undefined => Number::NAN,
         }
     }
 
@@ -200,15 +190,11 @@ impl Value {
         match self {
             Self::Boolean(value) => value.to_string(),
             Self::Number(value) => value.to_string(),
-            Self::String(value) => value.clone(),
-            Self::Reference(obj_ref) => {
+            Self::Object(obj_ref) => {
                 let obj = vm.heap().resolve(obj_ref);
                 obj.js_to_string()
             }
-            Self::NativeObject(obj_ref) => {
-                let obj = vm.runtime().resolve(obj_ref);
-                obj.to_js_string()
-            }
+            Self::String(value) => value.clone(),
             Self::Null => "null".to_owned(),
             Self::Undefined => "undefined".to_owned(),
         }
@@ -249,9 +235,8 @@ impl fmt::Display for Value {
         match self {
             Self::Boolean(value) => write!(f, "{}", value),
             Self::Number(value) => write!(f, "{}", value),
+            Self::Object(value) => write!(f, "{}", value),
             Self::String(value) => write!(f, "{}", value),
-            Self::Reference(value) => write!(f, "{}", value),
-            Self::NativeObject(value) => write!(f, "NativeObject<{}>", value),
             Self::Null => f.write_str("null"),
             Self::Undefined => f.write_str("undefined"),
         }

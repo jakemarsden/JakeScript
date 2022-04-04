@@ -1,9 +1,10 @@
 use super::error::InitialisationError;
-use super::heap::Heap;
+use super::heap::{Heap, Object};
 use super::stack::{CallFrame, CallStack, Scope, ScopeCtx};
 use super::value::Value;
-use crate::runtime::{DefaultGlobalObject, Runtime};
+use crate::runtime::Runtime;
 use std::assert_matches::assert_matches;
+use std::cell::Ref;
 use std::mem;
 
 pub struct Vm {
@@ -27,19 +28,16 @@ pub enum ExecutionState {
 
 impl Vm {
     pub fn new() -> Result<Self, InitialisationError> {
-        let runtime = Runtime::new::<DefaultGlobalObject>()?;
-        Ok(Self::with_custom_runtime(runtime))
-    }
-
-    pub fn with_custom_runtime(runtime: Runtime) -> Self {
+        let mut heap = Heap::default();
+        let runtime = Runtime::with_default_global_object(&mut heap)?;
         let stack = CallStack::new(CallFrame::new(Scope::new(ScopeCtx::default())));
-        Self {
+        Ok(Self {
             execution_state: ExecutionState::default(),
             hidden_exception: Option::default(),
-            heap: Heap::default(),
+            heap,
             runtime,
             stack,
-        }
+        })
     }
 
     pub fn execution_state(&self) -> &ExecutionState {
@@ -160,6 +158,11 @@ impl Vm {
     }
     pub fn stack_mut(&mut self) -> &mut CallStack {
         &mut self.stack
+    }
+
+    pub fn global_object(&self) -> Ref<Object> {
+        let obj_ref = self.runtime().global_object_ref();
+        self.heap().resolve(obj_ref)
     }
 
     #[allow(clippy::unused_self)]

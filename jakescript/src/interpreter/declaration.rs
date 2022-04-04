@@ -1,5 +1,5 @@
 use super::error::{Error, Result};
-use super::heap::Callable;
+use super::heap::{Object, UserFunction};
 use super::stack::{Variable, VariableKind};
 use super::value::Value;
 use super::{Eval, Interpreter};
@@ -17,20 +17,21 @@ impl Eval for Declaration {
 impl Eval for FunctionDeclaration {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let declared_scope = it.vm().stack().frame().scope().clone();
-        let callable = Callable::new(
+        let fn_obj = Object::new_function(UserFunction::new(
+            None,
             self.formal_parameters.clone(),
             declared_scope,
             self.body.clone(),
-        );
+        ));
         let fn_obj_ref = it
             .vm_mut()
             .heap_mut()
-            .allocate_callable_object(callable)
+            .allocate(fn_obj)
             .map_err(|err| Error::new(err, self.source_location()))?;
         let variable = Variable::new(
             VariableKind::Var,
             self.binding.clone(),
-            Value::Reference(fn_obj_ref),
+            Value::Object(fn_obj_ref),
         );
         it.vm_mut()
             .stack_mut()

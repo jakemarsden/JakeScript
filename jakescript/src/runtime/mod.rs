@@ -1,15 +1,6 @@
 pub use global::DefaultGlobalObject;
 
-use crate::ast::Identifier;
-use crate::interpreter::{
-    ErrorKind, ExecutionState, InitialisationError, OutOfMemoryError, Value, Vm,
-};
-use common_macros::hash_map;
-use std::cell::{Ref, RefCell, RefMut};
-use std::collections::hash_map::Entry;
-use std::collections::HashMap;
-use std::fmt;
-use std::rc::Rc;
+use crate::interpreter::{ErrorKind, Heap, InitialisationError, Object, Reference, Value, Vm};
 
 mod boolean;
 mod console;
@@ -18,182 +9,35 @@ mod math;
 mod number;
 mod string;
 
+pub type NativeFn = dyn Fn(&mut Vm, &[Value]) -> Result<Value, ErrorKind>;
+
 pub trait Builtin {
-    fn register(run: &mut NativeHeap) -> Result<NativeRef, InitialisationError>
+    fn register(heap: &mut Heap) -> Result<Reference, InitialisationError>
     where
         Self: Sized;
-
-    fn to_js_string(&self) -> String {
-        "function assert() {\n    [native code]\n}".to_owned()
-    }
-
-    fn invoke(&self, vm: &mut Vm, args: &[Value]) -> Result<Value, ErrorKind> {
-        let arg = args.first().unwrap_or(&Value::Undefined);
-        let exception = Value::String(format!("Type error: {} is not a function", arg));
-        vm.set_execution_state(ExecutionState::Exception(exception));
-        Ok(Value::Undefined)
-    }
-
-    fn property(&self, _: &Identifier) -> Result<Option<Value>, ErrorKind> {
-        Ok(None)
-    }
-
-    fn set_property(&mut self, _: &Identifier, _: Value) -> Result<Option<()>, ErrorKind> {
-        Ok(None)
-    }
 }
 
 pub struct Runtime {
-    global_object: NativeRef,
-    native_heap: NativeHeap,
+    global_object: Reference,
 }
-
-pub struct NativeObject {
-    builtin: Box<dyn Builtin>,
-    user_properties: HashMap<Identifier, Value>,
-}
-
-#[derive(Default)]
-pub struct NativeHeap {
-    next_obj_idx: usize,
-}
-
-#[derive(Clone)]
-pub struct NativeRef(usize, Rc<RefCell<NativeObject>>);
 
 impl Runtime {
-    pub fn new<T: Builtin>() -> Result<Self, InitialisationError> {
-        let mut native_heap = NativeHeap::default();
-        let global_object = T::register(&mut native_heap)?;
-        Ok(Self {
-            global_object,
-            native_heap,
-        })
+    pub fn with_default_global_object(heap: &mut Heap) -> Result<Self, InitialisationError> {
+        Self::with_custom_global_object::<DefaultGlobalObject>(heap)
     }
 
-    pub fn global_object_ref(&self) -> NativeRef {
-        self.global_object.clone()
+    pub fn with_custom_global_object<T: Builtin>(
+        heap: &mut Heap,
+    ) -> Result<Self, InitialisationError> {
+        let global_object = T::register(heap)?;
+        Ok(Self { global_object })
     }
 
-    pub fn global_object(&self) -> Ref<NativeObject> {
-        self.native_heap.resolve(&self.global_object)
-    }
-    pub fn global_object_mut(&mut self) -> RefMut<NativeObject> {
-        self.native_heap.resolve_mut(&self.global_object)
-    }
-
-    // unused_self: May be needed in the future.
-    #[allow(clippy::unused_self)]
-    pub fn resolve<'a>(&self, refr: &'a NativeRef) -> Ref<'a, NativeObject> {
-        self.native_heap.resolve(refr)
-    }
-    // unused_self: May be needed in the future.
-    #[allow(clippy::unused_self)]
-    pub fn resolve_mut<'a>(&mut self, refr: &'a NativeRef) -> RefMut<'a, NativeObject> {
-        self.native_heap.resolve_mut(refr)
+    pub fn global_object_ref(&self) -> &Reference {
+        &self.global_object
     }
 }
 
-impl NativeObject {
-    fn new(builtin: impl Builtin + 'static) -> Self {
-        Self {
-            builtin: Box::new(builtin),
-            user_properties: hash_map! {},
-        }
-    }
-
-    pub fn to_js_string(&self) -> String {
-        self.builtin.to_js_string()
-    }
-
-    pub fn invoke(&self, vm: &mut Vm, args: &[Value]) -> Result<Value, ErrorKind> {
-        self.builtin.invoke(vm, args)
-    }
-
-    pub fn property(&self, name: &Identifier) -> Result<Value, ErrorKind> {
-        Ok(if let Some(user_value) = self.user_properties.get(name) {
-            user_value.clone()
-        } else if let Some(builtin_value) = self.builtin.property(name)? {
-            builtin_value
-        } else {
-            Value::Undefined
-        })
-    }
-
-    pub fn set_property(&mut self, name: &Identifier, value: Value) -> Result<(), ErrorKind> {
-        match self.user_properties.entry(name.clone()) {
-            Entry::Occupied(mut entry) => {
-                entry.insert(value);
-            }
-            Entry::Vacant(entry) => {
-                if self.builtin.set_property(name, value.clone())?.is_none() {
-                    entry.insert(value);
-                }
-            }
-        }
-        Ok(())
-    }
-}
-
-impl NativeRef {
-    fn new(idx: usize, builtin: NativeObject) -> Self {
-        Self(idx, Rc::new(RefCell::new(builtin)))
-    }
-
-    fn deref(&self) -> Ref<NativeObject> {
-        RefCell::borrow(&self.1)
-    }
-    fn deref_mut(&self) -> RefMut<NativeObject> {
-        RefCell::borrow_mut(&self.1)
-    }
-}
-
-impl NativeHeap {
-    fn register_builtin(
-        &mut self,
-        builtin: impl Builtin + 'static,
-    ) -> Result<NativeRef, OutOfMemoryError> {
-        let native_obj = NativeObject::new(builtin);
-        self.register(native_obj)
-    }
-
-    // unused_self: May be needed in the future.
-    #[allow(clippy::unused_self)]
-    fn register(&mut self, obj: NativeObject) -> Result<NativeRef, OutOfMemoryError> {
-        let idx = self.next_obj_idx;
-        self.next_obj_idx = self.next_obj_idx.checked_add(1).ok_or(OutOfMemoryError)?;
-        Ok(NativeRef::new(idx, obj))
-    }
-
-    // unused_self: May be needed in the future.
-    #[allow(clippy::unused_self)]
-    pub fn resolve<'a>(&self, refr: &'a NativeRef) -> Ref<'a, NativeObject> {
-        refr.deref()
-    }
-    // unused_self: May be needed in the future.
-    #[allow(clippy::unused_self)]
-    pub fn resolve_mut<'a>(&mut self, refr: &'a NativeRef) -> RefMut<'a, NativeObject> {
-        refr.deref_mut()
-    }
-}
-
-impl Eq for NativeRef {}
-
-impl PartialEq for NativeRef {
-    fn eq(&self, other: &Self) -> bool {
-        self.0 == other.0
-    }
-}
-
-impl fmt::Display for NativeRef {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        // Note: 6 includes the 2 chars for the "0x" prefix, so only 4 actual digits are displayed.
-        write!(f, "{:#06x}", self.0)
-    }
-}
-
-impl fmt::Debug for NativeRef {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt(self, f)
-    }
+fn register_builtin(heap: &mut Heap, obj: Object) -> Result<Reference, InitialisationError> {
+    heap.allocate(obj).map_err(InitialisationError::from)
 }

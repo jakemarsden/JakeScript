@@ -1,5 +1,5 @@
 use super::error::{Error, Result};
-use super::heap::Callable;
+use super::heap::{Object, UserFunction};
 use super::value::{Number, Value};
 use super::{Eval, Interpreter};
 use crate::ast::*;
@@ -32,9 +32,9 @@ impl Eval for ArrayExpression {
         let obj_ref = it
             .vm_mut()
             .heap_mut()
-            .allocate_array(elems)
+            .allocate(Object::new_array(elems))
             .map_err(|err| Error::new(err, self.source_location()))?;
-        Ok(Value::Reference(obj_ref))
+        Ok(Value::Object(obj_ref))
     }
 }
 
@@ -45,7 +45,7 @@ impl Eval for ObjectExpression {
         let mut resolved_props = HashMap::with_capacity(self.declared_properties.len());
         for prop in &self.declared_properties {
             let name = match prop.name {
-                DeclaredPropertyName::Identifier(ref value) => value.clone(),
+                DeclaredPropertyName::Identifier(ref value) => value.inner().clone(),
                 DeclaredPropertyName::NumericLiteral(..)
                 | DeclaredPropertyName::StringLiteral(..)
                 | DeclaredPropertyName::Computed(..) => todo!(
@@ -59,9 +59,9 @@ impl Eval for ObjectExpression {
         let obj_ref = it
             .vm_mut()
             .heap_mut()
-            .allocate_object(resolved_props)
+            .allocate(Object::new_object(resolved_props))
             .map_err(|err| Error::new(err, self.source_location()))?;
-        Ok(Value::Reference(obj_ref))
+        Ok(Value::Object(obj_ref))
     }
 }
 
@@ -70,24 +70,17 @@ impl Eval for FunctionExpression {
 
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let declared_scope = it.vm().stack().frame().scope().clone();
-        let callable = match self.binding {
-            Some(ref binding) => Callable::new_named(
-                binding.clone(),
-                self.formal_parameters.clone(),
-                declared_scope,
-                self.body.clone(),
-            ),
-            None => Callable::new(
-                self.formal_parameters.clone(),
-                declared_scope,
-                self.body.clone(),
-            ),
-        };
+        let fn_obj = Object::new_function(UserFunction::new(
+            self.binding.clone(),
+            self.formal_parameters.clone(),
+            declared_scope,
+            self.body.clone(),
+        ));
         let fn_obj_ref = it
             .vm_mut()
             .heap_mut()
-            .allocate_callable_object(callable)
+            .allocate(fn_obj)
             .map_err(|err| Error::new(err, self.source_location()))?;
-        Ok(Value::Reference(fn_obj_ref))
+        Ok(Value::Object(fn_obj_ref))
     }
 }

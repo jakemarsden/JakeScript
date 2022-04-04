@@ -1,4 +1,5 @@
-use super::error::{Error, ErrorKind, NotCallableError, Result};
+use super::error::{Error, ErrorKind, NotCallableError, Result, VariableNotDefinedError};
+use super::heap::Call;
 use super::stack::{ScopeCtx, Variable, VariableKind};
 use super::value::{Number, Value};
 use super::vm::ExecutionState;
@@ -44,10 +45,10 @@ impl Eval for IdentifierReferenceExpression {
             Ok(value)
         } else {
             it.vm()
-                .runtime()
                 .global_object()
-                .property(&self.identifier)
-                .map_err(|err| Error::new(err, self.source_location()))
+                .get(self.identifier.inner())
+                .cloned()
+                .ok_or_else(|| Error::new(VariableNotDefinedError, self.source_location()))
         }
     }
 }
@@ -108,15 +109,19 @@ impl Eval for AssignmentExpression {
                 } else {
                     let value = it
                         .vm()
-                        .runtime()
                         .global_object()
-                        .property(&node.identifier)
-                        .map_err(|err| Error::new(err, self.source_location()))?;
+                        .get(node.identifier.inner())
+                        .cloned()
+                        .ok_or_else(|| {
+                            Error::new(VariableNotDefinedError, self.source_location())
+                        })?;
                     let new_value = compute_new_value(self, it, || Ok(value.clone()))?;
-                    it.vm_mut()
-                        .runtime_mut()
-                        .global_object_mut()
-                        .set_property(&node.identifier, value.clone())
+
+                    let global_object_ref = it.vm().runtime().global_object_ref().clone();
+                    let mut global_object = it.vm_mut().heap_mut().resolve_mut(&global_object_ref);
+                    global_object
+                        .set(node.identifier.inner().clone(), value.clone())
+                        .into_result()
                         .map_err(|err| Error::new(err, self.source_location()))?;
                     Ok(new_value)
                 }
@@ -124,20 +129,17 @@ impl Eval for AssignmentExpression {
             Expression::Member(MemberExpression::MemberAccess(node)) => {
                 let base_value = node.base.eval(it)?;
                 match base_value {
-                    Value::Reference(ref base_refr) => {
+                    Value::Object(ref base_refr) => {
                         let mut base_obj = it.vm_mut().heap_mut().resolve_mut(base_refr);
                         let new_value = compute_new_value(self, it, || {
-                            Ok(base_obj.property(&node.member).cloned().unwrap_or_default())
+                            Ok(base_obj
+                                .get(node.member.inner())
+                                .cloned()
+                                .unwrap_or_default())
                         })?;
-                        base_obj.set_property(node.member.clone(), new_value.clone());
-                        Ok(new_value)
-                    }
-                    Value::NativeObject(ref base_refr) => {
-                        let mut base_obj = it.vm_mut().runtime_mut().resolve_mut(base_refr);
-                        let new_value =
-                            compute_new_value(self, it, || base_obj.property(&node.member))?;
                         base_obj
-                            .set_property(&node.member, new_value.clone())
+                            .set(node.member.inner().clone(), new_value.clone())
+                            .into_result()
                             .map_err(|err| Error::new(err, self.source_location()))?;
                         Ok(new_value)
                     }
@@ -297,15 +299,19 @@ impl Eval for UpdateExpression {
                 } else {
                     let value = it
                         .vm()
-                        .runtime()
                         .global_object()
-                        .property(&node.identifier)
-                        .map_err(|err| Error::new(err, self.source_location()))?;
+                        .get(node.identifier.inner())
+                        .cloned()
+                        .ok_or_else(|| {
+                            Error::new(VariableNotDefinedError, self.source_location())
+                        })?;
                     let (new_value, result_value) = compute(self, it, || Ok(value.clone()))?;
-                    it.vm_mut()
-                        .runtime_mut()
-                        .global_object_mut()
-                        .set_property(&node.identifier, new_value)
+
+                    let global_object_ref = it.vm().runtime().global_object_ref().clone();
+                    let mut global_object = it.vm_mut().heap_mut().resolve_mut(&global_object_ref);
+                    global_object
+                        .set(node.identifier.inner().clone(), new_value)
+                        .into_result()
                         .map_err(|err| Error::new(err, self.source_location()))?;
                     result_value
                 }
@@ -313,20 +319,17 @@ impl Eval for UpdateExpression {
             Expression::Member(MemberExpression::MemberAccess(node)) => {
                 let base_value = node.base.eval(it)?;
                 match base_value {
-                    Value::Reference(ref base_refr) => {
+                    Value::Object(ref base_refr) => {
                         let mut base_obj = it.vm_mut().heap_mut().resolve_mut(base_refr);
                         let (new_value, result_value) = compute(self, it, || {
-                            Ok(base_obj.property(&node.member).cloned().unwrap_or_default())
+                            Ok(base_obj
+                                .get(node.member.inner())
+                                .cloned()
+                                .unwrap_or_default())
                         })?;
-                        base_obj.set_property(node.member.clone(), new_value);
-                        result_value
-                    }
-                    Value::NativeObject(ref base_refr) => {
-                        let mut base_obj = it.vm_mut().runtime_mut().resolve_mut(base_refr);
-                        let (new_value, result_value) =
-                            compute(self, it, || base_obj.property(&node.member))?;
                         base_obj
-                            .set_property(&node.member, new_value)
+                            .set(node.member.inner().clone(), new_value)
+                            .into_result()
                             .map_err(|err| Error::new(err, self.source_location()))?;
                         result_value
                     }
@@ -357,12 +360,22 @@ impl Eval for FunctionCallExpression {
 
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         match self.function.eval(it)? {
-            Value::Reference(fn_obj_ref) => {
+            Value::Object(fn_obj_ref) => {
                 let fn_obj = it.vm().heap().resolve(&fn_obj_ref);
-                let function = if let Some(callable) = fn_obj.callable() {
-                    callable
-                } else {
-                    return Err(Error::new(NotCallableError, self.source_location()));
+                let function = match fn_obj.call() {
+                    Some(Call::User(function)) => function,
+                    Some(Call::Native(native_fn)) => {
+                        let mut arguments = Vec::with_capacity(self.arguments.len());
+                        for argument in &self.arguments {
+                            arguments.push(argument.eval(it)?);
+                        }
+                        return native_fn
+                            .call(it.vm_mut(), &arguments)
+                            .map_err(|err| Error::new(err, self.source_location()));
+                    }
+                    None => {
+                        return Err(Error::new(NotCallableError, self.source_location()));
+                    }
                 };
 
                 let declared_param_names = function.declared_parameters();
@@ -399,7 +412,7 @@ impl Eval for FunctionCallExpression {
                     let fn_scope_ctx_outer = ScopeCtx::new(vec![Variable::new(
                         VariableKind::Var,
                         fn_name.clone(),
-                        Value::Reference(fn_obj_ref.clone()),
+                        Value::Object(fn_obj_ref.clone()),
                     )]);
                     it.vm_mut()
                         .stack_mut()
@@ -423,20 +436,6 @@ impl Eval for FunctionCallExpression {
                     execution_state => panic!("Unexpected execution state: {:?}", execution_state),
                 })
             }
-            Value::NativeObject(fn_obj_ref) => {
-                let fn_obj = it.vm().runtime().resolve(&fn_obj_ref);
-
-                let supplied_args = &self.arguments;
-                let mut args = Vec::with_capacity(supplied_args.len());
-                for supplied_arg in supplied_args {
-                    let arg_value = supplied_arg.eval(it)?;
-                    args.push(arg_value);
-                }
-
-                fn_obj
-                    .invoke(it.vm_mut(), &args)
-                    .map_err(|err| Error::new(err, self.source_location()))
-            }
             _ => Err(Error::new(NotCallableError, self.source_location())),
         }
     }
@@ -448,15 +447,12 @@ impl Eval for MemberAccessExpression {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let base_value = self.base.eval(it)?;
         match base_value {
-            Value::Reference(ref base_refr) => {
+            Value::Object(ref base_refr) => {
                 let base_obj = it.vm().heap().resolve(base_refr);
-                Ok(base_obj.property(&self.member).cloned().unwrap_or_default())
-            }
-            Value::NativeObject(ref base_refr) => {
-                let base_obj = it.vm().runtime().resolve(base_refr);
-                base_obj
-                    .property(&self.member)
-                    .map_err(|err| Error::new(err, self.source_location()))
+                Ok(base_obj
+                    .get(self.member.inner())
+                    .cloned()
+                    .unwrap_or_default())
             }
             base_value => todo!("PropertyAccessExpression::eval: base={:?}", base_value),
         }
@@ -469,7 +465,7 @@ impl Eval for ComputedMemberAccessExpression {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let base_value = self.base.eval(it)?;
         let base_obj = match base_value {
-            Value::Reference(ref base_refr) => it.vm().heap().resolve(base_refr),
+            Value::Object(ref base_refr) => it.vm().heap().resolve(base_refr),
             base_value => todo!("ComputedPropertyExpression::eval: base={:?}", base_value),
         };
         let property_value = self.member.eval(it)?;
@@ -477,7 +473,7 @@ impl Eval for ComputedMemberAccessExpression {
             Value::Number(Number::Int(n)) => Identifier::from(n),
             property => todo!("ComputedPropertyExpression::eval: property={:?}", property),
         };
-        Ok(base_obj.property(&property).cloned().unwrap_or_default())
+        Ok(base_obj.get(property.inner()).cloned().unwrap_or_default())
     }
 }
 
