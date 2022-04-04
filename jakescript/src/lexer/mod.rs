@@ -124,10 +124,14 @@ impl<I: FallibleIterator<Item = char, Error = io::Error>> Lexer<I> {
         if let Some(value) = value {
             // Ensure the character following the numeric literal is valid
             match self.source.peek()? {
-                Some(ch) if is_identifier_part(*ch) => {
-                    Err(Error::new(IdentifierFollowingNumericLiteral))
-                }
-                Some(ch) if ch.is_digit(10) => Err(Error::new(DigitFollowingNumericLiteral)),
+                Some(ch) if is_identifier_part(*ch) => Err(Error::new(
+                    IdentifierFollowingNumericLiteral,
+                    self.source.location(),
+                )),
+                Some(ch) if ch.is_digit(10) => Err(Error::new(
+                    DigitFollowingNumericLiteral,
+                    self.source.location(),
+                )),
                 Some(_) | None => Ok(Some(value)),
             }
         } else {
@@ -465,7 +469,7 @@ impl<I: FallibleIterator<Item = char, Error = io::Error>> Lexer<I> {
         for offset in 2.. {
             let ch = match self.source.peek_nth(offset)? {
                 Some(ch) => *ch,
-                None => return Err(Error::new(UnclosedComment)),
+                None => return Err(Error::new(UnclosedComment, self.source.location())),
             };
             if ch == '*' && self.source.peek_nth(offset + 1)? == Some(&'/') {
                 break;

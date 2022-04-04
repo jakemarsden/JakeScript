@@ -88,6 +88,6 @@ fn tokenise_string_literal() {
 fn tokenise_unclosed_multi_line_comment() {
     let source_code = "/* abc";
     let mut lexer = Lexer::for_str(source_code, SourceLocation::default());
-    assert_matches!(lexer.next(), Err(err) if err.kind() == Some(ErrorKind::UnclosedComment));
-    assert_matches!(lexer.next(), Err(err) if err.kind() == Some(ErrorKind::UnclosedComment));
+    assert_matches!(lexer.next(), Err(err) if matches!(err.kind(), ErrorKind::UnclosedComment));
+    assert_matches!(lexer.next(), Err(err) if matches!(err.kind(), ErrorKind::UnclosedComment));
 }

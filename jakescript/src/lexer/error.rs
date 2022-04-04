@@ -1,75 +1,81 @@
-use crate::token::Element;
+use crate::token::{Element, SourceLocation};
 use std::{fmt, io};
 
 pub type Result<T = Element> = std::result::Result<T, Error>;
 
 #[derive(Debug)]
-pub struct Error(ErrorInner);
+pub struct Error {
+    kind: ErrorKind,
+    loc: SourceLocation,
+}
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Debug)]
 pub enum ErrorKind {
     DigitFollowingNumericLiteral,
     IdentifierFollowingNumericLiteral,
     UnclosedComment,
-}
-
-#[derive(Debug)]
-enum ErrorInner {
-    Normal(ErrorKind),
     Io(io::Error),
 }
 
 impl Error {
-    pub fn new(kind: ErrorKind) -> Self {
-        Self(ErrorInner::Normal(kind))
-    }
-
-    fn io(source: io::Error) -> Self {
-        Self(ErrorInner::Io(source))
-    }
-
-    pub fn kind(&self) -> Option<ErrorKind> {
-        match self.inner() {
-            ErrorInner::Normal(kind) => Some(*kind),
-            ErrorInner::Io(..) => None,
+    pub fn new(kind: impl Into<ErrorKind>, loc: &SourceLocation) -> Self {
+        Self {
+            kind: kind.into(),
+            loc: loc.clone(),
         }
     }
 
-    fn inner(&self) -> &ErrorInner {
-        &self.0
+    pub fn into_kind(self) -> ErrorKind {
+        self.kind
+    }
+
+    pub fn kind(&self) -> &ErrorKind {
+        &self.kind
+    }
+
+    pub fn source_location(&self) -> &SourceLocation {
+        &self.loc
     }
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self.inner() {
-            ErrorInner::Normal(kind) => write!(f, "{}", kind),
-            ErrorInner::Io(source) => write!(f, "IO error: {}", source),
-        }
+        write!(f, "{} - {}", self.source_location(), self.kind())
     }
 }
 
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self.inner() {
-            ErrorInner::Normal(..) => None,
-            ErrorInner::Io(source) => Some(source),
+        match self.kind() {
+            ErrorKind::Io(source) => Some(source),
+            ErrorKind::DigitFollowingNumericLiteral
+            | ErrorKind::IdentifierFollowingNumericLiteral
+            | ErrorKind::UnclosedComment => None,
         }
     }
 }
 
-impl From<io::Error> for Error {
-    fn from(source: io::Error) -> Self {
-        Self::io(source)
+impl From<(io::Error, SourceLocation)> for Error {
+    fn from((source, loc): (io::Error, SourceLocation)) -> Self {
+        Self::new(source, &loc)
     }
 }
 
 impl fmt::Display for ErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(match self {
-            Self::DigitFollowingNumericLiteral => "Digit following numeric literal",
-            Self::IdentifierFollowingNumericLiteral => "Identifier following numeric literal",
-            Self::UnclosedComment => "Unclosed comment",
-        })
+        match self {
+            Self::DigitFollowingNumericLiteral => f.write_str("Digit following numeric literal"),
+            Self::IdentifierFollowingNumericLiteral => {
+                f.write_str("Identifier following numeric literal")
+            }
+            Self::UnclosedComment => f.write_str("Unclosed comment"),
+            Self::Io(source) => write!(f, "IO error: {}", source),
+        }
+    }
+}
+
+impl From<io::Error> for ErrorKind {
+    fn from(source: io::Error) -> Self {
+        Self::Io(source)
     }
 }

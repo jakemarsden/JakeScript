@@ -59,10 +59,13 @@ where
     I: FallibleIterator<Item = char, Error = io::Error>,
 {
     type Item = char;
-    type Error = io::Error;
+    type Error = (io::Error, SourceLocation);
 
     fn next(&mut self) -> Result<Option<Self::Item>, Self::Error> {
-        let ch = self.source.next()?;
+        let ch = self
+            .source
+            .next()
+            .map_err(|err| (err, self.location().clone()))?;
         match ch {
             Some(LF) if self.crlf_sequence => {
                 // This is the LF of a CRLF line terminator sequence. The line was already advanced
@@ -86,6 +89,7 @@ where
     I: FallibleIterator<Item = char, Error = io::Error>,
 {
     fn peek_nth(&mut self, n: usize) -> Result<Option<&Self::Item>, Self::Error> {
-        self.source.peek_nth(n)
+        let loc = self.location().clone();
+        self.source.peek_nth(n).map_err(|err| (err, loc))
     }
 }
