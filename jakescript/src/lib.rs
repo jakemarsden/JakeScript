@@ -8,12 +8,11 @@
 #![feature(let_chains)]
 
 pub mod ast;
-
-pub(crate) mod iter;
-
 pub mod interpreter;
 pub mod lexer;
 pub mod parser;
 pub mod runtime;
 pub mod str;
 pub mod token;
+
+pub(crate) mod iter;
