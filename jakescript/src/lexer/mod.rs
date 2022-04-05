@@ -466,6 +466,8 @@ impl<I: FallibleIterator<Item = char, Error = io::Error>> Lexer<I> {
             return Ok(None);
         }
         let mut content = String::new();
+        // Number of code points. Different from `content.len()`, which is the number of bytes.
+        let mut content_len = 0;
         for offset in 2.. {
             let ch = match self.source.peek_nth(offset)? {
                 Some(ch) => *ch,
@@ -475,10 +477,11 @@ impl<I: FallibleIterator<Item = char, Error = io::Error>> Lexer<I> {
                 break;
             }
             content.push(ch);
+            content_len += 1;
         }
         assert!(self.source.next_if_eq(&'/')?.is_some());
         assert!(self.source.next_if_eq(&'*')?.is_some());
-        self.source.advance_by(content.len())?.unwrap();
+        self.source.advance_by(content_len)?.unwrap();
         assert!(self.source.next_if_eq(&'*')?.is_some());
         assert!(self.source.next_if_eq(&'/')?.is_some());
         Ok(Some(Comment {
