@@ -34,23 +34,6 @@ console.assert(Number(null) === 0);
 console.assert(isNaN(Number(undefined)));
 console.assert(Number() === 0);
 
-console.assert(String);
-console.assert(String(false) === "false");
-console.assert(String(true) === "true");
-console.assert(String(0) === "0");
-console.assert(String(-1) === "-1");
-console.assert(String(+1) === "1");
-console.assert(String(NaN) === "NaN");
-console.assert(String(-Infinity) === "-Infinity");
-console.assert(String(+Infinity) === "Infinity");
-console.assert(String({}) === "[object Object]");
-console.assert(String("") === "");
-console.assert(String("a") === "a");
-// TODO: console.assert(String(function () {}) === "function () {}");
-console.assert(String(null) === "null");
-console.assert(String(undefined) === "undefined");
-console.assert(String() === "");
-
 console.assert(isNaN);
 console.assert(isNaN(7) === false);
 console.assert(isNaN(Infinity) === false);

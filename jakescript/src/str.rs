@@ -56,6 +56,10 @@ impl NonEmptyString {
     pub fn into_inner(self) -> String {
         self.0
     }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
 }
 
 impl fmt::Display for NonEmptyString {
@@ -114,25 +118,13 @@ impl TryFrom<String> for NonEmptyString {
 
 impl AsRef<str> for NonEmptyString {
     fn as_ref(&self) -> &str {
-        &self.0
-    }
-}
-
-impl AsRef<String> for NonEmptyString {
-    fn as_ref(&self) -> &String {
-        &self.0
-    }
-}
-
-impl From<NonEmptyString> for String {
-    fn from(s: NonEmptyString) -> Self {
-        s.into_inner()
+        self.as_str()
     }
 }
 
 impl ser::Serialize for NonEmptyString {
     fn serialize<S: ser::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-        s.serialize_str(self.as_ref())
+        s.serialize_str(self.as_str())
     }
 }
 

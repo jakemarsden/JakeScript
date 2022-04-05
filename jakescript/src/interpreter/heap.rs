@@ -1,8 +1,9 @@
 use super::error::{ErrorKind, OutOfMemoryError, VariableNotDefinedError};
 use super::stack::Scope;
-use super::value::Value;
+use super::value::{Number, Value};
 use super::Interpreter;
 use crate::ast::{Block, Identifier};
+use crate::non_empty_str;
 use crate::runtime::NativeFn;
 use crate::str::NonEmptyString;
 use common_macros::hash_map;
@@ -140,8 +141,16 @@ impl Object {
         Self::new(true, properties, None, None)
     }
 
+    // missing_panics_doc: TODO
+    #[allow(clippy::missing_panics_doc)]
     pub fn new_string(string_data: String) -> Self {
-        Self::new(true, hash_map![], None, Some(string_data))
+        let len = i64::try_from(string_data.len()).unwrap_or_else(|_| todo!());
+        let properties = hash_map![
+            // FIXME: Only works if the string data never changes for the life of the object. In the
+            //  future there should probably some concept of a native property.
+            non_empty_str!("length") => Property::new(false, Value::Number(Number::Int(len))),
+        ];
+        Self::new(true, properties, None, Some(string_data))
     }
 
     pub fn new_function(user_fn: UserFunction) -> Self {
