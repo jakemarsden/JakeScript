@@ -9,23 +9,26 @@ pub mod harness;
 #[test]
 fn assertion_fails() {
     harness::init();
-    assert_fails(r#"console.assertNotReached();"#, "");
+    assert_fails(
+        r#"console.assertNotReached();"#,
+        "entered unreachable code: ",
+    );
 }
 
 #[test]
 fn assertion_fails_with_detail_msg() {
     harness::init();
     assert_fails(
-        r#"console.assertNotReached("My failing assertion");"#,
-        "My failing assertion",
+        r#"console.assertNotReached("msg");"#,
+        "entered unreachable code: msg",
     );
     assert_fails(
         r#"console.assertNotReached("Hello", "world", "foo", "bar");"#,
-        "Hello world foo bar",
+        "entered unreachable code: Hello world foo bar",
     );
     assert_fails(
         r#"console.assertNotReached({}, 13 + 4);"#,
-        "[object Object] 17",
+        "entered unreachable code: [object Object] 17",
     );
 }
 

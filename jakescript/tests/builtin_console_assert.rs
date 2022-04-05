@@ -17,14 +17,6 @@ fn assertion_passes_for_truthy_value() {
 }
 
 #[test]
-fn assertion_passes_for_truthy_value_with_detail_msg() {
-    harness::init();
-    assert_passes(r#"console.assert(true, "My failing assertion");"#);
-    assert_passes(r#"console.assert(true, "Hello", "world", "foo", "bar");"#);
-    assert_passes(r#"console.assert(true, {}, 13 + 4);"#);
-}
-
-#[test]
 fn assertion_fails_for_falsy_value() {
     harness::init();
     assert_fails(r#"console.assert(false);"#, "");
@@ -36,12 +28,24 @@ fn assertion_fails_for_falsy_value() {
 }
 
 #[test]
+fn assertion_passes_for_truthy_value_with_detail_msg() {
+    harness::init();
+    assert_passes(r#"console.assert(true, "msg");"#);
+    assert_passes(r#"console.assert(1, "msg");"#);
+    assert_passes(r#"console.assert("a", "msg");"#);
+    assert_passes(r#"console.assert({}, "msg");"#);
+    assert_passes(r#"console.assert(true, "Hello", "world", "foo", "bar");"#);
+    assert_passes(r#"console.assert(true, {}, 13 + 4);"#);
+}
+
+#[test]
 fn assertion_fails_for_falsy_value_with_detail_msg() {
     harness::init();
-    assert_fails(
-        r#"console.assert(false, "My failing assertion");"#,
-        "My failing assertion",
-    );
+    assert_fails(r#"console.assert(false, "msg");"#, "msg");
+    assert_fails(r#"console.assert(0, "msg");"#, "msg");
+    assert_fails(r#"console.assert("", "msg");"#, "msg");
+    assert_fails(r#"console.assert(null, "msg");"#, "msg");
+    assert_fails(r#"console.assert(undefined, "msg");"#, "msg");
     assert_fails(
         r#"console.assert(false, "Hello", "world", "foo", "bar");"#,
         "Hello world foo bar",
