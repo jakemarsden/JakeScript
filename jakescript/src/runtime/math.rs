@@ -52,9 +52,12 @@ impl Builtin for Math {
 
 impl MathAbs {
     #[allow(clippy::unnecessary_wraps)]
-    fn invoke(_: &mut Interpreter, args: &[Value]) -> Result<Value, ErrorKind> {
-        let n = args.first().cloned().unwrap_or_default().coerce_to_number();
-        Ok(Value::Number(n.checked_abs().ok_or(NumericOverflowError)?))
+    fn invoke(it: &mut Interpreter, args: &[Value]) -> Result<Value, ErrorKind> {
+        let arg = args.first().cloned().unwrap_or_default();
+        it.coerce_to_number(&arg)
+            .checked_abs()
+            .map(Value::Number)
+            .ok_or(ErrorKind::NumericOverflow(NumericOverflowError))
     }
 }
 
@@ -67,10 +70,10 @@ impl Builtin for MathAbs {
 
 impl MathMax {
     #[allow(clippy::unnecessary_wraps)]
-    fn invoke(_: &mut Interpreter, args: &[Value]) -> Result<Value, ErrorKind> {
+    fn invoke(it: &mut Interpreter, args: &[Value]) -> Result<Value, ErrorKind> {
         let mut acc = Number::NEG_INF;
         for arg in args {
-            let n = arg.coerce_to_number();
+            let n = it.coerce_to_number(arg);
             if n.is_nan() {
                 return Ok(Value::Number(Number::NAN));
             }
@@ -91,10 +94,10 @@ impl Builtin for MathMax {
 
 impl MathMin {
     #[allow(clippy::unnecessary_wraps)]
-    fn invoke(_: &mut Interpreter, args: &[Value]) -> Result<Value, ErrorKind> {
+    fn invoke(it: &mut Interpreter, args: &[Value]) -> Result<Value, ErrorKind> {
         let mut acc = Number::POS_INF;
         for arg in args {
-            let n = arg.coerce_to_number();
+            let n = it.coerce_to_number(arg);
             if n.is_nan() {
                 return Ok(Value::Number(Number::NAN));
             }
@@ -115,9 +118,9 @@ impl Builtin for MathMin {
 
 impl MathSqrt {
     #[allow(clippy::unnecessary_wraps)]
-    fn invoke(_: &mut Interpreter, args: &[Value]) -> Result<Value, ErrorKind> {
-        let n = args.first().cloned().unwrap_or_default().coerce_to_number();
-        Ok(Value::Number(n.sqrt()))
+    fn invoke(it: &mut Interpreter, args: &[Value]) -> Result<Value, ErrorKind> {
+        let arg = args.first().cloned().unwrap_or_default();
+        Ok(Value::Number(it.coerce_to_number(&arg).sqrt()))
     }
 }
 
@@ -130,8 +133,9 @@ impl Builtin for MathSqrt {
 
 impl MathTrunc {
     #[allow(clippy::unnecessary_wraps)]
-    fn invoke(_: &mut Interpreter, args: &[Value]) -> Result<Value, ErrorKind> {
-        let n = args.first().cloned().unwrap_or_default().coerce_to_number();
+    fn invoke(it: &mut Interpreter, args: &[Value]) -> Result<Value, ErrorKind> {
+        let arg = args.first().cloned().unwrap_or_default();
+        let n = it.coerce_to_number(&arg);
         Ok(Value::Number(if n.is_finite() {
             Number::Int(n.as_i64())
         } else {

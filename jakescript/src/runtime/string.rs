@@ -11,7 +11,7 @@ impl String {
     fn invoke(it: &mut Interpreter, args: &[Value]) -> Result<Value, ErrorKind> {
         let arg = args.first();
         Ok(Value::String(match arg {
-            Some(arg) => arg.coerce_to_string(it.vm()),
+            Some(arg) => it.coerce_to_string(arg),
             None => "".to_owned(),
         }))
     }

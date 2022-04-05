@@ -67,22 +67,22 @@ impl Eval for AssignmentExpression {
             let result = match self_.op {
                 AssignmentOperator::Assign => Ok(rhs),
                 AssignmentOperator::ComputeAssign(BinaryOperator::Addition) => {
-                    Value::add_or_append(it.vm(), &getter()?, &rhs)
+                    it.add_or_concat(&getter()?, &rhs)
                 }
                 AssignmentOperator::ComputeAssign(BinaryOperator::Subtraction) => {
-                    Value::sub(&getter()?, &rhs)
+                    it.sub(&getter()?, &rhs)
                 }
                 AssignmentOperator::ComputeAssign(BinaryOperator::Multiplication) => {
-                    Value::mul(&getter()?, &rhs)
+                    it.mul(&getter()?, &rhs)
                 }
                 AssignmentOperator::ComputeAssign(BinaryOperator::Division) => {
-                    Value::div(&getter()?, &rhs)
+                    it.div(&getter()?, &rhs)
                 }
                 AssignmentOperator::ComputeAssign(BinaryOperator::Modulus) => {
-                    Value::rem(&getter()?, &rhs)
+                    it.rem(&getter()?, &rhs)
                 }
                 AssignmentOperator::ComputeAssign(BinaryOperator::Exponentiation) => {
-                    Value::pow(&getter()?, &rhs)
+                    it.pow(&getter()?, &rhs)
                 }
                 kind @ AssignmentOperator::ComputeAssign(..) => {
                     todo!("AssignmentExpression::eval: kind={:?}", kind)
@@ -161,14 +161,14 @@ impl Eval for BinaryExpression {
             BinaryOperator::LogicalAnd => {
                 assert_matches!(self.op.associativity(), Associativity::LeftToRight);
                 match self.lhs.eval(it)? {
-                    lhs if lhs.is_truthy() => self.rhs.eval(it)?,
+                    lhs if it.is_truthy(&lhs) => self.rhs.eval(it)?,
                     lhs => lhs,
                 }
             }
             BinaryOperator::LogicalOr => {
                 assert_matches!(self.op.associativity(), Associativity::LeftToRight);
                 match self.lhs.eval(it)? {
-                    lhs if lhs.is_falsy() => self.rhs.eval(it)?,
+                    lhs if !it.is_truthy(&lhs) => self.rhs.eval(it)?,
                     lhs => lhs,
                 }
             }
@@ -193,18 +193,18 @@ impl Eval for BinaryExpression {
                         unreachable_unchecked()
                     },
 
-                    BinaryOperator::Addition => Value::add_or_append(it.vm(), lhs, rhs),
-                    BinaryOperator::Subtraction => Value::sub(lhs, rhs),
-                    BinaryOperator::Multiplication => Value::mul(lhs, rhs),
-                    BinaryOperator::Division => Value::div(lhs, rhs),
-                    BinaryOperator::Modulus => Value::rem(lhs, rhs),
-                    BinaryOperator::Exponentiation => Value::pow(lhs, rhs),
-                    BinaryOperator::BitwiseAnd => Ok(Value::bitand(lhs, rhs)),
-                    BinaryOperator::BitwiseOr => Ok(Value::bitor(lhs, rhs)),
-                    BinaryOperator::BitwiseXOr => Ok(Value::bitxor(lhs, rhs)),
-                    BinaryOperator::BitwiseLeftShift => Value::shl(lhs, rhs),
-                    BinaryOperator::BitwiseRightShift => Value::shr_signed(lhs, rhs),
-                    BinaryOperator::BitwiseRightShiftUnsigned => Value::shr_unsigned(lhs, rhs),
+                    BinaryOperator::Addition => it.add_or_concat(lhs, rhs),
+                    BinaryOperator::Subtraction => it.sub(lhs, rhs),
+                    BinaryOperator::Multiplication => it.mul(lhs, rhs),
+                    BinaryOperator::Division => it.div(lhs, rhs),
+                    BinaryOperator::Modulus => it.rem(lhs, rhs),
+                    BinaryOperator::Exponentiation => it.pow(lhs, rhs),
+                    BinaryOperator::BitwiseAnd => it.bitand(lhs, rhs),
+                    BinaryOperator::BitwiseOr => it.bitor(lhs, rhs),
+                    BinaryOperator::BitwiseXOr => it.bitxor(lhs, rhs),
+                    BinaryOperator::BitwiseLeftShift => it.shl(lhs, rhs),
+                    BinaryOperator::BitwiseRightShift => it.shr_signed(lhs, rhs),
+                    BinaryOperator::BitwiseRightShiftUnsigned => it.shr_unsigned(lhs, rhs),
                 };
                 result.map_err(|err| Error::new(err, self.source_location()))?
             }
@@ -219,16 +219,17 @@ impl Eval for RelationalExpression {
         assert_matches!(self.op.associativity(), Associativity::LeftToRight);
         let lhs = &self.lhs.eval(it)?;
         let rhs = &self.rhs.eval(it)?;
-        Ok(match self.op {
-            RelationalOperator::Equality => Value::eq(it.vm(), lhs, rhs),
-            RelationalOperator::Inequality => Value::ne(it.vm(), lhs, rhs),
-            RelationalOperator::StrictEquality => Value::identical(it.vm(), lhs, rhs),
-            RelationalOperator::StrictInequality => Value::not_identical(it.vm(), lhs, rhs),
-            RelationalOperator::GreaterThan => Value::gt(it.vm(), lhs, rhs),
-            RelationalOperator::GreaterThanOrEqual => Value::ge(it.vm(), lhs, rhs),
-            RelationalOperator::LessThan => Value::lt(it.vm(), lhs, rhs),
-            RelationalOperator::LessThanOrEqual => Value::le(it.vm(), lhs, rhs),
-        })
+        let result = match self.op {
+            RelationalOperator::Equality => it.equal(lhs, rhs),
+            RelationalOperator::Inequality => it.not_equal(lhs, rhs),
+            RelationalOperator::StrictEquality => it.strictly_equal(lhs, rhs),
+            RelationalOperator::StrictInequality => it.not_strictly_equal(lhs, rhs),
+            RelationalOperator::GreaterThan => it.gt(lhs, rhs),
+            RelationalOperator::GreaterThanOrEqual => it.ge(lhs, rhs),
+            RelationalOperator::LessThan => it.lt(lhs, rhs),
+            RelationalOperator::LessThanOrEqual => it.le(lhs, rhs),
+        };
+        result.map_err(|err| Error::new(err, self.source_location()))
     }
 }
 
@@ -237,14 +238,13 @@ impl Eval for UnaryExpression {
 
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let operand = &self.operand.eval(it)?;
-        Ok(match self.op {
-            UnaryOperator::BitwiseNot => Value::bitnot(operand),
-            UnaryOperator::LogicalNot => Value::not(operand),
-            UnaryOperator::NumericNegation => {
-                Value::neg(operand).map_err(|err| Error::new(err, self.source_location()))?
-            }
-            UnaryOperator::NumericPlus => Value::plus(operand),
-        })
+        let result = match self.op {
+            UnaryOperator::BitwiseNot => it.bitnot(operand),
+            UnaryOperator::LogicalNot => it.not(operand),
+            UnaryOperator::NumericNegation => it.negate(operand),
+            UnaryOperator::NumericPlus => it.plus(operand),
+        };
+        result.map_err(|err| Error::new(err, self.source_location()))
     }
 }
 
@@ -257,16 +257,15 @@ impl Eval for UpdateExpression {
             it: &mut Interpreter,
             getter: impl FnOnce() -> std::result::Result<Value, ErrorKind>,
         ) -> Result<(Value, Value)> {
-            const ONE: Value = Value::Number(Number::Int(1));
             let old_value = getter().map_err(|err| Error::new(err, self_.source_location()))?;
 
             // The new value to assign to the variable or property
             let new_value = match self_.op {
                 UpdateOperator::GetAndIncrement | UpdateOperator::IncrementAndGet => {
-                    Value::add_or_append(it.vm(), &old_value, &ONE)
+                    it.add(&old_value, &Value::Number(Number::Int(1)))
                 }
                 UpdateOperator::GetAndDecrement | UpdateOperator::DecrementAndGet => {
-                    Value::sub(&old_value, &ONE)
+                    it.sub(&old_value, &Value::Number(Number::Int(1)))
                 }
             }
             .map_err(|err| Error::new(err, self_.source_location()))?;
@@ -498,7 +497,7 @@ impl Eval for TernaryExpression {
 
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let condition = self.condition.eval(it)?;
-        if condition.is_truthy() {
+        if it.is_truthy(&condition) {
             self.lhs.eval(it)
         } else {
             self.rhs.eval(it)

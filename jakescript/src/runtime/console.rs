@@ -30,7 +30,7 @@ impl ConsoleAssert {
     fn invoke(it: &mut Interpreter, args: &[Value]) -> Result<Value, ErrorKind> {
         let mut args = args.iter();
         let assertion = args.next().unwrap_or(&Value::Undefined);
-        if assertion.is_truthy() {
+        if it.is_truthy(assertion) {
             Ok(Value::Undefined)
         } else {
             let detail_msg = build_msg(it, args);
@@ -78,7 +78,7 @@ impl Builtin for ConsoleLog {
 
 fn build_msg<'a>(it: &Interpreter, values: impl Iterator<Item = &'a Value>) -> String {
     values
-        .map(|arg| arg.coerce_to_string(it.vm()))
+        .map(|arg| it.coerce_to_string(arg))
         .intersperse_with(|| " ".to_owned())
         .collect()
 }

@@ -30,7 +30,7 @@ impl Eval for ExpressionStatement {
 impl Eval for IfStatement {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let condition = self.condition.eval(it)?;
-        if condition.is_truthy() {
+        if it.is_truthy(&condition) {
             it.vm_mut().stack_mut().frame_mut().push_empty_scope();
             self.body.eval(it)?;
             it.vm_mut().stack_mut().frame_mut().pop_scope();
@@ -47,7 +47,7 @@ impl Eval for WhileStatement {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         loop {
             let condition = self.condition.eval(it)?;
-            if condition.is_falsy() {
+            if !it.is_truthy(&condition) {
                 break;
             }
 
@@ -85,7 +85,7 @@ impl Eval for ForStatement {
         loop {
             if let Some(ref condition) = self.condition {
                 let condition = condition.eval(it)?;
-                if condition.is_falsy() {
+                if !it.is_truthy(&condition) {
                     break;
                 }
             }
