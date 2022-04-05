@@ -1,15 +1,17 @@
 use super::{register_builtin, Builtin};
-use crate::interpreter::{ErrorKind, Heap, InitialisationError, Object, Reference, Value, Vm};
+use crate::interpreter::{
+    ErrorKind, Heap, InitialisationError, Interpreter, Object, Reference, Value,
+};
 use common_macros::hash_map;
 
 pub struct String;
 
 impl String {
     #[allow(clippy::unnecessary_wraps)]
-    fn invoke(vm: &mut Vm, args: &[Value]) -> Result<Value, ErrorKind> {
+    fn invoke(it: &mut Interpreter, args: &[Value]) -> Result<Value, ErrorKind> {
         let arg = args.first();
         Ok(Value::String(match arg {
-            Some(arg) => arg.coerce_to_string(vm),
+            Some(arg) => arg.coerce_to_string(it.vm()),
             None => "".to_owned(),
         }))
     }

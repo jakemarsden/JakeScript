@@ -1,7 +1,7 @@
 use super::{register_builtin, Builtin};
 use crate::interpreter::{
-    ErrorKind, Heap, InitialisationError, Number, NumericOverflowError, Object, Property,
-    Reference, Value, Vm,
+    ErrorKind, Heap, InitialisationError, Interpreter, Number, NumericOverflowError, Object,
+    Property, Reference, Value,
 };
 use crate::non_empty_str;
 use common_macros::hash_map;
@@ -52,7 +52,7 @@ impl Builtin for Math {
 
 impl MathAbs {
     #[allow(clippy::unnecessary_wraps)]
-    fn invoke(_: &mut Vm, args: &[Value]) -> Result<Value, ErrorKind> {
+    fn invoke(_: &mut Interpreter, args: &[Value]) -> Result<Value, ErrorKind> {
         let n = args.first().cloned().unwrap_or_default().coerce_to_number();
         Ok(Value::Number(n.checked_abs().ok_or(NumericOverflowError)?))
     }
@@ -67,7 +67,7 @@ impl Builtin for MathAbs {
 
 impl MathMax {
     #[allow(clippy::unnecessary_wraps)]
-    fn invoke(_: &mut Vm, args: &[Value]) -> Result<Value, ErrorKind> {
+    fn invoke(_: &mut Interpreter, args: &[Value]) -> Result<Value, ErrorKind> {
         let mut acc = Number::NEG_INF;
         for arg in args {
             let n = arg.coerce_to_number();
@@ -91,7 +91,7 @@ impl Builtin for MathMax {
 
 impl MathMin {
     #[allow(clippy::unnecessary_wraps)]
-    fn invoke(_: &mut Vm, args: &[Value]) -> Result<Value, ErrorKind> {
+    fn invoke(_: &mut Interpreter, args: &[Value]) -> Result<Value, ErrorKind> {
         let mut acc = Number::POS_INF;
         for arg in args {
             let n = arg.coerce_to_number();
@@ -115,7 +115,7 @@ impl Builtin for MathMin {
 
 impl MathSqrt {
     #[allow(clippy::unnecessary_wraps)]
-    fn invoke(_: &mut Vm, args: &[Value]) -> Result<Value, ErrorKind> {
+    fn invoke(_: &mut Interpreter, args: &[Value]) -> Result<Value, ErrorKind> {
         let n = args.first().cloned().unwrap_or_default().coerce_to_number();
         Ok(Value::Number(n.sqrt()))
     }
@@ -130,7 +130,7 @@ impl Builtin for MathSqrt {
 
 impl MathTrunc {
     #[allow(clippy::unnecessary_wraps)]
-    fn invoke(_: &mut Vm, args: &[Value]) -> Result<Value, ErrorKind> {
+    fn invoke(_: &mut Interpreter, args: &[Value]) -> Result<Value, ErrorKind> {
         let n = args.first().cloned().unwrap_or_default().coerce_to_number();
         Ok(Value::Number(if n.is_finite() {
             Number::Int(n.as_i64())

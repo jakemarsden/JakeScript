@@ -5,8 +5,8 @@ use super::number::Number;
 use super::string::String;
 use super::{register_builtin, Builtin};
 use crate::interpreter::{
-    self, ErrorKind, ExecutionState, Heap, InitialisationError, Object, Property, Reference, Value,
-    Vm,
+    self, ErrorKind, ExecutionState, Heap, InitialisationError, Interpreter, Object, Property,
+    Reference, Value,
 };
 use crate::non_empty_str;
 use common_macros::hash_map;
@@ -47,8 +47,8 @@ impl Builtin for DefaultGlobalObject {
 
 impl GlobalExit {
     #[allow(clippy::unnecessary_wraps)]
-    fn invoke(vm: &mut Vm, _: &[Value]) -> Result<Value, ErrorKind> {
-        vm.set_execution_state(ExecutionState::Exit);
+    fn invoke(it: &mut Interpreter, _: &[Value]) -> Result<Value, ErrorKind> {
+        it.vm_mut().set_execution_state(ExecutionState::Exit);
         Ok(Value::Undefined)
     }
 }
@@ -62,7 +62,7 @@ impl Builtin for GlobalExit {
 
 impl GlobalIsNan {
     #[allow(clippy::unnecessary_wraps)]
-    fn invoke(_: &mut Vm, args: &[Value]) -> Result<Value, ErrorKind> {
+    fn invoke(_: &mut Interpreter, args: &[Value]) -> Result<Value, ErrorKind> {
         let arg = args.first().unwrap_or(&Value::Undefined);
         Ok(Value::Boolean(match arg {
             Value::Boolean(_)

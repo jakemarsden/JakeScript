@@ -1,6 +1,8 @@
 pub use global::DefaultGlobalObject;
 
-use crate::interpreter::{ErrorKind, Heap, InitialisationError, Object, Reference, Value, Vm};
+use crate::interpreter::{
+    ErrorKind, Heap, InitialisationError, Interpreter, Object, Reference, Value,
+};
 
 mod boolean;
 mod console;
@@ -9,7 +11,7 @@ mod math;
 mod number;
 mod string;
 
-pub type NativeFn = dyn Fn(&mut Vm, &[Value]) -> Result<Value, ErrorKind>;
+pub type NativeFn = dyn Fn(&mut Interpreter, &[Value]) -> Result<Value, ErrorKind>;
 
 pub trait Builtin {
     fn register(heap: &mut Heap) -> Result<Reference, InitialisationError>

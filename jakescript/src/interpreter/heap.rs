@@ -1,7 +1,7 @@
 use super::error::{ErrorKind, OutOfMemoryError, VariableNotDefinedError};
 use super::stack::Scope;
 use super::value::Value;
-use super::vm::Vm;
+use super::Interpreter;
 use crate::ast::{Block, Identifier};
 use crate::runtime::NativeFn;
 use crate::str::NonEmptyString;
@@ -270,8 +270,8 @@ impl NativeFunction {
         Self(f)
     }
 
-    pub fn call(&self, vm: &mut Vm, args: &[Value]) -> Result<Value, ErrorKind> {
-        self.0(vm, args)
+    pub fn call(&self, it: &mut Interpreter, args: &[Value]) -> Result<Value, ErrorKind> {
+        self.0(it, args)
     }
 }
 

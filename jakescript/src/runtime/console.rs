@@ -1,6 +1,7 @@
 use super::{register_builtin, Builtin};
 use crate::interpreter::{
-    AssertionError, ErrorKind, Heap, InitialisationError, Object, Property, Reference, Value, Vm,
+    AssertionError, ErrorKind, Heap, InitialisationError, Interpreter, Object, Property, Reference,
+    Value,
 };
 use crate::non_empty_str;
 use common_macros::hash_map;
@@ -26,13 +27,13 @@ impl Builtin for Console {
 }
 
 impl ConsoleAssert {
-    fn invoke(vm: &mut Vm, args: &[Value]) -> Result<Value, ErrorKind> {
+    fn invoke(it: &mut Interpreter, args: &[Value]) -> Result<Value, ErrorKind> {
         let mut args = args.iter();
         let assertion = args.next().unwrap_or(&Value::Undefined);
         if assertion.is_truthy() {
             Ok(Value::Undefined)
         } else {
-            let detail_msg = build_msg(vm, args);
+            let detail_msg = build_msg(it, args);
             Err(ErrorKind::from(AssertionError::new(detail_msg)))
         }
     }
@@ -46,8 +47,8 @@ impl Builtin for ConsoleAssert {
 }
 
 impl ConsoleAssertNotReached {
-    fn invoke(vm: &mut Vm, args: &[Value]) -> Result<Value, ErrorKind> {
-        let detail_msg = build_msg(vm, args.iter());
+    fn invoke(it: &mut Interpreter, args: &[Value]) -> Result<Value, ErrorKind> {
+        let detail_msg = build_msg(it, args.iter());
         Err(ErrorKind::from(AssertionError::new(detail_msg)))
     }
 }
@@ -61,9 +62,9 @@ impl Builtin for ConsoleAssertNotReached {
 
 impl ConsoleLog {
     #[allow(clippy::unnecessary_wraps)]
-    fn invoke(vm: &mut Vm, args: &[Value]) -> Result<Value, ErrorKind> {
-        let msg = build_msg(vm, args.iter());
-        vm.write_message(&msg);
+    fn invoke(it: &mut Interpreter, args: &[Value]) -> Result<Value, ErrorKind> {
+        let msg = build_msg(it, args.iter());
+        it.vm_mut().write_message(&msg);
         Ok(Value::Undefined)
     }
 }
@@ -75,9 +76,9 @@ impl Builtin for ConsoleLog {
     }
 }
 
-fn build_msg<'a>(vm: &Vm, values: impl Iterator<Item = &'a Value>) -> String {
+fn build_msg<'a>(it: &Interpreter, values: impl Iterator<Item = &'a Value>) -> String {
     values
-        .map(|arg| arg.coerce_to_string(vm))
+        .map(|arg| arg.coerce_to_string(it.vm()))
         .intersperse_with(|| " ".to_owned())
         .collect()
 }

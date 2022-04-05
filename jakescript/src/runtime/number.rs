@@ -1,6 +1,6 @@
 use super::{register_builtin, Builtin};
 use crate::interpreter::{
-    self, ErrorKind, Heap, InitialisationError, Object, Reference, Value, Vm,
+    self, ErrorKind, Heap, InitialisationError, Interpreter, Object, Reference, Value,
 };
 use common_macros::hash_map;
 
@@ -8,7 +8,7 @@ pub struct Number;
 
 impl Number {
     #[allow(clippy::unnecessary_wraps)]
-    fn invoke(_: &mut Vm, args: &[Value]) -> Result<Value, ErrorKind> {
+    fn invoke(_: &mut Interpreter, args: &[Value]) -> Result<Value, ErrorKind> {
         let arg = args.first();
         Ok(Value::Number(match arg {
             Some(arg) => arg.coerce_to_number(),
