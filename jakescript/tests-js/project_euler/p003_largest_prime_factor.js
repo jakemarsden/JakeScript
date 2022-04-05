@@ -18,20 +18,14 @@ function largestPrimeFactor(n) {
         let factor2 = n / factor1;
 
         let prime1 = largestPrimeFactor(factor1);
-        if (prime1 > maxPrimeFactor) {
-            maxPrimeFactor = prime1;
-        }
         let prime2 = largestPrimeFactor(factor2);
-        if (prime2 > maxPrimeFactor) {
-            maxPrimeFactor = prime2;
-        }
+        maxPrimeFactor = Math.max(maxPrimeFactor, prime1);
+        maxPrimeFactor = Math.max(maxPrimeFactor, prime2);
     }
     if (isDivisibleBy(n, midFactor)) {
         // `n` is a power of 2.
         let prime = largestPrimeFactor(midFactor);
-        if (prime > maxPrimeFactor) {
-            maxPrimeFactor = prime;
-        }
+        maxPrimeFactor = Math.max(maxPrimeFactor, prime);
     }
     return maxPrimeFactor;
 }

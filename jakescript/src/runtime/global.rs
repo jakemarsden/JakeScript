@@ -18,24 +18,27 @@ pub struct GlobalIsNan;
 impl Builtin for DefaultGlobalObject {
     fn register(heap: &mut Heap) -> Result<Reference, InitialisationError> {
         let properties = hash_map![
+            non_empty_str!("Boolean")
+                => Property::new(true, Value::Object(Boolean::register(heap)?)),
             non_empty_str!("Infinity")
                 => Property::new(false, Value::Number(interpreter::Number::POS_INF)),
-            non_empty_str!("NaN") => Property::new(false, Value::Number(interpreter::Number::NAN)),
-            non_empty_str!("undefined") => Property::new(false, Value::Undefined),
+            non_empty_str!("Math")
+                => Property::new(true, Value::Object(Math::register(heap)?)),
+            non_empty_str!("NaN")
+                => Property::new(false, Value::Number(interpreter::Number::NAN)),
+            non_empty_str!("Number")
+                => Property::new(true, Value::Object(Number::register(heap)?)),
+            non_empty_str!("String")
+                => Property::new(true, Value::Object(String::register(heap)?)),
 
+            non_empty_str!("console")
+                => Property::new(true, Value::Object(Console::register(heap)?)),
             non_empty_str!("exit")
                 => Property::new(true, Value::Object(GlobalExit::register(heap)?)),
             non_empty_str!("isNaN")
                 => Property::new(true, Value::Object(GlobalIsNan::register(heap)?)),
-
-            non_empty_str!("console")
-                => Property::new(true, Value::Object(Console::register(heap)?)),
-
-            non_empty_str!("Boolean")
-                => Property::new(true, Value::Object(Boolean::register(heap)?)),
-            non_empty_str!("Math") => Property::new(true, Value::Object(Math::register(heap)?)),
-            non_empty_str!("Number") => Property::new(true, Value::Object(Number::register(heap)?)),
-            non_empty_str!("String") => Property::new(true, Value::Object(String::register(heap)?)),
+            non_empty_str!("undefined")
+                => Property::new(false, Value::Undefined),
         ];
         let obj = Object::new_builtin(false, properties, None);
         register_builtin(heap, obj)

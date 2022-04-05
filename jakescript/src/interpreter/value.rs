@@ -244,9 +244,9 @@ impl fmt::Display for Value {
 }
 
 impl Number {
-    pub const NAN: Self = Self::Float(f64::NAN);
     pub const POS_INF: Self = Self::Float(f64::INFINITY);
     pub const NEG_INF: Self = Self::Float(f64::NEG_INFINITY);
+    pub const NAN: Self = Self::Float(f64::NAN);
 
     pub fn infinity(sign: i64) -> Self {
         if sign >= 0 {
@@ -304,6 +304,13 @@ impl Number {
         Some(match self {
             Self::Float(value) => Self::Float(-value),
             Self::Int(value) => Self::Int(value.checked_neg()?),
+        })
+    }
+
+    pub fn checked_abs(self) -> Option<Self> {
+        Some(match self {
+            Self::Float(value) => Self::Float(value.abs()),
+            Self::Int(value) => Self::Int(value.checked_abs()?),
         })
     }
 
