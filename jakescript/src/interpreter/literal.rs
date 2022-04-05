@@ -8,14 +8,19 @@ use std::collections::HashMap;
 impl Eval for LiteralExpression {
     type Output = Value;
 
-    fn eval(&self, _: &mut Interpreter) -> Result<Self::Output> {
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         Ok(match self.value {
             Literal::Boolean(value) => Value::Boolean(value),
             Literal::Numeric(value) => Value::Number(match value {
                 NumericLiteral::Int(value) => Number::Int(i64::try_from(value).unwrap()),
                 NumericLiteral::Float(value) => Number::Float(value),
             }),
-            Literal::String(ref value) => Value::String(value.value.clone()),
+            Literal::String(ref value) => Value::Object(
+                it.vm_mut()
+                    .heap_mut()
+                    .allocate(Object::new_string(value.value.clone()))
+                    .map_err(|err| Error::new(err, self.source_location()))?,
+            ),
             Literal::Null => Value::Null,
         })
     }

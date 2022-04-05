@@ -65,11 +65,7 @@ impl GlobalIsNan {
     fn invoke(_: &mut Interpreter, args: &[Value]) -> Result<Value, ErrorKind> {
         let arg = args.first().unwrap_or(&Value::Undefined);
         Ok(Value::Boolean(match arg {
-            Value::Boolean(_)
-            | Value::Object(_)
-            | Value::String(_)
-            | Value::Null
-            | Value::Undefined => true,
+            Value::Boolean(_) | Value::Object(_) | Value::Null | Value::Undefined => true,
             Value::Number(arg) => arg.is_nan(),
         }))
     }

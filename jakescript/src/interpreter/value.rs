@@ -7,7 +7,6 @@ pub enum Value {
     Boolean(bool),
     Number(Number),
     Object(Reference),
-    String(String),
     Null,
     #[default]
     Undefined,
@@ -19,19 +18,12 @@ pub enum Number {
     Int(i64),
 }
 
-impl Value {
-    pub fn is_str_or_ref(&self) -> bool {
-        matches!(self, Self::Object(..) | Self::String(..))
-    }
-}
-
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Boolean(value) => write!(f, "{}", value),
             Self::Number(value) => write!(f, "{}", value),
             Self::Object(value) => write!(f, "{}", value),
-            Self::String(value) => write!(f, "{}", value),
             Self::Null => f.write_str("null"),
             Self::Undefined => f.write_str("undefined"),
         }

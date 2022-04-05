@@ -32,6 +32,7 @@ pub struct Object {
     // TODO: Introduce a newtype for property keys?
     properties: HashMap<PropertyKey, Property>,
     call: Option<Call>,
+    string_data: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -128,7 +129,7 @@ impl Object {
             .enumerate()
             .map(|(idx, value)| (PropertyKey::from(idx), Property::new(true, value)))
             .collect();
-        Self::new(true, properties, None)
+        Self::new(true, properties, None, None)
     }
 
     pub fn new_object(properties: HashMap<PropertyKey, Value>) -> Self {
@@ -136,11 +137,15 @@ impl Object {
             .into_iter()
             .map(|(key, value)| (key, Property::new(true, value)))
             .collect();
-        Self::new(true, properties, None)
+        Self::new(true, properties, None, None)
+    }
+
+    pub fn new_string(string_data: String) -> Self {
+        Self::new(true, hash_map![], None, Some(string_data))
     }
 
     pub fn new_function(user_fn: UserFunction) -> Self {
-        Self::new(true, hash_map![], Some(Call::User(user_fn)))
+        Self::new(true, hash_map![], Some(Call::User(user_fn)), None)
     }
 
     pub fn new_builtin(
@@ -152,6 +157,7 @@ impl Object {
             extensible,
             properties,
             call.map(|f| Call::Native(NativeFunction::new(f))),
+            None,
         )
     }
 
@@ -159,11 +165,13 @@ impl Object {
         extensible: bool,
         properties: HashMap<PropertyKey, Property>,
         call: Option<Call>,
+        string_data: Option<String>,
     ) -> Self {
         Self {
             extensible,
             properties,
             call,
+            string_data,
         }
     }
 
@@ -195,10 +203,16 @@ impl Object {
         self.call.as_ref()
     }
 
+    pub fn string_data(&self) -> Option<&str> {
+        self.string_data.as_deref()
+    }
+
     // TODO: Call `.toString()` on the object if it exists.
     #[allow(clippy::unused_self)]
     pub fn js_to_string(&self) -> String {
-        "[object Object]".to_owned()
+        self.string_data
+            .clone()
+            .unwrap_or_else(|| "[object Object]".to_owned())
     }
 }
 

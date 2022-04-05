@@ -47,7 +47,7 @@ impl Interpreter {
         lhs: &Value,
         rhs: &Value,
     ) -> std::result::Result<Value, ErrorKind> {
-        if lhs.is_str_or_ref() || rhs.is_str_or_ref() {
+        if matches!(lhs, Value::Object(_)) || matches!(rhs, Value::Object(_)) {
             self.concat(lhs, rhs)
         } else {
             self.add(lhs, rhs)
@@ -63,7 +63,11 @@ impl Interpreter {
     fn concat(&mut self, lhs: &Value, rhs: &Value) -> std::result::Result<Value, ErrorKind> {
         let mut out = self.coerce_to_string(lhs);
         out.push_str(&self.coerce_to_string(rhs));
-        Ok(Value::String(out))
+        self.vm_mut()
+            .heap_mut()
+            .allocate(Object::new_string(out))
+            .map(Value::Object)
+            .map_err(ErrorKind::from)
     }
 
     pub fn sub(&self, lhs: &Value, rhs: &Value) -> std::result::Result<Value, ErrorKind> {
@@ -116,12 +120,21 @@ impl Interpreter {
             Value::Number(lhs) => *lhs == self.coerce_to_number(rhs),
             Value::Object(lhs) => {
                 if let Value::Object(rhs) = rhs {
-                    lhs == rhs
+                    lhs == rhs || {
+                        let lhs_obj = self.vm().heap().resolve(lhs);
+                        let rhs_obj = self.vm().heap().resolve(rhs);
+                        if let Some(lhs_str) = lhs_obj.string_data()
+                            && let Some(rhs_str) = rhs_obj.string_data()
+                        {
+                            lhs_str == rhs_str
+                        } else {
+                            false
+                        }
+                    }
                 } else {
                     false
                 }
             }
-            Value::String(lhs) => lhs == &self.coerce_to_string(rhs),
             Value::Null | Value::Undefined => matches!(rhs, Value::Null | Value::Undefined),
         }))
     }
@@ -140,8 +153,17 @@ impl Interpreter {
         Ok(Value::Boolean(match (lhs, rhs) {
             (Value::Boolean(lhs), Value::Boolean(rhs)) => lhs == rhs,
             (Value::Number(lhs), Value::Number(rhs)) => lhs == rhs,
-            (Value::Object(lhs), Value::Object(rhs)) => lhs == rhs,
-            (Value::String(lhs), Value::String(rhs)) => lhs == rhs,
+            (Value::Object(lhs), Value::Object(rhs)) => {
+                lhs == rhs || {
+                    let lhs_obj = self.vm().heap().resolve(lhs);
+                    let rhs_obj = self.vm().heap().resolve(rhs);
+                    if lhs_obj.string_data().is_some() || rhs_obj.string_data().is_some() {
+                        lhs_obj.js_to_string() == rhs_obj.js_to_string()
+                    } else {
+                        false
+                    }
+                }
+            }
             (Value::Null, Value::Null) | (Value::Undefined, Value::Undefined) => true,
             (_, _) => false,
         }))
@@ -198,8 +220,11 @@ impl Interpreter {
         match v {
             Value::Boolean(v) => *v,
             Value::Number(v) => !v.is_zero() && !v.is_nan(),
-            Value::Object(_) => true,
-            Value::String(v) => !v.is_empty(),
+            Value::Object(obj_ref) => {
+                let obj = self.vm().heap().resolve(obj_ref);
+                obj.string_data()
+                    .map_or(true, |string_data| !string_data.is_empty())
+            }
             Value::Null | Value::Undefined => false,
         }
     }
@@ -210,9 +235,14 @@ impl Interpreter {
         match v {
             Value::Boolean(v) => Number::Int(if *v { 1 } else { 0 }),
             Value::Number(v) => *v,
-            Value::String(v) => Number::from_str(v).unwrap_or(Number::NAN),
+            Value::Object(obj_ref) => {
+                let obj = self.vm().heap().resolve(obj_ref);
+                obj.string_data()
+                    .and_then(|string_data| Number::from_str(string_data).ok())
+                    .unwrap_or(Number::NAN)
+            }
             Value::Null => Number::Int(0),
-            Value::Object(_) | Value::Undefined => Number::NAN,
+            Value::Undefined => Number::NAN,
         }
     }
 
@@ -222,9 +252,9 @@ impl Interpreter {
             Value::Number(v) => v.to_string(),
             Value::Object(obj_ref) => {
                 let obj = self.vm().heap().resolve(obj_ref);
-                obj.js_to_string()
+                obj.string_data()
+                    .map_or_else(|| obj.js_to_string(), str::to_owned)
             }
-            Value::String(v) => v.clone(),
             Value::Null => "null".to_owned(),
             Value::Undefined => "undefined".to_owned(),
         }
@@ -287,7 +317,7 @@ impl Interpreter {
         rhs: &Value,
         op: impl FnOnce(cmp::Ordering) -> bool,
     ) -> std::result::Result<Value, ErrorKind> {
-        let ord = if lhs.is_str_or_ref() || rhs.is_str_or_ref() {
+        let ord = if matches!(lhs, Value::Object(_)) || matches!(rhs, Value::Object(_)) {
             Some(self.coerce_to_string(lhs).cmp(&self.coerce_to_string(rhs)))
         } else {
             self.coerce_to_number(lhs)

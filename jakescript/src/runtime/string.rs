@@ -10,10 +10,12 @@ impl String {
     #[allow(clippy::unnecessary_wraps)]
     fn invoke(it: &mut Interpreter, args: &[Value]) -> Result<Value, ErrorKind> {
         let arg = args.first();
-        Ok(Value::String(match arg {
-            Some(arg) => it.coerce_to_string(arg),
-            None => "".to_owned(),
-        }))
+        let str = arg.map_or_else(|| "".to_owned(), |arg| it.coerce_to_string(arg));
+        it.vm_mut()
+            .heap_mut()
+            .allocate(Object::new_string(str))
+            .map(Value::Object)
+            .map_err(ErrorKind::from)
     }
 }
 
