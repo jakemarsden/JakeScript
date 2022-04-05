@@ -1,7 +1,7 @@
-console.assert(largestPrimeFactor(13195) === 29);
+console.assertEqual(largestPrimeFactor(13195), 29);
 
 // Too slow to run by default when compiled without `--release`:
-//console.assert(largestPrimeFactor(600851475143) === 6857);
+//console.assertEqual(largestPrimeFactor(600851475143), 6857);
 
 /**
  * @return `-1` if `n` has zero prime factors

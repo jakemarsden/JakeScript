@@ -1,7 +1,7 @@
-console.assert(largestPalindromeProduct(2) === 9009);
+console.assertEqual(largestPalindromeProduct(2), 9009);
 
 // Too slow to run by default when compiled without `--release`:
-//console.assert(largestPalindromeProduct(3) === 906609);
+//console.assertEqual(largestPalindromeProduct(3), 906609);
 
 function largestPalindromeProduct(digits) {
     console.assert(digits > 0);

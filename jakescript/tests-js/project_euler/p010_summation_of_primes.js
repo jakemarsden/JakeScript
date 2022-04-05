@@ -1,7 +1,7 @@
-console.assert(sumPrimes(10) === 17);
+console.assertEqual(sumPrimes(10), 17);
 
 // Too slow to run by default:
-//console.assert(sumPrimes(2000000) === 142913828922);
+//console.assertEqual(sumPrimes(2000000), 142913828922);
 
 function sumPrimes(maxPrime) {
     let n = 2;

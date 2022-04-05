@@ -1,7 +1,7 @@
 let x = 0;
 while (x < 3)
     x = x + 1;
-console.assert(x === 3);
+console.assertEqual(x, 3);
 
 while (true) break;
 
@@ -11,4 +11,4 @@ while (true)
         break;
     else
         shouldBreak = true;
-console.assert(shouldBreak === true);
+console.assertEqual(shouldBreak, true);

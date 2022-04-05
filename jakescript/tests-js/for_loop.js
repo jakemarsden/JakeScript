@@ -2,28 +2,28 @@ let counter = 0;
 for (let i = 0; i <= 10; i += 1) {
     counter += i;
 }
-console.assert(counter === 55);
+console.assertEqual(counter, 55);
 
 let counterWithVar = 0;
 for (var varI = 0; varI <= 10; varI += 1) {
     counterWithVar += varI;
 }
-console.assert(counterWithVar === 55);
+console.assertEqual(counterWithVar, 55);
 
 let noInitCounter = 0;
 let noInitI = 5;
 for (; noInitI > 0; noInitI -= 1) {
     noInitCounter += 1;
 }
-console.assert(noInitI === 0);
-console.assert(noInitCounter === 5);
+console.assertEqual(noInitI, 0);
+console.assertEqual(noInitCounter, 5);
 
 let noIncCounter = 0;
 for (let i = 5; i > 0;) {
     i -= 1;
     noIncCounter += 1;
 }
-console.assert(noIncCounter === 5);
+console.assertEqual(noIncCounter, 5);
 
 let noCondCounter = 0;
 for (let i = 5; ; i -= 1) {
@@ -32,7 +32,7 @@ for (let i = 5; ; i -= 1) {
     }
     noCondCounter += 1;
 }
-console.assert(noCondCounter === 5);
+console.assertEqual(noCondCounter, 5);
 
 let infCounter = 0;
 for (;;) {
@@ -41,7 +41,7 @@ for (;;) {
     }
     infCounter += 1;
 }
-console.assert(infCounter === 4);
+console.assertEqual(infCounter, 4);
 
 let breakCounter = 0;
 for (let i = 0; i <= 10; i += 1) {
@@ -50,7 +50,7 @@ for (let i = 0; i <= 10; i += 1) {
     }
     breakCounter += i;
 }
-console.assert(breakCounter === 15);
+console.assertEqual(breakCounter, 15);
 
 let continueCounter = 0;
 for (let i = 0; i < 10; i += 1) {
@@ -59,7 +59,7 @@ for (let i = 0; i < 10; i += 1) {
     }
     continueCounter += i;
 }
-console.assert(continueCounter === 25);
+console.assertEqual(continueCounter, 25);
 
 let bcCount = 0;
 for (let idx = 9;; idx -= 1) {
@@ -71,7 +71,7 @@ for (let idx = 9;; idx -= 1) {
     }
     bcCount += 1;
 }
-console.assert(bcCount === 4);
+console.assertEqual(bcCount, 4);
 
 function returnInside() {
     for (let i = 3; i -= 1;) {
@@ -79,7 +79,8 @@ function returnInside() {
     }
     console.assertNotReached();
 }
-console.assert(returnInside() === 2);
+
+console.assertEqual(returnInside(), 2);
 
 function returnInside2() {
     for (let i = 0;; i += 1) {
@@ -89,4 +90,5 @@ function returnInside2() {
     }
     console.assertNotReached();
 }
-console.assert(returnInside2() === 10);
+
+console.assertEqual(returnInside2(), 10);

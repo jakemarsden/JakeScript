@@ -1,19 +1,19 @@
-console.assert("a" + "" === "a");
-console.assert("a" + "b" === "ab");
-console.assert("Hello, " + "world" + "!" === "Hello, world!");
+console.assertEqual("a" + "", "a");
+console.assertEqual("a" + "b", "ab");
+console.assertEqual("Hello, " + "world" + "!", "Hello, world!");
 
-console.assert("abc" + 1 === "abc1");
-console.assert("abc" + (2 + 3) === "abc5");
-console.assert("abc" + 2 + 3 === "abc23");
+console.assertEqual("abc" + 1, "abc1");
+console.assertEqual("abc" + (2 + 3), "abc5");
+console.assertEqual("abc" + 2 + 3, "abc23");
 
-console.assert("Hello, " + Infinity === "Hello, Infinity");
-console.assert(Infinity + ", world!" === "Infinity, world!");
-console.assert("Hello, " + NaN === "Hello, NaN");
-console.assert(NaN + ", world!" === "NaN, world!");
-console.assert("Hello, " + undefined === "Hello, undefined");
-console.assert(undefined + ", world!" === "undefined, world!");
-console.assert("Hello, " + null === "Hello, null");
-console.assert(null + ", world!" === "null, world!");
+console.assertEqual("Hello, " + Infinity, "Hello, Infinity");
+console.assertEqual(Infinity + ", world!", "Infinity, world!");
+console.assertEqual("Hello, " + NaN, "Hello, NaN");
+console.assertEqual(NaN + ", world!", "NaN, world!");
+console.assertEqual("Hello, " + undefined, "Hello, undefined");
+console.assertEqual(undefined + ", world!", "undefined, world!");
+console.assertEqual("Hello, " + null, "Hello, null");
+console.assertEqual(null + ", world!", "null, world!");
 
 let counter = 0;
 
@@ -29,5 +29,5 @@ function assertSecond(n) {
     return n;
 }
 
-console.assert(assertFirst("abc") + assertSecond("def") === "abcdef");
-console.assert(counter === 2);
+console.assertEqual(assertFirst("abc") + assertSecond("def"), "abcdef");
+console.assertEqual(counter, 2);

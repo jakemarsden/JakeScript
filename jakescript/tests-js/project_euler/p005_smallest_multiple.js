@@ -1,3 +1,8 @@
+console.assertEqual(smallestMultiple(10), 2520);
+
+// Too slow to run by default:
+//console.assertEqual(smallestMultiple(20), 232792560);
+
 function smallestMultiple(maxDivisor) {
     let minDivisorToCheck = (maxDivisor / 2) + 1;
     let maxDivisorToCheck = maxDivisor - 1;
@@ -14,8 +19,3 @@ function smallestMultiple(maxDivisor) {
         }
     }
 }
-
-console.assert(smallestMultiple(10) === 2520);
-
-// Too slow to run by default:
-//console.assert(smallestMultiple(20) === 232792560);

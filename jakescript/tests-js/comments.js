@@ -8,8 +8,8 @@ Comment 3
 /
 /
 */
-= 30;
+    = 30;
 
 let /**Comment 4*/ d = /* 50 */ 40;
 
-console.assert(a + b + c + d === 100);
+console.assertEqual(a + b + c + d /**//***//****//*****/,/**/ 100);

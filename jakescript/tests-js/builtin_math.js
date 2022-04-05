@@ -20,72 +20,74 @@ assertUnmodifiable(function () { return Math.SQRT1_2; }, function (n) { return M
 assertUnmodifiable(function () { return Math.SQRT2; }, function (n) { return Math.SQRT2 = n; });
 
 function assertApproxEqual(actual, expected, msg) {
-    console.assert(actual > expected && actual < expected + 1, msg);
+    console.assert(
+        actual > expected && actual < expected + 1,
+        "expected approximately", "'" + expected + "'", "but was", "'" + actual + "':", msg);
 }
 
 function assertUnmodifiable(getter, setter) {
     let original = getter();
-    console.assert(setter(42) === 42);
+    console.assertEqual(setter(42), 42);
     let hopefullyUnmodified = getter();
     console.assert(hopefullyUnmodified === original);
     console.assert(hopefullyUnmodified !== 42);
 }
 
 console.assert(Math.abs);
-console.assert(isNaN(Math.abs()));
-console.assert(Math.abs(0) === 0);
-console.assert(Math.abs(42) === 42);
-console.assert(Math.abs(-42) === 42);
-console.assert(Math.abs("") === 0);
-console.assert(Math.abs("0") === 0);
-console.assert(Math.abs("42") === 42);
-console.assert(Math.abs("-42") === 42);
-console.assert(isNaN(Math.abs(NaN)));
-console.assert(isNaN(Math.abs("fish")));
-console.assert(Math.abs(Infinity) === Infinity);
-console.assert(Math.abs(-Infinity) === Infinity);
+console.assertEqual(Math.abs(), NaN);
+console.assertEqual(Math.abs(0), 0);
+console.assertEqual(Math.abs(42), 42);
+console.assertEqual(Math.abs(-42), 42);
+console.assertEqual(Math.abs(""), 0);
+console.assertEqual(Math.abs("0"), 0);
+console.assertEqual(Math.abs("42"), 42);
+console.assertEqual(Math.abs("-42"), 42);
+console.assertEqual(Math.abs(NaN), NaN);
+console.assertEqual(Math.abs("fish"), NaN);
+console.assertEqual(Math.abs(Infinity), Infinity);
+console.assertEqual(Math.abs(-Infinity), Infinity);
 
 console.assert(Math.max);
-console.assert(Math.max() === -Infinity);
-console.assert(Math.max(42) === 42);
-console.assert(Math.max(48, 93, 86, 68, 33) === 93);
-console.assert(Math.max(48, 93, "86", 68, 33) === 93);
-console.assert(isNaN(Math.max(48, 93, NaN, 68, 33)));
-console.assert(isNaN(Math.max(48, 93, "fish", 68, 33)));
-console.assert(Math.max(48, 93, Infinity, 68, 33) === Infinity);
-console.assert(Math.max(48, 93, -Infinity, 68, 33) === 93);
+console.assertEqual(Math.max(), -Infinity);
+console.assertEqual(Math.max(42), 42);
+console.assertEqual(Math.max(48, 93, 86, 68, 33), 93);
+console.assertEqual(Math.max(48, 93, "86", 68, 33), 93);
+console.assertEqual(Math.max(48, 93, NaN, 68, 33), NaN);
+console.assertEqual(Math.max(48, 93, "fish", 68, 33), NaN);
+console.assertEqual(Math.max(48, 93, Infinity, 68, 33), Infinity);
+console.assertEqual(Math.max(48, 93, -Infinity, 68, 33), 93);
 
 console.assert(Math.min);
-console.assert(Math.min() === Infinity);
-console.assert(Math.min(42) === 42);
-console.assert(Math.min(48, 93, 86, 68, 33) === 33);
-console.assert(Math.min(48, 93, "86", 68, 33) === 33);
-console.assert(isNaN(Math.min(48, 93, NaN, 68, 33)));
-console.assert(isNaN(Math.min(48, 93, "fish", 68, 33)));
-console.assert(Math.min(48, 93, Infinity, 68, 33) === 33);
-console.assert(Math.min(48, 93, -Infinity, 68, 33) === -Infinity);
+console.assertEqual(Math.min(), Infinity);
+console.assertEqual(Math.min(42), 42);
+console.assertEqual(Math.min(48, 93, 86, 68, 33), 33);
+console.assertEqual(Math.min(48, 93, "86", 68, 33), 33);
+console.assertEqual(Math.min(48, 93, NaN, 68, 33), NaN);
+console.assertEqual(Math.min(48, 93, "fish", 68, 33), NaN);
+console.assertEqual(Math.min(48, 93, Infinity, 68, 33), 33);
+console.assertEqual(Math.min(48, 93, -Infinity, 68, 33), -Infinity);
 
 console.assert(Math.sqrt);
-console.assert(Math.sqrt(1) === 1);
-console.assert(Math.sqrt(4) === 2);
-console.assert(Math.sqrt(256) === 16);
-console.assert(Math.sqrt("256") === 16);
-console.assert(isNaN(Math.sqrt(NaN)));
-console.assert(isNaN(Math.sqrt("fish")));
-console.assert(Math.sqrt(Infinity) === Infinity);
-console.assert(isNaN(Math.sqrt(-Infinity)));
+console.assertEqual(Math.sqrt(1), 1);
+console.assertEqual(Math.sqrt(4), 2);
+console.assertEqual(Math.sqrt(256), 16);
+console.assertEqual(Math.sqrt("256"), 16);
+console.assertEqual(Math.sqrt(NaN), NaN);
+console.assertEqual(Math.sqrt("fish"), NaN);
+console.assertEqual(Math.sqrt(Infinity), Infinity);
+console.assertEqual(Math.sqrt(-Infinity), NaN);
 
 console.assert(Math.trunc);
-console.assert(Math.trunc(Math.E) === 2);
-console.assert(Math.trunc(Math.LN2) === 0);
-console.assert(Math.trunc(Math.LN10) === 2);
-console.assert(Math.trunc(Math.LOG2E) === 1);
-console.assert(Math.trunc(Math.LOG10E) === 0);
-console.assert(Math.trunc(Math.PI) === 3);
-console.assert(Math.trunc(Math.SQRT1_2) === 0);
-console.assert(Math.trunc(Math.SQRT2) === 1);
-console.assert(Math.trunc("3") === 3);
-console.assert(isNaN(Math.trunc(NaN)));
-console.assert(isNaN(Math.trunc("fish")));
-console.assert(Math.trunc(Infinity) === Infinity);
-console.assert(Math.trunc(-Infinity) === -Infinity);
+console.assertEqual(Math.trunc(Math.E), 2);
+console.assertEqual(Math.trunc(Math.LN2), 0);
+console.assertEqual(Math.trunc(Math.LN10), 2);
+console.assertEqual(Math.trunc(Math.LOG2E), 1);
+console.assertEqual(Math.trunc(Math.LOG10E), 0);
+console.assertEqual(Math.trunc(Math.PI), 3);
+console.assertEqual(Math.trunc(Math.SQRT1_2), 0);
+console.assertEqual(Math.trunc(Math.SQRT2), 1);
+console.assertEqual(Math.trunc("3"), 3);
+console.assertEqual(Math.trunc(NaN), NaN);
+console.assertEqual(Math.trunc("fish"), NaN);
+console.assertEqual(Math.trunc(Infinity), Infinity);
+console.assertEqual(Math.trunc(-Infinity), -Infinity);

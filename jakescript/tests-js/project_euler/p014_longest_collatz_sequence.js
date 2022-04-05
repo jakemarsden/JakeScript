@@ -1,7 +1,7 @@
-console.assert(chainLength(13) === 10);
+console.assertEqual(chainLength(13), 10);
 
 // Too slow to run by default:
-//console.assert(longestCollatzChain(1000000) === 837799);
+//console.assertEqual(longestCollatzChain(1000000), 837799);
 
 function longestCollatzChain(maxStartNumber) {
     let maxSeed = 1;

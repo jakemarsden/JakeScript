@@ -1,3 +1,6 @@
+console.assertEqual(evenFibonacciNumbers(89), 44);
+console.assertEqual(evenFibonacciNumbers(4000000), 4613732);
+
 function evenFibonacciNumbers(limit) {
     let f0 = 0;
     let f1 = 1;
@@ -12,6 +15,3 @@ function evenFibonacciNumbers(limit) {
     }
     return sum;
 }
-
-console.assert(evenFibonacciNumbers(89) === 44);
-console.assert(evenFibonacciNumbers(4000000) === 4613732);

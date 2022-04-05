@@ -1,14 +1,14 @@
 console.assert(square);
-console.assert(square(5) === 25);
+console.assertEqual(square(5), 25);
 
 function square(x) {
     return x * x;
 }
 
 console.assert(square);
-console.assert(square(6) === 36);
+console.assertEqual(square(6), 36);
 
-console.assert(cube(4) === 64);
+console.assertEqual(cube(4), 64);
 
 function cube(n) {
     return cubeImpl();

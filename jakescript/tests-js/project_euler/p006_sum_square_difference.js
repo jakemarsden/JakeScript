@@ -1,3 +1,6 @@
+console.assertEqual(sumSquareDifference(10), 2640);
+console.assertEqual(sumSquareDifference(100), 25164150);
+
 function sumSquareDifference(n) {
     const squareOfSum = (n * (n + 1) / 2) ** 2;
 
@@ -7,6 +10,3 @@ function sumSquareDifference(n) {
     }
     return squareOfSum - sumOfSquares;
 }
-
-console.assert(sumSquareDifference(10) === 2640);
-console.assert(sumSquareDifference(100) === 25164150);

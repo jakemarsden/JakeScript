@@ -2,7 +2,7 @@ let x = 0;
 while (x < 3) {
     x = x + 1;
 }
-console.assert(x === 3);
+console.assertEqual(x, 3);
 
 let i = 3;
 let counter = 1;
@@ -11,8 +11,8 @@ while (i !== 0) {
     counter *= 2;
     counter += 1;
 }
-console.assert(i === 0);
-console.assert(counter === 15);
+console.assertEqual(i, 0);
+console.assertEqual(counter, 15);
 
 while (true) {
     break;
@@ -28,8 +28,8 @@ while (true) {
     }
     breakFlag = true;
 }
-console.assert(breakFlag === true);
-console.assert(breakCounter === 2);
+console.assertEqual(breakFlag, true);
+console.assertEqual(breakCounter, 2);
 
 let z = 0;
 while (z < 3) {
@@ -37,7 +37,7 @@ while (z < 3) {
     continue;
     console.assertNotReached();
 }
-console.assert(z === 3);
+console.assertEqual(z, 3);
 
 let continueIdx = 0;
 let continueCounter = 0;
@@ -48,8 +48,8 @@ while (continueIdx < 10) {
     }
     continueCounter += 1;
 }
-console.assert(continueIdx === 10);
-console.assert(continueCounter === 3);
+console.assertEqual(continueIdx, 10);
+console.assertEqual(continueCounter, 3);
 
 let bcIdx = 10;
 let bcCount = 0;
@@ -63,8 +63,8 @@ while (true) {
     }
     bcCount += 1;
 }
-console.assert(bcIdx === 2);
-console.assert(bcCount === 4);
+console.assertEqual(bcIdx, 2);
+console.assertEqual(bcCount, 4);
 
 function returnInsideWhileLoop() {
     let riwlCounter = 3;
@@ -73,7 +73,7 @@ function returnInsideWhileLoop() {
     }
     console.assertNotReached();
 }
-console.assert(returnInsideWhileLoop() === 2);
+console.assertEqual(returnInsideWhileLoop(), 2);
 
 function returnInsideWhileLoop2() {
     let riwl2Counter = 0;
@@ -85,4 +85,4 @@ function returnInsideWhileLoop2() {
     }
     console.assertNotReached();
 }
-console.assert(returnInsideWhileLoop2() === 10);
+console.assertEqual(returnInsideWhileLoop2(), 10);

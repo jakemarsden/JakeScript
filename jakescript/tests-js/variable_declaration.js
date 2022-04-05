@@ -5,10 +5,12 @@ var d = 10;
 a = 13;
 b = 100;
 d = 4;
-console.assert(a + b + c + d === 167);
+console.assertEqual(a + b + c + d, 167);
 
 let foo, bar;
-console.assert(foo === undefined && bar === undefined);
+console.assertEqual(foo, undefined);
+console.assertEqual(bar, undefined);
 
 let baz = 1, qux = 2;
-console.assert(baz === 1 && qux === 2);
+console.assertEqual(baz, 1);
+console.assertEqual(qux, 2);

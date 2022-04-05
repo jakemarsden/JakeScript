@@ -1,7 +1,7 @@
-console.assert(nthPrime(6) === 13);
+console.assertEqual(nthPrime(6), 13);
 
 // Too slow to run by default when compiled without `--release`:
-//console.assert(nthPrime(10001) === 104743);
+//console.assertEqual(nthPrime(10001), 104743);
 
 function nthPrime(n) {
     let prime = 2;

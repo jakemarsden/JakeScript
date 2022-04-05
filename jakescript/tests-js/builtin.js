@@ -1,6 +1,8 @@
 console.assert(Infinity);
+console.assertEqual(Infinity, Infinity);
 console.assert(NaN !== NaN);
-console.assert(undefined === undefined);
+console.assertEqual(NaN, NaN);
+console.assertEqual(undefined, undefined);
 
 // Using an assignment operator on these properties of the global object should happily evaluate to
 // the value you would expect, without _actually_ changing the value of the property.
@@ -12,8 +14,8 @@ assertUnmodifiable(function () { return undefined; }, function (n) { return unde
 
 function assertUnmodifiable(getter, setter) {
     let original = getter();
-    console.assert(setter(42) === 42);
+    console.assertEqual(setter(42), 42);
     let hopefullyUnmodified = getter();
-    console.assert(hopefullyUnmodified === original || isNaN(hopefullyUnmodified) && isNaN(original));
+    console.assertEqual(hopefullyUnmodified, original);
     console.assert(hopefullyUnmodified !== 42);
 }

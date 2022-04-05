@@ -1,23 +1,34 @@
+let noArgCalled;
 function noArg() {
-    console.assert(true);
+    noArgCalled = true;
 }
-noArg();
+console.assertEqual(noArg(), undefined);
+console.assert(noArgCalled);
 
+let oneArgCalled;
 function oneArg(a) {
-    console.assert(a === 10);
+    oneArgCalled = true;
+    console.assertEqual(a, 10);
 }
-oneArg(10);
+console.assertEqual(oneArg(10), undefined);
+console.assert(oneArgCalled);
 
+let multiArgCalled;
 function multiArg(a, b, c) {
-    console.assert(a === b);
-    console.assert(a === c);
+    multiArgCalled = true;
+    console.assertEqual(a, b);
+    console.assertEqual(a, c);
 }
-multiArg(2 + 2, 2 * 2, 2 ** 2);
+console.assertEqual(multiArg(2 + 2, 2 * 2, 2 ** 2), undefined);
+console.assert(multiArgCalled);
 
+let addCalled;
 function add(a, b) {
+    addCalled = true;
     return a + b;
 }
-console.assert(add(10, 20) === 30);
+console.assertEqual(add(10, 20), 30);
+console.assert(addCalled);
 
 function earlyReturn(arg) {
     if (arg === 42) {
@@ -31,43 +42,43 @@ function earlyReturn(arg) {
     }
     console.assertNotReached();
 }
-console.assert(earlyReturn(42) === undefined);
-console.assert(earlyReturn(69) === "nice");
+console.assertEqual(earlyReturn(42), undefined);
+console.assertEqual(earlyReturn(69), "nice");
 
 function trailingExpressionIsNotReturned(a, b) {
     let sum = a + b;
     sum;
 }
-console.assert(trailingExpressionIsNotReturned(40, 2) === undefined);
+console.assertEqual(trailingExpressionIsNotReturned(40, 2), undefined);
 
 function actuallyReturnsUndefined() {
     return undefined;
 }
-console.assert(actuallyReturnsUndefined() === undefined);
+console.assertEqual(actuallyReturnsUndefined(), undefined);
 
 let n = 10;
 function addOutside(delta) {
     n += delta;
 }
-console.assert(n === 10);
+console.assertEqual(n, 10);
 addOutside(3);
 addOutside(n);
 addOutside(4);
-console.assert(n === 30);
+console.assertEqual(n, 30);
 
 function moreArgsThanParams(a, b) {
-    console.assert(a === 1);
-    console.assert(b === 2);
+    console.assertEqual(a, 1);
+    console.assertEqual(b, 2);
 }
-moreArgsThanParams(1, 2, 3, 4);
+console.assertEqual(moreArgsThanParams(1, 2, 3, 4), undefined);
 
 function moreParamsThanArgs(a, b, c, d) {
-    console.assert(a === 1);
-    console.assert(b === 2);
-    console.assert(c === undefined);
-    console.assert(d === undefined);
+    console.assertEqual(a, 1);
+    console.assertEqual(b, 2);
+    console.assertEqual(c, undefined);
+    console.assertEqual(d, undefined);
 }
-moreParamsThanArgs(1, 2);
+console.assertEqual(moreParamsThanArgs(1, 2), undefined);
 
 let paramsEvaluatedCount = 0;
 function param(x) {
@@ -76,19 +87,19 @@ function param(x) {
 }
 
 function moreArgsThanParams2(a, b) {
-    console.assert(a === 1);
-    console.assert(b === 2);
+    console.assertEqual(a, 1);
+    console.assertEqual(b, 2);
 }
 moreArgsThanParams2(param(1), param(2), param(3), param(4));
-console.assert(paramsEvaluatedCount === 4);
+console.assertEqual(paramsEvaluatedCount, 4);
 paramsEvaluatedCount = 0;
 
 function moreParamsThanArgs2(a, b, c, d) {
-    console.assert(a === 1);
-    console.assert(b === 2);
-    console.assert(c === undefined);
-    console.assert(d === undefined);
+    console.assertEqual(a, 1);
+    console.assertEqual(b, 2);
+    console.assertEqual(c, undefined);
+    console.assertEqual(d, undefined);
 }
 moreParamsThanArgs2(param(1), param(2));
-console.assert(paramsEvaluatedCount === 2);
+console.assertEqual(paramsEvaluatedCount, 2);
 paramsEvaluatedCount = 0;

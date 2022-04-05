@@ -1,2 +1,2 @@
-console.assert(100 + 50 + 17 === 167);
-console.assert(10000 + 12345678 === 12355678);
+console.assertEqual(100 + 50 + 17, 167);
+console.assertEqual(10000 + 12345678, 12355678);
