@@ -1,0 +1,17 @@
+console.assert(Number);
+console.assert(Number(false) === 0);
+console.assert(Number(true) === 1);
+console.assert(Number(0) === 0);
+console.assert(Number(-1) === -1);
+console.assert(Number(+1) === 1);
+console.assert(isNaN(Number(NaN)));
+console.assert(Number(-Infinity) === -Infinity);
+console.assert(Number(+Infinity) === Infinity);
+console.assert(isNaN(Number({})));
+console.assert(Number("") === 0);
+console.assert(Number("1") === 1);
+console.assert(Number("12") === 12);
+console.assert(isNaN(Number(function () {})));
+console.assert(Number(null) === 0);
+console.assert(isNaN(Number(undefined)));
+console.assert(Number() === 0);

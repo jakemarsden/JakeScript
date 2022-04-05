@@ -10,25 +10,25 @@ assertApproxEqual(Math.PI, 3, "PI");
 assertApproxEqual(Math.SQRT1_2, 0, "SQRT1_2");
 assertApproxEqual(Math.SQRT2, 1, "SQRT2");
 
-assertUnmodifiable(function() { return Math.E; }, function(n) { return Math.E = n; });
-assertUnmodifiable(function() { return Math.LN2; }, function(n) { return Math.LN2 = n; });
-assertUnmodifiable(function() { return Math.LN10; }, function(n) { return Math.LN10 = n; });
-assertUnmodifiable(function() { return Math.LOG2E; }, function(n) { return Math.LOG2E = n; });
-assertUnmodifiable(function() { return Math.LOG10E; }, function(n) { return Math.LOG10E = n; });
-assertUnmodifiable(function() { return Math.PI; }, function(n) { return Math.PI = n; });
-assertUnmodifiable(function() { return Math.SQRT1_2; }, function(n) { return Math.SQRT1_2 = n; });
-assertUnmodifiable(function() { return Math.SQRT2; }, function(n) { return Math.SQRT2 = n; });
+assertUnmodifiable(function () { return Math.E; }, function (n) { return Math.E = n; });
+assertUnmodifiable(function () { return Math.LN2; }, function (n) { return Math.LN2 = n; });
+assertUnmodifiable(function () { return Math.LN10; }, function (n) { return Math.LN10 = n; });
+assertUnmodifiable(function () { return Math.LOG2E; }, function (n) { return Math.LOG2E = n; });
+assertUnmodifiable(function () { return Math.LOG10E; }, function (n) { return Math.LOG10E = n; });
+assertUnmodifiable(function () { return Math.PI; }, function (n) { return Math.PI = n; });
+assertUnmodifiable(function () { return Math.SQRT1_2; }, function (n) { return Math.SQRT1_2 = n; });
+assertUnmodifiable(function () { return Math.SQRT2; }, function (n) { return Math.SQRT2 = n; });
 
 function assertApproxEqual(actual, expected, msg) {
     console.assert(actual > expected && actual < expected + 1, msg);
 }
 
 function assertUnmodifiable(getter, setter) {
-  let original = getter();
-  console.assert(setter(42) === 42);
-  let hopefullyUnmodified = getter();
-  console.assert(hopefullyUnmodified === original);
-  console.assert(hopefullyUnmodified !== 42);
+    let original = getter();
+    console.assert(setter(42) === 42);
+    let hopefullyUnmodified = getter();
+    console.assert(hopefullyUnmodified === original);
+    console.assert(hopefullyUnmodified !== 42);
 }
 
 console.assert(Math.abs);

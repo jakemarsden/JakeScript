@@ -1,0 +1,17 @@
+console.assert(Boolean);
+console.assert(Boolean(false) === false);
+console.assert(Boolean(true) === true);
+console.assert(Boolean(0) === false);
+console.assert(Boolean(-1) === true);
+console.assert(Boolean(+1) === true);
+console.assert(Boolean(NaN) === false);
+console.assert(Boolean(-Infinity) === true);
+console.assert(Boolean(+Infinity) === true);
+console.assert(Boolean({}) === true);
+console.assert(Boolean("") === false);
+console.assert(Boolean("a") === true);
+console.assert(Boolean("false") === true);
+console.assert(Boolean(function () {}));
+console.assert(Boolean(null) === false);
+console.assert(Boolean(undefined) === false);
+console.assert(Boolean() === false);

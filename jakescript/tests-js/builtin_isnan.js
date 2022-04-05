@@ -1,0 +1,15 @@
+console.assert(isNaN);
+console.assert(isNaN(7) === false);
+console.assert(isNaN(Infinity) === false);
+console.assert(isNaN(-Infinity) === false);
+console.assert(isNaN(NaN) === true);
+console.assert(isNaN(null) === true);
+console.assert(isNaN(undefined) === true);
+console.assert(isNaN(true) === true);
+console.assert(isNaN(false) === true);
+console.assert(isNaN("Hello, world!") === true);
+console.assert(isNaN({}) === true);
+console.assert(isNaN(function() {}) === true);
+console.assert(isNaN(isNaN) === true);
+console.assert(isNaN == isNaN);
+console.assert(isNaN === isNaN);
