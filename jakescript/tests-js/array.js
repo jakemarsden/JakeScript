@@ -1,8 +1,10 @@
 let empty = [];
+console.assertEqual(empty.length, 0);
 
 let two = 2;
 let numbers = [1, two, "foo", null, "bar"];
 
+console.assertEqual(numbers.length, 5);
 console.assertEqual(numbers[0], 1);
 console.assertEqual(numbers[1], 2);
 console.assertEqual(numbers[2], "foo");

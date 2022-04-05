@@ -125,11 +125,19 @@ impl fmt::Debug for Reference {
 
 impl Object {
     pub fn new_array(elements: Vec<Value>) -> Self {
-        let properties = elements
+        let len = i64::try_from(elements.len()).unwrap_or_else(|_| unreachable!());
+        let mut properties = elements
             .into_iter()
             .enumerate()
             .map(|(idx, value)| (PropertyKey::from(idx), Property::new(true, value)))
-            .collect();
+            .collect::<HashMap<_, _>>();
+        // FIXME: Only works if the array data never changes for the life of the object. In the
+        //  future there should probably some concept of a native property, which can run arbitrary
+        //  code for its getter and setter.
+        properties.insert(
+            non_empty_str!("length"),
+            Property::new(false, Value::Number(Number::Int(len))),
+        );
         Self::new(true, properties, None, None)
     }
 
@@ -141,13 +149,12 @@ impl Object {
         Self::new(true, properties, None, None)
     }
 
-    // missing_panics_doc: TODO
-    #[allow(clippy::missing_panics_doc)]
     pub fn new_string(string_data: String) -> Self {
-        let len = i64::try_from(string_data.len()).unwrap_or_else(|_| todo!());
+        let len = i64::try_from(string_data.len()).unwrap_or_else(|_| unreachable!());
         let properties = hash_map![
             // FIXME: Only works if the string data never changes for the life of the object. In the
-            //  future there should probably some concept of a native property.
+            //  future there should probably some concept of a native property, which can run
+            //  arbitrary code for its getter and setter.
             non_empty_str!("length") => Property::new(false, Value::Number(Number::Int(len))),
         ];
         Self::new(true, properties, None, Some(string_data))
