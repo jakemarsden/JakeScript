@@ -37,3 +37,13 @@ console.assertEqual(String.charAt("Hello, world!", "-1"), "");
 console.assertEqual("".length, 0);
 console.assertEqual("Hello, world!".length, 13);
 console.assertEqual(("Hello, " + "world" + "!").length, 13);
+
+console.assert(String.substring);
+console.assertEqual(String.substring("Hello, world!"), "Hello, world!");
+console.assertEqual(String.substring("Hello, world!", 7), "world!");
+console.assertEqual(String.substring("Hello, world!", 7, 12), "world");
+console.assertEqual(String.substring("Hello, world!", 12, 7), "world");
+console.assertEqual(String.substring("Hello, world!", 99), "");
+console.assertEqual(String.substring("Hello, world!", 7, 99), "world!");
+console.assertEqual(String.substring("Hello, world!", 99, 7), "world!");
+console.assertEqual(String.substring("Hello, world!", 99, 99), "");
