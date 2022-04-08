@@ -1,3 +1,4 @@
+use super::array::Array;
 use super::boolean::Boolean;
 use super::console::Console;
 use super::math::Math;
@@ -12,6 +13,7 @@ use crate::{builtin_fn, prop_key};
 use common_macros::hash_map;
 
 pub struct GlobalObject {
+    array: Array,
     boolean: Boolean,
     math: Math,
     number: Number,
@@ -20,6 +22,10 @@ pub struct GlobalObject {
 }
 
 impl GlobalObject {
+    pub fn array(&self) -> &Array {
+        &self.array
+    }
+
     pub fn boolean(&self) -> &Boolean {
         &self.boolean
     }
@@ -39,6 +45,7 @@ impl GlobalObject {
 
 impl Builtin for GlobalObject {
     fn init(heap: &mut Heap) -> Result<Self, InitialisationError> {
+        let array = Array::init(heap)?;
         let boolean = Boolean::init(heap)?;
         let math = Math::init(heap)?;
         let number = Number::init(heap)?;
@@ -59,6 +66,7 @@ impl Builtin for GlobalObject {
             ),
             prop_key!("undefined") => Property::new(Value::Undefined, Writable::No),
 
+            prop_key!("Array") => Property::new(array.as_value(), Writable::Yes),
             prop_key!("Boolean") => Property::new(boolean.as_value(), Writable::Yes),
             prop_key!("Math") => Property::new(math.as_value(), Writable::Yes),
             prop_key!("Number") => Property::new(number.as_value(), Writable::Yes),
@@ -71,6 +79,7 @@ impl Builtin for GlobalObject {
 
         let obj_ref = heap.allocate(Object::new(None, props, ObjectData::None, Extensible::Yes))?;
         Ok(Self {
+            array,
             boolean,
             math,
             number,

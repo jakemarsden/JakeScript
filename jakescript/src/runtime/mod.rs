@@ -3,6 +3,7 @@ pub use global::GlobalObject;
 use crate::interpreter::{ErrorKind, Heap, InitialisationError, Interpreter, Reference, Value};
 use std::fmt;
 
+mod array;
 mod boolean;
 mod console;
 mod global;

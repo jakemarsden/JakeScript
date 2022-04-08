@@ -57,9 +57,10 @@ impl Interpreter {
         &mut self,
         elems: Vec<Value>,
     ) -> std::result::Result<Reference, OutOfMemoryError> {
+        let proto = self.vm().runtime().global_object().array().as_obj_ref();
         self.vm_mut()
             .heap_mut()
-            .allocate(Object::new_array(elems, Extensible::Yes))
+            .allocate(Object::new_array(proto, elems, Extensible::Yes))
     }
 
     pub fn alloc_object(

@@ -1,7 +1,7 @@
 use super::error::ErrorKind;
 use super::heap::Reference;
 use super::stack::Scope;
-use super::value::{Number, Value};
+use super::value::Value;
 use super::Interpreter;
 use crate::ast::{Block, Identifier};
 use crate::runtime::{NativeCall, NativeGet, NativeSet};
@@ -40,6 +40,7 @@ pub struct Property {
     get: Option<NativeGet>,
     set: Option<NativeSet>,
     writable: Writable,
+    enumerable: Enumerable,
 }
 
 macro_rules! bool_enum {
@@ -62,6 +63,7 @@ macro_rules! bool_enum {
 }
 
 bool_enum!(Writable);
+bool_enum!(Enumerable);
 bool_enum!(Extensible);
 
 #[derive(Clone, Debug)]
@@ -88,22 +90,13 @@ impl Object {
         )
     }
 
-    pub fn new_array(elems: Vec<Value>, extensible: Extensible) -> Self {
-        let len = elems.len();
-        let mut props = elems
+    pub fn new_array(proto: Reference, elems: Vec<Value>, extensible: Extensible) -> Self {
+        let props = elems
             .into_iter()
             .enumerate()
             .map(|(idx, value)| (PropertyKey::from(idx), Property::new(value, Writable::Yes)))
-            .collect::<HashMap<_, _>>();
-        // TODO: Move `length` to a native getter on the `Array` prototype.
-        props.insert(
-            prop_key!("length"),
-            Property::new(
-                Value::Number(Number::try_from(len).unwrap_or_else(|_| unreachable!())),
-                Writable::No,
-            ),
-        );
-        Self::new(None, props, ObjectData::None, extensible)
+            .collect();
+        Self::new(Some(proto), props, ObjectData::None, extensible)
     }
 
     pub fn new_object(
@@ -168,6 +161,13 @@ impl Object {
 
     pub fn define_own_property(&mut self, key: PropertyKey, value: Property) {
         self.props.insert(key, value);
+    }
+
+    pub fn own_property_count(&self) -> usize {
+        self.props
+            .iter()
+            .filter(|(_, prop)| matches!(prop.enumerable(), Enumerable::Yes))
+            .count()
     }
 
     pub fn get(
@@ -302,6 +302,7 @@ impl Property {
             set: None,
             get: None,
             writable,
+            enumerable: Enumerable::Yes,
         }
     }
 
@@ -309,12 +310,14 @@ impl Property {
         get: impl Into<NativeGet>,
         set: impl Into<NativeSet>,
         writable: Writable,
+        enumerable: Enumerable,
     ) -> Self {
         Self {
             value: Value::default(),
             get: Some(get.into()),
             set: Some(set.into()),
             writable,
+            enumerable,
         }
     }
 
@@ -344,6 +347,10 @@ impl Property {
 
     pub fn writable(&self) -> Writable {
         self.writable
+    }
+
+    pub fn enumerable(&self) -> Enumerable {
+        self.enumerable
     }
 }
 

@@ -1,7 +1,7 @@
 use super::Builtin;
 use crate::interpreter::{
-    ErrorKind, Extensible, Heap, InitialisationError, Interpreter, Number, Object, Property,
-    Reference, Value, Writable,
+    Enumerable, ErrorKind, Extensible, Heap, InitialisationError, Interpreter, Number, Object,
+    Property, Reference, Value, Writable,
 };
 use crate::{builtin_fn, prop_key};
 use common_macros::hash_map;
@@ -50,6 +50,7 @@ impl Builtin for String {
                 &Self::length,
                 &Self::set_length,
                 Writable::No,
+                Enumerable::No,
             ),
             prop_key!("substring") => Property::new(substring.as_value(), Writable::Yes),
         ];
