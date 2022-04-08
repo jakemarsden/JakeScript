@@ -1,114 +1,84 @@
-use super::{register_builtin, Builtin};
+use super::Builtin;
 use crate::interpreter::{
-    AssertionError, ErrorKind, Heap, InitialisationError, Interpreter, Object, Property, Reference,
-    Value,
+    AssertionError, ErrorKind, Extensible, Heap, InitialisationError, Interpreter, Object,
+    ObjectData, Property, Reference, Value, Writable,
 };
-use crate::non_empty_str;
+use crate::{builtin_fn, non_empty_str, prop_key};
 use common_macros::hash_map;
 
-pub struct Console;
-pub struct ConsoleAssert;
-pub struct ConsoleAssertEqual;
-pub struct ConsoleAssertNotReached;
-pub struct ConsoleLog;
+pub struct Console {
+    obj_ref: Reference,
+}
 
 impl Builtin for Console {
-    fn register(heap: &mut Heap) -> Result<Reference, InitialisationError> {
-        let properties = hash_map![
-            non_empty_str!("assert")
-                => Property::new(true, Value::Object(ConsoleAssert::register(heap)?)),
-            non_empty_str!("assertEqual")
-                => Property::new(true, Value::Object(ConsoleAssertEqual::register(heap)?)),
-            non_empty_str!("assertNotReached")
-                => Property::new(true, Value::Object(ConsoleAssertNotReached::register(heap)?)),
-            non_empty_str!("log")
-                => Property::new(true, Value::Object(ConsoleLog::register(heap)?)),
+    fn init(heap: &mut Heap) -> Result<Self, InitialisationError> {
+        let assert = ConsoleAssert::init(heap)?;
+        let assert_equal = ConsoleAssertEqual::init(heap)?;
+        let assert_not_reached = ConsoleAssertNotReached::init(heap)?;
+        let log = ConsoleLog::init(heap)?;
+
+        let props = hash_map![
+            prop_key!("assert") => Property::new(assert.as_value(), Writable::Yes),
+            prop_key!("assertEqual") => Property::new(assert_equal.as_value(), Writable::Yes),
+            prop_key!("assertNotReached") => Property::new(
+                assert_not_reached.as_value(),
+                Writable::Yes
+            ),
+            prop_key!("log") => Property::new(log.as_value(), Writable::Yes),
         ];
-        let obj = Object::new_builtin(true, properties, None);
-        register_builtin(heap, obj)
+
+        let obj_ref = heap.allocate(Object::new(None, props, ObjectData::None, Extensible::Yes))?;
+        Ok(Self { obj_ref })
+    }
+
+    fn obj_ref(&self) -> &Reference {
+        &self.obj_ref
     }
 }
 
-impl ConsoleAssert {
-    fn invoke(it: &mut Interpreter, _: &Value, args: &[Value]) -> Result<Value, ErrorKind> {
-        let mut args = args.iter();
-        let assertion = args.next().unwrap_or(&Value::Undefined);
-        if it.is_truthy(assertion) {
-            Ok(Value::Undefined)
-        } else {
-            let detail_msg = build_msg(it, args);
-            Err(ErrorKind::from(AssertionError::new(detail_msg)))
-        }
-    }
-}
-
-impl Builtin for ConsoleAssert {
-    fn register(heap: &mut Heap) -> Result<Reference, InitialisationError> {
-        let obj = Object::new_builtin(true, hash_map![], Some(&Self::invoke));
-        register_builtin(heap, obj)
-    }
-}
-
-impl ConsoleAssertEqual {
-    fn invoke(it: &mut Interpreter, _: &Value, args: &[Value]) -> Result<Value, ErrorKind> {
-        fn is_nan(v: &Value) -> bool {
-            matches!(v, Value::Number(n) if n.is_nan())
-        }
-
-        let mut args = args.iter();
-        let actual = args.next().unwrap_or(&Value::Undefined);
-        let expected = args.next().unwrap_or(&Value::Boolean(true));
-        if is_nan(expected) && is_nan(actual) || it.is_truthy(&it.strictly_equal(actual, expected)?)
-        {
-            Ok(Value::Undefined)
-        } else {
-            let detail_msg = format!(
-                "expected '{}' but was '{}': {}",
-                it.coerce_to_string(expected),
-                it.coerce_to_string(actual),
-                build_msg(it, args)
-            );
-            Err(ErrorKind::from(AssertionError::new(detail_msg)))
-        }
-    }
-}
-
-impl Builtin for ConsoleAssertEqual {
-    fn register(heap: &mut Heap) -> Result<Reference, InitialisationError> {
-        let obj = Object::new_builtin(true, hash_map![], Some(&Self::invoke));
-        register_builtin(heap, obj)
-    }
-}
-
-impl ConsoleAssertNotReached {
-    fn invoke(it: &mut Interpreter, _: &Value, args: &[Value]) -> Result<Value, ErrorKind> {
-        let detail_msg = format!("entered unreachable code: {}", build_msg(it, args.iter()));
+builtin_fn!(ConsoleAssert, Extensible::Yes, (it, _receiver, args) => {
+    let mut args = args.iter();
+    let assertion = args.next().unwrap_or(&Value::Undefined);
+    if it.is_truthy(assertion) {
+        Ok(Value::Undefined)
+    } else {
+        let detail_msg = build_msg(it, args);
         Err(ErrorKind::from(AssertionError::new(detail_msg)))
     }
-}
+});
 
-impl Builtin for ConsoleAssertNotReached {
-    fn register(heap: &mut Heap) -> Result<Reference, InitialisationError> {
-        let obj = Object::new_builtin(true, hash_map![], Some(&Self::invoke));
-        register_builtin(heap, obj)
+builtin_fn!(ConsoleAssertEqual, Extensible::Yes, (it, _receiver, args) => {
+    fn is_nan(v: &Value) -> bool {
+        matches!(v, Value::Number(n) if n.is_nan())
     }
-}
 
-impl ConsoleLog {
-    #[allow(clippy::unnecessary_wraps)]
-    fn invoke(it: &mut Interpreter, _: &Value, args: &[Value]) -> Result<Value, ErrorKind> {
-        let msg = build_msg(it, args.iter());
-        it.vm_mut().write_message(&msg);
+    let mut args = args.iter();
+    let actual = args.next().unwrap_or(&Value::Undefined);
+    let expected = args.next().unwrap_or(&Value::Boolean(true));
+    if is_nan(expected) && is_nan(actual) || it.is_truthy(&it.strictly_equal(actual, expected)?)
+    {
         Ok(Value::Undefined)
+    } else {
+        let detail_msg = format!(
+            "expected '{}' but was '{}': {}",
+            it.coerce_to_string(expected),
+            it.coerce_to_string(actual),
+            build_msg(it, args)
+        );
+        Err(ErrorKind::from(AssertionError::new(detail_msg)))
     }
-}
+});
 
-impl Builtin for ConsoleLog {
-    fn register(heap: &mut Heap) -> Result<Reference, InitialisationError> {
-        let obj = Object::new_builtin(true, hash_map![], Some(&Self::invoke));
-        register_builtin(heap, obj)
-    }
-}
+builtin_fn!(ConsoleAssertNotReached, Extensible::Yes, (it, _receiver, args) => {
+    let detail_msg = format!("entered unreachable code: {}", build_msg(it, args.iter()));
+    Err(ErrorKind::from(AssertionError::new(detail_msg)))
+});
+
+builtin_fn!(ConsoleLog, Extensible::Yes, (it, _receiver, args) => {
+    let msg = build_msg(it, args.iter());
+    it.vm_mut().write_message(&msg);
+    Ok(Value::Undefined)
+});
 
 fn build_msg<'a>(it: &Interpreter, values: impl Iterator<Item = &'a Value>) -> String {
     values

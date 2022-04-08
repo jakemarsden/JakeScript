@@ -3,77 +3,96 @@ use super::console::Console;
 use super::math::Math;
 use super::number::Number;
 use super::string::String;
-use super::{register_builtin, Builtin};
+use super::Builtin;
 use crate::interpreter::{
-    self, ErrorKind, ExecutionState, Heap, InitialisationError, Interpreter, Object, Property,
-    Reference, Value,
+    self, ExecutionState, Extensible, Heap, InitialisationError, Object, ObjectData, Property,
+    Reference, Value, Writable,
 };
-use crate::non_empty_str;
+use crate::{builtin_fn, prop_key};
 use common_macros::hash_map;
 
-pub struct DefaultGlobalObject;
-pub struct GlobalExit;
-pub struct GlobalIsNan;
+pub struct GlobalObject {
+    boolean: Boolean,
+    math: Math,
+    number: Number,
+    string: String,
+    obj_ref: Reference,
+}
 
-impl Builtin for DefaultGlobalObject {
-    fn register(heap: &mut Heap) -> Result<Reference, InitialisationError> {
-        let properties = hash_map![
-            non_empty_str!("Boolean")
-                => Property::new(true, Value::Object(Boolean::register(heap)?)),
-            non_empty_str!("Infinity")
-                => Property::new(false, Value::Number(interpreter::Number::POS_INF)),
-            non_empty_str!("Math")
-                => Property::new(true, Value::Object(Math::register(heap)?)),
-            non_empty_str!("NaN")
-                => Property::new(false, Value::Number(interpreter::Number::NAN)),
-            non_empty_str!("Number")
-                => Property::new(true, Value::Object(Number::register(heap)?)),
-            non_empty_str!("String")
-                => Property::new(true, Value::Object(String::register(heap)?)),
+impl GlobalObject {
+    pub fn boolean(&self) -> &Boolean {
+        &self.boolean
+    }
 
-            non_empty_str!("console")
-                => Property::new(true, Value::Object(Console::register(heap)?)),
-            non_empty_str!("exit")
-                => Property::new(true, Value::Object(GlobalExit::register(heap)?)),
-            non_empty_str!("isNaN")
-                => Property::new(true, Value::Object(GlobalIsNan::register(heap)?)),
-            non_empty_str!("undefined")
-                => Property::new(false, Value::Undefined),
+    pub fn math(&self) -> &Math {
+        &self.math
+    }
+
+    pub fn number(&self) -> &Number {
+        &self.number
+    }
+
+    pub fn string(&self) -> &String {
+        &self.string
+    }
+}
+
+impl Builtin for GlobalObject {
+    fn init(heap: &mut Heap) -> Result<Self, InitialisationError> {
+        let boolean = Boolean::init(heap)?;
+        let math = Math::init(heap)?;
+        let number = Number::init(heap)?;
+        let string = String::init(heap)?;
+
+        let console = Console::init(heap)?;
+        let exit = Exit::init(heap)?;
+        let is_nan = IsNaN::init(heap)?;
+
+        let props = hash_map![
+            prop_key!("Infinity") => Property::new(
+                Value::Number(interpreter::Number::POS_INF),
+                Writable::No
+            ),
+            prop_key!("NaN") => Property::new(
+                Value::Number(interpreter::Number::NAN),
+                Writable::No
+            ),
+            prop_key!("undefined") => Property::new(Value::Undefined, Writable::No),
+
+            prop_key!("Boolean") => Property::new(boolean.as_value(), Writable::Yes),
+            prop_key!("Math") => Property::new(math.as_value(), Writable::Yes),
+            prop_key!("Number") => Property::new(number.as_value(), Writable::Yes),
+            prop_key!("String") => Property::new(string.as_value(), Writable::Yes),
+
+            prop_key!("console") => Property::new(console.as_value(), Writable::Yes),
+            prop_key!("exit") => Property::new(exit.as_value(), Writable::Yes),
+            prop_key!("isNaN") => Property::new(is_nan.as_value(), Writable::Yes),
         ];
-        let obj = Object::new_builtin(false, properties, None);
-        register_builtin(heap, obj)
+
+        let obj_ref = heap.allocate(Object::new(None, props, ObjectData::None, Extensible::Yes))?;
+        Ok(Self {
+            boolean,
+            math,
+            number,
+            string,
+            obj_ref,
+        })
+    }
+
+    fn obj_ref(&self) -> &Reference {
+        &self.obj_ref
     }
 }
 
-impl GlobalExit {
-    #[allow(clippy::unnecessary_wraps)]
-    fn invoke(it: &mut Interpreter, _: &Value, _: &[Value]) -> Result<Value, ErrorKind> {
-        it.vm_mut().set_execution_state(ExecutionState::Exit);
-        Ok(Value::Undefined)
-    }
-}
+builtin_fn!(Exit, Extensible::Yes, (it, _receiver, _args) => {
+    it.vm_mut().set_execution_state(ExecutionState::Exit);
+    Ok(Value::Undefined)
+});
 
-impl Builtin for GlobalExit {
-    fn register(heap: &mut Heap) -> Result<Reference, InitialisationError> {
-        let obj = Object::new_builtin(true, hash_map![], Some(&Self::invoke));
-        register_builtin(heap, obj)
-    }
-}
-
-impl GlobalIsNan {
-    #[allow(clippy::unnecessary_wraps)]
-    fn invoke(_: &mut Interpreter, _: &Value, args: &[Value]) -> Result<Value, ErrorKind> {
-        let arg = args.first().unwrap_or(&Value::Undefined);
-        Ok(Value::Boolean(match arg {
-            Value::Boolean(_) | Value::Object(_) | Value::Null | Value::Undefined => true,
-            Value::Number(arg) => arg.is_nan(),
-        }))
-    }
-}
-
-impl Builtin for GlobalIsNan {
-    fn register(heap: &mut Heap) -> Result<Reference, InitialisationError> {
-        let obj = Object::new_builtin(true, hash_map![], Some(&Self::invoke));
-        register_builtin(heap, obj)
-    }
-}
+builtin_fn!(IsNaN, Extensible::Yes, (_it, _receiver, args) => {
+    let arg = args.first().unwrap_or(&Value::Undefined);
+    Ok(Value::Boolean(match arg {
+        Value::Boolean(_) | Value::Object(_) | Value::Null | Value::Undefined => true,
+        Value::Number(arg) => arg.is_nan(),
+    }))
+});

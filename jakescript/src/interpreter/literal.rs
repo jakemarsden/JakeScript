@@ -1,5 +1,5 @@
 use super::error::{Error, Result};
-use super::heap::{Object, UserFunction};
+use super::object::{PropertyKey, UserFunction};
 use super::value::{Number, Value};
 use super::{Eval, Interpreter};
 use crate::ast::*;
@@ -9,13 +9,14 @@ impl Eval for ThisExpression {
     type Output = Value;
 
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        Ok(it
-            .vm()
-            .stack()
-            .frame()
-            .receiver()
-            .cloned()
-            .unwrap_or_else(|| Value::Object(it.vm().runtime().global_object_ref().clone())))
+        Ok(Value::Object(
+            it.vm()
+                .stack()
+                .frame()
+                .receiver()
+                .cloned()
+                .unwrap_or_else(|| it.vm().runtime().global_object_ref().clone()),
+        ))
     }
 }
 
@@ -30,9 +31,7 @@ impl Eval for LiteralExpression {
                 NumericLiteral::Float(value) => Number::Float(value),
             }),
             Literal::String(ref value) => Value::Object(
-                it.vm_mut()
-                    .heap_mut()
-                    .allocate(Object::new_string(value.value.clone()))
+                it.alloc_string(value.value.clone())
                     .map_err(|err| Error::new(err, self.source_location()))?,
             ),
             Literal::Null => Value::Null,
@@ -49,9 +48,7 @@ impl Eval for ArrayExpression {
             elems.push(elem_expr.eval(it)?);
         }
         let obj_ref = it
-            .vm_mut()
-            .heap_mut()
-            .allocate(Object::new_array(elems))
+            .alloc_array(elems)
             .map_err(|err| Error::new(err, self.source_location()))?;
         Ok(Value::Object(obj_ref))
     }
@@ -64,7 +61,7 @@ impl Eval for ObjectExpression {
         let mut resolved_props = HashMap::with_capacity(self.declared_properties.len());
         for prop in &self.declared_properties {
             let name = match prop.name {
-                DeclaredPropertyName::Identifier(ref value) => value.inner().clone(),
+                DeclaredPropertyName::Identifier(ref value) => PropertyKey::from(value),
                 DeclaredPropertyName::NumericLiteral(..)
                 | DeclaredPropertyName::StringLiteral(..)
                 | DeclaredPropertyName::Computed(..) => todo!(
@@ -76,9 +73,7 @@ impl Eval for ObjectExpression {
             resolved_props.insert(name, value);
         }
         let obj_ref = it
-            .vm_mut()
-            .heap_mut()
-            .allocate(Object::new_object(resolved_props))
+            .alloc_object(resolved_props)
             .map_err(|err| Error::new(err, self.source_location()))?;
         Ok(Value::Object(obj_ref))
     }
@@ -89,16 +84,13 @@ impl Eval for FunctionExpression {
 
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let declared_scope = it.vm().stack().frame().scope().clone();
-        let fn_obj = Object::new_function(UserFunction::new(
-            self.binding.clone(),
-            self.formal_parameters.clone(),
-            declared_scope,
-            self.body.clone(),
-        ));
         let fn_obj_ref = it
-            .vm_mut()
-            .heap_mut()
-            .allocate(fn_obj)
+            .alloc_function(UserFunction::new(
+                self.binding.clone(),
+                self.formal_parameters.clone(),
+                declared_scope,
+                self.body.clone(),
+            ))
             .map_err(|err| Error::new(err, self.source_location()))?;
         Ok(Value::Object(fn_obj_ref))
     }

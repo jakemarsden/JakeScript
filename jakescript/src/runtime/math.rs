@@ -1,152 +1,103 @@
-use super::{register_builtin, Builtin};
+use super::Builtin;
 use crate::interpreter::{
-    ErrorKind, Heap, InitialisationError, Interpreter, Number, NumericOverflowError, Object,
-    Property, Reference, Value,
+    ErrorKind, Extensible, Heap, InitialisationError, Number, NumericOverflowError, Object,
+    ObjectData, Property, Reference, Value, Writable,
 };
-use crate::non_empty_str;
+use crate::{builtin_fn, prop_key};
 use common_macros::hash_map;
 use std::f64::consts::*;
 
-pub struct Math;
-pub struct MathAbs;
-pub struct MathMax;
-pub struct MathMin;
-pub struct MathSqrt;
-pub struct MathTrunc;
+pub struct Math {
+    obj_ref: Reference,
+}
 
 impl Builtin for Math {
-    fn register(heap: &mut Heap) -> Result<Reference, InitialisationError> {
-        let properties = hash_map![
-            non_empty_str!("E")
-                => Property::new(false, Value::Number(Number::Float(E))),
-            non_empty_str!("LN2")
-                => Property::new(false, Value::Number(Number::Float(LN_2))),
-            non_empty_str!("LN10")
-                => Property::new(false, Value::Number(Number::Float(LN_10))),
-            non_empty_str!("LOG2E")
-                => Property::new(false, Value::Number(Number::Float(LOG2_E))),
-            non_empty_str!("LOG10E")
-                => Property::new(false, Value::Number(Number::Float(LOG10_E))),
-            non_empty_str!("PI")
-                => Property::new(false, Value::Number(Number::Float(PI))),
-            non_empty_str!("SQRT1_2")
-                => Property::new(false, Value::Number(Number::Float(FRAC_1_SQRT_2))),
-            non_empty_str!("SQRT2")
-                => Property::new(false, Value::Number(Number::Float(SQRT_2))),
+    fn init(heap: &mut Heap) -> Result<Self, InitialisationError> {
+        let abs = MathAbs::init(heap)?;
+        let max = MathMax::init(heap)?;
+        let min = MathMin::init(heap)?;
+        let sqrt = MathSqrt::init(heap)?;
+        let trunc = MathTrunc::init(heap)?;
 
-            non_empty_str!("abs")
-                => Property::new(true, Value::Object(MathAbs::register(heap)?)),
-            non_empty_str!("max")
-                => Property::new(true, Value::Object(MathMax::register(heap)?)),
-            non_empty_str!("min")
-                => Property::new(true, Value::Object(MathMin::register(heap)?)),
-            non_empty_str!("sqrt")
-                => Property::new(true, Value::Object(MathSqrt::register(heap)?)),
-            non_empty_str!("trunc")
-                => Property::new(true, Value::Object(MathTrunc::register(heap)?)),
+        let props = hash_map![
+            prop_key!("E") => Property::new(Value::Number(Number::Float(E)), Writable::No),
+            prop_key!("LN2") => Property::new(Value::Number(Number::Float(LN_2)), Writable::No),
+            prop_key!("LN10") => Property::new(Value::Number(Number::Float(LN_10)), Writable::No),
+            prop_key!("LOG2E") => Property::new(Value::Number(Number::Float(LOG2_E)), Writable::No),
+            prop_key!("LOG10E") => Property::new(
+                Value::Number(Number::Float(LOG10_E)),
+                Writable::No
+            ),
+            prop_key!("PI") => Property::new(Value::Number(Number::Float(PI)), Writable::No),
+            prop_key!("SQRT1_2") => Property::new(
+                Value::Number(Number::Float(FRAC_1_SQRT_2)),
+                Writable::No
+            ),
+            prop_key!("SQRT2") => Property::new(Value::Number(Number::Float(SQRT_2)), Writable::No),
+
+            prop_key!("abs") => Property::new(abs.as_value(), Writable::Yes),
+            prop_key!("max") => Property::new(max.as_value(), Writable::Yes),
+            prop_key!("min") => Property::new(min.as_value(), Writable::Yes),
+            prop_key!("sqrt") => Property::new(sqrt.as_value(), Writable::Yes),
+            prop_key!("trunc") => Property::new(trunc.as_value(), Writable::Yes),
         ];
-        let obj = Object::new_builtin(true, properties, None);
-        register_builtin(heap, obj)
+
+        let obj_ref = heap.allocate(Object::new(None, props, ObjectData::None, Extensible::Yes))?;
+        Ok(Self { obj_ref })
+    }
+
+    fn obj_ref(&self) -> &Reference {
+        &self.obj_ref
     }
 }
 
-impl MathAbs {
-    #[allow(clippy::unnecessary_wraps)]
-    fn invoke(it: &mut Interpreter, _: &Value, args: &[Value]) -> Result<Value, ErrorKind> {
-        let arg = args.first().cloned().unwrap_or_default();
-        it.coerce_to_number(&arg)
-            .checked_abs()
-            .map(Value::Number)
-            .ok_or(ErrorKind::NumericOverflow(NumericOverflowError))
-    }
-}
+builtin_fn!(MathAbs, Extensible::Yes, (it, _receiver, args) => {
+    let arg = args.first().cloned().unwrap_or_default();
+    it.coerce_to_number(&arg)
+        .checked_abs()
+        .map(Value::Number)
+        .ok_or(ErrorKind::NumericOverflow(NumericOverflowError))
+});
 
-impl Builtin for MathAbs {
-    fn register(heap: &mut Heap) -> Result<Reference, InitialisationError> {
-        let obj = Object::new_builtin(true, hash_map![], Some(&Self::invoke));
-        register_builtin(heap, obj)
-    }
-}
-
-impl MathMax {
-    #[allow(clippy::unnecessary_wraps)]
-    fn invoke(it: &mut Interpreter, _: &Value, args: &[Value]) -> Result<Value, ErrorKind> {
-        let mut acc = Number::NEG_INF;
-        for arg in args {
-            let n = it.coerce_to_number(arg);
-            if n.is_nan() {
-                return Ok(Value::Number(Number::NAN));
-            }
-            if n > acc {
-                acc = n;
-            }
+builtin_fn!(MathMax, Extensible::Yes, (it, _receiver, args) => {
+    let mut acc = Number::NEG_INF;
+    for arg in args {
+        let n = it.coerce_to_number(arg);
+        if n.is_nan() {
+            return Ok(Value::Number(Number::NAN));
         }
-        Ok(Value::Number(acc))
-    }
-}
-
-impl Builtin for MathMax {
-    fn register(heap: &mut Heap) -> Result<Reference, InitialisationError> {
-        let obj = Object::new_builtin(true, hash_map![], Some(&Self::invoke));
-        register_builtin(heap, obj)
-    }
-}
-
-impl MathMin {
-    #[allow(clippy::unnecessary_wraps)]
-    fn invoke(it: &mut Interpreter, _: &Value, args: &[Value]) -> Result<Value, ErrorKind> {
-        let mut acc = Number::POS_INF;
-        for arg in args {
-            let n = it.coerce_to_number(arg);
-            if n.is_nan() {
-                return Ok(Value::Number(Number::NAN));
-            }
-            if n < acc {
-                acc = n;
-            }
+        if n > acc {
+            acc = n;
         }
-        Ok(Value::Number(acc))
     }
-}
+    Ok(Value::Number(acc))
+});
 
-impl Builtin for MathMin {
-    fn register(heap: &mut Heap) -> Result<Reference, InitialisationError> {
-        let obj = Object::new_builtin(true, hash_map![], Some(&Self::invoke));
-        register_builtin(heap, obj)
+builtin_fn!(MathMin, Extensible::Yes, (it, _receiver, args) => {
+    let mut acc = Number::POS_INF;
+    for arg in args {
+        let n = it.coerce_to_number(arg);
+        if n.is_nan() {
+            return Ok(Value::Number(Number::NAN));
+        }
+        if n < acc {
+            acc = n;
+        }
     }
-}
+    Ok(Value::Number(acc))
+});
 
-impl MathSqrt {
-    #[allow(clippy::unnecessary_wraps)]
-    fn invoke(it: &mut Interpreter, _: &Value, args: &[Value]) -> Result<Value, ErrorKind> {
-        let arg = args.first().cloned().unwrap_or_default();
-        Ok(Value::Number(it.coerce_to_number(&arg).sqrt()))
-    }
-}
+builtin_fn!(MathSqrt, Extensible::Yes, (it, _receiver, args) => {
+    let arg = args.first().cloned().unwrap_or_default();
+    Ok(Value::Number(it.coerce_to_number(&arg).sqrt()))
+});
 
-impl Builtin for MathSqrt {
-    fn register(heap: &mut Heap) -> Result<Reference, InitialisationError> {
-        let obj = Object::new_builtin(true, hash_map![], Some(&Self::invoke));
-        register_builtin(heap, obj)
-    }
-}
-
-impl MathTrunc {
-    #[allow(clippy::unnecessary_wraps)]
-    fn invoke(it: &mut Interpreter, _: &Value, args: &[Value]) -> Result<Value, ErrorKind> {
-        let arg = args.first().cloned().unwrap_or_default();
-        let n = it.coerce_to_number(&arg);
-        Ok(Value::Number(if n.is_finite() {
-            Number::Int(n.as_i64())
-        } else {
-            n
-        }))
-    }
-}
-
-impl Builtin for MathTrunc {
-    fn register(heap: &mut Heap) -> Result<Reference, InitialisationError> {
-        let obj = Object::new_builtin(true, hash_map![], Some(&Self::invoke));
-        register_builtin(heap, obj)
-    }
-}
+builtin_fn!(MathTrunc, Extensible::Yes, (it, _receiver, args) => {
+    let arg = args.first().cloned().unwrap_or_default();
+    let n = it.coerce_to_number(&arg);
+    Ok(Value::Number(if n.is_finite() {
+        Number::Int(n.as_i64())
+    } else {
+        n
+    }))
+});

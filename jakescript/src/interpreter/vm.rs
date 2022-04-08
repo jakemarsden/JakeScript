@@ -1,5 +1,6 @@
 use super::error::InitialisationError;
-use super::heap::{Heap, Object};
+use super::heap::Heap;
+use super::object::Object;
 use super::stack::{CallFrame, CallStack, Scope, ScopeCtx};
 use super::value::Value;
 use crate::runtime::Runtime;

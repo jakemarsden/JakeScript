@@ -1,4 +1,5 @@
 use super::error::{AssignToConstVariableError, VariableAlreadyDefinedError};
+use super::heap::Reference;
 use super::value::Value;
 use crate::ast::{Identifier, VariableDeclarationKind};
 use std::cell::{Ref, RefCell};
@@ -14,7 +15,7 @@ pub struct CallStack {
 pub struct CallFrame {
     scope: Scope,
     parent: Option<Box<CallFrame>>,
-    receiver: Option<Value>,
+    receiver: Option<Reference>,
 }
 
 #[derive(Clone, Debug)]
@@ -61,7 +62,7 @@ impl CallStack {
         &mut self.frame
     }
 
-    pub fn push_frame(&mut self, scope: Scope, receiver: Option<Value>) {
+    pub fn push_frame(&mut self, scope: Scope, receiver: Option<Reference>) {
         let new_frame = CallFrame {
             scope,
             parent: None,
@@ -78,7 +79,7 @@ impl CallStack {
 }
 
 impl CallFrame {
-    pub fn new(scope: Scope, receiver: Option<Value>) -> Self {
+    pub fn new(scope: Scope, receiver: Option<Reference>) -> Self {
         Self {
             scope,
             parent: None,
@@ -93,7 +94,7 @@ impl CallFrame {
         &mut self.scope
     }
 
-    pub fn receiver(&self) -> Option<&Value> {
+    pub fn receiver(&self) -> Option<&Reference> {
         self.receiver.as_ref()
     }
 

@@ -21,3 +21,8 @@ console.assertEqual(numbers[two], "foo");
 console.assertEqual(numbers[1 + 2], null);
 console.assertEqual(numbers[square(2)], "bar");
 console.assertEqual(numbers[500 + 1], undefined);
+
+let foo = ["foo", "bar", "baz"];
+console.assertEqual(foo.length, 3);
+foo.length = 123;
+console.assertEqual(foo.length, 3);

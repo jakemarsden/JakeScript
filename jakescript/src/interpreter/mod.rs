@@ -1,11 +1,14 @@
 pub use error::*;
 pub use heap::*;
+pub use object::*;
 pub use stack::*;
 pub use value::*;
 pub use vm::*;
 
 use crate::ast::Node;
+use crate::runtime::Builtin;
 use std::cmp;
+use std::collections::HashMap;
 use std::ops::{BitAnd, BitOr, BitXor, Not};
 use std::str::FromStr;
 
@@ -15,6 +18,7 @@ mod error;
 mod expression;
 mod heap;
 mod literal;
+mod object;
 mod stack;
 mod statement;
 mod value;
@@ -42,6 +46,40 @@ impl Interpreter {
         &mut self.vm
     }
 
+    pub fn alloc_string(&mut self, s: String) -> std::result::Result<Reference, OutOfMemoryError> {
+        let proto = self.vm().runtime().global_object().string().as_obj_ref();
+        self.vm_mut()
+            .heap_mut()
+            .allocate(Object::new_string(proto, s, Extensible::Yes))
+    }
+
+    pub fn alloc_array(
+        &mut self,
+        elems: Vec<Value>,
+    ) -> std::result::Result<Reference, OutOfMemoryError> {
+        self.vm_mut()
+            .heap_mut()
+            .allocate(Object::new_array(elems, Extensible::Yes))
+    }
+
+    pub fn alloc_object(
+        &mut self,
+        props: HashMap<PropertyKey, Value>,
+    ) -> std::result::Result<Reference, OutOfMemoryError> {
+        self.vm_mut()
+            .heap_mut()
+            .allocate(Object::new_object(None, props, Extensible::Yes))
+    }
+
+    pub fn alloc_function(
+        &mut self,
+        f: UserFunction,
+    ) -> std::result::Result<Reference, OutOfMemoryError> {
+        self.vm_mut()
+            .heap_mut()
+            .allocate(Object::new_function(f, Extensible::Yes))
+    }
+
     pub fn add_or_concat(
         &mut self,
         lhs: &Value,
@@ -63,9 +101,7 @@ impl Interpreter {
     fn concat(&mut self, lhs: &Value, rhs: &Value) -> std::result::Result<Value, ErrorKind> {
         let mut out = self.coerce_to_string(lhs);
         out.push_str(&self.coerce_to_string(rhs));
-        self.vm_mut()
-            .heap_mut()
-            .allocate(Object::new_string(out))
+        self.alloc_string(out)
             .map(Value::Object)
             .map_err(ErrorKind::from)
     }

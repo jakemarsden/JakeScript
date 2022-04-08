@@ -37,6 +37,10 @@ console.assertEqual(String.charAt("Hello, world!", "-1"), "");
 console.assertEqual("".length, 0);
 console.assertEqual("Hello, world!".length, 13);
 console.assertEqual(("Hello, " + "world" + "!").length, 13);
+let foo = "foo";
+console.assertEqual(foo.length, 3);
+foo.length = 123;
+console.assertEqual(foo.length, 3);
 
 console.assert(String.substring);
 console.assertEqual(String.substring("Hello, world!"), "Hello, world!");

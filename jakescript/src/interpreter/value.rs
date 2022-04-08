@@ -290,3 +290,23 @@ impl From<&str> for Number {
         Self::from_str(s).unwrap_or(Self::NAN)
     }
 }
+
+impl From<i64> for Number {
+    fn from(v: i64) -> Self {
+        Self::Int(v)
+    }
+}
+
+impl From<f64> for Number {
+    fn from(v: f64) -> Self {
+        Self::Float(v)
+    }
+}
+
+impl TryFrom<usize> for Number {
+    type Error = num::TryFromIntError;
+
+    fn try_from(v: usize) -> Result<Self, Self::Error> {
+        i64::try_from(v).map(Self::from)
+    }
+}
