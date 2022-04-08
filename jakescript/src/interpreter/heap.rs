@@ -54,13 +54,13 @@ pub enum SetPropertyResult {
     NotAdded,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Call {
     User(UserFunction),
     Native(NativeFunction),
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct UserFunction {
     name: Option<Identifier>,
     declared_parameters: Vec<Identifier>,
@@ -68,6 +68,7 @@ pub struct UserFunction {
     body: Block,
 }
 
+#[derive(Clone)]
 pub struct NativeFunction(&'static NativeFn);
 
 impl Heap {

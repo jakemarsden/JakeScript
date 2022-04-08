@@ -14,6 +14,7 @@ impl Eval for Expression {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         match self {
             Self::IdentifierReference(ref node) => node.eval(it),
+            Self::This(ref node) => node.eval(it),
             Self::Literal(ref node) => node.eval(it),
             Self::Array(ref node) => node.eval(it),
             Self::Object(ref node) => node.eval(it),
@@ -337,7 +338,7 @@ impl Eval for UpdateExpression {
                     }
                 }
             }
-            _ => todo!("UnaryExpression::eval: self={:#?}", self),
+            expr => todo!("UnaryExpression::eval: operand={:#?}", expr),
         })
     }
 }
@@ -347,10 +348,46 @@ impl Eval for MemberExpression {
 
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         match self {
-            Self::FunctionCall(node) => node.eval(it),
             Self::MemberAccess(node) => node.eval(it),
             Self::ComputedMemberAccess(node) => node.eval(it),
+            Self::FunctionCall(node) => node.eval(it),
         }
+    }
+}
+
+impl Eval for MemberAccessExpression {
+    type Output = Value;
+
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
+        let base_value = self.base.eval(it)?;
+        match base_value {
+            Value::Object(ref base_refr) => {
+                let base_obj = it.vm().heap().resolve(base_refr);
+                Ok(base_obj
+                    .get(self.member.inner())
+                    .cloned()
+                    .unwrap_or_default())
+            }
+            base_value => todo!("PropertyAccessExpression::eval: base={:?}", base_value),
+        }
+    }
+}
+
+impl Eval for ComputedMemberAccessExpression {
+    type Output = Value;
+
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
+        let base_value = self.base.eval(it)?;
+        let base_obj = match base_value {
+            Value::Object(ref base_refr) => it.vm().heap().resolve(base_refr),
+            base_value => todo!("ComputedPropertyExpression::eval: base={:?}", base_value),
+        };
+        let property_value = self.member.eval(it)?;
+        let property = match property_value {
+            Value::Number(Number::Int(n)) => Identifier::from(n),
+            property => todo!("ComputedPropertyExpression::eval: property={:?}", property),
+        };
+        Ok(base_obj.get(property.inner()).cloned().unwrap_or_default())
     }
 }
 
@@ -360,6 +397,7 @@ impl FunctionCallExpression {
         it: &mut Interpreter,
         function: &UserFunction,
         fn_obj_ref: &Reference,
+        receiver: Option<Value>,
     ) -> Result {
         let declared_param_names = function.declared_parameters();
         let mut supplied_args = self.arguments.iter();
@@ -386,7 +424,7 @@ impl FunctionCallExpression {
         let declared_scope = function.declared_scope().clone();
         let fn_scope_ctx = ScopeCtx::new(variables);
 
-        it.vm_mut().stack_mut().push_frame(declared_scope);
+        it.vm_mut().stack_mut().push_frame(declared_scope, receiver);
         if let Some(fn_name) = function.name() {
             // Create an outer scope with nothing but the function's name, which points to itself,
             // so that named function literals may recurse using their name without making the name
@@ -435,52 +473,39 @@ impl Eval for FunctionCallExpression {
     type Output = Value;
 
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        let fn_obj_ref = match self.function.eval(it)? {
+        let (receiver, function) = match self.function {
+            box Expression::Member(ref node) => match node {
+                MemberExpression::MemberAccess(node) => {
+                    // FIXME: Don't evaluate `node.base` twice!!
+                    (Some(node.base.eval(it)?), node.eval(it)?)
+                }
+                MemberExpression::ComputedMemberAccess(node) => {
+                    // FIXME: Don't evaluate `node.base` twice!!
+                    (Some(node.base.eval(it)?), node.eval(it)?)
+                }
+                MemberExpression::FunctionCall(node) => {
+                    // FIXME: Don't evaluate `node.function` twice!!
+                    (Some(node.function.eval(it)?), node.eval(it)?)
+                }
+            },
+            box ref node => (None, node.eval(it)?),
+        };
+        let fn_obj_ref = match function {
             Value::Object(fn_obj_ref) => fn_obj_ref,
             _ => return Err(Error::new(NotCallableError, self.source_location())),
         };
+
+        // Must drop the `fn_obj` we have borrowed from the heap before calling it, because the
+        // function body may need to take a unique reference to it within the call (e.g. to evaluate
+        // a `this` expression).
         let fn_obj = it.vm().heap().resolve(&fn_obj_ref);
-        match fn_obj.call() {
-            Some(Call::User(user_fn)) => self.call_user_fn(it, user_fn, &fn_obj_ref),
-            Some(Call::Native(native_fn)) => self.call_native_fn(it, native_fn),
+        let call = fn_obj.call().cloned();
+        drop(fn_obj);
+        match call {
+            Some(Call::User(user_fn)) => self.call_user_fn(it, &user_fn, &fn_obj_ref, receiver),
+            Some(Call::Native(native_fn)) => self.call_native_fn(it, &native_fn),
             None => Err(Error::new(NotCallableError, self.source_location())),
         }
-    }
-}
-
-impl Eval for MemberAccessExpression {
-    type Output = Value;
-
-    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        let base_value = self.base.eval(it)?;
-        match base_value {
-            Value::Object(ref base_refr) => {
-                let base_obj = it.vm().heap().resolve(base_refr);
-                Ok(base_obj
-                    .get(self.member.inner())
-                    .cloned()
-                    .unwrap_or_default())
-            }
-            base_value => todo!("PropertyAccessExpression::eval: base={:?}", base_value),
-        }
-    }
-}
-
-impl Eval for ComputedMemberAccessExpression {
-    type Output = Value;
-
-    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        let base_value = self.base.eval(it)?;
-        let base_obj = match base_value {
-            Value::Object(ref base_refr) => it.vm().heap().resolve(base_refr),
-            base_value => todo!("ComputedPropertyExpression::eval: base={:?}", base_value),
-        };
-        let property_value = self.member.eval(it)?;
-        let property = match property_value {
-            Value::Number(Number::Int(n)) => Identifier::from(n),
-            property => todo!("ComputedPropertyExpression::eval: property={:?}", property),
-        };
-        Ok(base_obj.get(property.inner()).cloned().unwrap_or_default())
     }
 }
 

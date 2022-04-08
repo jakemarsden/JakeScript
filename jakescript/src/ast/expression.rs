@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 #[serde(tag = "expression_type")]
 pub enum Expression {
     IdentifierReference(IdentifierReferenceExpression),
+    This(ThisExpression),
     Literal(LiteralExpression),
     Array(ArrayExpression),
     Object(ObjectExpression),
@@ -28,6 +29,11 @@ pub enum Expression {
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct IdentifierReferenceExpression {
     pub identifier: Identifier,
+    pub loc: SourceLocation,
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct ThisExpression {
     pub loc: SourceLocation,
 }
 
@@ -111,16 +117,9 @@ pub struct UpdateExpression {
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub enum MemberExpression {
-    FunctionCall(FunctionCallExpression),
     MemberAccess(MemberAccessExpression),
     ComputedMemberAccess(ComputedMemberAccessExpression),
-}
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct FunctionCallExpression {
-    pub function: Box<Expression>,
-    pub arguments: Vec<Expression>,
-    pub loc: SourceLocation,
+    FunctionCall(FunctionCallExpression),
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
@@ -134,6 +133,13 @@ pub struct MemberAccessExpression {
 pub struct ComputedMemberAccessExpression {
     pub base: Box<Expression>,
     pub member: Box<Expression>,
+    pub loc: SourceLocation,
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct FunctionCallExpression {
+    pub function: Box<Expression>,
+    pub arguments: Vec<Expression>,
     pub loc: SourceLocation,
 }
 
@@ -218,9 +224,9 @@ pub enum UpdateOperator {
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub enum MemberOperator {
-    FunctionCall,
     MemberAccess,
     ComputedMemberAccess,
+    FunctionCall,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -242,6 +248,7 @@ impl Node for Expression {
     fn source_location(&self) -> &SourceLocation {
         match self {
             Self::IdentifierReference(node) => node.source_location(),
+            Self::This(node) => node.source_location(),
             Self::Literal(node) => node.source_location(),
             Self::Array(node) => node.source_location(),
             Self::Object(node) => node.source_location(),
@@ -259,6 +266,12 @@ impl Node for Expression {
 }
 
 impl Node for IdentifierReferenceExpression {
+    fn source_location(&self) -> &SourceLocation {
+        &self.loc
+    }
+}
+
+impl Node for ThisExpression {
     fn source_location(&self) -> &SourceLocation {
         &self.loc
     }
@@ -321,16 +334,10 @@ impl Node for UpdateExpression {
 impl Node for MemberExpression {
     fn source_location(&self) -> &SourceLocation {
         match self {
-            Self::FunctionCall(node) => node.source_location(),
             Self::MemberAccess(node) => node.source_location(),
             Self::ComputedMemberAccess(node) => node.source_location(),
+            Self::FunctionCall(node) => node.source_location(),
         }
-    }
-}
-
-impl Node for FunctionCallExpression {
-    fn source_location(&self) -> &SourceLocation {
-        &self.loc
     }
 }
 
@@ -341,6 +348,12 @@ impl Node for MemberAccessExpression {
 }
 
 impl Node for ComputedMemberAccessExpression {
+    fn source_location(&self) -> &SourceLocation {
+        &self.loc
+    }
+}
+
+impl Node for FunctionCallExpression {
     fn source_location(&self) -> &SourceLocation {
         &self.loc
     }
@@ -491,7 +504,7 @@ impl UpdateOperator {
 impl MemberOperator {
     pub fn associativity(&self) -> Associativity {
         match self {
-            Self::FunctionCall | Self::MemberAccess | Self::ComputedMemberAccess => {
+            Self::MemberAccess | Self::ComputedMemberAccess | Self::FunctionCall => {
                 Associativity::LeftToRight
             }
         }
@@ -499,7 +512,7 @@ impl MemberOperator {
 
     pub fn precedence(&self) -> Precedence {
         match self {
-            Self::FunctionCall | Self::MemberAccess | Self::ComputedMemberAccess => Precedence(20),
+            Self::MemberAccess | Self::ComputedMemberAccess | Self::FunctionCall => Precedence(20),
         }
     }
 }

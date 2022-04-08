@@ -5,7 +5,7 @@ use crate::ast::*;
 use crate::iter::peek_fallible::PeekableNthFallibleIterator;
 use crate::lexer;
 use crate::non_empty_str;
-use crate::token::Keyword::Function;
+use crate::token::Keyword::{Function, This};
 use crate::token::Punctuator::{
     self, Amp, AmpAmp, AmpEq, Bang, BangEq, BangEqEq, Caret, CaretEq, CloseBracket, CloseParen,
     Colon, Comma, Dot, Eq, EqEq, EqEqEq, Gt, GtEq, GtGt, GtGtEq, GtGtGt, GtGtGtEq, Lt, LtEq, LtLt,
@@ -63,6 +63,9 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         Ok(match self.source.peek()? {
             Some(elem) if elem.identifier().is_some() => {
                 Expression::IdentifierReference(self.parse_identifier_reference_expression()?)
+            }
+            Some(elem) if elem.keyword() == Some(This) => {
+                Expression::This(self.parse_this_expression()?)
             }
             Some(elem) if elem.literal().is_some() => {
                 Expression::Literal(self.parse_literal_expression()?)
@@ -182,17 +185,6 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                 operand: Box::new(lhs),
                 loc,
             }),
-            Operator::Member(MemberOperator::FunctionCall) => {
-                self.skip_non_tokens()?;
-                let arguments = self.parse_fn_arguments()?;
-                self.skip_non_tokens()?;
-                self.expect_punctuator(CloseParen)?;
-                Expression::Member(MemberExpression::FunctionCall(FunctionCallExpression {
-                    function: Box::new(lhs),
-                    arguments,
-                    loc,
-                }))
-            }
             Operator::Member(MemberOperator::MemberAccess) => {
                 self.skip_non_tokens()?;
                 let rhs = match self.parse_expression_impl(op_kind.precedence())? {
@@ -221,6 +213,17 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                         loc,
                     },
                 ))
+            }
+            Operator::Member(MemberOperator::FunctionCall) => {
+                self.skip_non_tokens()?;
+                let arguments = self.parse_fn_arguments()?;
+                self.skip_non_tokens()?;
+                self.expect_punctuator(CloseParen)?;
+                Expression::Member(MemberExpression::FunctionCall(FunctionCallExpression {
+                    function: Box::new(lhs),
+                    arguments,
+                    loc,
+                }))
             }
             Operator::Grouping => {
                 self.skip_non_tokens()?;
@@ -252,6 +255,11 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
     fn parse_identifier_reference_expression(&mut self) -> Result<IdentifierReferenceExpression> {
         let (identifier, loc) = self.expect_identifier(non_empty_str!("identifier_reference"))?;
         Ok(IdentifierReferenceExpression { identifier, loc })
+    }
+
+    fn parse_this_expression(&mut self) -> Result<ThisExpression> {
+        let loc = self.expect_keyword(This)?;
+        Ok(ThisExpression { loc })
     }
 
     fn parse_fn_arguments(&mut self) -> Result<Vec<Expression>> {
@@ -394,9 +402,9 @@ impl TryParse for UpdateOperator {
 impl TryParse for MemberOperator {
     fn try_parse(punc: Punctuator, pos: Position) -> Option<Self> {
         Some(match (punc, pos) {
-            (OpenParen, Position::PostfixOrInfix) => Self::FunctionCall,
             (Dot, Position::PostfixOrInfix) => Self::MemberAccess,
             (OpenBracket, Position::PostfixOrInfix) => Self::ComputedMemberAccess,
+            (OpenParen, Position::PostfixOrInfix) => Self::FunctionCall,
             (_, _) => return None,
         })
     }

@@ -14,6 +14,7 @@ pub struct CallStack {
 pub struct CallFrame {
     scope: Scope,
     parent: Option<Box<CallFrame>>,
+    receiver: Option<Value>,
 }
 
 #[derive(Clone, Debug)]
@@ -60,10 +61,11 @@ impl CallStack {
         &mut self.frame
     }
 
-    pub fn push_frame(&mut self, scope: Scope) {
+    pub fn push_frame(&mut self, scope: Scope, receiver: Option<Value>) {
         let new_frame = CallFrame {
             scope,
             parent: None,
+            receiver,
         };
         let parent_frame = mem::replace(&mut self.frame, new_frame);
         self.frame.parent = Some(Box::new(parent_frame));
@@ -76,10 +78,11 @@ impl CallStack {
 }
 
 impl CallFrame {
-    pub fn new(scope: Scope) -> Self {
+    pub fn new(scope: Scope, receiver: Option<Value>) -> Self {
         Self {
             scope,
             parent: None,
+            receiver,
         }
     }
 
@@ -88,6 +91,10 @@ impl CallFrame {
     }
     pub fn scope_mut(&mut self) -> &mut Scope {
         &mut self.scope
+    }
+
+    pub fn receiver(&self) -> Option<&Value> {
+        self.receiver.as_ref()
     }
 
     pub fn push_empty_scope(&mut self) {
