@@ -458,13 +458,20 @@ impl FunctionCallExpression {
         })
     }
 
-    fn call_native_fn(&self, it: &mut Interpreter, function: &NativeFunction) -> Result {
+    fn call_native_fn(
+        &self,
+        it: &mut Interpreter,
+        function: &NativeFunction,
+        receiver: Option<Value>,
+    ) -> Result {
+        let receiver = receiver
+            .unwrap_or_else(|| Value::Object(it.vm().runtime().global_object_ref().clone()));
         let mut supplied_args = Vec::with_capacity(self.arguments.len());
         for arg in &self.arguments {
             supplied_args.push(arg.eval(it)?);
         }
         function
-            .call(it, &supplied_args)
+            .call(it, &receiver, &supplied_args)
             .map_err(|err| Error::new(err, self.source_location()))
     }
 }
@@ -503,7 +510,7 @@ impl Eval for FunctionCallExpression {
         drop(fn_obj);
         match call {
             Some(Call::User(user_fn)) => self.call_user_fn(it, &user_fn, &fn_obj_ref, receiver),
-            Some(Call::Native(native_fn)) => self.call_native_fn(it, &native_fn),
+            Some(Call::Native(native_fn)) => self.call_native_fn(it, &native_fn, receiver),
             None => Err(Error::new(NotCallableError, self.source_location())),
         }
     }

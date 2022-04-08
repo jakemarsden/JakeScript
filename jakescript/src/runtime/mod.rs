@@ -11,7 +11,7 @@ mod math;
 mod number;
 mod string;
 
-pub type NativeFn = dyn Fn(&mut Interpreter, &[Value]) -> Result<Value, ErrorKind>;
+pub type NativeFn = dyn Fn(&mut Interpreter, &Value, &[Value]) -> Result<Value, ErrorKind>;
 
 pub trait Builtin {
     fn register(heap: &mut Heap) -> Result<Reference, InitialisationError>

@@ -301,8 +301,13 @@ impl NativeFunction {
         Self(f)
     }
 
-    pub fn call(&self, it: &mut Interpreter, args: &[Value]) -> Result<Value, ErrorKind> {
-        self.0(it, args)
+    pub fn call(
+        &self,
+        it: &mut Interpreter,
+        receiver: &Value,
+        args: &[Value],
+    ) -> Result<Value, ErrorKind> {
+        self.0(it, receiver, args)
     }
 }
 

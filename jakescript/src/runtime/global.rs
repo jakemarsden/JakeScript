@@ -47,7 +47,7 @@ impl Builtin for DefaultGlobalObject {
 
 impl GlobalExit {
     #[allow(clippy::unnecessary_wraps)]
-    fn invoke(it: &mut Interpreter, _: &[Value]) -> Result<Value, ErrorKind> {
+    fn invoke(it: &mut Interpreter, _: &Value, _: &[Value]) -> Result<Value, ErrorKind> {
         it.vm_mut().set_execution_state(ExecutionState::Exit);
         Ok(Value::Undefined)
     }
@@ -62,7 +62,7 @@ impl Builtin for GlobalExit {
 
 impl GlobalIsNan {
     #[allow(clippy::unnecessary_wraps)]
-    fn invoke(_: &mut Interpreter, args: &[Value]) -> Result<Value, ErrorKind> {
+    fn invoke(_: &mut Interpreter, _: &Value, args: &[Value]) -> Result<Value, ErrorKind> {
         let arg = args.first().unwrap_or(&Value::Undefined);
         Ok(Value::Boolean(match arg {
             Value::Boolean(_) | Value::Object(_) | Value::Null | Value::Undefined => true,

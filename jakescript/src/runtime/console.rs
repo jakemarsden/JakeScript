@@ -30,7 +30,7 @@ impl Builtin for Console {
 }
 
 impl ConsoleAssert {
-    fn invoke(it: &mut Interpreter, args: &[Value]) -> Result<Value, ErrorKind> {
+    fn invoke(it: &mut Interpreter, _: &Value, args: &[Value]) -> Result<Value, ErrorKind> {
         let mut args = args.iter();
         let assertion = args.next().unwrap_or(&Value::Undefined);
         if it.is_truthy(assertion) {
@@ -50,7 +50,7 @@ impl Builtin for ConsoleAssert {
 }
 
 impl ConsoleAssertEqual {
-    fn invoke(it: &mut Interpreter, args: &[Value]) -> Result<Value, ErrorKind> {
+    fn invoke(it: &mut Interpreter, _: &Value, args: &[Value]) -> Result<Value, ErrorKind> {
         fn is_nan(v: &Value) -> bool {
             matches!(v, Value::Number(n) if n.is_nan())
         }
@@ -81,7 +81,7 @@ impl Builtin for ConsoleAssertEqual {
 }
 
 impl ConsoleAssertNotReached {
-    fn invoke(it: &mut Interpreter, args: &[Value]) -> Result<Value, ErrorKind> {
+    fn invoke(it: &mut Interpreter, _: &Value, args: &[Value]) -> Result<Value, ErrorKind> {
         let detail_msg = format!("entered unreachable code: {}", build_msg(it, args.iter()));
         Err(ErrorKind::from(AssertionError::new(detail_msg)))
     }
@@ -96,7 +96,7 @@ impl Builtin for ConsoleAssertNotReached {
 
 impl ConsoleLog {
     #[allow(clippy::unnecessary_wraps)]
-    fn invoke(it: &mut Interpreter, args: &[Value]) -> Result<Value, ErrorKind> {
+    fn invoke(it: &mut Interpreter, _: &Value, args: &[Value]) -> Result<Value, ErrorKind> {
         let msg = build_msg(it, args.iter());
         it.vm_mut().write_message(&msg);
         Ok(Value::Undefined)

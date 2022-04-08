@@ -8,7 +8,7 @@ pub struct Number;
 
 impl Number {
     #[allow(clippy::unnecessary_wraps)]
-    fn invoke(it: &mut Interpreter, args: &[Value]) -> Result<Value, ErrorKind> {
+    fn invoke(it: &mut Interpreter, _: &Value, args: &[Value]) -> Result<Value, ErrorKind> {
         let arg = args.first();
         Ok(Value::Number(match arg {
             Some(arg) => it.coerce_to_number(arg),

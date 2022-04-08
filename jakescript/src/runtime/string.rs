@@ -12,7 +12,7 @@ pub struct StringSubstring;
 
 impl String {
     #[allow(clippy::unnecessary_wraps)]
-    fn invoke(it: &mut Interpreter, args: &[Value]) -> Result<Value, ErrorKind> {
+    fn invoke(it: &mut Interpreter, _: &Value, args: &[Value]) -> Result<Value, ErrorKind> {
         let arg = args.first();
         let str = arg.map_or_else(|| "".to_owned(), |arg| it.coerce_to_string(arg));
         it.vm_mut()
@@ -38,7 +38,7 @@ impl Builtin for String {
 
 impl StringCharAt {
     #[allow(clippy::unnecessary_wraps)]
-    fn invoke(it: &mut Interpreter, args: &[Value]) -> Result<Value, ErrorKind> {
+    fn invoke(it: &mut Interpreter, _: &Value, args: &[Value]) -> Result<Value, ErrorKind> {
         let mut args = args.iter();
         // TODO: Implement `this` expressions, add a `receiver` parameter to `NativeFn`.
         let receiver = args.next().cloned().unwrap_or_default();
@@ -78,7 +78,7 @@ impl Builtin for StringCharAt {
 
 impl StringSubstring {
     #[allow(clippy::unnecessary_wraps)]
-    fn invoke(it: &mut Interpreter, args: &[Value]) -> Result<Value, ErrorKind> {
+    fn invoke(it: &mut Interpreter, _: &Value, args: &[Value]) -> Result<Value, ErrorKind> {
         let mut args = args.iter();
         // TODO: Implement `this` expressions, add a `receiver` parameter to `NativeFn`.
         let receiver = args.next().cloned().unwrap_or_default();
