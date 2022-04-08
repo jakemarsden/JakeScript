@@ -31,7 +31,7 @@ function largestProduct(adjDigitCount) {
     for (let firstDigitIdx = 0; firstDigitIdx <= NUMBER.length - adjDigitCount; firstDigitIdx += 1) {
         let product = 1;
         for (let idx = firstDigitIdx; idx < firstDigitIdx + adjDigitCount; idx += 1) {
-            product *= Number(String.charAt(NUMBER, idx));
+            product *= Number(NUMBER.charAt(idx));
         }
         maxProduct = Math.max(product, maxProduct);
     }

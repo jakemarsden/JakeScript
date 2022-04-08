@@ -108,7 +108,7 @@ function sum() {
     for (let valueIdx = 0; valueIdx < VALUES.length; valueIdx += 1) {
         accumulator = addNumericString(VALUES[valueIdx], accumulator);
     }
-    return String.substring(accumulator, 0, 10);
+    return accumulator.substring(0, 10);
 }
 
 function addNumericString(addend, accumulator) {
@@ -119,10 +119,10 @@ function addNumericString(addend, accumulator) {
     let carry = 0;
     let addendIdx = addend.length - 1;
     for (let accumulatorIdx = accumulator.length - 1; accumulatorIdx >= 0; accumulatorIdx -= 1) {
-        let accumulatorDigit = Number(String.charAt(accumulator, accumulatorIdx));
+        let accumulatorDigit = Number(accumulator.charAt(accumulatorIdx));
         let addendDigit;
         if (addendIdx >= 0) {
-            addendDigit = Number(String.charAt(addend, addendIdx));
+            addendDigit = Number(addend.charAt(addendIdx));
             addendIdx -= 1;
         } else {
             addendDigit = 0;
@@ -139,5 +139,5 @@ function addNumericString(addend, accumulator) {
 
 function setCharAt(s, idx, ch) {
     ch = String(ch);
-    return String.substring(s, 0, idx) + ch + String.substring(s, idx + ch.length);
+    return s.substring(0, idx) + ch + s.substring(idx + ch.length);
 }

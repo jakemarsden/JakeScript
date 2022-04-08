@@ -69,11 +69,8 @@ impl Builtin for String {
     }
 }
 
-builtin_fn!(StringCharAt, Extensible::Yes, (it, _receiver, args) => {
-    let mut args = args.iter();
-    // TODO: Implement `this` expressions, add a `receiver` parameter to `NativeFn`.
-    let receiver = args.next().cloned().unwrap_or_default();
-    let arg = args.next().cloned().unwrap_or_default();
+builtin_fn!(StringCharAt, Extensible::Yes, (it, receiver, args) => {
+    let arg = args.first().cloned().unwrap_or_default();
     let idx = {
         let n = it.coerce_to_number(&arg);
         if !n.is_nan() {
@@ -84,7 +81,7 @@ builtin_fn!(StringCharAt, Extensible::Yes, (it, _receiver, args) => {
     };
     let char_str = if idx >= Number::Int(0) {
         let idx = usize::try_from(idx.as_i64()).unwrap();
-        it.coerce_to_string(&receiver)
+        it.coerce_to_string(&Value::Object(receiver))
             .chars()
             .nth(idx)
             .map(|ch| ch.to_string())
@@ -97,14 +94,12 @@ builtin_fn!(StringCharAt, Extensible::Yes, (it, _receiver, args) => {
         .map_err(ErrorKind::from)
 });
 
-builtin_fn!(StringSubstring, Extensible::Yes, (it, _receiver, args) => {
+builtin_fn!(StringSubstring, Extensible::Yes, (it, receiver, args) => {
     let mut args = args.iter();
-    // TODO: Implement `this` expressions, add a `receiver` parameter to `NativeFn`.
-    let receiver = args.next().cloned().unwrap_or_default();
     let start_idx = args.next().cloned().unwrap_or_default();
     let end_idx = args.next().cloned().unwrap_or_default();
 
-    let str = it.coerce_to_string(&receiver);
+    let str = it.coerce_to_string(&Value::Object(receiver));
     let mut start_idx = match it.coerce_to_number(&start_idx) {
         n if n.is_nan() => 0,
         n if n < Number::Int(0) => 0,

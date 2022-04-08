@@ -25,9 +25,7 @@ function isPalindrome(n) {
     let frontIdx = 0;
     let backIdx = str.length - 1;
     while (frontIdx < backIdx) {
-        // TODO: Support receivers in function calls.
-        //  E.g. `String.charAt(str, frontIdx)` should be `str.charAt(frontIdx)`.
-        if (String.charAt(str, frontIdx) !== String.charAt(str, backIdx)) {
+        if (str.charAt(frontIdx) !== str.charAt(backIdx)) {
             return false;
         }
         frontIdx += 1;
