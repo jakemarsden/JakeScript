@@ -7,9 +7,10 @@ use crate::iter::peek_fallible::PeekableNthFallibleIterator;
 use crate::lexer;
 use crate::non_empty_str;
 use crate::token::Keyword::{
-    Break, Catch, Continue, Do, Else, Finally, For, If, Return, Throw, Try, While,
+    Break, Case, Catch, Continue, Default, Do, Else, Finally, For, If, Return, Switch, Throw, Try,
+    While,
 };
-use crate::token::Punctuator::{CloseParen, OpenParen, Semi};
+use crate::token::Punctuator::{CloseBrace, CloseParen, Colon, OpenBrace, OpenParen, Semi};
 use crate::token::{Element, Token};
 use fallible_iterator::FallibleIterator;
 
@@ -18,6 +19,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         match self.source.peek()?.map(Element::keyword) {
             Some(Some(If)) => self.parse_if_statement().map(Statement::If),
             Some(Some(Try)) => self.parse_try_statement().map(Statement::Try),
+            Some(Some(Switch)) => self.parse_switch_statement().map(Statement::Switch),
             Some(Some(For)) => self.parse_for_loop().map(Statement::ForLoop),
             Some(Some(While)) => self.parse_while_loop().map(Statement::WhileLoop),
             Some(Some(Do)) => self.parse_do_while_loop().map(Statement::DoWhileLoop),
@@ -71,6 +73,93 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             else_body,
             loc,
         })
+    }
+
+    fn parse_switch_statement(&mut self) -> Result<SwitchStatement> {
+        let loc = self.expect_keyword(Switch)?;
+        self.skip_non_tokens()?;
+        self.expect_punctuator(OpenParen)?;
+        self.skip_non_tokens()?;
+        let value = self.parse_expression()?;
+        self.skip_non_tokens()?;
+        self.expect_punctuator(CloseParen)?;
+        self.skip_non_tokens()?;
+        self.expect_punctuator(OpenBrace)?;
+        let mut cases = Vec::new();
+        let mut default_case = None;
+        loop {
+            self.skip_non_tokens()?;
+            match self.source.peek()? {
+                Some(elem) if elem.keyword() == Some(Case) => {
+                    cases.push(self.parse_case()?);
+                }
+                Some(elem) if elem.keyword() == Some(Default) => {
+                    default_case = Some(self.parse_default_case()?);
+                    self.skip_non_tokens()?;
+                    break;
+                }
+                Some(elem) if elem.punctuator() == Some(CloseBrace) => {
+                    break;
+                }
+                elem => {
+                    return Err(Error::unexpected(
+                        AnyOf(
+                            Token::Keyword(Case),
+                            Token::Keyword(Default),
+                            vec![Token::Punctuator(CloseBrace)],
+                        ),
+                        elem.cloned(),
+                    ))
+                }
+            }
+        }
+        self.expect_punctuator(CloseBrace)?;
+        Ok(SwitchStatement {
+            value,
+            cases,
+            default_case,
+            loc,
+        })
+    }
+
+    fn parse_case(&mut self) -> Result<SwitchCase> {
+        let loc = self.expect_keyword(Case)?;
+        self.skip_non_tokens()?;
+        let expected = self.parse_expression()?;
+        self.skip_non_tokens()?;
+        self.expect_punctuator(Colon)?;
+        self.skip_non_tokens()?;
+        let body = self.parse_case_body()?;
+        Ok(SwitchCase {
+            expected,
+            body,
+            loc,
+        })
+    }
+
+    fn parse_default_case(&mut self) -> Result<DefaultSwitchCase> {
+        let loc = self.expect_keyword(Default)?;
+        self.skip_non_tokens()?;
+        self.expect_punctuator(Colon)?;
+        self.skip_non_tokens()?;
+        let body = self.parse_case_body()?;
+        Ok(DefaultSwitchCase { body, loc })
+    }
+
+    fn parse_case_body(&mut self) -> Result<Vec<BlockItem>> {
+        let mut stmts = Vec::new();
+        loop {
+            match self.source.peek()? {
+                Some(elem) if matches!(elem.keyword(), Some(Case | Default)) => break,
+                Some(elem) if elem.punctuator() == Some(CloseBrace) => break,
+                None => break,
+                _ => {
+                    stmts.push(self.parse_declaration_or_statement()?);
+                    self.skip_non_tokens()?;
+                }
+            }
+        }
+        Ok(stmts)
     }
 
     fn parse_for_loop(&mut self) -> Result<ForStatement> {

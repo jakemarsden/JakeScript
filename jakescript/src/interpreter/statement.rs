@@ -1,4 +1,4 @@
-use super::error::Result;
+use super::error::{Error, Result};
 use super::stack::{ScopeCtx, Variable, VariableKind};
 use super::value::Value;
 use super::vm::ExecutionState;
@@ -10,6 +10,7 @@ impl Eval for Statement {
         match self {
             Self::Expression(node) => node.eval(it),
             Self::If(node) => node.eval(it),
+            Self::Switch(node) => node.eval(it),
             Self::WhileLoop(node) => node.eval(it),
             Self::DoWhileLoop(node) => node.eval(it),
             Self::ForLoop(node) => node.eval(it),
@@ -39,6 +40,72 @@ impl Eval for IfStatement {
             it.vm_mut().stack_mut().frame_mut().push_empty_scope();
             else_block.eval(it)?;
             it.vm_mut().stack_mut().frame_mut().pop_scope();
+        }
+        Ok(())
+    }
+}
+
+impl Eval for SwitchStatement {
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
+        let value = self.value.eval(it)?;
+        let mut cases = self.cases.iter().peekable();
+
+        // Skip cases while `actual != expected`.
+        while let Some(case) = cases.peek() {
+            let expected = case.expected.eval(it)?;
+            let matches = it
+                .equal(&expected, &value)
+                .map_err(|err| Error::new(err, case.source_location()))?;
+            if it.is_truthy(&matches) {
+                break;
+            }
+            cases.next().unwrap();
+        }
+        // Evaluate remaining cases in turn (may do nothing if any of the cases change the execution
+        // state).
+        for case in cases {
+            case.eval(it)?;
+        }
+        if let Some(ref case) = self.default_case {
+            case.eval(it)?;
+        }
+
+        match it.vm().execution_state() {
+            ExecutionState::Break => {
+                it.vm_mut().reset_execution_state();
+            }
+            ExecutionState::Advance
+            | ExecutionState::BreakContinue
+            | ExecutionState::Return(_)
+            | ExecutionState::Exception(_)
+            | ExecutionState::Exit => {
+                // Don't reset the execution state just yet so that it can be handled/cleared by
+                // some calling AST node.
+            }
+        }
+        Ok(())
+    }
+}
+
+impl Eval for SwitchCase {
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
+        for stmt in &self.body {
+            if !matches!(it.vm().execution_state(), ExecutionState::Advance) {
+                break;
+            }
+            stmt.eval(it)?;
+        }
+        Ok(())
+    }
+}
+
+impl Eval for DefaultSwitchCase {
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
+        for stmt in &self.body {
+            if !matches!(it.vm().execution_state(), ExecutionState::Advance) {
+                break;
+            }
+            stmt.eval(it)?;
         }
         Ok(())
     }

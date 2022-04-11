@@ -1,4 +1,4 @@
-use super::block::Block;
+use super::block::{Block, BlockItem};
 use super::declaration::VariableDeclaration;
 use super::expression::Expression;
 use super::identifier::Identifier;
@@ -12,6 +12,7 @@ pub enum Statement {
     Expression(ExpressionStatement),
 
     If(IfStatement),
+    Switch(SwitchStatement),
     WhileLoop(WhileStatement),
     DoWhileLoop(DoWhileStatement),
     ForLoop(ForStatement),
@@ -33,6 +34,27 @@ pub struct IfStatement {
     pub condition: Expression,
     pub body: Block,
     pub else_body: Option<Block>,
+    pub loc: SourceLocation,
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct SwitchStatement {
+    pub value: Expression,
+    pub cases: Vec<SwitchCase>,
+    pub default_case: Option<DefaultSwitchCase>,
+    pub loc: SourceLocation,
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct SwitchCase {
+    pub expected: Expression,
+    pub body: Vec<BlockItem>,
+    pub loc: SourceLocation,
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct DefaultSwitchCase {
+    pub body: Vec<BlockItem>,
     pub loc: SourceLocation,
 }
 
@@ -109,6 +131,7 @@ impl Node for Statement {
         match self {
             Self::Expression(node) => node.source_location(),
             Self::If(node) => node.source_location(),
+            Self::Switch(node) => node.source_location(),
             Self::WhileLoop(node) => node.source_location(),
             Self::DoWhileLoop(node) => node.source_location(),
             Self::ForLoop(node) => node.source_location(),
@@ -128,6 +151,24 @@ impl Node for ExpressionStatement {
 }
 
 impl Node for IfStatement {
+    fn source_location(&self) -> &SourceLocation {
+        &self.loc
+    }
+}
+
+impl Node for SwitchStatement {
+    fn source_location(&self) -> &SourceLocation {
+        &self.loc
+    }
+}
+
+impl Node for SwitchCase {
+    fn source_location(&self) -> &SourceLocation {
+        &self.loc
+    }
+}
+
+impl Node for DefaultSwitchCase {
     fn source_location(&self) -> &SourceLocation {
         &self.loc
     }

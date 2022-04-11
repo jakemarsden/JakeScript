@@ -95,7 +95,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         Ok(Block::new(hoisted_decls, body, loc))
     }
 
-    fn parse_declaration_or_statement(&mut self) -> Result<BlockItem> {
+    pub(super) fn parse_declaration_or_statement(&mut self) -> Result<BlockItem> {
         if let Some(elem) = self.source.peek()?
             && matches!(elem.keyword(), Some(Const | Function | Let | Var))
         {
