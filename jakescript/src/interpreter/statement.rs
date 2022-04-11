@@ -11,6 +11,7 @@ impl Eval for Statement {
             Self::Expression(node) => node.eval(it),
             Self::If(node) => node.eval(it),
             Self::WhileLoop(node) => node.eval(it),
+            Self::DoWhileLoop(node) => node.eval(it),
             Self::ForLoop(node) => node.eval(it),
             Self::Continue(node) => node.eval(it),
             Self::Break(node) => node.eval(it),
@@ -70,6 +71,39 @@ impl Eval for WhileStatement {
                     // handled/cleared by some calling AST node.
                     break;
                 }
+            }
+        }
+        Ok(())
+    }
+}
+
+impl Eval for DoWhileStatement {
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
+        loop {
+            it.vm_mut().stack_mut().frame_mut().push_empty_scope();
+            self.body.eval(it)?;
+            it.vm_mut().stack_mut().frame_mut().pop_scope();
+
+            match it.vm().execution_state() {
+                ExecutionState::Advance => {}
+                ExecutionState::Break => {
+                    it.vm_mut().reset_execution_state();
+                    break;
+                }
+                ExecutionState::BreakContinue => {
+                    it.vm_mut().reset_execution_state();
+                    continue;
+                }
+                ExecutionState::Return(_) | ExecutionState::Exception(_) | ExecutionState::Exit => {
+                    // Exit the loop, but don't reset the execution state just yet so that it can be
+                    // handled/cleared by some calling AST node.
+                    break;
+                }
+            }
+
+            let condition = self.condition.eval(it)?;
+            if !it.is_truthy(&condition) {
+                break;
             }
         }
         Ok(())

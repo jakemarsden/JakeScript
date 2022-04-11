@@ -13,6 +13,7 @@ pub enum Statement {
 
     If(IfStatement),
     WhileLoop(WhileStatement),
+    DoWhileLoop(DoWhileStatement),
     ForLoop(ForStatement),
 
     Continue(ContinueStatement),
@@ -39,6 +40,13 @@ pub struct IfStatement {
 pub struct WhileStatement {
     pub condition: Expression,
     pub body: Block,
+    pub loc: SourceLocation,
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct DoWhileStatement {
+    pub body: Block,
+    pub condition: Expression,
     pub loc: SourceLocation,
 }
 
@@ -102,6 +110,7 @@ impl Node for Statement {
             Self::Expression(node) => node.source_location(),
             Self::If(node) => node.source_location(),
             Self::WhileLoop(node) => node.source_location(),
+            Self::DoWhileLoop(node) => node.source_location(),
             Self::ForLoop(node) => node.source_location(),
             Self::Continue(node) => node.source_location(),
             Self::Break(node) => node.source_location(),
@@ -125,6 +134,12 @@ impl Node for IfStatement {
 }
 
 impl Node for WhileStatement {
+    fn source_location(&self) -> &SourceLocation {
+        &self.loc
+    }
+}
+
+impl Node for DoWhileStatement {
     fn source_location(&self) -> &SourceLocation {
         &self.loc
     }

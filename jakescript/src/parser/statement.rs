@@ -7,7 +7,7 @@ use crate::iter::peek_fallible::PeekableNthFallibleIterator;
 use crate::lexer;
 use crate::non_empty_str;
 use crate::token::Keyword::{
-    Break, Catch, Continue, Else, Finally, For, If, Return, Throw, Try, While,
+    Break, Catch, Continue, Do, Else, Finally, For, If, Return, Throw, Try, While,
 };
 use crate::token::Punctuator::{CloseParen, OpenParen, Semi};
 use crate::token::{Element, Token};
@@ -20,6 +20,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             Some(Some(Try)) => self.parse_try_statement().map(Statement::Try),
             Some(Some(For)) => self.parse_for_loop().map(Statement::ForLoop),
             Some(Some(While)) => self.parse_while_loop().map(Statement::WhileLoop),
+            Some(Some(Do)) => self.parse_do_while_loop().map(Statement::DoWhileLoop),
 
             Some(Some(Break)) => self.parse_break_statement().map(Statement::Break),
             Some(Some(Continue)) => self.parse_continue_statement().map(Statement::Continue),
@@ -125,6 +126,27 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         Ok(WhileStatement {
             condition,
             body,
+            loc,
+        })
+    }
+
+    fn parse_do_while_loop(&mut self) -> Result<DoWhileStatement> {
+        let loc = self.expect_keyword(Do)?;
+        self.skip_non_tokens()?;
+        let body = self.parse_block(Braces::Allow)?;
+        self.skip_non_tokens()?;
+        self.expect_keyword(While)?;
+        self.skip_non_tokens()?;
+        self.expect_punctuator(OpenParen)?;
+        self.skip_non_tokens()?;
+        let condition = self.parse_expression()?;
+        self.skip_non_tokens()?;
+        self.expect_punctuator(CloseParen)?;
+        self.skip_non_tokens()?;
+        self.expect_punctuator(Semi)?;
+        Ok(DoWhileStatement {
+            body,
+            condition,
             loc,
         })
     }

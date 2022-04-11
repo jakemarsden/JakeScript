@@ -1,65 +1,56 @@
 let x = 0;
-while (x < 3) {
+do {
     x = x + 1;
-}
+} while (x < 3);
 console.assertEqual(x, 3);
 
 let y = 0;
-while (false) {
+do {
     y = y + 1;
-}
-console.assertEqual(y, 0);
+} while (false);
+console.assertEqual(y, 1);
 
 let i = 3;
 let counter = 1;
-while (i !== 0) {
+do {
     i = i - 1;
     counter *= 2;
     counter += 1;
-}
+} while (i !== 0);
 console.assertEqual(i, 0);
 console.assertEqual(counter, 15);
 
-while (true) {
+do {
     break;
     console.assertNotReached();
-}
+} while (console.assertNotReached());
 
 let breakFlag = false;
 let breakCounter = 0;
-while (true) {
+do {
     breakCounter += 1;
     if (breakFlag) {
         break;
     }
     breakFlag = true;
-}
+} while (true);
 console.assertEqual(breakFlag, true);
 console.assertEqual(breakCounter, 2);
 
 let z = 0;
-while (z < 3) {
+do {
     z += 1;
+    if (z >= 3) {
+        break;
+    }
     continue;
     console.assertNotReached();
-}
+} while (console.assertNotReached());
 console.assertEqual(z, 3);
-
-let continueIdx = 0;
-let continueCounter = 0;
-while (continueIdx < 10) {
-    continueIdx += 1;
-    if (continueCounter === 3) {
-        continue;
-    }
-    continueCounter += 1;
-}
-console.assertEqual(continueIdx, 10);
-console.assertEqual(continueCounter, 3);
 
 let bcIdx = 10;
 let bcCount = 0;
-while (true) {
+do {
     bcIdx -= 1;
     if (bcIdx >= 7) {
         continue;
@@ -68,27 +59,27 @@ while (true) {
         break;
     }
     bcCount += 1;
-}
+} while (true);
 console.assertEqual(bcIdx, 2);
 console.assertEqual(bcCount, 4);
 
 function returnInsideWhileLoop() {
     let riwlCounter = 3;
-    while (riwlCounter -= 1) {
+    do {
         return riwlCounter;
-    }
+    } while (riwlCounter -= 1);
     console.assertNotReached();
 }
-console.assertEqual(returnInsideWhileLoop(), 2);
+console.assertEqual(returnInsideWhileLoop(), 3);
 
 function returnInsideWhileLoop2() {
     let riwl2Counter = 0;
-    while (true) {
+    do {
         if (riwl2Counter >= 10) {
             return riwl2Counter;
         }
         riwl2Counter += 1;
-    }
+    } while (true);
     console.assertNotReached();
 }
 console.assertEqual(returnInsideWhileLoop2(), 10);

@@ -1,19 +1,22 @@
 let x = 0;
-while (x < 3)
+do
     x = x + 1;
+while (x < 3);
 console.assertEqual(x, 3);
 
 let y = 0;
-while (false)
+do
     y = y + 1;
-console.assertEqual(y, 0);
+while (false);
+console.assertEqual(y, 1);
 
-while (true) break;
+do break; while (console.assertNotReached());
 
 let shouldBreak = false;
-while (true)
+do
     if (shouldBreak)
         break;
     else
         shouldBreak = true;
+while (true);
 console.assertEqual(shouldBreak, true);
