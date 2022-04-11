@@ -94,52 +94,52 @@ mod simple {
         let loc = SourceLocation::at_start_of("test");
 
         Script::new(Block::new(
+            at![loc@0:0],
             vec![Declaration::Function(FunctionDeclaration {
+                loc: at![loc@2:0],
                 binding: Identifier::from(non_empty_str!("square")),
                 formal_parameters: vec![Identifier::from(non_empty_str!("n"))],
                 body: Block::new(
+                    at![loc@2:19],
                     vec![],
                     vec![BlockItem::Statement(Statement::Return(ReturnStatement {
+                        loc: at![loc@3:4],
                         value: Some(Expression::Binary(BinaryExpression {
+                            loc: at![loc@3:11],
                             op: BinaryOperator::Exponentiation,
                             lhs: Box::new(Expression::IdentifierReference(
                                 IdentifierReferenceExpression {
-                                    identifier: Identifier::from(non_empty_str!("n")),
                                     loc: at![loc@3:11],
+                                    identifier: Identifier::from(non_empty_str!("n")),
                                 },
                             )),
                             rhs: Box::new(Expression::Literal(LiteralExpression {
-                                value: ast::Literal::Numeric(ast::NumericLiteral::Int(2)),
                                 loc: at![loc@3:16],
+                                value: ast::Literal::Numeric(ast::NumericLiteral::Int(2)),
                             })),
-                            loc: at![loc@3:11],
                         })),
-                        loc: at![loc@3:4],
                     }))],
-                    at![loc@2:19],
                 ),
-                loc: at![loc@2:0],
             })],
             vec![BlockItem::Statement(Statement::Expression(
                 ExpressionStatement {
                     expression: Expression::Member(MemberExpression::FunctionCall(
                         FunctionCallExpression {
+                            loc: at![loc@0:0],
                             function: Box::new(Expression::IdentifierReference(
                                 IdentifierReferenceExpression {
-                                    identifier: Identifier::from(non_empty_str!("square")),
                                     loc: at![loc@0:0],
+                                    identifier: Identifier::from(non_empty_str!("square")),
                                 },
                             )),
                             arguments: vec![Expression::Literal(LiteralExpression {
-                                value: Literal::Numeric(NumericLiteral::Int(4)),
                                 loc: at![loc@0:7],
+                                value: Literal::Numeric(NumericLiteral::Int(4)),
                             })],
-                            loc: at![loc@0:0],
                         },
                     )),
                 },
             ))],
-            at![loc@0:0],
         ))
     }
 }

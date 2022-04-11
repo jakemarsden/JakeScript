@@ -31,99 +31,99 @@ pub struct ExpressionStatement {
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct IfStatement {
+    pub loc: SourceLocation,
     pub condition: Expression,
     pub body: Block,
     pub else_body: Option<Block>,
-    pub loc: SourceLocation,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct SwitchStatement {
+    pub loc: SourceLocation,
     pub value: Expression,
     pub cases: Vec<CaseStatement>,
     pub default_case: Option<DefaultCaseStatement>,
-    pub loc: SourceLocation,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct CaseStatement {
+    pub loc: SourceLocation,
     pub expected: Expression,
     pub body: Vec<BlockItem>,
-    pub loc: SourceLocation,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct DefaultCaseStatement {
-    pub body: Vec<BlockItem>,
     pub loc: SourceLocation,
+    pub body: Vec<BlockItem>,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct DoStatement {
+    pub loc: SourceLocation,
     pub body: Block,
     pub condition: Expression,
-    pub loc: SourceLocation,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct WhileStatement {
+    pub loc: SourceLocation,
     pub condition: Expression,
     pub body: Block,
-    pub loc: SourceLocation,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct ForStatement {
+    pub loc: SourceLocation,
     pub initialiser: Option<VariableDeclaration>,
     pub condition: Option<Expression>,
     pub incrementor: Option<Expression>,
     pub body: Block,
-    pub loc: SourceLocation,
 }
 
+// TODO: Support labels.
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct ContinueStatement {
-    // TODO: Support labels.
     pub loc: SourceLocation,
 }
 
+// TODO: Support labels.
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct BreakStatement {
-    // TODO: Support labels.
     pub loc: SourceLocation,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct ReturnStatement {
-    pub value: Option<Expression>,
     pub loc: SourceLocation,
+    pub value: Option<Expression>,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct ThrowStatement {
-    pub exception: Expression,
     pub loc: SourceLocation,
+    pub exception: Expression,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct TryStatement {
+    pub loc: SourceLocation,
     pub body: Block,
     pub catch: Option<CatchStatement>,
     pub finally: Option<FinallyStatement>,
-    pub loc: SourceLocation,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct CatchStatement {
+    pub loc: SourceLocation,
     pub parameter: Option<Identifier>,
     pub body: Block,
-    pub loc: SourceLocation,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct FinallyStatement {
-    pub body: Block,
     pub loc: SourceLocation,
+    pub body: Block,
 }
 
 impl Node for Statement {

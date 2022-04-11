@@ -11,9 +11,9 @@ pub struct Script {
 
 #[derive(Clone, Debug, Default, PartialEq, Deserialize, Serialize)]
 pub struct Block {
+    loc: SourceLocation,
     hoisted_declarations: Vec<Declaration>,
     body: Vec<BlockItem>,
-    loc: SourceLocation,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
@@ -40,14 +40,14 @@ impl Node for Script {
 
 impl Block {
     pub fn new(
+        loc: SourceLocation,
         hoisted_declarations: Vec<Declaration>,
         body: Vec<BlockItem>,
-        loc: SourceLocation,
     ) -> Self {
         Self {
+            loc,
             hoisted_declarations,
             body,
-            loc,
         }
     }
 

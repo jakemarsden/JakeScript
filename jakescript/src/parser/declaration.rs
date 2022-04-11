@@ -44,10 +44,10 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         self.skip_non_tokens()?;
         let body = self.parse_block(Braces::Require)?;
         Ok(FunctionDeclaration {
+            loc,
             binding,
             formal_parameters,
             body,
-            loc,
         })
     }
 
@@ -130,9 +130,9 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             }
         }
         Ok(VariableDeclaration {
+            loc,
             kind,
             bindings,
-            loc,
         })
     }
 
@@ -158,9 +158,9 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             }
         };
         Ok(VariableBinding {
+            loc,
             identifier,
             initialiser,
-            loc,
         })
     }
 }

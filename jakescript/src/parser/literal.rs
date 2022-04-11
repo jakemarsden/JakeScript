@@ -38,7 +38,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             }
             token::Literal::Null => ast::Literal::Null,
         };
-        Ok(LiteralExpression { value, loc })
+        Ok(LiteralExpression { loc, value })
     }
 
     pub(super) fn parse_array_literal_expression(&mut self) -> Result<ArrayExpression> {
@@ -48,8 +48,8 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         self.skip_non_tokens()?;
         self.expect_punctuator(CloseBracket)?;
         Ok(ArrayExpression {
-            declared_elements,
             loc,
+            declared_elements,
         })
     }
 
@@ -91,8 +91,8 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         self.skip_non_tokens()?;
         self.expect_punctuator(CloseBrace)?;
         Ok(ObjectExpression {
-            declared_properties,
             loc,
+            declared_properties,
         })
     }
 
@@ -181,10 +181,10 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         self.skip_non_tokens()?;
         let body = self.parse_block(Braces::Require)?;
         Ok(FunctionExpression {
+            loc,
             binding,
             formal_parameters,
             body,
-            loc,
         })
     }
 }

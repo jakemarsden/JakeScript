@@ -28,8 +28,8 @@ pub enum Expression {
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct IdentifierReferenceExpression {
-    pub identifier: Identifier,
     pub loc: SourceLocation,
+    pub identifier: Identifier,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
@@ -39,20 +39,20 @@ pub struct ThisExpression {
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct LiteralExpression {
-    pub value: Literal,
     pub loc: SourceLocation,
+    pub value: Literal,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct ArrayExpression {
-    pub declared_elements: Vec<Expression>,
     pub loc: SourceLocation,
+    pub declared_elements: Vec<Expression>,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct ObjectExpression {
-    pub declared_properties: Vec<DeclaredProperty>,
     pub loc: SourceLocation,
+    pub declared_properties: Vec<DeclaredProperty>,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
@@ -71,48 +71,48 @@ pub struct DeclaredProperty {
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct FunctionExpression {
+    pub loc: SourceLocation,
     pub binding: Option<Identifier>,
     pub formal_parameters: Vec<Identifier>,
     pub body: Block,
-    pub loc: SourceLocation,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct AssignmentExpression {
+    pub loc: SourceLocation,
     pub op: AssignmentOperator,
     pub lhs: Box<Expression>,
     pub rhs: Box<Expression>,
-    pub loc: SourceLocation,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct BinaryExpression {
+    pub loc: SourceLocation,
     pub op: BinaryOperator,
     pub lhs: Box<Expression>,
     pub rhs: Box<Expression>,
-    pub loc: SourceLocation,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct RelationalExpression {
+    pub loc: SourceLocation,
     pub op: RelationalOperator,
     pub lhs: Box<Expression>,
     pub rhs: Box<Expression>,
-    pub loc: SourceLocation,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct UnaryExpression {
+    pub loc: SourceLocation,
     pub op: UnaryOperator,
     pub operand: Box<Expression>,
-    pub loc: SourceLocation,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct UpdateExpression {
+    pub loc: SourceLocation,
     pub op: UpdateOperator,
     pub operand: Box<Expression>,
-    pub loc: SourceLocation,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
@@ -124,37 +124,37 @@ pub enum MemberExpression {
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct MemberAccessExpression {
+    pub loc: SourceLocation,
     pub base: Box<Expression>,
     pub member: Identifier,
-    pub loc: SourceLocation,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct ComputedMemberAccessExpression {
+    pub loc: SourceLocation,
     pub base: Box<Expression>,
     pub member: Box<Expression>,
-    pub loc: SourceLocation,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct FunctionCallExpression {
+    pub loc: SourceLocation,
     pub function: Box<Expression>,
     pub arguments: Vec<Expression>,
-    pub loc: SourceLocation,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct GroupingExpression {
-    pub inner: Box<Expression>,
     pub loc: SourceLocation,
+    pub inner: Box<Expression>,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct TernaryExpression {
+    pub loc: SourceLocation,
     pub condition: Box<Expression>,
     pub lhs: Box<Expression>,
     pub rhs: Box<Expression>,
-    pub loc: SourceLocation,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]

@@ -55,11 +55,11 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                         }))
                     })
                     .collect();
-                Block::new(vec![decl], initialisers, loc)
+                Block::new(loc, vec![decl], initialisers)
             }
             node => {
                 let loc = node.source_location().clone();
-                Block::new(vec![], vec![node], loc)
+                Block::new(loc, vec![], vec![node])
             }
         })
     }
@@ -92,7 +92,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                 node => body.push(node),
             }
         }
-        Ok(Block::new(hoisted_decls, body, loc))
+        Ok(Block::new(loc, hoisted_decls, body))
     }
 
     pub(super) fn parse_declaration_or_statement(&mut self) -> Result<BlockItem> {

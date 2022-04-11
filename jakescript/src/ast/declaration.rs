@@ -16,17 +16,17 @@ pub enum Declaration {
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct FunctionDeclaration {
+    pub loc: SourceLocation,
     pub binding: Identifier,
     pub formal_parameters: Vec<Identifier>,
     pub body: Block,
-    pub loc: SourceLocation,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct VariableDeclaration {
+    pub loc: SourceLocation,
     pub kind: VariableDeclarationKind,
     pub bindings: Vec<VariableBinding>,
-    pub loc: SourceLocation,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
@@ -38,9 +38,9 @@ pub enum VariableDeclarationKind {
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct VariableBinding {
+    pub loc: SourceLocation,
     pub identifier: Identifier,
     pub initialiser: Option<Expression>,
-    pub loc: SourceLocation,
 }
 
 impl Declaration {

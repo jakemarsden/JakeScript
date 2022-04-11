@@ -61,11 +61,11 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             if let Some(elem) = self.source.peek()? && elem.keyword() == Some(If) {
                 // Recursively parse `else if { .. }` blocks
                 let else_if_stmt = self.parse_if_statement()?;
-                let else_if_loc =else_if_stmt.source_location().clone();
+                let else_if_loc = else_if_stmt.source_location().clone();
                 Some(Block::new(
+                    else_if_loc,
                     vec![],
                     vec![BlockItem::Statement(Statement::If(else_if_stmt))],
-                    else_if_loc,
                 ))
             } else {
                 // Parse `else { .. }` blocks
@@ -75,10 +75,10 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             None
         };
         Ok(IfStatement {
+            loc,
             condition,
             body,
             else_body,
-            loc,
         })
     }
 
@@ -122,10 +122,10 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         }
         self.expect_punctuator(CloseBrace)?;
         Ok(SwitchStatement {
+            loc,
             value,
             cases,
             default_case,
-            loc,
         })
     }
 
@@ -138,9 +138,9 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         self.skip_non_tokens()?;
         let body = self.parse_case_statement_body()?;
         Ok(CaseStatement {
+            loc,
             expected,
             body,
-            loc,
         })
     }
 
@@ -150,7 +150,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         self.expect_punctuator(Colon)?;
         self.skip_non_tokens()?;
         let body = self.parse_case_statement_body()?;
-        Ok(DefaultCaseStatement { body, loc })
+        Ok(DefaultCaseStatement { loc, body })
     }
 
     fn parse_case_statement_body(&mut self) -> Result<Vec<BlockItem>> {
@@ -184,9 +184,9 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         self.skip_non_tokens()?;
         self.expect_punctuator(Semi)?;
         Ok(DoStatement {
+            loc,
             body,
             condition,
-            loc,
         })
     }
 
@@ -201,9 +201,9 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         self.skip_non_tokens()?;
         let body = self.parse_block(Braces::Allow)?;
         Ok(WhileStatement {
+            loc,
             condition,
             body,
-            loc,
         })
     }
 
@@ -239,11 +239,11 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
 
         let body = self.parse_block(Braces::Allow)?;
         Ok(ForStatement {
+            loc,
             initialiser,
             condition,
             incrementor,
             body,
-            loc,
         })
     }
 
@@ -270,7 +270,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         };
         self.skip_non_tokens()?;
         self.expect_punctuator(Semi)?;
-        Ok(ReturnStatement { value, loc })
+        Ok(ReturnStatement { loc, value })
     }
 
     fn parse_throw_statement(&mut self) -> Result<ThrowStatement> {
@@ -279,7 +279,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         let exception = self.parse_expression()?;
         self.skip_non_tokens()?;
         self.expect_punctuator(Semi)?;
-        Ok(ThrowStatement { exception, loc })
+        Ok(ThrowStatement { loc, exception })
     }
 
     fn parse_try_statement(&mut self) -> Result<TryStatement> {
@@ -301,10 +301,10 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
 
         if catch.is_some() || finally.is_some() {
             Ok(TryStatement {
+                loc,
                 body,
                 catch,
                 finally,
-                loc,
             })
         } else {
             Err(Error::unexpected(
@@ -333,9 +333,9 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         self.skip_non_tokens()?;
         let body = self.parse_block(Braces::Require)?;
         Ok(ast::CatchStatement {
+            loc,
             parameter,
             body,
-            loc,
         })
     }
 
@@ -343,6 +343,6 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         let loc = self.expect_keyword(Finally)?;
         self.skip_non_tokens()?;
         let body = self.parse_block(Braces::Require)?;
-        Ok(ast::FinallyStatement { body, loc })
+        Ok(ast::FinallyStatement { loc, body })
     }
 }
