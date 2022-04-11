@@ -13,9 +13,9 @@ pub enum Statement {
 
     If(IfStatement),
     Switch(SwitchStatement),
-    WhileLoop(WhileStatement),
-    DoWhileLoop(DoWhileStatement),
-    ForLoop(ForStatement),
+    Do(DoStatement),
+    While(WhileStatement),
+    For(ForStatement),
 
     Continue(ContinueStatement),
     Break(BreakStatement),
@@ -40,21 +40,28 @@ pub struct IfStatement {
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct SwitchStatement {
     pub value: Expression,
-    pub cases: Vec<SwitchCase>,
-    pub default_case: Option<DefaultSwitchCase>,
+    pub cases: Vec<CaseStatement>,
+    pub default_case: Option<DefaultCaseStatement>,
     pub loc: SourceLocation,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct SwitchCase {
+pub struct CaseStatement {
     pub expected: Expression,
     pub body: Vec<BlockItem>,
     pub loc: SourceLocation,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct DefaultSwitchCase {
+pub struct DefaultCaseStatement {
     pub body: Vec<BlockItem>,
+    pub loc: SourceLocation,
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct DoStatement {
+    pub body: Block,
+    pub condition: Expression,
     pub loc: SourceLocation,
 }
 
@@ -62,13 +69,6 @@ pub struct DefaultSwitchCase {
 pub struct WhileStatement {
     pub condition: Expression,
     pub body: Block,
-    pub loc: SourceLocation,
-}
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct DoWhileStatement {
-    pub body: Block,
-    pub condition: Expression,
     pub loc: SourceLocation,
 }
 
@@ -108,20 +108,20 @@ pub struct ThrowStatement {
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct TryStatement {
     pub body: Block,
-    pub catch: Option<Catch>,
-    pub finally: Option<Finally>,
+    pub catch: Option<CatchStatement>,
+    pub finally: Option<FinallyStatement>,
     pub loc: SourceLocation,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct Catch {
+pub struct CatchStatement {
     pub parameter: Option<Identifier>,
     pub body: Block,
     pub loc: SourceLocation,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct Finally {
+pub struct FinallyStatement {
     pub body: Block,
     pub loc: SourceLocation,
 }
@@ -130,11 +130,13 @@ impl Node for Statement {
     fn source_location(&self) -> &SourceLocation {
         match self {
             Self::Expression(node) => node.source_location(),
+
             Self::If(node) => node.source_location(),
             Self::Switch(node) => node.source_location(),
-            Self::WhileLoop(node) => node.source_location(),
-            Self::DoWhileLoop(node) => node.source_location(),
-            Self::ForLoop(node) => node.source_location(),
+            Self::Do(node) => node.source_location(),
+            Self::While(node) => node.source_location(),
+            Self::For(node) => node.source_location(),
+
             Self::Continue(node) => node.source_location(),
             Self::Break(node) => node.source_location(),
             Self::Return(node) => node.source_location(),
@@ -162,25 +164,25 @@ impl Node for SwitchStatement {
     }
 }
 
-impl Node for SwitchCase {
+impl Node for CaseStatement {
     fn source_location(&self) -> &SourceLocation {
         &self.loc
     }
 }
 
-impl Node for DefaultSwitchCase {
+impl Node for DefaultCaseStatement {
+    fn source_location(&self) -> &SourceLocation {
+        &self.loc
+    }
+}
+
+impl Node for DoStatement {
     fn source_location(&self) -> &SourceLocation {
         &self.loc
     }
 }
 
 impl Node for WhileStatement {
-    fn source_location(&self) -> &SourceLocation {
-        &self.loc
-    }
-}
-
-impl Node for DoWhileStatement {
     fn source_location(&self) -> &SourceLocation {
         &self.loc
     }
@@ -222,13 +224,13 @@ impl Node for TryStatement {
     }
 }
 
-impl Node for Catch {
+impl Node for CatchStatement {
     fn source_location(&self) -> &SourceLocation {
         &self.loc
     }
 }
 
-impl Node for Finally {
+impl Node for FinallyStatement {
     fn source_location(&self) -> &SourceLocation {
         &self.loc
     }

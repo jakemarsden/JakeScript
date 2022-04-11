@@ -11,9 +11,9 @@ impl Eval for Statement {
             Self::Expression(node) => node.eval(it),
             Self::If(node) => node.eval(it),
             Self::Switch(node) => node.eval(it),
-            Self::WhileLoop(node) => node.eval(it),
-            Self::DoWhileLoop(node) => node.eval(it),
-            Self::ForLoop(node) => node.eval(it),
+            Self::While(node) => node.eval(it),
+            Self::Do(node) => node.eval(it),
+            Self::For(node) => node.eval(it),
             Self::Continue(node) => node.eval(it),
             Self::Break(node) => node.eval(it),
             Self::Return(node) => node.eval(it),
@@ -87,7 +87,7 @@ impl Eval for SwitchStatement {
     }
 }
 
-impl Eval for SwitchCase {
+impl Eval for CaseStatement {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         for stmt in &self.body {
             if !matches!(it.vm().execution_state(), ExecutionState::Advance) {
@@ -99,7 +99,7 @@ impl Eval for SwitchCase {
     }
 }
 
-impl Eval for DefaultSwitchCase {
+impl Eval for DefaultCaseStatement {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         for stmt in &self.body {
             if !matches!(it.vm().execution_state(), ExecutionState::Advance) {
@@ -144,7 +144,7 @@ impl Eval for WhileStatement {
     }
 }
 
-impl Eval for DoWhileStatement {
+impl Eval for DoStatement {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         loop {
             it.vm_mut().stack_mut().frame_mut().push_empty_scope();
@@ -275,7 +275,7 @@ impl Eval for TryStatement {
     }
 }
 
-impl Eval for Catch {
+impl Eval for CatchStatement {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let exception = it.vm_mut().clear_exception().unwrap();
         if let Some(ref exception_var_name) = self.parameter {
@@ -295,7 +295,7 @@ impl Eval for Catch {
     }
 }
 
-impl Eval for Finally {
+impl Eval for FinallyStatement {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         it.vm_mut().hide_current_exception();
         let result = self.body.eval(it).map(|_| ());

@@ -253,6 +253,7 @@ impl Node for Expression {
             Self::Array(node) => node.source_location(),
             Self::Object(node) => node.source_location(),
             Self::Function(node) => node.source_location(),
+
             Self::Assignment(node) => node.source_location(),
             Self::Binary(node) => node.source_location(),
             Self::Relational(node) => node.source_location(),

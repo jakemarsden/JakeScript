@@ -21,6 +21,7 @@ impl Eval for Expression {
             Self::Array(ref node) => node.eval(it),
             Self::Object(ref node) => node.eval(it),
             Self::Function(ref node) => node.eval(it),
+
             Self::Assignment(ref node) => node.eval(it),
             Self::Binary(ref node) => node.eval(it),
             Self::Relational(ref node) => node.eval(it),
@@ -53,6 +54,21 @@ impl Eval for IdentifierReferenceExpression {
                 .get(it, &PropertyKey::from(&self.identifier), receiver)
                 .map_err(|err| Error::new(err, self.source_location()))
         }
+    }
+}
+
+impl Eval for ThisExpression {
+    type Output = Value;
+
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
+        Ok(Value::Object(
+            it.vm()
+                .stack()
+                .frame()
+                .receiver()
+                .cloned()
+                .unwrap_or_else(|| it.vm().runtime().global_object_ref().clone()),
+        ))
     }
 }
 

@@ -5,21 +5,6 @@ use super::{Eval, Interpreter};
 use crate::ast::*;
 use std::collections::HashMap;
 
-impl Eval for ThisExpression {
-    type Output = Value;
-
-    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        Ok(Value::Object(
-            it.vm()
-                .stack()
-                .frame()
-                .receiver()
-                .cloned()
-                .unwrap_or_else(|| it.vm().runtime().global_object_ref().clone()),
-        ))
-    }
-}
-
 impl Eval for LiteralExpression {
     type Output = Value;
 
