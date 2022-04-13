@@ -12,4 +12,4 @@ console.assertEqual(true, true, "console.assertEqual", "is broken");
 console.assert(console.assertNotReached);
 
 console.assert(console.log);
-console.log("console.log", "console.log", "message");
+console.log("console.log", "message");
