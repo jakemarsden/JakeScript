@@ -34,8 +34,8 @@ impl String {
 
     // unnecessary_wraps: Required to conform to `NativeSet`.
     #[allow(clippy::unnecessary_wraps)]
-    fn set_length(_: &mut Interpreter, _: Reference, _: Value) -> Result<(), ErrorKind> {
-        Ok(())
+    fn set_length(_: &mut Interpreter, _: Reference, _: Value) -> Result<bool, ErrorKind> {
+        Ok(false)
     }
 }
 

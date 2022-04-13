@@ -175,9 +175,15 @@ impl Object {
         it: &Interpreter,
         key: &PropertyKey,
         receiver: Reference,
-    ) -> Result<Value, ErrorKind> {
-        self.get_impl(it, key, receiver)
-            .map(Option::unwrap_or_default)
+    ) -> Result<Option<Value>, ErrorKind> {
+        if let Some(prop) = self.own_property(key) {
+            prop.get(it, receiver).map(Some)
+        } else if let Some(proto_ref) = self.prototype() {
+            let proto_obj = it.vm().heap().resolve(proto_ref);
+            proto_obj.get(it, key, receiver)
+        } else {
+            Ok(None)
+        }
     }
 
     pub fn set(
@@ -186,12 +192,18 @@ impl Object {
         key: &PropertyKey,
         receiver: Reference,
         value: Value,
-    ) -> Result<(), ErrorKind> {
-        let set = self.set_impl(it, key, receiver, value.clone())?.is_some();
-        if !set {
+    ) -> Result<bool, ErrorKind> {
+        if let Some(prop) = self.own_property_mut(key) {
+            prop.set(it, receiver, value)
+        } else if let Some(proto_ref) = self.prototype() {
+            let mut proto_obj = it.vm_mut().heap_mut().resolve_mut(proto_ref);
+            proto_obj.set(it, key, receiver, value)
+        } else if matches!(self.extensible(), Extensible::Yes) {
             self.define_own_property(key.clone(), Property::new(value, Writable::Yes));
+            Ok(true)
+        } else {
+            Ok(false)
         }
-        Ok(())
     }
 
     pub fn call_data(&self) -> Option<&Call> {
@@ -221,39 +233,6 @@ impl Object {
             data.to_owned()
         } else {
             "[object Object]".to_owned()
-        }
-    }
-
-    fn get_impl(
-        &self,
-        it: &Interpreter,
-        key: &PropertyKey,
-        receiver: Reference,
-    ) -> Result<Option<Value>, ErrorKind> {
-        if let Some(prop) = self.own_property(key) {
-            prop.get(it, receiver).map(Some)
-        } else if let Some(proto_ref) = self.prototype() {
-            let proto_obj = it.vm().heap().resolve(proto_ref);
-            proto_obj.get_impl(it, key, receiver)
-        } else {
-            Ok(None)
-        }
-    }
-
-    fn set_impl(
-        &mut self,
-        it: &mut Interpreter,
-        key: &PropertyKey,
-        receiver: Reference,
-        value: Value,
-    ) -> Result<Option<()>, ErrorKind> {
-        if let Some(prop) = self.own_property_mut(key) {
-            prop.set(it, receiver, value).map(Some)
-        } else if let Some(proto_ref) = self.prototype() {
-            let mut proto_obj = it.vm_mut().heap_mut().resolve_mut(proto_ref);
-            proto_obj.set_impl(it, key, receiver, value)
-        } else {
-            Ok(None)
         }
     }
 }
@@ -334,14 +313,14 @@ impl Property {
         it: &mut Interpreter,
         receiver: Reference,
         value: Value,
-    ) -> Result<(), ErrorKind> {
+    ) -> Result<bool, ErrorKind> {
         if let Some(ref native) = self.set {
             native.set(it, receiver, value)
         } else if matches!(self.writable(), Writable::Yes) {
             self.value = value;
-            Ok(())
+            Ok(true)
         } else {
-            Ok(())
+            Ok(false)
         }
     }
 

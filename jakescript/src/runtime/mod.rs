@@ -76,7 +76,7 @@ pub trait Builtin {
 pub struct NativeGet(&'static dyn Fn(&Interpreter, Reference) -> Result<Value, ErrorKind>);
 
 #[derive(Clone)]
-pub struct NativeSet(&'static dyn Fn(&mut Interpreter, Reference, Value) -> Result<(), ErrorKind>);
+pub struct NativeSet(&'static dyn Fn(&mut Interpreter, Reference, Value) -> Result<bool, ErrorKind>);
 
 #[derive(Clone)]
 pub struct NativeCall(
@@ -131,14 +131,14 @@ impl NativeSet {
         it: &mut Interpreter,
         receiver: Reference,
         value: Value,
-    ) -> Result<(), ErrorKind> {
+    ) -> Result<bool, ErrorKind> {
         (self.0)(it, receiver, value)
     }
 }
 
 impl<F> From<&'static F> for NativeSet
 where
-    F: Fn(&mut Interpreter, Reference, Value) -> Result<(), ErrorKind>,
+    F: Fn(&mut Interpreter, Reference, Value) -> Result<bool, ErrorKind>,
 {
     fn from(f: &'static F) -> Self {
         Self(f)

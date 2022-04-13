@@ -1,4 +1,4 @@
-use super::error::{Error, ErrorKind, NotCallableError, Result};
+use super::error::{Error, ErrorKind, NotCallableError, Result, VariableNotDefinedError};
 use super::heap::Reference;
 use super::object::{Call, PropertyKey, UserFunction};
 use super::stack::{ScopeCtx, Variable, VariableKind};
@@ -8,7 +8,6 @@ use super::{Eval, Interpreter};
 use crate::ast::*;
 use crate::runtime::NativeCall;
 use std::assert_matches::assert_matches;
-use std::hint::unreachable_unchecked;
 
 impl Eval for Expression {
     type Output = Value;
@@ -52,7 +51,8 @@ impl Eval for IdentifierReferenceExpression {
             it.vm()
                 .global_object()
                 .get(it, &PropertyKey::from(&self.identifier), receiver)
-                .map_err(|err| Error::new(err, self.source_location()))
+                .map_err(|err| Error::new(err, self.source_location()))?
+                .ok_or_else(|| Error::new(VariableNotDefinedError, self.source_location()))
         }
     }
 }
@@ -76,93 +76,40 @@ impl Eval for AssignmentExpression {
     type Output = Value;
 
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        fn compute_new_value(
-            self_: &AssignmentExpression,
-            it: &mut Interpreter,
-            getter: impl FnOnce(&Interpreter) -> std::result::Result<Value, ErrorKind>,
-        ) -> Result {
-            let rhs = self_.rhs.eval(it)?;
-            let getter = |it| getter(it).map_err(|err| Error::new(err, self_.source_location()));
-            let result = match self_.op {
-                AssignmentOperator::Assign => Ok(rhs),
-                AssignmentOperator::ComputeAssign(BinaryOperator::Addition) => {
-                    it.add_or_concat(&getter(it)?, &rhs)
-                }
-                AssignmentOperator::ComputeAssign(BinaryOperator::Subtraction) => {
-                    it.sub(&getter(it)?, &rhs)
-                }
-                AssignmentOperator::ComputeAssign(BinaryOperator::Multiplication) => {
-                    it.mul(&getter(it)?, &rhs)
-                }
-                AssignmentOperator::ComputeAssign(BinaryOperator::Division) => {
-                    it.div(&getter(it)?, &rhs)
-                }
-                AssignmentOperator::ComputeAssign(BinaryOperator::Modulus) => {
-                    it.rem(&getter(it)?, &rhs)
-                }
-                AssignmentOperator::ComputeAssign(BinaryOperator::Exponentiation) => {
-                    it.pow(&getter(it)?, &rhs)
-                }
-                kind @ AssignmentOperator::ComputeAssign(..) => {
-                    todo!("AssignmentExpression::eval: kind={:?}", kind)
-                }
-            };
-            result.map_err(|err| Error::new(err, self_.source_location()))
-        }
+        let map_err = |err: ErrorKind| Error::new(err, self.source_location());
+        let compute_updated = |it: &mut Interpreter, lhs: &Value| match self.op {
+            AssignmentOperator::Assign => {
+                let rhs = self.rhs.eval(it)?;
+                Ok((rhs.clone(), rhs))
+            }
+            AssignmentOperator::ComputeAssign(op) => {
+                let rhs = self.rhs.eval(it)?;
+                it.eval_binary_op(op, lhs, &rhs)
+                    .map(|result_value| (result_value.clone(), result_value))
+                    .map_err(map_err)
+            }
+        };
 
         assert_matches!(self.op.associativity(), Associativity::RightToLeft);
         match self.lhs.as_ref() {
-            Expression::IdentifierReference(node) => {
-                if let Some(mut variable) = it
-                    .vm()
-                    .stack()
-                    .frame()
-                    .scope()
-                    .lookup_variable(&node.identifier)
-                {
-                    let new_value = compute_new_value(self, it, |_| Ok(variable.value().clone()))?;
-                    variable
-                        .set_value(new_value.clone())
-                        .map_err(|err| Error::new(err, self.source_location()))?;
-                    Ok(new_value)
-                } else {
-                    let key = PropertyKey::from(&node.identifier);
-                    let global_obj_ref = it.vm().runtime().global_object_ref().clone();
-                    let value = it
-                        .vm()
-                        .global_object()
-                        .get(it, &key, global_obj_ref.clone())
-                        .map_err(|err| Error::new(err, self.source_location()))?;
-                    let new_value = compute_new_value(self, it, |_| Ok(value.clone()))?;
-
-                    it.vm_mut()
-                        .heap_mut()
-                        .resolve_mut(&global_obj_ref.clone())
-                        .set(it, &key, global_obj_ref, value.clone())
-                        .map_err(|err| Error::new(err, self.source_location()))?;
-                    Ok(new_value)
+            Expression::IdentifierReference(lhs_node) => it
+                .update_variable_or_global_object_property(
+                    &lhs_node.identifier,
+                    compute_updated,
+                    map_err,
+                ),
+            Expression::Member(MemberExpression::MemberAccess(lhs_node)) => {
+                match lhs_node.base.eval(it)? {
+                    Value::Object(lhs_ref) => it.update_object_property(
+                        &lhs_ref,
+                        &PropertyKey::from(&lhs_node.member),
+                        compute_updated,
+                        map_err,
+                    ),
+                    lhs => todo!("AssignmentExpression::eval: base_value={:?}", lhs),
                 }
             }
-            Expression::Member(MemberExpression::MemberAccess(node)) => {
-                let base_value = node.base.eval(it)?;
-                match base_value {
-                    Value::Object(ref base_refr) => {
-                        let key = PropertyKey::from(&node.member);
-                        let mut base_obj = it.vm_mut().heap_mut().resolve_mut(base_refr);
-                        let new_value = compute_new_value(self, it, |it| {
-                            Ok(base_obj
-                                .get(it, &key, base_refr.clone())
-                                .unwrap_or_default())
-                        })?;
-                        base_obj
-                            .set(it, &key, base_refr.clone(), new_value.clone())
-                            .map_err(|err| Error::new(err, self.source_location()))?;
-                        Ok(new_value)
-                    }
-                    base_value => todo!("AssignmentExpression::eval: base_value={:?}", base_value),
-                }
-            }
-            expr => todo!("AssignmentExpression::eval: lhs={:#?}", expr),
+            lhs => todo!("AssignmentExpression::eval: lhs={:#?}", lhs),
         }
     }
 }
@@ -172,8 +119,6 @@ impl Eval for BinaryExpression {
 
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         Ok(match self.op {
-            // Get the boolean ops out of the way first, since they don't let us eval the RHS
-            // up-front (which is more ergonomic for all the other ops).
             BinaryOperator::LogicalAnd => {
                 assert_matches!(self.op.associativity(), Associativity::LeftToRight);
                 match self.lhs.eval(it)? {
@@ -188,7 +133,6 @@ impl Eval for BinaryExpression {
                     lhs => lhs,
                 }
             }
-
             kind => {
                 let (ref lhs, ref rhs) = match kind.associativity() {
                     Associativity::LeftToRight => {
@@ -202,27 +146,8 @@ impl Eval for BinaryExpression {
                         (lhs, rhs)
                     }
                 };
-                let result = match kind {
-                    // Safety: Unreachable because the possible values are already handled by
-                    // previous match arms in the outer match expression.
-                    BinaryOperator::LogicalAnd | BinaryOperator::LogicalOr => unsafe {
-                        unreachable_unchecked()
-                    },
-
-                    BinaryOperator::Addition => it.add_or_concat(lhs, rhs),
-                    BinaryOperator::Subtraction => it.sub(lhs, rhs),
-                    BinaryOperator::Multiplication => it.mul(lhs, rhs),
-                    BinaryOperator::Division => it.div(lhs, rhs),
-                    BinaryOperator::Modulus => it.rem(lhs, rhs),
-                    BinaryOperator::Exponentiation => it.pow(lhs, rhs),
-                    BinaryOperator::BitwiseAnd => it.bitand(lhs, rhs),
-                    BinaryOperator::BitwiseOr => it.bitor(lhs, rhs),
-                    BinaryOperator::BitwiseXOr => it.bitxor(lhs, rhs),
-                    BinaryOperator::BitwiseLeftShift => it.shl(lhs, rhs),
-                    BinaryOperator::BitwiseRightShift => it.shr_signed(lhs, rhs),
-                    BinaryOperator::BitwiseRightShiftUnsigned => it.shr_unsigned(lhs, rhs),
-                };
-                result.map_err(|err| Error::new(err, self.source_location()))?
+                it.eval_binary_op(kind, lhs, rhs)
+                    .map_err(|err| Error::new(err, self.source_location()))?
             }
         })
     }
@@ -235,17 +160,8 @@ impl Eval for RelationalExpression {
         assert_matches!(self.op.associativity(), Associativity::LeftToRight);
         let lhs = &self.lhs.eval(it)?;
         let rhs = &self.rhs.eval(it)?;
-        let result = match self.op {
-            RelationalOperator::Equality => it.equal(lhs, rhs),
-            RelationalOperator::Inequality => it.not_equal(lhs, rhs),
-            RelationalOperator::StrictEquality => it.strictly_equal(lhs, rhs),
-            RelationalOperator::StrictInequality => it.not_strictly_equal(lhs, rhs),
-            RelationalOperator::GreaterThan => it.gt(lhs, rhs),
-            RelationalOperator::GreaterThanOrEqual => it.ge(lhs, rhs),
-            RelationalOperator::LessThan => it.lt(lhs, rhs),
-            RelationalOperator::LessThanOrEqual => it.le(lhs, rhs),
-        };
-        result.map_err(|err| Error::new(err, self.source_location()))
+        it.eval_relational_op(self.op, lhs, rhs)
+            .map_err(|err| Error::new(err, self.source_location()))
     }
 }
 
@@ -254,13 +170,8 @@ impl Eval for UnaryExpression {
 
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let operand = &self.operand.eval(it)?;
-        let result = match self.op {
-            UnaryOperator::BitwiseNot => it.bitnot(operand),
-            UnaryOperator::LogicalNot => it.not(operand),
-            UnaryOperator::NumericNegation => it.negate(operand),
-            UnaryOperator::NumericPlus => it.plus(operand),
-        };
-        result.map_err(|err| Error::new(err, self.source_location()))
+        it.eval_unary_op(self.op, operand)
+            .map_err(|err| Error::new(err, self.source_location()))
     }
 }
 
@@ -268,101 +179,32 @@ impl Eval for UpdateExpression {
     type Output = Value;
 
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        fn compute(
-            self_: &UpdateExpression,
-            it: &mut Interpreter,
-            getter: impl FnOnce(&Interpreter) -> std::result::Result<Value, ErrorKind>,
-        ) -> Result<(Value, Value)> {
-            let old_value = getter(it).map_err(|err| Error::new(err, self_.source_location()))?;
-
-            // The new value to assign to the variable or property
-            let new_value = match self_.op {
-                UpdateOperator::GetAndIncrement | UpdateOperator::IncrementAndGet => {
-                    it.add(&old_value, &Value::Number(Number::Int(1)))
-                }
-                UpdateOperator::GetAndDecrement | UpdateOperator::DecrementAndGet => {
-                    it.sub(&old_value, &Value::Number(Number::Int(1)))
-                }
-            }
-            .map_err(|err| Error::new(err, self_.source_location()))?;
-            // The value to use as the result of the expression
-            let result_value = match self_.op {
-                UpdateOperator::GetAndIncrement | UpdateOperator::GetAndDecrement => old_value,
-                UpdateOperator::IncrementAndGet | UpdateOperator::DecrementAndGet => {
-                    new_value.clone()
-                }
-            };
-            Ok((new_value, result_value))
-        }
+        let map_err = |err: ErrorKind| Error::new(err, self.source_location());
+        let compute_updated = |it: &mut Interpreter, operand: &Value| {
+            it.eval_update_op(self.op, operand).map_err(map_err)
+        };
 
         assert_matches!(self.op.associativity(), Associativity::RightToLeft);
-        Ok(match self.operand.as_ref() {
-            Expression::IdentifierReference(node) => {
-                if let Some(mut variable) = it
-                    .vm()
-                    .stack()
-                    .frame()
-                    .scope()
-                    .lookup_variable(&node.identifier)
-                {
-                    let (new_value, result_value) =
-                        compute(self, it, |_| Ok(variable.value().clone()))?;
-                    variable
-                        .set_value(new_value)
-                        .map_err(|err| Error::new(err, self.source_location()))?;
-                    result_value
-                } else {
-                    let global_obj_ref = it.vm().runtime().global_object_ref().clone();
-                    let value = it
-                        .vm()
-                        .global_object()
-                        .get(
-                            it,
-                            &PropertyKey::from(&node.identifier),
-                            global_obj_ref.clone(),
-                        )
-                        .map_err(|err| Error::new(err, self.source_location()))?;
-                    let (new_value, result_value) = compute(self, it, |_| Ok(value.clone()))?;
-
-                    let mut global_obj = it.vm_mut().heap_mut().resolve_mut(&global_obj_ref);
-                    global_obj
-                        .set(
-                            it,
-                            &PropertyKey::from(&node.identifier),
-                            global_obj_ref.clone(),
-                            new_value,
-                        )
-                        .map_err(|err| Error::new(err, self.source_location()))?;
-                    result_value
+        match self.operand.as_ref() {
+            Expression::IdentifierReference(operand_node) => it
+                .update_variable_or_global_object_property(
+                    &operand_node.identifier,
+                    compute_updated,
+                    map_err,
+                ),
+            Expression::Member(MemberExpression::MemberAccess(operand_node)) => {
+                match operand_node.base.eval(it)? {
+                    Value::Object(operand_ref) => it.update_object_property(
+                        &operand_ref,
+                        &PropertyKey::from(&operand_node.member),
+                        compute_updated,
+                        map_err,
+                    ),
+                    operand => todo!("UpdateExpression::eval: operand={:?}", operand),
                 }
             }
-            Expression::Member(MemberExpression::MemberAccess(node)) => {
-                let base_value = node.base.eval(it)?;
-                match base_value {
-                    Value::Object(ref base_refr) => {
-                        let mut base_obj = it.vm_mut().heap_mut().resolve_mut(base_refr);
-                        let (new_value, result_value) = compute(self, it, |it| {
-                            Ok(base_obj
-                                .get(it, &PropertyKey::from(&node.member), base_refr.clone())
-                                .unwrap_or_default())
-                        })?;
-                        base_obj
-                            .set(
-                                it,
-                                &PropertyKey::from(&node.member),
-                                base_refr.clone(),
-                                new_value,
-                            )
-                            .map_err(|err| Error::new(err, self.source_location()))?;
-                        result_value
-                    }
-                    base_value => {
-                        todo!("AssignmentExpression::eval: base_value={:?}", base_value)
-                    }
-                }
-            }
-            expr => todo!("UnaryExpression::eval: operand={:#?}", expr),
-        })
+            operand => todo!("UpdateExpression::eval: operand={:#?}", operand),
+        }
     }
 }
 
@@ -388,6 +230,7 @@ impl Eval for MemberAccessExpression {
                 let base_obj = it.vm().heap().resolve(base_refr);
                 Ok(base_obj
                     .get(it, &PropertyKey::from(&self.member), base_refr.clone())
+                    .map_err(|err| Error::new(err, self.source_location()))?
                     .unwrap_or_default())
             }
             base_value => todo!("PropertyAccessExpression::eval: base={:?}", base_value),
@@ -411,6 +254,7 @@ impl Eval for ComputedMemberAccessExpression {
         };
         Ok(base_obj
             .get(it, &PropertyKey::from(&property), base_refr.clone())
+            .map_err(|err| Error::new(err, self.source_location()))?
             .unwrap_or_default())
     }
 }

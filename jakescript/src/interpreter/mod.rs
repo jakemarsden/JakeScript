@@ -5,7 +5,7 @@ pub use stack::*;
 pub use value::*;
 pub use vm::*;
 
-use crate::ast::Node;
+use crate::ast::*;
 use crate::runtime::Builtin;
 use std::cmp;
 use std::collections::HashMap;
@@ -79,6 +79,129 @@ impl Interpreter {
         self.vm_mut()
             .heap_mut()
             .allocate(Object::new_function(f, Extensible::Yes))
+    }
+
+    pub fn update_variable_or_global_object_property(
+        &mut self,
+        key: &Identifier,
+        f: impl FnOnce(&mut Self, &Value) -> Result<(Value, Value)>,
+        e: impl FnOnce(ErrorKind) -> Error,
+    ) -> Result {
+        if let Some(mut var) = self.vm().stack().frame().scope().lookup_variable(key) {
+            let value = var.value().clone();
+            let (result_value, updated_value) = f(self, &value)?;
+            var.set_value(updated_value)
+                .map_err(ErrorKind::from)
+                .map_err(e)?;
+            Ok(result_value)
+        } else {
+            let global_obj_ref = self.vm().runtime().global_object_ref().clone();
+            self.update_object_property(&global_obj_ref, &PropertyKey::from(key), f, e)
+        }
+    }
+
+    pub fn update_object_property(
+        &mut self,
+        base_ref: &Reference,
+        key: &PropertyKey,
+        f: impl FnOnce(&mut Self, &Value) -> Result<(Value, Value)>,
+        e: impl FnOnce(ErrorKind) -> Error,
+    ) -> Result {
+        let value = {
+            let base_obj = self.vm().heap().resolve(base_ref);
+            match base_obj.get(self, key, base_ref.clone()) {
+                Ok(value) => value.unwrap_or_default(),
+                Err(err) => return Err(e(err)),
+            }
+        };
+        let (result_value, updated_value) = f(self, &value)?;
+        self.vm_mut()
+            .heap_mut()
+            .resolve_mut(base_ref)
+            .set(self, key, base_ref.clone(), updated_value)
+            .map_err(e)?;
+        Ok(result_value)
+    }
+
+    pub fn eval_binary_op(
+        &mut self,
+        op: BinaryOperator,
+        lhs: &Value,
+        rhs: &Value,
+    ) -> std::result::Result<Value, ErrorKind> {
+        match op {
+            BinaryOperator::Addition => self.add_or_concat(lhs, rhs),
+            BinaryOperator::Subtraction => self.sub(lhs, rhs),
+            BinaryOperator::Multiplication => self.mul(lhs, rhs),
+            BinaryOperator::Division => self.div(lhs, rhs),
+            BinaryOperator::Modulus => self.rem(lhs, rhs),
+            BinaryOperator::Exponentiation => self.pow(lhs, rhs),
+            BinaryOperator::BitwiseAnd => self.bitand(lhs, rhs),
+            BinaryOperator::BitwiseOr => self.bitor(lhs, rhs),
+            BinaryOperator::BitwiseXOr => self.bitxor(lhs, rhs),
+            BinaryOperator::LogicalAnd => {
+                Ok(Value::Boolean(self.is_truthy(lhs) && self.is_truthy(rhs)))
+            }
+            BinaryOperator::LogicalOr => {
+                Ok(Value::Boolean(self.is_truthy(lhs) || self.is_truthy(rhs)))
+            }
+            BinaryOperator::BitwiseLeftShift => self.shl(lhs, rhs),
+            BinaryOperator::BitwiseRightShift => self.shr_signed(lhs, rhs),
+            BinaryOperator::BitwiseRightShiftUnsigned => self.shr_unsigned(lhs, rhs),
+        }
+    }
+
+    pub fn eval_relational_op(
+        &mut self,
+        op: RelationalOperator,
+        lhs: &Value,
+        rhs: &Value,
+    ) -> std::result::Result<Value, ErrorKind> {
+        match op {
+            RelationalOperator::Equality => self.equal(lhs, rhs),
+            RelationalOperator::Inequality => self.not_equal(lhs, rhs),
+            RelationalOperator::StrictEquality => self.strictly_equal(lhs, rhs),
+            RelationalOperator::StrictInequality => self.not_strictly_equal(lhs, rhs),
+            RelationalOperator::GreaterThan => self.gt(lhs, rhs),
+            RelationalOperator::GreaterThanOrEqual => self.ge(lhs, rhs),
+            RelationalOperator::LessThan => self.lt(lhs, rhs),
+            RelationalOperator::LessThanOrEqual => self.le(lhs, rhs),
+        }
+    }
+
+    pub fn eval_unary_op(
+        &mut self,
+        op: UnaryOperator,
+        operand: &Value,
+    ) -> std::result::Result<Value, ErrorKind> {
+        match op {
+            UnaryOperator::NumericPlus => self.plus(operand),
+            UnaryOperator::NumericNegation => self.negate(operand),
+            UnaryOperator::BitwiseNot => self.bitnot(operand),
+            UnaryOperator::LogicalNot => self.not(operand),
+        }
+    }
+
+    pub fn eval_update_op(
+        &mut self,
+        op: UpdateOperator,
+        operand: &Value,
+    ) -> std::result::Result<(Value, Value), ErrorKind> {
+        let one = Value::Number(Number::Int(1));
+        match op {
+            UpdateOperator::GetAndIncrement => self
+                .add(operand, &one)
+                .map(|updated| (operand.clone(), updated)),
+            UpdateOperator::IncrementAndGet => self
+                .add(operand, &one)
+                .map(|updated| (updated.clone(), updated)),
+            UpdateOperator::GetAndDecrement => self
+                .sub(operand, &one)
+                .map(|updated| (operand.clone(), updated)),
+            UpdateOperator::DecrementAndGet => self
+                .sub(operand, &one)
+                .map(|updated| (updated.clone(), updated)),
+        }
     }
 
     pub fn add_or_concat(
