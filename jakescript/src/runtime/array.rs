@@ -6,11 +6,11 @@ use crate::interpreter::{
 use crate::prop_key;
 use common_macros::hash_map;
 
-pub struct Array {
+pub struct ArrayBuiltin {
     obj_ref: Reference,
 }
 
-impl Array {
+impl ArrayBuiltin {
     fn call(it: &mut Interpreter, _: Reference, args: &[Value]) -> Result<Value, ErrorKind> {
         it.alloc_array(args.to_vec())
             .map(Value::Object)
@@ -36,7 +36,7 @@ impl Array {
     }
 }
 
-impl Builtin for Array {
+impl Builtin for ArrayBuiltin {
     fn init(heap: &mut Heap) -> Result<Self, InitialisationError> {
         let props = hash_map![
             prop_key!("length") => Property::new_native(

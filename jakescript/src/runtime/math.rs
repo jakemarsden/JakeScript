@@ -7,17 +7,17 @@ use crate::{builtin_fn, prop_key};
 use common_macros::hash_map;
 use std::f64::consts::*;
 
-pub struct Math {
+pub struct MathBuiltin {
     obj_ref: Reference,
 }
 
-impl Builtin for Math {
+impl Builtin for MathBuiltin {
     fn init(heap: &mut Heap) -> Result<Self, InitialisationError> {
-        let abs = MathAbs::init(heap)?;
-        let max = MathMax::init(heap)?;
-        let min = MathMin::init(heap)?;
-        let sqrt = MathSqrt::init(heap)?;
-        let trunc = MathTrunc::init(heap)?;
+        let abs = AbsBuiltin::init(heap)?;
+        let max = MaxBuiltin::init(heap)?;
+        let min = MinBuiltin::init(heap)?;
+        let sqrt = SqrtBuiltin::init(heap)?;
+        let trunc = TruncBuiltin::init(heap)?;
 
         let props = hash_map![
             prop_key!("E") => Property::new(Value::Number(Number::Float(E)), Writable::No),
@@ -51,7 +51,7 @@ impl Builtin for Math {
     }
 }
 
-builtin_fn!(MathAbs, Extensible::Yes, (it, _receiver, args) => {
+builtin_fn!(AbsBuiltin, Extensible::Yes, (it, _receiver, args) => {
     let arg = args.first().cloned().unwrap_or_default();
     it.coerce_to_number(&arg)
         .checked_abs()
@@ -59,7 +59,7 @@ builtin_fn!(MathAbs, Extensible::Yes, (it, _receiver, args) => {
         .ok_or(ErrorKind::NumericOverflow(NumericOverflowError))
 });
 
-builtin_fn!(MathMax, Extensible::Yes, (it, _receiver, args) => {
+builtin_fn!(MaxBuiltin, Extensible::Yes, (it, _receiver, args) => {
     let mut acc = Number::NEG_INF;
     for arg in args {
         let n = it.coerce_to_number(arg);
@@ -73,7 +73,7 @@ builtin_fn!(MathMax, Extensible::Yes, (it, _receiver, args) => {
     Ok(Value::Number(acc))
 });
 
-builtin_fn!(MathMin, Extensible::Yes, (it, _receiver, args) => {
+builtin_fn!(MinBuiltin, Extensible::Yes, (it, _receiver, args) => {
     let mut acc = Number::POS_INF;
     for arg in args {
         let n = it.coerce_to_number(arg);
@@ -87,12 +87,12 @@ builtin_fn!(MathMin, Extensible::Yes, (it, _receiver, args) => {
     Ok(Value::Number(acc))
 });
 
-builtin_fn!(MathSqrt, Extensible::Yes, (it, _receiver, args) => {
+builtin_fn!(SqrtBuiltin, Extensible::Yes, (it, _receiver, args) => {
     let arg = args.first().cloned().unwrap_or_default();
     Ok(Value::Number(it.coerce_to_number(&arg).sqrt()))
 });
 
-builtin_fn!(MathTrunc, Extensible::Yes, (it, _receiver, args) => {
+builtin_fn!(TruncBuiltin, Extensible::Yes, (it, _receiver, args) => {
     let arg = args.first().cloned().unwrap_or_default();
     let n = it.coerce_to_number(&arg);
     Ok(Value::Number(if n.is_finite() {

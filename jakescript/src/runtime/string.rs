@@ -7,11 +7,11 @@ use crate::{builtin_fn, prop_key};
 use common_macros::hash_map;
 use std::mem;
 
-pub struct String {
+pub struct StringBuiltin {
     obj_ref: Reference,
 }
 
-impl String {
+impl StringBuiltin {
     fn call(it: &mut Interpreter, _: Reference, args: &[Value]) -> Result<Value, ErrorKind> {
         let arg = args.first();
         let str = arg.map_or_else(std::string::String::default, |arg| it.coerce_to_string(arg));
@@ -39,10 +39,10 @@ impl String {
     }
 }
 
-impl Builtin for String {
+impl Builtin for StringBuiltin {
     fn init(heap: &mut Heap) -> Result<Self, InitialisationError> {
-        let char_at = StringCharAt::init(heap)?;
-        let substring = StringSubstring::init(heap)?;
+        let char_at = CharAtBuiltin::init(heap)?;
+        let substring = SubstringBuiltin::init(heap)?;
 
         let props = hash_map![
             prop_key!("charAt") => Property::new(char_at.as_value(), Writable::Yes),
@@ -69,7 +69,7 @@ impl Builtin for String {
     }
 }
 
-builtin_fn!(StringCharAt, Extensible::Yes, (it, receiver, args) => {
+builtin_fn!(CharAtBuiltin, Extensible::Yes, (it, receiver, args) => {
     let arg = args.first().cloned().unwrap_or_default();
     let idx = {
         let n = it.coerce_to_number(&arg);
@@ -94,7 +94,7 @@ builtin_fn!(StringCharAt, Extensible::Yes, (it, receiver, args) => {
         .map_err(ErrorKind::from)
 });
 
-builtin_fn!(StringSubstring, Extensible::Yes, (it, receiver, args) => {
+builtin_fn!(SubstringBuiltin, Extensible::Yes, (it, receiver, args) => {
     let mut args = args.iter();
     let start_idx = args.next().cloned().unwrap_or_default();
     let end_idx = args.next().cloned().unwrap_or_default();

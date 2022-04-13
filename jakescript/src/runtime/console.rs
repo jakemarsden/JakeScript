@@ -6,16 +6,16 @@ use crate::interpreter::{
 use crate::{builtin_fn, non_empty_str, prop_key};
 use common_macros::hash_map;
 
-pub struct Console {
+pub struct ConsoleBuiltin {
     obj_ref: Reference,
 }
 
-impl Builtin for Console {
+impl Builtin for ConsoleBuiltin {
     fn init(heap: &mut Heap) -> Result<Self, InitialisationError> {
-        let assert = ConsoleAssert::init(heap)?;
-        let assert_equal = ConsoleAssertEqual::init(heap)?;
-        let assert_not_reached = ConsoleAssertNotReached::init(heap)?;
-        let log = ConsoleLog::init(heap)?;
+        let assert = AssertBuiltin::init(heap)?;
+        let assert_equal = AssertEqualBuiltin::init(heap)?;
+        let assert_not_reached = AssertNotReachedBuiltin::init(heap)?;
+        let log = LogBuiltin::init(heap)?;
 
         let props = hash_map![
             prop_key!("assert") => Property::new(assert.as_value(), Writable::Yes),
@@ -36,7 +36,7 @@ impl Builtin for Console {
     }
 }
 
-builtin_fn!(ConsoleAssert, Extensible::Yes, (it, _receiver, args) => {
+builtin_fn!(AssertBuiltin, Extensible::Yes, (it, _receiver, args) => {
     let mut args = args.iter();
     let assertion = args.next().unwrap_or(&Value::Undefined);
     if it.is_truthy(assertion) {
@@ -47,7 +47,7 @@ builtin_fn!(ConsoleAssert, Extensible::Yes, (it, _receiver, args) => {
     }
 });
 
-builtin_fn!(ConsoleAssertEqual, Extensible::Yes, (it, _receiver, args) => {
+builtin_fn!(AssertEqualBuiltin, Extensible::Yes, (it, _receiver, args) => {
     fn is_nan(v: &Value) -> bool {
         matches!(v, Value::Number(n) if n.is_nan())
     }
@@ -69,12 +69,12 @@ builtin_fn!(ConsoleAssertEqual, Extensible::Yes, (it, _receiver, args) => {
     }
 });
 
-builtin_fn!(ConsoleAssertNotReached, Extensible::Yes, (it, _receiver, args) => {
+builtin_fn!(AssertNotReachedBuiltin, Extensible::Yes, (it, _receiver, args) => {
     let detail_msg = format!("entered unreachable code: {}", build_msg(it, args.iter()));
     Err(ErrorKind::from(AssertionError::new(detail_msg)))
 });
 
-builtin_fn!(ConsoleLog, Extensible::Yes, (it, _receiver, args) => {
+builtin_fn!(LogBuiltin, Extensible::Yes, (it, _receiver, args) => {
     let msg = build_msg(it, args.iter());
     it.vm_mut().write_message(&msg);
     Ok(Value::Undefined)

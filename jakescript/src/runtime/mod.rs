@@ -13,8 +13,13 @@ mod string;
 
 #[macro_export]
 macro_rules! builtin_fn {
-    ($name:ident, $extensible:expr,($it:ident, $receiver:ident, $args:ident) => $fn_body:expr) => {
-        pub struct $name {
+    (
+        $vis:vis
+        $name:ident,
+        $extensible:expr,
+        ($it:ident, $receiver:ident, $args:ident$(,)?) => $fn_body:expr$(,)?
+    ) => {
+        $vis struct $name {
             obj_ref: $crate::interpreter::Reference,
         }
 
