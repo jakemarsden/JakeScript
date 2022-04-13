@@ -76,7 +76,9 @@ pub trait Builtin {
 pub struct NativeGet(&'static dyn Fn(&Interpreter, Reference) -> Result<Value, ErrorKind>);
 
 #[derive(Clone)]
-pub struct NativeSet(&'static dyn Fn(&mut Interpreter, Reference, Value) -> Result<bool, ErrorKind>);
+pub struct NativeSet(
+    &'static dyn Fn(&mut Interpreter, Reference, Value) -> Result<bool, ErrorKind>,
+);
 
 #[derive(Clone)]
 pub struct NativeCall(
