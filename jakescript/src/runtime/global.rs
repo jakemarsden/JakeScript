@@ -7,7 +7,7 @@ use super::string::StringBuiltin;
 use super::Builtin;
 use crate::interpreter::{
     ExecutionState, Extensible, Heap, InitialisationError, Number, Object, ObjectData, Property,
-    Reference, Value, Writable,
+    Reference, Value,
 };
 use crate::{builtin_fn, prop_key};
 use common_macros::hash_map;
@@ -56,19 +56,19 @@ impl Builtin for GlobalObject {
         let is_nan = IsNanBuiltin::init(heap)?;
 
         let props = hash_map![
-            prop_key!("Infinity") => Property::new(Value::Number(Number::POS_INF), Writable::No),
-            prop_key!("NaN") => Property::new(Value::Number(Number::NAN), Writable::No),
-            prop_key!("undefined") => Property::new(Value::Undefined, Writable::No),
+            prop_key!("Infinity") => Property::new_const(Value::Number(Number::POS_INF)),
+            prop_key!("NaN") => Property::new_const(Value::Number(Number::NAN)),
+            prop_key!("undefined") => Property::new_const(Value::Undefined),
 
-            prop_key!("Array") => Property::new(array.as_value(), Writable::Yes),
-            prop_key!("Boolean") => Property::new(boolean.as_value(), Writable::Yes),
-            prop_key!("Math") => Property::new(math.as_value(), Writable::Yes),
-            prop_key!("Number") => Property::new(number.as_value(), Writable::Yes),
-            prop_key!("String") => Property::new(string.as_value(), Writable::Yes),
+            prop_key!("Array") => Property::new_user(array.as_value()),
+            prop_key!("Boolean") => Property::new_user(boolean.as_value()),
+            prop_key!("Math") => Property::new_user(math.as_value()),
+            prop_key!("Number") => Property::new_user(number.as_value()),
+            prop_key!("String") => Property::new_user(string.as_value()),
 
-            prop_key!("console") => Property::new(console.as_value(), Writable::Yes),
-            prop_key!("exit") => Property::new(exit.as_value(), Writable::Yes),
-            prop_key!("isNaN") => Property::new(is_nan.as_value(), Writable::Yes),
+            prop_key!("console") => Property::new_user(console.as_value()),
+            prop_key!("exit") => Property::new_user(exit.as_value()),
+            prop_key!("isNaN") => Property::new_user(is_nan.as_value()),
         ];
 
         let obj_ref = heap.allocate(Object::new(None, props, ObjectData::None, Extensible::Yes))?;

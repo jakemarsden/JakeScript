@@ -12,6 +12,9 @@ pub struct Error {
 
 #[derive(Clone, Debug)]
 pub enum ErrorKind {
+    /// Required to be able to "upcast" from an [`Error`] to an [`ErrorKind`].
+    Boxed(Box<Error>),
+
     Assertion(AssertionError),
     AssignToConstVariable(AssignToConstVariableError),
     FunctionNotDefined(FunctionNotDefinedError),
@@ -60,15 +63,24 @@ impl Error {
     }
 
     pub fn into_kind(self) -> ErrorKind {
-        self.kind
+        match self.kind {
+            ErrorKind::Boxed(box boxed) => boxed.into_kind(),
+            kind => kind,
+        }
     }
 
     pub fn kind(&self) -> &ErrorKind {
-        &self.kind
+        match self.kind {
+            ErrorKind::Boxed(box ref boxed) => boxed.kind(),
+            ref kind => kind,
+        }
     }
 
     pub fn source_location(&self) -> &SourceLocation {
-        &self.loc
+        match self.kind {
+            ErrorKind::Boxed(box ref boxed) => boxed.source_location(),
+            _ => &self.loc,
+        }
     }
 }
 
@@ -81,6 +93,7 @@ impl fmt::Display for Error {
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         Some(match self.kind() {
+            ErrorKind::Boxed(box boxed) => return boxed.source(),
             ErrorKind::Assertion(source) => source,
             ErrorKind::AssignToConstVariable(source) => source,
             ErrorKind::FunctionNotDefined(source) => source,
@@ -96,6 +109,7 @@ impl std::error::Error for Error {
 impl fmt::Display for ErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            Self::Boxed(box source) => fmt::Display::fmt(source.kind(), f),
             Self::Assertion(source) => write!(f, "{}", source),
             Self::AssignToConstVariable(source) => write!(f, "{}", source),
             Self::FunctionNotDefined(source) => write!(f, "{}", source),

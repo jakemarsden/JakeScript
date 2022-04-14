@@ -1,7 +1,7 @@
 use super::Builtin;
 use crate::interpreter::{
     ErrorKind, Extensible, Heap, InitialisationError, Number, NumericOverflowError, Object,
-    ObjectData, Property, Reference, Value, Writable,
+    ObjectData, Property, Reference, Value,
 };
 use crate::{builtin_fn, prop_key};
 use common_macros::hash_map;
@@ -20,26 +20,22 @@ impl Builtin for MathBuiltin {
         let trunc = TruncBuiltin::init(heap)?;
 
         let props = hash_map![
-            prop_key!("E") => Property::new(Value::Number(Number::Float(E)), Writable::No),
-            prop_key!("LN2") => Property::new(Value::Number(Number::Float(LN_2)), Writable::No),
-            prop_key!("LN10") => Property::new(Value::Number(Number::Float(LN_10)), Writable::No),
-            prop_key!("LOG2E") => Property::new(Value::Number(Number::Float(LOG2_E)), Writable::No),
-            prop_key!("LOG10E") => Property::new(
-                Value::Number(Number::Float(LOG10_E)),
-                Writable::No
+            prop_key!("E") => Property::new_const(Value::Number(Number::Float(E))),
+            prop_key!("LN2") => Property::new_const(Value::Number(Number::Float(LN_2))),
+            prop_key!("LN10") => Property::new_const(Value::Number(Number::Float(LN_10))),
+            prop_key!("LOG2E") => Property::new_const(Value::Number(Number::Float(LOG2_E))),
+            prop_key!("LOG10E") => Property::new_const(Value::Number(Number::Float(LOG10_E))),
+            prop_key!("PI") => Property::new_const(Value::Number(Number::Float(PI))),
+            prop_key!("SQRT1_2") => Property::new_const(
+                Value::Number(Number::Float(FRAC_1_SQRT_2))
             ),
-            prop_key!("PI") => Property::new(Value::Number(Number::Float(PI)), Writable::No),
-            prop_key!("SQRT1_2") => Property::new(
-                Value::Number(Number::Float(FRAC_1_SQRT_2)),
-                Writable::No
-            ),
-            prop_key!("SQRT2") => Property::new(Value::Number(Number::Float(SQRT_2)), Writable::No),
+            prop_key!("SQRT2") => Property::new_const(Value::Number(Number::Float(SQRT_2))),
 
-            prop_key!("abs") => Property::new(abs.as_value(), Writable::Yes),
-            prop_key!("max") => Property::new(max.as_value(), Writable::Yes),
-            prop_key!("min") => Property::new(min.as_value(), Writable::Yes),
-            prop_key!("sqrt") => Property::new(sqrt.as_value(), Writable::Yes),
-            prop_key!("trunc") => Property::new(trunc.as_value(), Writable::Yes),
+            prop_key!("abs") => Property::new_user(abs.as_value()),
+            prop_key!("max") => Property::new_user(max.as_value()),
+            prop_key!("min") => Property::new_user(min.as_value()),
+            prop_key!("sqrt") => Property::new_user(sqrt.as_value()),
+            prop_key!("trunc") => Property::new_user(trunc.as_value()),
         ];
 
         let obj_ref = heap.allocate(Object::new(None, props, ObjectData::None, Extensible::Yes))?;

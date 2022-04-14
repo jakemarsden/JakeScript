@@ -17,6 +17,25 @@ macro_rules! prop_key {
     }};
 }
 
+macro_rules! bool_enum {
+    ($vis:vis $name:ident) => {
+        #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
+        $vis enum $name {
+            No,
+            Yes,
+        }
+
+        impl From<bool> for $name {
+            fn from(b: bool) -> Self {
+                match b {
+                    false => Self::No,
+                    true => Self::Yes,
+                }
+            }
+        }
+    };
+}
+
 pub struct Object {
     proto: Option<Reference>,
     props: HashMap<PropertyKey, Property>,
@@ -35,36 +54,20 @@ pub enum ObjectData {
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct PropertyKey(NonEmptyString);
 
+/// [Table 4 — Default Attribute Values](https://262.ecma-international.org/6.0/#table-4)
 pub struct Property {
     value: Value,
     get: Option<NativeGet>,
     set: Option<NativeSet>,
     writable: Writable,
     enumerable: Enumerable,
+    configurable: Configurable,
 }
 
-macro_rules! bool_enum {
-    ($name:ident) => {
-        #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
-        pub enum $name {
-            No,
-            Yes,
-        }
-
-        impl From<bool> for $name {
-            fn from(b: bool) -> Self {
-                match b {
-                    false => Self::No,
-                    true => Self::Yes,
-                }
-            }
-        }
-    };
-}
-
-bool_enum!(Writable);
-bool_enum!(Enumerable);
-bool_enum!(Extensible);
+bool_enum!(pub Configurable);
+bool_enum!(pub Enumerable);
+bool_enum!(pub Extensible);
+bool_enum!(pub Writable);
 
 #[derive(Clone, Debug)]
 pub enum Call {
@@ -94,7 +97,7 @@ impl Object {
         let props = elems
             .into_iter()
             .enumerate()
-            .map(|(idx, value)| (PropertyKey::from(idx), Property::new(value, Writable::Yes)))
+            .map(|(idx, value)| (PropertyKey::from(idx), Property::new_enumerable(value)))
             .collect();
         Self::new(Some(proto), props, ObjectData::None, extensible)
     }
@@ -106,7 +109,7 @@ impl Object {
     ) -> Self {
         let props = props
             .into_iter()
-            .map(|(key, value)| (key, Property::new(value, Writable::Yes)))
+            .map(|(key, value)| (key, Property::new_user(value)))
             .collect();
         Self::new(proto, props, ObjectData::None, extensible)
     }
@@ -199,7 +202,7 @@ impl Object {
             let mut proto_obj = it.vm_mut().heap_mut().resolve_mut(proto_ref);
             proto_obj.set(it, key, receiver, value)
         } else if matches!(self.extensible(), Extensible::Yes) {
-            self.define_own_property(key.clone(), Property::new(value, Writable::Yes));
+            self.define_own_property(key.clone(), Property::new_user(value));
             Ok(true)
         } else {
             Ok(false)
@@ -275,34 +278,60 @@ impl From<NonEmptyString> for PropertyKey {
 }
 
 impl Property {
-    pub fn new(value: Value, writable: Writable) -> Self {
+    pub fn new_const(value: Value) -> Self {
+        Self::new_data(value, Writable::No, Enumerable::No, Configurable::No)
+    }
+
+    pub fn new_user(value: Value) -> Self {
+        Self::new_data(value, Writable::Yes, Enumerable::No, Configurable::Yes)
+    }
+
+    pub fn new_enumerable(value: Value) -> Self {
+        Self::new_data(value, Writable::Yes, Enumerable::Yes, Configurable::Yes)
+    }
+
+    /// [Table 2 — Attributes of a Data Property](https://262.ecma-international.org/6.0/#table-2)
+    pub fn new_data(
+        value: Value,
+        writable: Writable,
+        enumerable: Enumerable,
+        configurable: Configurable,
+    ) -> Self {
         Self {
             value,
-            set: None,
             get: None,
+            set: None,
             writable,
-            enumerable: Enumerable::Yes,
+            enumerable,
+            configurable,
         }
     }
 
-    pub fn new_native(
-        get: impl Into<NativeGet>,
-        set: impl Into<NativeSet>,
-        writable: Writable,
+    pub fn new_const_accessor(get: impl Into<NativeGet>) -> Self {
+        Self::new_accessor(Some(get.into()), None, Enumerable::No, Configurable::No)
+    }
+
+    /// [Table 3 — Attributes of an Accessor Property](
+    /// https://262.ecma-international.org/6.0/#table-3)
+    pub fn new_accessor(
+        get: Option<NativeGet>,
+        set: Option<NativeSet>,
         enumerable: Enumerable,
+        configurable: Configurable,
     ) -> Self {
         Self {
-            value: Value::default(),
-            get: Some(get.into()),
-            set: Some(set.into()),
-            writable,
+            value: Value::Undefined,
+            get,
+            set,
+            writable: Writable::No,
             enumerable,
+            configurable,
         }
     }
 
     pub fn get(&self, it: &Interpreter, receiver: Reference) -> Result<Value, ErrorKind> {
-        if let Some(ref native) = self.get {
-            native.get(it, receiver)
+        if let Some(ref get) = self.get {
+            get.get(it, receiver)
         } else {
             Ok(self.value.clone())
         }
@@ -330,6 +359,10 @@ impl Property {
 
     pub fn enumerable(&self) -> Enumerable {
         self.enumerable
+    }
+
+    pub fn configurable(&self) -> Configurable {
+        self.configurable
     }
 }
 

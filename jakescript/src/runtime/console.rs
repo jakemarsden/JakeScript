@@ -1,7 +1,7 @@
 use super::Builtin;
 use crate::interpreter::{
     AssertionError, ErrorKind, Extensible, Heap, InitialisationError, Interpreter, Object,
-    ObjectData, Property, Reference, Value, Writable,
+    ObjectData, Property, Reference, Value,
 };
 use crate::{builtin_fn, non_empty_str, prop_key};
 use common_macros::hash_map;
@@ -18,13 +18,10 @@ impl Builtin for ConsoleBuiltin {
         let log = LogBuiltin::init(heap)?;
 
         let props = hash_map![
-            prop_key!("assert") => Property::new(assert.as_value(), Writable::Yes),
-            prop_key!("assertEqual") => Property::new(assert_equal.as_value(), Writable::Yes),
-            prop_key!("assertNotReached") => Property::new(
-                assert_not_reached.as_value(),
-                Writable::Yes
-            ),
-            prop_key!("log") => Property::new(log.as_value(), Writable::Yes),
+            prop_key!("assert") => Property::new_user(assert.as_value()),
+            prop_key!("assertEqual") => Property::new_user(assert_equal.as_value()),
+            prop_key!("assertNotReached") => Property::new_user(assert_not_reached.as_value()),
+            prop_key!("log") => Property::new_user(log.as_value()),
         ];
 
         let obj_ref = heap.allocate(Object::new(None, props, ObjectData::None, Extensible::Yes))?;

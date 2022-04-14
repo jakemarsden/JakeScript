@@ -6,7 +6,7 @@ pub use value::*;
 pub use vm::*;
 
 use crate::ast::*;
-use crate::runtime::Builtin;
+use crate::runtime::{Builtin, NativeCall};
 use std::cmp;
 use std::collections::HashMap;
 use std::ops::{BitAnd, BitOr, BitXor, Not};
@@ -121,6 +121,90 @@ impl Interpreter {
             .set(self, key, base_ref.clone(), updated_value)
             .map_err(e)?;
         Ok(result_value)
+    }
+
+    pub fn call(
+        &mut self,
+        fn_obj_ref: &Reference,
+        receiver: Option<Reference>,
+        args: &[Value],
+    ) -> std::result::Result<Value, ErrorKind> {
+        let fn_obj = self.vm().heap().resolve(fn_obj_ref);
+        match fn_obj.call_data() {
+            Some(Call::User(user_fn)) => self
+                .call_user_fn(user_fn, fn_obj_ref, receiver, args)
+                .map_err(|err| ErrorKind::Boxed(Box::new(err))),
+            Some(Call::Native(native_fn)) => self.call_native_fn(native_fn, receiver, args),
+            None => Err(ErrorKind::from(NotCallableError)),
+        }
+    }
+
+    fn call_user_fn(
+        &mut self,
+        f: &UserFunction,
+        fn_obj_ref: &Reference,
+        receiver: Option<Reference>,
+        args: &[Value],
+    ) -> Result {
+        let declared_params = f.declared_parameters();
+        let mut supplied_args = args.iter();
+        let mut variables = Vec::with_capacity(declared_params.len());
+        for declared_param_name in declared_params.iter() {
+            let arg_value = supplied_args.next().cloned().unwrap_or_default();
+            variables.push(Variable::new(
+                VariableKind::Let,
+                declared_param_name.clone(),
+                arg_value,
+            ));
+        }
+
+        let declared_scope = f.declared_scope().clone();
+        let fn_scope_ctx = ScopeCtx::new(variables);
+
+        self.vm_mut()
+            .stack_mut()
+            .push_frame(declared_scope, receiver);
+        if let Some(fn_name) = f.name() {
+            // Create an outer scope with nothing but the function's name, which points to itself,
+            // so that named function literals may recurse using their name without making the name
+            // visible outside of the function body. It has its own outer scope so it can still be
+            // shadowed by parameters with the same name.
+            let fn_scope_ctx_outer = ScopeCtx::new(vec![Variable::new(
+                VariableKind::Var,
+                fn_name.clone(),
+                Value::Object(fn_obj_ref.clone()),
+            )]);
+            self.vm_mut()
+                .stack_mut()
+                .frame_mut()
+                .push_scope(fn_scope_ctx_outer, false);
+        }
+        self.vm_mut()
+            .stack_mut()
+            .frame_mut()
+            .push_scope(fn_scope_ctx, true);
+        f.body().eval(self)?;
+        self.vm_mut().stack_mut().frame_mut().pop_scope();
+        if f.name().is_some() {
+            self.vm_mut().stack_mut().frame_mut().pop_scope();
+        }
+        self.vm_mut().stack_mut().pop_frame();
+
+        Ok(match self.vm_mut().reset_execution_state() {
+            ExecutionState::Advance | ExecutionState::Exit => Value::Undefined,
+            ExecutionState::Return(value) => value,
+            execution_state => unreachable!("Unexpected execution state: {:?}", execution_state),
+        })
+    }
+
+    fn call_native_fn(
+        &mut self,
+        f: &NativeCall,
+        receiver: Option<Reference>,
+        args: &[Value],
+    ) -> std::result::Result<Value, ErrorKind> {
+        let receiver = receiver.unwrap_or_else(|| self.vm().runtime().global_object_ref().clone());
+        f.call(self, receiver, args)
     }
 
     pub fn eval_binary_op(

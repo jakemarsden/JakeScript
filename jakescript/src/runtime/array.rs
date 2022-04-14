@@ -1,7 +1,7 @@
 use super::Builtin;
 use crate::interpreter::{
-    Enumerable, ErrorKind, Extensible, Heap, InitialisationError, Interpreter, Number, Object,
-    Property, Reference, Value, Writable,
+    ErrorKind, Extensible, Heap, InitialisationError, Interpreter, Number, Object, Property,
+    Reference, Value,
 };
 use crate::prop_key;
 use common_macros::hash_map;
@@ -28,23 +28,12 @@ impl ArrayBuiltin {
         });
         Ok(Value::Number(length))
     }
-
-    // unnecessary_wraps: Required to conform to `NativeGet`.
-    #[allow(clippy::unnecessary_wraps)]
-    fn set_length(_: &mut Interpreter, _: Reference, _: Value) -> Result<bool, ErrorKind> {
-        Ok(false)
-    }
 }
 
 impl Builtin for ArrayBuiltin {
     fn init(heap: &mut Heap) -> Result<Self, InitialisationError> {
         let props = hash_map![
-            prop_key!("length") => Property::new_native(
-                &Self::length,
-                &Self::set_length,
-                Writable::No,
-                Enumerable::No,
-            ),
+            prop_key!("length") => Property::new_const_accessor(&Self::length),
         ];
 
         let obj_ref = heap.allocate(Object::new_native(

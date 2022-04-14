@@ -1,7 +1,7 @@
 use super::Builtin;
 use crate::interpreter::{
-    Enumerable, ErrorKind, Extensible, Heap, InitialisationError, Interpreter, Number, Object,
-    Property, Reference, Value, Writable,
+    ErrorKind, Extensible, Heap, InitialisationError, Interpreter, Number, Object, Property,
+    Reference, Value,
 };
 use crate::{builtin_fn, prop_key};
 use common_macros::hash_map;
@@ -31,12 +31,6 @@ impl StringBuiltin {
         });
         Ok(Value::Number(length))
     }
-
-    // unnecessary_wraps: Required to conform to `NativeSet`.
-    #[allow(clippy::unnecessary_wraps)]
-    fn set_length(_: &mut Interpreter, _: Reference, _: Value) -> Result<bool, ErrorKind> {
-        Ok(false)
-    }
 }
 
 impl Builtin for StringBuiltin {
@@ -45,14 +39,9 @@ impl Builtin for StringBuiltin {
         let substring = SubstringBuiltin::init(heap)?;
 
         let props = hash_map![
-            prop_key!("charAt") => Property::new(char_at.as_value(), Writable::Yes),
-            prop_key!("length") => Property::new_native(
-                &Self::length,
-                &Self::set_length,
-                Writable::No,
-                Enumerable::No,
-            ),
-            prop_key!("substring") => Property::new(substring.as_value(), Writable::Yes),
+            prop_key!("charAt") => Property::new_user(char_at.as_value()),
+            prop_key!("length") => Property::new_const_accessor(&Self::length),
+            prop_key!("substring") => Property::new_user(substring.as_value()),
         ];
 
         let obj_ref = heap.allocate(Object::new_native(
