@@ -4,7 +4,7 @@ use super::stack::Scope;
 use super::value::Value;
 use super::Interpreter;
 use crate::ast::{Block, Identifier};
-use crate::runtime::{NativeCall, NativeGet, NativeSet};
+use crate::runtime::NativeCall;
 use crate::str::NonEmptyString;
 use common_macros::hash_map;
 use std::collections::HashMap;
@@ -57,8 +57,8 @@ pub struct PropertyKey(NonEmptyString);
 /// [Table 4 — Default Attribute Values](https://262.ecma-international.org/6.0/#table-4)
 pub struct Property {
     value: Value,
-    get: Option<NativeGet>,
-    set: Option<NativeSet>,
+    get: Option<Reference>,
+    set: Option<Reference>,
     writable: Writable,
     enumerable: Enumerable,
     configurable: Configurable,
@@ -175,7 +175,7 @@ impl Object {
 
     pub fn get(
         &self,
-        it: &Interpreter,
+        it: &mut Interpreter,
         key: &PropertyKey,
         receiver: Reference,
     ) -> Result<Option<Value>, ErrorKind> {
@@ -195,7 +195,7 @@ impl Object {
         key: &PropertyKey,
         receiver: Reference,
         value: Value,
-    ) -> Result<bool, ErrorKind> {
+    ) -> Result<(), ErrorKind> {
         if let Some(prop) = self.own_property_mut(key) {
             prop.set(it, receiver, value)
         } else if let Some(proto_ref) = self.prototype() {
@@ -203,9 +203,9 @@ impl Object {
             proto_obj.set(it, key, receiver, value)
         } else if matches!(self.extensible(), Extensible::Yes) {
             self.define_own_property(key.clone(), Property::new_user(value));
-            Ok(true)
+            Ok(())
         } else {
-            Ok(false)
+            Ok(())
         }
     }
 
@@ -307,15 +307,15 @@ impl Property {
         }
     }
 
-    pub fn new_const_accessor(get: impl Into<NativeGet>) -> Self {
-        Self::new_accessor(Some(get.into()), None, Enumerable::No, Configurable::No)
+    pub fn new_const_accessor(get: Reference) -> Self {
+        Self::new_accessor(Some(get), None, Enumerable::No, Configurable::No)
     }
 
     /// [Table 3 — Attributes of an Accessor Property](
     /// https://262.ecma-international.org/6.0/#table-3)
     pub fn new_accessor(
-        get: Option<NativeGet>,
-        set: Option<NativeSet>,
+        get: Option<Reference>,
+        set: Option<Reference>,
         enumerable: Enumerable,
         configurable: Configurable,
     ) -> Self {
@@ -329,9 +329,9 @@ impl Property {
         }
     }
 
-    pub fn get(&self, it: &Interpreter, receiver: Reference) -> Result<Value, ErrorKind> {
+    pub fn get(&self, it: &mut Interpreter, receiver: Reference) -> Result<Value, ErrorKind> {
         if let Some(ref get) = self.get {
-            get.get(it, receiver)
+            it.call(get, Some(receiver), &[])
         } else {
             Ok(self.value.clone())
         }
@@ -342,14 +342,14 @@ impl Property {
         it: &mut Interpreter,
         receiver: Reference,
         value: Value,
-    ) -> Result<bool, ErrorKind> {
-        if let Some(ref native) = self.set {
-            native.set(it, receiver, value)
+    ) -> Result<(), ErrorKind> {
+        if let Some(ref set) = self.set {
+            it.call(set, Some(receiver), &[value]).map(|_| ())
         } else if matches!(self.writable(), Writable::Yes) {
             self.value = value;
-            Ok(true)
+            Ok(())
         } else {
-            Ok(false)
+            Ok(())
         }
     }
 

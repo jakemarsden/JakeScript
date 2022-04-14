@@ -3,7 +3,7 @@ use crate::interpreter::{
     ErrorKind, Extensible, Heap, InitialisationError, Interpreter, Number, Object, Property,
     Reference, Value,
 };
-use crate::prop_key;
+use crate::{builtin_fn, prop_key};
 use common_macros::hash_map;
 
 pub struct ArrayBuiltin {
@@ -16,24 +16,14 @@ impl ArrayBuiltin {
             .map(Value::Object)
             .map_err(ErrorKind::from)
     }
-
-    // needless_pass_by_value, unnecessary_wraps: Required to conform to `NativeGet`.
-    #[allow(clippy::needless_pass_by_value, clippy::unnecessary_wraps)]
-    fn length(it: &Interpreter, receiver: Reference) -> Result<Value, ErrorKind> {
-        let receiver = it.vm().heap().resolve(&receiver);
-        let length = receiver.own_property_count();
-        let length = Number::try_from(length).unwrap_or_else(|_| {
-            // TODO
-            unreachable!()
-        });
-        Ok(Value::Number(length))
-    }
 }
 
 impl Builtin for ArrayBuiltin {
     fn init(heap: &mut Heap) -> Result<Self, InitialisationError> {
+        let length = GetLengthBuiltin::init(heap)?;
+
         let props = hash_map![
-            prop_key!("length") => Property::new_const_accessor(&Self::length),
+            prop_key!("length") => Property::new_const_accessor(length.as_obj_ref()),
         ];
 
         let obj_ref = heap.allocate(Object::new_native(
@@ -49,3 +39,13 @@ impl Builtin for ArrayBuiltin {
         &self.obj_ref
     }
 }
+
+builtin_fn!(GetLengthBuiltin, Extensible::No, (it, receiver, _args) => {
+    let receiver = it.vm().heap().resolve(&receiver);
+    let length = receiver.own_property_count();
+    let length = Number::try_from(length).unwrap_or_else(|_| {
+        // TODO
+        unreachable!()
+    });
+    Ok(Value::Number(length))
+});

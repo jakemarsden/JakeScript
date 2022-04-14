@@ -19,28 +19,17 @@ impl StringBuiltin {
             .map(Value::Object)
             .map_err(ErrorKind::from)
     }
-
-    // needless_pass_by_value, unnecessary_wraps: Required to conform to `NativeGet`.
-    #[allow(clippy::needless_pass_by_value, clippy::unnecessary_wraps)]
-    fn length(it: &Interpreter, receiver: Reference) -> Result<Value, ErrorKind> {
-        let receiver = it.vm().heap().resolve(&receiver);
-        let length = receiver.string_data().unwrap().len();
-        let length = Number::try_from(length).unwrap_or_else(|_| {
-            // TODO
-            unreachable!()
-        });
-        Ok(Value::Number(length))
-    }
 }
 
 impl Builtin for StringBuiltin {
     fn init(heap: &mut Heap) -> Result<Self, InitialisationError> {
+        let length = GetLengthBuiltin::init(heap)?;
         let char_at = CharAtBuiltin::init(heap)?;
         let substring = SubstringBuiltin::init(heap)?;
 
         let props = hash_map![
+            prop_key!("length") => Property::new_const_accessor(length.as_obj_ref()),
             prop_key!("charAt") => Property::new_user(char_at.as_value()),
-            prop_key!("length") => Property::new_const_accessor(&Self::length),
             prop_key!("substring") => Property::new_user(substring.as_value()),
         ];
 
@@ -57,6 +46,16 @@ impl Builtin for StringBuiltin {
         &self.obj_ref
     }
 }
+
+builtin_fn!(GetLengthBuiltin, Extensible::No, (it, receiver, _args) => {
+    let receiver = it.vm().heap().resolve(&receiver);
+    let length = receiver.string_data().unwrap().len();
+    let length = Number::try_from(length).unwrap_or_else(|_| {
+        // TODO
+        unreachable!()
+    });
+    Ok(Value::Number(length))
+});
 
 builtin_fn!(CharAtBuiltin, Extensible::Yes, (it, receiver, args) => {
     let arg = args.first().cloned().unwrap_or_default();

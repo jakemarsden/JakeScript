@@ -44,9 +44,9 @@ impl Eval for IdentifierReferenceExpression {
             Ok(value)
         } else {
             let receiver = it.vm().runtime().global_object_ref().clone();
-            it.vm()
-                .global_object()
-                .get(it, &PropertyKey::from(&self.identifier), receiver)
+            let global_obj = it.vm().heap().resolve(&receiver);
+            global_obj
+                .get(it, &PropertyKey::from(&self.identifier), receiver.clone())
                 .map_err(|err| Error::new(err, self.source_location()))?
                 .ok_or_else(|| Error::new(VariableNotDefinedError, self.source_location()))
         }
