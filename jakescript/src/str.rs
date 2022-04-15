@@ -86,7 +86,12 @@ impl FromStr for NonEmptyString {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::try_from(s)
+        if !s.is_empty() {
+            // Safety: The str can't be empty because of the surrounding if.
+            Ok(unsafe { Self::from_str_unchecked(s) })
+        } else {
+            Err(())
+        }
     }
 }
 
@@ -94,12 +99,7 @@ impl TryFrom<&str> for NonEmptyString {
     type Error = <Self as FromStr>::Err;
 
     fn try_from(s: &str) -> Result<Self, Self::Error> {
-        if !s.is_empty() {
-            // Safety: The str can't be empty because of the surrounding if.
-            Ok(unsafe { Self::from_str_unchecked(s) })
-        } else {
-            Err(())
-        }
+        Self::from_str(s)
     }
 }
 

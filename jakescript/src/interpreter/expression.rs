@@ -105,6 +105,21 @@ impl Eval for AssignmentExpression {
                     lhs => todo!("AssignmentExpression::eval: base_value={:?}", lhs),
                 }
             }
+            Expression::Member(MemberExpression::ComputedMemberAccess(lhs_node)) => {
+                match lhs_node.base.eval(it)? {
+                    Value::Object(lhs_ref) => {
+                        let prop_value = lhs_node.member.eval(it)?;
+                        let prop_name = it.coerce_to_string(&prop_value);
+                        let prop_key = PropertyKey::try_from(prop_name).unwrap_or_else(|()| {
+                            // FIXME: Remove this restriction as I think it's actually OK to key an
+                            //  object property by the empty string.
+                            todo!("AssignmentExpression::eval: prop_name={}", prop_value)
+                        });
+                        it.update_object_property(&lhs_ref, &prop_key, compute_updated, map_err)
+                    }
+                    lhs => todo!("AssignmentExpression::eval: base_value={:?}", lhs),
+                }
+            }
             lhs => todo!("AssignmentExpression::eval: lhs={:#?}", lhs),
         }
     }

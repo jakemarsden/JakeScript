@@ -8,6 +8,7 @@ use crate::runtime::NativeCall;
 use crate::str::NonEmptyString;
 use common_macros::hash_map;
 use std::collections::{hash_map, HashMap};
+use std::str::FromStr;
 
 #[macro_export]
 macro_rules! prop_key {
@@ -331,6 +332,22 @@ impl From<Identifier> for PropertyKey {
 impl From<NonEmptyString> for PropertyKey {
     fn from(s: NonEmptyString) -> Self {
         Self(s)
+    }
+}
+
+impl FromStr for PropertyKey {
+    type Err = <NonEmptyString as FromStr>::Err;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        NonEmptyString::from_str(s).map(Self::from)
+    }
+}
+
+impl TryFrom<String> for PropertyKey {
+    type Error = <NonEmptyString as TryFrom<String>>::Error;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        NonEmptyString::try_from(s).map(Self::from)
     }
 }
 

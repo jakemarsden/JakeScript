@@ -26,3 +26,16 @@ let foo = ["foo", "bar", "baz"];
 console.assertEqual(foo.length, 3);
 foo.length = 123;
 console.assertEqual(foo.length, 3);
+
+let updated = [1, 2, 3];
+updated[0] = "foo";
+console.assertEqual(updated[0], "foo");
+console.assertEqual(updated[1], 2);
+console.assertEqual(updated[2], 3);
+console.assertEqual(updated.length, 3);
+updated[5 - 3] = "baz";
+
+console.assertEqual(updated[0], "foo");
+console.assertEqual(updated[1], 2);
+console.assertEqual(updated[2], "baz");
+console.assertEqual(updated.length, 3);
