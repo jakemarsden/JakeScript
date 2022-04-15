@@ -4,7 +4,8 @@ const SMALL_TREE = [
     [ 2, 4, 6  ],
     [8, 5, 9, 3]
 ];
-console.assertEqual(findMaxPathSum(SMALL_TREE), 23);
+console.assertEqual(solveSlow(SMALL_TREE), 23);
+console.assertEqual(solveFast(SMALL_TREE), 23);
 
 const LARGE_TREE = [
     [                            75                            ],
@@ -24,33 +25,46 @@ const LARGE_TREE = [
     [ 4, 62, 98, 27, 23,  9, 70, 98, 73, 93, 38, 53, 60,  4, 23]
 ];
 // Too slow to run by default when compiled without `--release`:
-//console.assertEqual(findMaxPathSum(LARGE_TREE), 1074);
+//console.assertEqual(solveSlow(LARGE_TREE), 1074);
+console.assertEqual(solveFast(LARGE_TREE), 1074);
 
-function findMaxPathSum(flatTree) {
+// Note: This algorithm mutates the passed in tree!
+function solveFast(tree) {
+    for (let depth = tree.length - 2; depth >= 0; depth -= 1) {
+        for (let pos = 0; pos < tree[depth].length; pos += 1) {
+            let left = tree[depth + 1][pos];
+            let right = tree[depth + 1][pos + 1];
+            tree[depth][pos] += Math.max(left, right);
+        }
+    }
+    return tree[0][0];
+}
+
+function solveSlow(flatTree) {
     let tree = unpackTree(flatTree, 0, 0);
     return maxPathSum(tree);
-}
 
-function maxPathSum(node) {
-    if (node.left === null && node.right === null) {
-        return node.value;
-    } else {
-        return node.value + Math.max(maxPathSum(node.left), maxPathSum(node.right));
+    function maxPathSum(node) {
+        if (node.left === null && node.right === null) {
+            return node.value;
+        } else {
+            return node.value + Math.max(maxPathSum(node.left), maxPathSum(node.right));
+        }
     }
-}
 
-function unpackTree(values, offset, depth) {
-    if (depth + 1 < values.length) {
-        return {
-            value: values[depth][offset],
-            left: unpackTree(values, offset, depth + 1),
-            right: unpackTree(values, offset + 1, depth + 1),
-        };
-    } else {
-        return {
-            value: values[depth][offset],
-            left: null,
-            right: null,
-        };
+    function unpackTree(values, offset, depth) {
+        if (depth + 1 < values.length) {
+            return {
+                value: values[depth][offset],
+                left: unpackTree(values, offset, depth + 1),
+                right: unpackTree(values, offset + 1, depth + 1),
+            };
+        } else {
+            return {
+                value: values[depth][offset],
+                left: null,
+                right: null,
+            };
+        }
     }
 }
