@@ -14,6 +14,7 @@ pub struct MathBuiltin {
 impl Builtin for MathBuiltin {
     fn init(heap: &mut Heap) -> Result<Self, InitialisationError> {
         let abs = AbsBuiltin::init(heap)?;
+        let floor = FloorBuiltin::init(heap)?;
         let max = MaxBuiltin::init(heap)?;
         let min = MinBuiltin::init(heap)?;
         let sqrt = SqrtBuiltin::init(heap)?;
@@ -32,6 +33,7 @@ impl Builtin for MathBuiltin {
             prop_key!("SQRT2") => Property::new_const(Value::Number(Number::Float(SQRT_2))),
 
             prop_key!("abs") => Property::new_user(abs.as_value()),
+            prop_key!("floor") => Property::new_user(floor.as_value()),
             prop_key!("max") => Property::new_user(max.as_value()),
             prop_key!("min") => Property::new_user(min.as_value()),
             prop_key!("sqrt") => Property::new_user(sqrt.as_value()),
@@ -53,6 +55,16 @@ builtin_fn!(AbsBuiltin, Extensible::Yes, (it, _receiver, args) => {
         .checked_abs()
         .map(Value::Number)
         .ok_or(ErrorKind::NumericOverflow(NumericOverflowError))
+});
+
+builtin_fn!(FloorBuiltin, Extensible::Yes, (it, _receiver, args) => {
+    let arg = args.first().cloned().unwrap_or_default();
+    Ok(Value::Number(match it.coerce_to_number(&arg) {
+        n if !n.is_finite() => n,
+        Number::Int(n) => Number::Int(n),
+        #[allow(clippy::cast_possible_truncation)]
+        Number::Float(n) => Number::Int(n.floor() as i64),
+    }))
 });
 
 builtin_fn!(MaxBuiltin, Extensible::Yes, (it, _receiver, args) => {

@@ -47,6 +47,20 @@ console.assertEqual(Math.abs("fish"), NaN);
 console.assertEqual(Math.abs(Infinity), Infinity);
 console.assertEqual(Math.abs(-Infinity), Infinity);
 
+console.assert(Math.floor);
+console.assertEqual(Math.floor(0), 0);
+console.assertEqual(Math.floor(5), 5);
+// TODO: Parse floating point numbers.
+console.assertEqual(Math.floor(Number("5.95")), 5);
+console.assertEqual(Math.floor(Number("5.05")), 5);
+console.assertEqual(Math.floor(Number("-5.05")), -6);
+console.assertEqual(Math.floor(Infinity), Infinity);
+console.assertEqual(Math.floor(-Infinity), -Infinity);
+console.assertEqual(Math.floor(NaN), NaN);
+console.assertEqual(Math.floor(null), 0);
+console.assertEqual(Math.floor(undefined), NaN);
+console.assertEqual(Math.floor(), NaN);
+
 console.assert(Math.max);
 console.assertEqual(Math.max(), -Infinity);
 console.assertEqual(Math.max(42), 42);
