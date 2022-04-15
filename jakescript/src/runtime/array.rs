@@ -42,7 +42,7 @@ impl Builtin for ArrayBuiltin {
 
 builtin_fn!(GetLengthBuiltin, Extensible::No, (it, receiver, _args) => {
     let receiver = it.vm().heap().resolve(&receiver);
-    let length = receiver.own_property_count();
+    let length = receiver.own_property_keys().count();
     let length = Number::try_from(length).unwrap_or_else(|_| {
         // TODO
         unreachable!()

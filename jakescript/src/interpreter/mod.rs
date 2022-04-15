@@ -123,23 +123,7 @@ impl Interpreter {
         Ok(result_value)
     }
 
-    pub fn call(
-        &mut self,
-        fn_obj_ref: &Reference,
-        receiver: Option<Reference>,
-        args: &[Value],
-    ) -> std::result::Result<Value, ErrorKind> {
-        let fn_obj = self.vm().heap().resolve(fn_obj_ref);
-        match fn_obj.call_data() {
-            Some(Call::User(user_fn)) => self
-                .call_user_fn(user_fn, fn_obj_ref, receiver, args)
-                .map_err(|err| ErrorKind::Boxed(Box::new(err))),
-            Some(Call::Native(native_fn)) => self.call_native_fn(native_fn, receiver, args),
-            None => Err(ErrorKind::from(NotCallableError)),
-        }
-    }
-
-    fn call_user_fn(
+    pub fn call_user_fn(
         &mut self,
         f: &UserFunction,
         fn_obj_ref: &Reference,
@@ -197,7 +181,7 @@ impl Interpreter {
         })
     }
 
-    fn call_native_fn(
+    pub fn call_native_fn(
         &mut self,
         f: &NativeCall,
         receiver: Option<Reference>,

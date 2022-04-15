@@ -291,7 +291,9 @@ impl Eval for FunctionCallExpression {
         for arg in &self.arguments {
             supplied_args.push(arg.eval(it)?);
         }
-        it.call(&fn_obj_ref, receiver, &supplied_args)
+        let fn_obj = it.vm().heap().resolve(&fn_obj_ref);
+        fn_obj
+            .call(it, &fn_obj_ref, receiver, &supplied_args)
             .map_err(|err| Error::new(err, self.source_location()))
     }
 }

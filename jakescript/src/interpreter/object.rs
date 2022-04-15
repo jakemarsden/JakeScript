@@ -1,4 +1,4 @@
-use super::error::ErrorKind;
+use super::error::{ErrorKind, NotCallableError};
 use super::heap::Reference;
 use super::stack::Scope;
 use super::value::Value;
@@ -7,7 +7,7 @@ use crate::ast::{Block, Identifier};
 use crate::runtime::NativeCall;
 use crate::str::NonEmptyString;
 use common_macros::hash_map;
-use std::collections::HashMap;
+use std::collections::{hash_map, HashMap};
 
 #[macro_export]
 macro_rules! prop_key {
@@ -55,11 +55,29 @@ pub enum ObjectData {
 pub struct PropertyKey(NonEmptyString);
 
 /// [Table 4 — Default Attribute Values](https://262.ecma-international.org/6.0/#table-4)
-pub struct Property {
+#[derive(PartialEq)]
+pub struct Property(PropertyInner);
+
+#[derive(PartialEq)]
+enum PropertyInner {
+    Data(DataProperty),
+    Accessor(AccessorProperty),
+}
+
+/// [Table 2 — Attributes of a Data Property](https://262.ecma-international.org/6.0/#table-2)
+#[derive(PartialEq)]
+struct DataProperty {
     value: Value,
+    writable: Writable,
+    enumerable: Enumerable,
+    configurable: Configurable,
+}
+
+/// [Table 3 — Attributes of an Accessor Property](https://262.ecma-international.org/6.0/#table-3)
+#[derive(PartialEq)]
+struct AccessorProperty {
     get: Option<Reference>,
     set: Option<Reference>,
-    writable: Writable,
     enumerable: Enumerable,
     configurable: Configurable,
 }
@@ -154,6 +172,19 @@ impl Object {
     pub fn prototype(&self) -> Option<&Reference> {
         self.proto.as_ref()
     }
+    pub fn set_prototype(&mut self, proto: Option<Reference>) -> bool {
+        match self.extensible() {
+            Extensible::Yes => {
+                self.proto = proto;
+                true
+            }
+            Extensible::No => self.proto == proto,
+        }
+    }
+
+    pub fn own_property_keys(&self) -> impl Iterator<Item = &PropertyKey> {
+        self.props.keys()
+    }
 
     pub fn own_property(&self, key: &PropertyKey) -> Option<&Property> {
         self.props.get(key)
@@ -162,15 +193,19 @@ impl Object {
         self.props.get_mut(key)
     }
 
-    pub fn define_own_property(&mut self, key: PropertyKey, value: Property) {
-        self.props.insert(key, value);
-    }
-
-    pub fn own_property_count(&self) -> usize {
-        self.props
-            .iter()
-            .filter(|(_, prop)| matches!(prop.enumerable(), Enumerable::Yes))
-            .count()
+    pub fn define_own_property(&mut self, key: PropertyKey, value: Property) -> bool {
+        match (self.extensible(), self.props.entry(key)) {
+            (Extensible::Yes, hash_map::Entry::Occupied(mut entry)) => {
+                entry.insert(value);
+                true
+            }
+            (Extensible::Yes, hash_map::Entry::Vacant(entry)) => {
+                entry.insert(value);
+                true
+            }
+            (Extensible::No, hash_map::Entry::Occupied(entry)) => entry.get() == &value,
+            (Extensible::No, hash_map::Entry::Vacant(_)) => false,
+        }
     }
 
     pub fn get(
@@ -195,7 +230,7 @@ impl Object {
         key: &PropertyKey,
         receiver: Reference,
         value: Value,
-    ) -> Result<(), ErrorKind> {
+    ) -> Result<bool, ErrorKind> {
         if let Some(prop) = self.own_property_mut(key) {
             prop.set(it, receiver, value)
         } else if let Some(proto_ref) = self.prototype() {
@@ -203,28 +238,51 @@ impl Object {
             proto_obj.set(it, key, receiver, value)
         } else if matches!(self.extensible(), Extensible::Yes) {
             self.define_own_property(key.clone(), Property::new_user(value));
-            Ok(())
+            Ok(true)
         } else {
-            Ok(())
+            Ok(false)
+        }
+    }
+
+    pub fn delete(&mut self, key: &PropertyKey) -> Result<bool, ErrorKind> {
+        Ok(match self.props.entry(key.clone()) {
+            hash_map::Entry::Occupied(entry) if entry.get().deletable() => {
+                entry.remove();
+                true
+            }
+            hash_map::Entry::Occupied(_) => false,
+            hash_map::Entry::Vacant(_) => true,
+        })
+    }
+
+    pub fn call(
+        &self,
+        it: &mut Interpreter,
+        self_ref: &Reference,
+        receiver: Option<Reference>,
+        args: &[Value],
+    ) -> Result<Value, ErrorKind> {
+        match self.call_data() {
+            Some(Call::User(ref user_fn)) => it
+                .call_user_fn(user_fn, self_ref, receiver, args)
+                .map_err(|err| ErrorKind::Boxed(Box::new(err))),
+            Some(Call::Native(ref native_fn)) => it.call_native_fn(native_fn, receiver, args),
+            None => Err(ErrorKind::from(NotCallableError)),
         }
     }
 
     pub fn call_data(&self) -> Option<&Call> {
-        match self.data() {
-            ObjectData::Call(data) => Some(data),
+        match self.data {
+            ObjectData::Call(ref data) => Some(data),
             ObjectData::None | ObjectData::String(_) => None,
         }
     }
 
     pub fn string_data(&self) -> Option<&str> {
-        match self.data() {
-            ObjectData::String(data) => Some(data),
+        match self.data {
+            ObjectData::String(ref data) => Some(data),
             ObjectData::None | ObjectData::Call(_) => None,
         }
-    }
-
-    pub fn data(&self) -> &ObjectData {
-        &self.data
     }
 
     pub fn extensible(&self) -> Extensible {
@@ -232,10 +290,9 @@ impl Object {
     }
 
     pub fn js_to_string(&self) -> String {
-        if let Some(data) = self.string_data() {
-            data.to_owned()
-        } else {
-            "[object Object]".to_owned()
+        match self.data {
+            ObjectData::String(ref data) => data.clone(),
+            ObjectData::None | ObjectData::Call(_) => "[object Object]".to_owned(),
         }
     }
 }
@@ -297,14 +354,12 @@ impl Property {
         enumerable: Enumerable,
         configurable: Configurable,
     ) -> Self {
-        Self {
+        Self(PropertyInner::Data(DataProperty {
             value,
-            get: None,
-            set: None,
             writable,
             enumerable,
             configurable,
-        }
+        }))
     }
 
     pub fn new_const_accessor(get: Reference) -> Self {
@@ -319,21 +374,24 @@ impl Property {
         enumerable: Enumerable,
         configurable: Configurable,
     ) -> Self {
-        Self {
-            value: Value::Undefined,
+        Self(PropertyInner::Accessor(AccessorProperty {
             get,
             set,
-            writable: Writable::No,
             enumerable,
             configurable,
-        }
+        }))
     }
 
     pub fn get(&self, it: &mut Interpreter, receiver: Reference) -> Result<Value, ErrorKind> {
-        if let Some(ref get) = self.get {
-            it.call(get, Some(receiver), &[])
-        } else {
-            Ok(self.value.clone())
+        match self.0 {
+            PropertyInner::Data(ref inner) => Ok(inner.value.clone()),
+            PropertyInner::Accessor(ref inner) => match inner.get {
+                Some(ref get) => {
+                    let get_obj = it.vm().heap().resolve(get);
+                    get_obj.call(it, get, Some(receiver), &[])
+                }
+                None => Ok(Value::Undefined),
+            },
         }
     }
 
@@ -342,27 +400,52 @@ impl Property {
         it: &mut Interpreter,
         receiver: Reference,
         value: Value,
-    ) -> Result<(), ErrorKind> {
-        if let Some(ref set) = self.set {
-            it.call(set, Some(receiver), &[value]).map(|_| ())
-        } else if matches!(self.writable(), Writable::Yes) {
-            self.value = value;
-            Ok(())
-        } else {
-            Ok(())
+    ) -> Result<bool, ErrorKind> {
+        Ok(match self.0 {
+            PropertyInner::Data(ref mut inner) => match inner.writable {
+                Writable::Yes => {
+                    inner.value = value;
+                    true
+                }
+                Writable::No => inner.value == value,
+            },
+            PropertyInner::Accessor(ref inner) => match inner.set {
+                Some(ref set) => {
+                    let set_obj = it.vm().heap().resolve(set);
+                    set_obj.call(it, set, Some(receiver), &[value])?;
+                    true
+                }
+                None => false,
+            },
+        })
+    }
+
+    pub fn deletable(&self) -> bool {
+        match self.configurable() {
+            Configurable::Yes => true,
+            Configurable::No => false,
         }
     }
 
     pub fn writable(&self) -> Writable {
-        self.writable
+        match self.0 {
+            PropertyInner::Data(ref inner) => inner.writable,
+            PropertyInner::Accessor(ref inner) => Writable::from(inner.set.is_some()),
+        }
     }
 
     pub fn enumerable(&self) -> Enumerable {
-        self.enumerable
+        match self.0 {
+            PropertyInner::Data(ref inner) => inner.enumerable,
+            PropertyInner::Accessor(ref inner) => inner.enumerable,
+        }
     }
 
     pub fn configurable(&self) -> Configurable {
-        self.configurable
+        match self.0 {
+            PropertyInner::Data(ref inner) => inner.configurable,
+            PropertyInner::Accessor(ref inner) => inner.configurable,
+        }
     }
 }
 
