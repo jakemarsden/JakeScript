@@ -1,4 +1,5 @@
-console.assertEqual(findTriplet(), 31875000);
+// Too slow to run by default when compiled without `--release`:
+//console.assertEqual(findTriplet(), 31875000);
 
 function findTriplet() {
     // a + b + c = 1000

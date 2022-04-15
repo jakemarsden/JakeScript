@@ -24,7 +24,9 @@ const NUMBER = "\
 console.assertEqual(NUMBER.length, 1000);
 
 console.assertEqual(largestProduct(4), 5832);
-console.assertEqual(largestProduct(13), 23514624000);
+
+// Too slow to run by default when compiled without `--release`:
+//console.assertEqual(largestProduct(13), 23514624000);
 
 function largestProduct(adjDigitCount) {
     let maxProduct = 0;
