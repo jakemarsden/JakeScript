@@ -5,13 +5,13 @@ use crate::ast::{Identifier, VariableDeclarationKind};
 use std::cell::{Ref, RefCell};
 use std::rc::Rc;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct CallStack {
     root: CallFrame,
     frames: Vec<CallFrame>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct CallFrame {
     scope: Scope,
     receiver: Option<Reference>,
@@ -50,13 +50,6 @@ pub enum VariableKind {
 }
 
 impl CallStack {
-    pub fn new(root: CallFrame) -> Self {
-        Self {
-            root,
-            frames: Vec::default(),
-        }
-    }
-
     pub fn frame(&self) -> &CallFrame {
         self.frames.last().unwrap_or(&self.root)
     }
@@ -74,10 +67,6 @@ impl CallStack {
 }
 
 impl CallFrame {
-    pub fn new(scope: Scope, receiver: Option<Reference>) -> Self {
-        Self { scope, receiver }
-    }
-
     pub fn scope(&self) -> &Scope {
         &self.scope
     }
@@ -105,14 +94,6 @@ impl CallFrame {
 }
 
 impl Scope {
-    pub fn new(ctx: ScopeCtx) -> Self {
-        Self(Rc::new(RefCell::new(ScopeInner {
-            ctx,
-            escalation_boundary: true,
-            parent: None,
-        })))
-    }
-
     fn new_child_of(ctx: ScopeCtx, escalation_boundary: bool, parent: Self) -> Self {
         Self(Rc::new(RefCell::new(ScopeInner {
             ctx,
@@ -154,6 +135,16 @@ impl Scope {
         variable: Variable,
     ) -> Result<(), VariableAlreadyDefinedError> {
         RefCell::borrow_mut(&self.0).declare_variable(variable)
+    }
+}
+
+impl Default for Scope {
+    fn default() -> Self {
+        Self(Rc::new(RefCell::new(ScopeInner {
+            ctx: ScopeCtx::default(),
+            escalation_boundary: true,
+            parent: None,
+        })))
     }
 }
 

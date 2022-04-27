@@ -1,7 +1,7 @@
 use super::error::InitialisationError;
 use super::heap::Heap;
 use super::object::Object;
-use super::stack::{CallFrame, CallStack, Scope, ScopeCtx};
+use super::stack::CallStack;
 use super::value::Value;
 use crate::runtime::Runtime;
 use std::assert_matches::assert_matches;
@@ -31,13 +31,12 @@ impl Vm {
     pub fn new() -> Result<Self, InitialisationError> {
         let mut heap = Heap::default();
         let runtime = Runtime::with_default_global_object(&mut heap)?;
-        let stack = CallStack::new(CallFrame::new(Scope::new(ScopeCtx::default()), None));
         Ok(Self {
             execution_state: ExecutionState::default(),
             hidden_exception: Option::default(),
             heap,
             runtime,
-            stack,
+            stack: CallStack::default(),
         })
     }
 
