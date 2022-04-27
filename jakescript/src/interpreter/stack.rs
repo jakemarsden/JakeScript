@@ -3,18 +3,17 @@ use super::heap::Reference;
 use super::value::Value;
 use crate::ast::{Identifier, VariableDeclarationKind};
 use std::cell::{Ref, RefCell};
-use std::mem;
 use std::rc::Rc;
 
 #[derive(Debug)]
 pub struct CallStack {
-    frame: CallFrame,
+    root: CallFrame,
+    frames: Vec<CallFrame>,
 }
 
 #[derive(Debug)]
 pub struct CallFrame {
     scope: Scope,
-    parent: Option<Box<CallFrame>>,
     receiver: Option<Reference>,
 }
 
@@ -51,40 +50,32 @@ pub enum VariableKind {
 }
 
 impl CallStack {
-    pub fn new(root_frame: CallFrame) -> Self {
-        Self { frame: root_frame }
+    pub fn new(root: CallFrame) -> Self {
+        Self {
+            root,
+            frames: Vec::default(),
+        }
     }
 
     pub fn frame(&self) -> &CallFrame {
-        &self.frame
+        self.frames.last().unwrap_or(&self.root)
     }
     pub fn frame_mut(&mut self) -> &mut CallFrame {
-        &mut self.frame
+        self.frames.last_mut().unwrap_or(&mut self.root)
     }
 
     pub fn push_frame(&mut self, scope: Scope, receiver: Option<Reference>) {
-        let new_frame = CallFrame {
-            scope,
-            parent: None,
-            receiver,
-        };
-        let parent_frame = mem::replace(&mut self.frame, new_frame);
-        self.frame.parent = Some(Box::new(parent_frame));
+        self.frames.push(CallFrame { scope, receiver });
     }
 
     pub fn pop_frame(&mut self) {
-        let parent_frame = self.frame.parent.take();
-        self.frame = *parent_frame.expect("Cannot pop top-level call frame");
+        self.frames.pop().expect("Cannot pop top-level call frame");
     }
 }
 
 impl CallFrame {
     pub fn new(scope: Scope, receiver: Option<Reference>) -> Self {
-        Self {
-            scope,
-            parent: None,
-            receiver,
-        }
+        Self { scope, receiver }
     }
 
     pub fn scope(&self) -> &Scope {
