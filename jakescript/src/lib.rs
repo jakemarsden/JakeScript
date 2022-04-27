@@ -2,7 +2,6 @@
 #![feature(associated_type_defaults)]
 #![feature(bool_to_option)]
 #![feature(box_patterns)]
-#![feature(derive_default_enum)]
 #![feature(if_let_guard)]
 #![feature(iter_advance_by)]
 #![feature(iter_intersperse)]

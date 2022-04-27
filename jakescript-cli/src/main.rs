@@ -1,5 +1,3 @@
-#![feature(derive_default_enum)]
-
 use fallible_iterator::FallibleIterator;
 use jakescript::ast::Script;
 use jakescript::interpreter::{self, Eval, Interpreter, Vm};
