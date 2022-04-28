@@ -46,7 +46,11 @@ impl Eval for IdentifierReferenceExpression {
             let receiver = it.vm().runtime().global_object_ref().clone();
             let global_obj = it.vm().heap().resolve(&receiver);
             global_obj
-                .get(it, &PropertyKey::from(&self.identifier), receiver.clone())
+                .get(
+                    it,
+                    &PropertyKey::from(self.identifier.clone()),
+                    receiver.clone(),
+                )
                 .map_err(|err| Error::new(err, self.source_location()))?
                 .ok_or_else(|| Error::new(VariableNotDefinedError, self.source_location()))
         }
@@ -98,7 +102,7 @@ impl Eval for AssignmentExpression {
                 match lhs_node.base.eval(it)? {
                     Value::Object(lhs_ref) => it.update_object_property(
                         &lhs_ref,
-                        &PropertyKey::from(&lhs_node.member),
+                        &PropertyKey::from(lhs_node.member.clone()),
                         compute_updated,
                         map_err,
                     ),
@@ -110,7 +114,7 @@ impl Eval for AssignmentExpression {
                     Value::Object(lhs_ref) => {
                         let prop_value = lhs_node.member.eval(it)?;
                         let prop_name = it.coerce_to_string(&prop_value);
-                        let prop_key = PropertyKey::try_from(prop_name).unwrap_or_else(|()| {
+                        let prop_key = PropertyKey::try_from(prop_name).unwrap_or_else(|_| {
                             // FIXME: Remove this restriction as I think it's actually OK to key an
                             //  object property by the empty string.
                             todo!("AssignmentExpression::eval: prop_name={}", prop_value)
@@ -207,7 +211,7 @@ impl Eval for UpdateExpression {
                 match operand_node.base.eval(it)? {
                     Value::Object(operand_ref) => it.update_object_property(
                         &operand_ref,
-                        &PropertyKey::from(&operand_node.member),
+                        &PropertyKey::from(operand_node.member.clone()),
                         compute_updated,
                         map_err,
                     ),
@@ -240,7 +244,11 @@ impl Eval for MemberAccessExpression {
             Value::Object(ref base_refr) => {
                 let base_obj = it.vm().heap().resolve(base_refr);
                 Ok(base_obj
-                    .get(it, &PropertyKey::from(&self.member), base_refr.clone())
+                    .get(
+                        it,
+                        &PropertyKey::from(self.member.clone()),
+                        base_refr.clone(),
+                    )
                     .map_err(|err| Error::new(err, self.source_location()))?
                     .unwrap_or_default())
             }
@@ -260,11 +268,11 @@ impl Eval for ComputedMemberAccessExpression {
         };
         let property_value = self.member.eval(it)?;
         let property = match property_value {
-            Value::Number(Number::Int(n)) => Identifier::from(n),
+            Value::Number(Number::Int(n)) => PropertyKey::from(n),
             property => todo!("ComputedPropertyExpression::eval: property={:?}", property),
         };
         Ok(base_obj
-            .get(it, &PropertyKey::from(&property), base_refr.clone())
+            .get(it, &property, base_refr.clone())
             .map_err(|err| Error::new(err, self.source_location()))?
             .unwrap_or_default())
     }

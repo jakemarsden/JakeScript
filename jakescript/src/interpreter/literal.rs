@@ -46,7 +46,7 @@ impl Eval for ObjectExpression {
         let mut resolved_props = HashMap::with_capacity(self.declared_properties.len());
         for prop in &self.declared_properties {
             let name = match prop.name {
-                DeclaredPropertyName::Identifier(ref value) => PropertyKey::from(value),
+                DeclaredPropertyName::Identifier(ref value) => PropertyKey::from(value.clone()),
                 DeclaredPropertyName::NumericLiteral(..)
                 | DeclaredPropertyName::StringLiteral(..)
                 | DeclaredPropertyName::Computed(..) => todo!(

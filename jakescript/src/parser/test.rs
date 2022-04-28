@@ -32,6 +32,7 @@ macro_rules! whitespace {
 
 mod simple {
     use super::*;
+    use crate::ident;
 
     #[test]
     fn parse_simple() {
@@ -97,8 +98,8 @@ mod simple {
             at![loc@0:0],
             vec![Declaration::Function(FunctionDeclaration {
                 loc: at![loc@2:0],
-                binding: Identifier::from(non_empty_str!("square")),
-                formal_parameters: vec![Identifier::from(non_empty_str!("n"))],
+                binding: ident!("square"),
+                formal_parameters: vec![ident!("n")],
                 body: Block::new(
                     at![loc@2:19],
                     vec![],
@@ -110,7 +111,7 @@ mod simple {
                             lhs: Box::new(Expression::IdentifierReference(
                                 IdentifierReferenceExpression {
                                     loc: at![loc@3:11],
-                                    identifier: Identifier::from(non_empty_str!("n")),
+                                    identifier: ident!("n"),
                                 },
                             )),
                             rhs: Box::new(Expression::Literal(LiteralExpression {
@@ -129,7 +130,7 @@ mod simple {
                             function: Box::new(Expression::IdentifierReference(
                                 IdentifierReferenceExpression {
                                     loc: at![loc@0:0],
-                                    identifier: Identifier::from(non_empty_str!("square")),
+                                    identifier: ident!("square"),
                                 },
                             )),
                             arguments: vec![Expression::Literal(LiteralExpression {

@@ -96,7 +96,7 @@ impl Interpreter {
             Ok(result_value)
         } else {
             let global_obj_ref = self.vm().runtime().global_object_ref().clone();
-            self.update_object_property(&global_obj_ref, &PropertyKey::from(key), f, e)
+            self.update_object_property(&global_obj_ref, &PropertyKey::from(key.clone()), f, e)
         }
     }
 

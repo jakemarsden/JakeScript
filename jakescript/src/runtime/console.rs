@@ -3,7 +3,7 @@ use crate::interpreter::{
     AssertionError, ErrorKind, Extensible, Heap, InitialisationError, Interpreter, Object,
     ObjectData, Property, Reference, Value,
 };
-use crate::{builtin_fn, non_empty_str, prop_key};
+use crate::{builtin_fn, prop_key};
 use common_macros::hash_map;
 
 pub struct ConsoleBuiltin {

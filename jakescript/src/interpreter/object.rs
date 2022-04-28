@@ -5,7 +5,6 @@ use super::value::Value;
 use super::Interpreter;
 use crate::ast::{Block, Identifier};
 use crate::runtime::NativeCall;
-use crate::str::NonEmptyString;
 use common_macros::hash_map;
 use std::collections::{hash_map, HashMap};
 use std::str::FromStr;
@@ -13,8 +12,8 @@ use std::str::FromStr;
 #[macro_export]
 macro_rules! prop_key {
     ($lit:literal) => {{
-        use $crate::non_empty_str;
-        $crate::interpreter::PropertyKey::from(non_empty_str!($lit))
+        use $crate::ident;
+        $crate::interpreter::PropertyKey::from(ident!($lit))
     }};
 }
 
@@ -53,7 +52,7 @@ pub enum ObjectData {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub struct PropertyKey(NonEmptyString);
+pub struct PropertyKey(Identifier);
 
 /// [Table 4 — Default Attribute Values](https://262.ecma-international.org/6.0/#table-4)
 #[derive(PartialEq)]
@@ -299,10 +298,10 @@ impl Object {
 }
 
 impl PropertyKey {
-    pub fn into_inner(self) -> NonEmptyString {
+    pub fn into_inner(self) -> Identifier {
         self.0
     }
-    pub fn inner(&self) -> &NonEmptyString {
+    pub fn inner(&self) -> &Identifier {
         &self.0
     }
 
@@ -311,43 +310,37 @@ impl PropertyKey {
     }
 }
 
-impl From<usize> for PropertyKey {
-    fn from(idx: usize) -> Self {
-        Self::from(NonEmptyString::from(idx))
+impl From<i64> for PropertyKey {
+    fn from(n: i64) -> Self {
+        Self::from(Identifier::from(n))
     }
 }
 
-impl From<&Identifier> for PropertyKey {
-    fn from(id: &Identifier) -> Self {
-        Self::from(id.inner().clone())
+impl From<usize> for PropertyKey {
+    fn from(n: usize) -> Self {
+        Self::from(Identifier::from(n))
     }
 }
 
 impl From<Identifier> for PropertyKey {
     fn from(id: Identifier) -> Self {
-        Self::from(id.into_inner())
-    }
-}
-
-impl From<NonEmptyString> for PropertyKey {
-    fn from(s: NonEmptyString) -> Self {
-        Self(s)
+        Self(id)
     }
 }
 
 impl FromStr for PropertyKey {
-    type Err = <NonEmptyString as FromStr>::Err;
+    type Err = <Identifier as FromStr>::Err;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        NonEmptyString::from_str(s).map(Self::from)
+        Identifier::from_str(s).map(Self::from)
     }
 }
 
 impl TryFrom<String> for PropertyKey {
-    type Error = <NonEmptyString as TryFrom<String>>::Error;
+    type Error = <Identifier as TryFrom<String>>::Error;
 
     fn try_from(s: String) -> Result<Self, Self::Error> {
-        NonEmptyString::try_from(s).map(Self::from)
+        Identifier::try_from(s).map(Self::from)
     }
 }
 
