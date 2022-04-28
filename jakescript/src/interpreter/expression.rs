@@ -46,11 +46,7 @@ impl Eval for IdentifierReferenceExpression {
             let receiver = it.vm().runtime().global_object_ref().clone();
             let global_obj = it.vm().heap().resolve(&receiver);
             global_obj
-                .get(
-                    it,
-                    &PropertyKey::from(self.identifier.clone()),
-                    receiver.clone(),
-                )
+                .get(it, &self.identifier, receiver.clone())
                 .map_err(|err| Error::new(err, self.source_location()))?
                 .ok_or_else(|| Error::new(VariableNotDefinedError, self.source_location()))
         }
@@ -102,7 +98,7 @@ impl Eval for AssignmentExpression {
                 match lhs_node.base.eval(it)? {
                     Value::Object(lhs_ref) => it.update_object_property(
                         &lhs_ref,
-                        &PropertyKey::from(lhs_node.member.clone()),
+                        &lhs_node.member,
                         compute_updated,
                         map_err,
                     ),
@@ -211,7 +207,7 @@ impl Eval for UpdateExpression {
                 match operand_node.base.eval(it)? {
                     Value::Object(operand_ref) => it.update_object_property(
                         &operand_ref,
-                        &PropertyKey::from(operand_node.member.clone()),
+                        &operand_node.member,
                         compute_updated,
                         map_err,
                     ),
@@ -244,11 +240,7 @@ impl Eval for MemberAccessExpression {
             Value::Object(ref base_refr) => {
                 let base_obj = it.vm().heap().resolve(base_refr);
                 Ok(base_obj
-                    .get(
-                        it,
-                        &PropertyKey::from(self.member.clone()),
-                        base_refr.clone(),
-                    )
+                    .get(it, &self.member, base_refr.clone())
                     .map_err(|err| Error::new(err, self.source_location()))?
                     .unwrap_or_default())
             }

@@ -7,7 +7,6 @@ use crate::ast::{Block, Identifier};
 use crate::runtime::NativeCall;
 use common_macros::hash_map;
 use std::collections::{hash_map, HashMap};
-use std::str::FromStr;
 
 #[macro_export]
 macro_rules! prop_key {
@@ -51,8 +50,7 @@ pub enum ObjectData {
     String(Box<str>),
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub struct PropertyKey(Identifier);
+pub type PropertyKey = Identifier;
 
 /// [Table 4 — Default Attribute Values](https://262.ecma-international.org/6.0/#table-4)
 #[derive(PartialEq)]
@@ -294,53 +292,6 @@ impl Object {
             ObjectData::String(ref data) => data.clone(),
             ObjectData::None | ObjectData::Call(_) => Box::from("[object Object]"),
         }
-    }
-}
-
-impl PropertyKey {
-    pub fn into_inner(self) -> Identifier {
-        self.0
-    }
-    pub fn inner(&self) -> &Identifier {
-        &self.0
-    }
-
-    pub fn as_str(&self) -> &str {
-        self.inner().as_str()
-    }
-}
-
-impl From<i64> for PropertyKey {
-    fn from(n: i64) -> Self {
-        Self::from(Identifier::from(n))
-    }
-}
-
-impl From<usize> for PropertyKey {
-    fn from(n: usize) -> Self {
-        Self::from(Identifier::from(n))
-    }
-}
-
-impl From<Identifier> for PropertyKey {
-    fn from(id: Identifier) -> Self {
-        Self(id)
-    }
-}
-
-impl FromStr for PropertyKey {
-    type Err = <Identifier as FromStr>::Err;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Identifier::from_str(s).map(Self::from)
-    }
-}
-
-impl TryFrom<Box<str>> for PropertyKey {
-    type Error = <Identifier as TryFrom<Box<str>>>::Error;
-
-    fn try_from(s: Box<str>) -> Result<Self, Self::Error> {
-        Identifier::try_from(s).map(Self::from)
     }
 }
 
