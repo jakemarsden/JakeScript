@@ -12,7 +12,7 @@ use std::collections::{hash_map, HashMap};
 macro_rules! prop_key {
     ($lit:literal) => {{
         use $crate::ident;
-        $crate::interpreter::PropertyKey::from(ident!($lit))
+        ident!($lit)
     }};
 }
 
