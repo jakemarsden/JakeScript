@@ -80,6 +80,6 @@ builtin_fn!(LogBuiltin, Extensible::Yes, (it, _receiver, args) => {
 fn build_msg<'a>(it: &Interpreter, values: impl Iterator<Item = &'a Value>) -> String {
     values
         .map(|arg| it.coerce_to_string(arg))
-        .intersperse_with(|| " ".to_owned())
+        .intersperse_with(|| Box::from(" "))
         .collect()
 }

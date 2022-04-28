@@ -14,7 +14,7 @@ pub struct StringBuiltin {
 impl StringBuiltin {
     fn call(it: &mut Interpreter, _: Reference, args: &[Value]) -> Result<Value, ErrorKind> {
         let arg = args.first();
-        let str = arg.map_or_else(std::string::String::default, |arg| it.coerce_to_string(arg));
+        let str = arg.map(|arg| it.coerce_to_string(arg)).unwrap_or_default();
         it.alloc_string(str)
             .map(Value::Object)
             .map_err(ErrorKind::from)
@@ -72,10 +72,10 @@ builtin_fn!(CharAtBuiltin, Extensible::Yes, (it, receiver, args) => {
         it.coerce_to_string(&Value::Object(receiver))
             .chars()
             .nth(idx)
-            .map(|ch| ch.to_string())
+            .map(|ch| ch.to_string().into_boxed_str())
             .unwrap_or_default()
     } else {
-        std::string::String::default()
+        Box::default()
     };
     it.alloc_string(char_str)
         .map(Value::Object)
@@ -107,7 +107,8 @@ builtin_fn!(SubstringBuiltin, Extensible::Yes, (it, receiver, args) => {
         .chars()
         .skip(start_idx)
         .take(end_idx - start_idx)
-        .collect();
+        .collect::<String>()
+        .into_boxed_str();
     it.alloc_string(substr)
         .map(Value::Object)
         .map_err(ErrorKind::from)

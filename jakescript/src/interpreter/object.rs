@@ -48,7 +48,7 @@ pub enum ObjectData {
     #[default]
     None,
     Call(Call),
-    String(String),
+    String(Box<str>),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
@@ -102,7 +102,7 @@ pub struct UserFunction {
 }
 
 impl Object {
-    pub fn new_string(proto: Reference, data: String, extensible: Extensible) -> Self {
+    pub fn new_string(proto: Reference, data: Box<str>, extensible: Extensible) -> Self {
         Self::new(
             Some(proto),
             hash_map![],
@@ -289,10 +289,10 @@ impl Object {
         self.extensible
     }
 
-    pub fn js_to_string(&self) -> String {
+    pub fn js_to_string(&self) -> Box<str> {
         match self.data {
             ObjectData::String(ref data) => data.clone(),
-            ObjectData::None | ObjectData::Call(_) => "[object Object]".to_owned(),
+            ObjectData::None | ObjectData::Call(_) => Box::from("[object Object]"),
         }
     }
 }
@@ -336,10 +336,10 @@ impl FromStr for PropertyKey {
     }
 }
 
-impl TryFrom<String> for PropertyKey {
-    type Error = <Identifier as TryFrom<String>>::Error;
+impl TryFrom<Box<str>> for PropertyKey {
+    type Error = <Identifier as TryFrom<Box<str>>>::Error;
 
-    fn try_from(s: String) -> Result<Self, Self::Error> {
+    fn try_from(s: Box<str>) -> Result<Self, Self::Error> {
         Identifier::try_from(s).map(Self::from)
     }
 }

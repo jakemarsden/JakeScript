@@ -46,7 +46,10 @@ impl Interpreter {
         &mut self.vm
     }
 
-    pub fn alloc_string(&mut self, s: String) -> std::result::Result<Reference, OutOfMemoryError> {
+    pub fn alloc_string(
+        &mut self,
+        s: Box<str>,
+    ) -> std::result::Result<Reference, OutOfMemoryError> {
         let proto = self.vm().runtime().global_object().string().as_obj_ref();
         self.vm_mut()
             .heap_mut()
@@ -291,9 +294,12 @@ impl Interpreter {
     // unnecessary_wraps: Future-proofing
     #[allow(clippy::unnecessary_wraps)]
     fn concat(&mut self, lhs: &Value, rhs: &Value) -> std::result::Result<Value, ErrorKind> {
-        let mut out = self.coerce_to_string(lhs);
-        out.push_str(&self.coerce_to_string(rhs));
-        self.alloc_string(out)
+        let out = format!(
+            "{}{}",
+            self.coerce_to_string(lhs),
+            self.coerce_to_string(rhs)
+        );
+        self.alloc_string(out.into_boxed_str())
             .map(Value::Object)
             .map_err(ErrorKind::from)
     }
@@ -474,17 +480,16 @@ impl Interpreter {
         }
     }
 
-    pub fn coerce_to_string(&self, v: &Value) -> String {
+    pub fn coerce_to_string(&self, v: &Value) -> Box<str> {
         match v {
-            Value::Boolean(v) => v.to_string(),
-            Value::Number(v) => v.to_string(),
+            Value::Boolean(v) => v.to_string().into_boxed_str(),
+            Value::Number(v) => v.to_string().into_boxed_str(),
             Value::Object(obj_ref) => {
                 let obj = self.vm().heap().resolve(obj_ref);
-                obj.string_data()
-                    .map_or_else(|| obj.js_to_string(), str::to_owned)
+                obj.js_to_string()
             }
-            Value::Null => "null".to_owned(),
-            Value::Undefined => "undefined".to_owned(),
+            Value::Null => Box::from("null"),
+            Value::Undefined => Box::from("undefined"),
         }
     }
 

@@ -27,13 +27,13 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             token::Literal::Numeric(token::NumericLiteral::Decimal(value)) => {
                 ast::Literal::Numeric(ast::NumericLiteral::Float(value))
             }
-            token::Literal::String(value) => {
-                ast::Literal::String(ast::StringLiteral { value: value.value })
-            }
+            token::Literal::String(value) => ast::Literal::String(ast::StringLiteral {
+                value: value.value.into_boxed_str(),
+            }),
             token::Literal::RegEx(value) => {
                 // FIXME: Support Literal::RegEx properly.
                 ast::Literal::String(ast::StringLiteral {
-                    value: value.to_string(),
+                    value: value.to_string().into_boxed_str(),
                 })
             }
             token::Literal::Null => ast::Literal::Null,

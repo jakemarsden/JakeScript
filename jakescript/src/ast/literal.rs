@@ -20,5 +20,5 @@ pub enum NumericLiteral {
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 #[serde(transparent)]
 pub struct StringLiteral {
-    pub value: String,
+    pub value: Box<str>,
 }
