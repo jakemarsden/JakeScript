@@ -213,18 +213,28 @@ impl fmt::Display for TestCaseReport {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         const TICK: char = '\u{2714}';
         const CROSS: char = '\u{274C}';
+        const WARN_THRESHOLD_1: Duration = Duration::from_millis(50);
+        const WARN_THRESHOLD_2: Duration = Duration::from_millis(200);
 
         let (symbol, status, status_style) = if self.is_pass() {
             (TICK, "pass", Color::Green.normal())
         } else {
             (CROSS, "fail", Color::Red.normal())
         };
+        let runtime = self.runtime();
+        let runtime_style = if runtime >= WARN_THRESHOLD_2 {
+            Color::Red.normal()
+        } else if runtime >= WARN_THRESHOLD_1 {
+            Color::Yellow.normal()
+        } else {
+            Style::default()
+        };
         let mut msg = format!(
-            "[{} {}] {} ({:?})",
+            "[{} {}] {} ({})",
             symbol,
             status_style.paint(status),
             self.source_name(),
-            self.runtime()
+            runtime_style.paint(format!("{:?}", runtime)),
         );
         if let Some(failure_reason) = self.failure_reason() {
             msg.push_str(&format!(": {}", failure_reason));
