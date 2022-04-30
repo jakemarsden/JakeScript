@@ -5,14 +5,12 @@ on:
 
 jobs:
   build:
-    name: "Rust ${{ matrix.rust }} on ${{ matrix.os }}"
+    name: "Build for ${{ matrix.os }}"
     runs-on: ${{ matrix.os }}
 
     strategy:
       fail-fast: false
       matrix:
-        rust:
-          - nightly
         os:
           - macos-10.15
           - ubuntu-20.04
@@ -25,7 +23,28 @@ jobs:
       - name: Install toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: ${{ matrix.rust }}
+          toolchain: nightly
+          profile: minimal
+          override: true
+
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --workspace
+
+  lint-test:
+    name: "Lint and test"
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Install toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
           profile: minimal
           components: clippy, rustfmt
           override: true
@@ -49,9 +68,3 @@ jobs:
         with:
           command: test
           args: --workspace -- --nocapture
-
-      - name: Build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --workspace
