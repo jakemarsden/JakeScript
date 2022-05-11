@@ -6,9 +6,11 @@ use std::fmt;
 mod array;
 mod boolean;
 mod console;
+mod function;
 mod global;
 mod math;
 mod number;
+mod object;
 mod string;
 
 #[macro_export]
@@ -37,12 +39,15 @@ macro_rules! builtin_fn {
         }
 
         impl $crate::runtime::Builtin for $name {
+            type InitArgs = $crate::interpreter::Reference;
+
             fn init(
                 heap: &mut $crate::interpreter::Heap,
+                fn_proto: Self::InitArgs,
             ) -> ::std::result::Result<Self, $crate::interpreter::InitialisationError> {
                 let props = ::std::collections::HashMap::default();
                 let obj_ref = heap.allocate($crate::interpreter::Object::new_native(
-                    None,
+                    Some(fn_proto),
                     props,
                     &Self::call,
                     $extensible,
@@ -62,7 +67,9 @@ pub struct Runtime<T: Builtin = GlobalObject> {
 }
 
 pub trait Builtin {
-    fn init(heap: &mut Heap) -> Result<Self, InitialisationError>
+    type InitArgs = ();
+
+    fn init(heap: &mut Heap, _: Self::InitArgs) -> Result<Self, InitialisationError>
     where
         Self: Sized;
 
@@ -84,13 +91,16 @@ pub struct NativeCall(
 
 impl Runtime {
     pub fn with_default_global_object(heap: &mut Heap) -> Result<Self, InitialisationError> {
-        Runtime::<GlobalObject>::with_custom_global_object(heap)
+        Runtime::<GlobalObject>::with_custom_global_object(heap, ())
     }
 }
 
 impl<T: Builtin> Runtime<T> {
-    pub fn with_custom_global_object(heap: &mut Heap) -> Result<Self, InitialisationError> {
-        let global_object = T::init(heap)?;
+    pub fn with_custom_global_object(
+        heap: &mut Heap,
+        args: T::InitArgs,
+    ) -> Result<Self, InitialisationError> {
+        let global_object = T::init(heap, args)?;
         Ok(Self { global_object })
     }
 

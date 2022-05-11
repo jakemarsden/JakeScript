@@ -12,13 +12,18 @@ pub struct MathBuiltin {
 }
 
 impl Builtin for MathBuiltin {
-    fn init(heap: &mut Heap) -> Result<Self, InitialisationError> {
-        let abs = AbsBuiltin::init(heap)?;
-        let floor = FloorBuiltin::init(heap)?;
-        let max = MaxBuiltin::init(heap)?;
-        let min = MinBuiltin::init(heap)?;
-        let sqrt = SqrtBuiltin::init(heap)?;
-        let trunc = TruncBuiltin::init(heap)?;
+    type InitArgs = (Reference, Reference);
+
+    fn init(
+        heap: &mut Heap,
+        (obj_proto, fn_proto): Self::InitArgs,
+    ) -> Result<Self, InitialisationError> {
+        let abs = AbsBuiltin::init(heap, fn_proto.clone())?;
+        let floor = FloorBuiltin::init(heap, fn_proto.clone())?;
+        let max = MaxBuiltin::init(heap, fn_proto.clone())?;
+        let min = MinBuiltin::init(heap, fn_proto.clone())?;
+        let sqrt = SqrtBuiltin::init(heap, fn_proto.clone())?;
+        let trunc = TruncBuiltin::init(heap, fn_proto)?;
 
         let props = hash_map![
             prop_key!("E") => Property::new_const(Value::Number(Number::Float(E))),
@@ -40,7 +45,12 @@ impl Builtin for MathBuiltin {
             prop_key!("trunc") => Property::new_user(trunc.as_value()),
         ];
 
-        let obj_ref = heap.allocate(Object::new(None, props, ObjectData::None, Extensible::Yes))?;
+        let obj_ref = heap.allocate(Object::new(
+            Some(obj_proto),
+            props,
+            ObjectData::None,
+            Extensible::Yes,
+        ))?;
         Ok(Self { obj_ref })
     }
 

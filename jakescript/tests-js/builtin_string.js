@@ -15,7 +15,7 @@ console.assertEqual(String(null), "null");
 console.assertEqual(String(undefined), "undefined");
 console.assertEqual(String(), "");
 
-console.assert(String.charAt);
+console.assert("".charAt);
 console.assertEqual("Hello, world!".charAt(0), "H");
 console.assertEqual("Hello, world!".charAt(1), "e");
 console.assertEqual("Hello, world!".charAt(12), "!");
@@ -42,7 +42,7 @@ console.assertEqual(foo.length, 3);
 foo.length = 123;
 console.assertEqual(foo.length, 3);
 
-console.assert(String.substring);
+console.assert("".substring);
 console.assertEqual("Hello, world!".substring(), "Hello, world!");
 console.assertEqual("Hello, world!".substring(7), "world!");
 console.assertEqual("Hello, world!".substring(7, 12), "world");

@@ -50,7 +50,12 @@ impl Interpreter {
         &mut self,
         s: Box<str>,
     ) -> std::result::Result<Reference, OutOfMemoryError> {
-        let proto = self.vm().runtime().global_object().string().as_obj_ref();
+        let proto = self
+            .vm()
+            .runtime()
+            .global_object()
+            .string_proto()
+            .as_obj_ref();
         self.vm_mut()
             .heap_mut()
             .allocate(Object::new_string(proto, s, Extensible::Yes))
@@ -60,7 +65,12 @@ impl Interpreter {
         &mut self,
         elems: Vec<Value>,
     ) -> std::result::Result<Reference, OutOfMemoryError> {
-        let proto = self.vm().runtime().global_object().array().as_obj_ref();
+        let proto = self
+            .vm()
+            .runtime()
+            .global_object()
+            .array_proto()
+            .as_obj_ref();
         self.vm_mut()
             .heap_mut()
             .allocate(Object::new_array(proto, elems, Extensible::Yes))

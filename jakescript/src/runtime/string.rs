@@ -1,31 +1,26 @@
 use super::Builtin;
 use crate::interpreter::{
-    ErrorKind, Extensible, Heap, InitialisationError, Interpreter, Number, Object, Property,
+    ErrorKind, Extensible, Heap, InitialisationError, Number, Object, ObjectData, Property,
     Reference, Value,
 };
 use crate::{builtin_fn, prop_key};
 use common_macros::hash_map;
 use std::mem;
 
-pub struct StringBuiltin {
+pub struct StringProtoBuiltin {
     obj_ref: Reference,
 }
 
-impl StringBuiltin {
-    fn call(it: &mut Interpreter, _: Reference, args: &[Value]) -> Result<Value, ErrorKind> {
-        let arg = args.first();
-        let str = arg.map(|arg| it.coerce_to_string(arg)).unwrap_or_default();
-        it.alloc_string(str)
-            .map(Value::Object)
-            .map_err(ErrorKind::from)
-    }
-}
+impl Builtin for StringProtoBuiltin {
+    type InitArgs = (Reference, Reference);
 
-impl Builtin for StringBuiltin {
-    fn init(heap: &mut Heap) -> Result<Self, InitialisationError> {
-        let length = GetLengthBuiltin::init(heap)?;
-        let char_at = CharAtBuiltin::init(heap)?;
-        let substring = SubstringBuiltin::init(heap)?;
+    fn init(
+        heap: &mut Heap,
+        (obj_proto, fn_proto): Self::InitArgs,
+    ) -> Result<Self, InitialisationError> {
+        let length = GetLengthBuiltin::init(heap, fn_proto.clone())?;
+        let char_at = CharAtBuiltin::init(heap, fn_proto.clone())?;
+        let substring = SubstringBuiltin::init(heap, fn_proto)?;
 
         let props = hash_map![
             prop_key!("length") => Property::new_const_accessor(length.as_obj_ref()),
@@ -33,10 +28,10 @@ impl Builtin for StringBuiltin {
             prop_key!("substring") => Property::new_user(substring.as_value()),
         ];
 
-        let obj_ref = heap.allocate(Object::new_native(
-            None,
+        let obj_ref = heap.allocate(Object::new(
+            Some(obj_proto),
             props,
-            &Self::call,
+            ObjectData::None,
             Extensible::Yes,
         ))?;
         Ok(Self { obj_ref })
@@ -46,6 +41,14 @@ impl Builtin for StringBuiltin {
         &self.obj_ref
     }
 }
+
+builtin_fn!(pub StringCtorBuiltin, Extensible::Yes, (it, _receiver, args) => {
+    let arg = args.first();
+    let str = arg.map(|arg| it.coerce_to_string(arg)).unwrap_or_default();
+    it.alloc_string(str)
+        .map(Value::Object)
+        .map_err(ErrorKind::from)
+});
 
 builtin_fn!(GetLengthBuiltin, Extensible::No, (it, receiver, _args) => {
     let receiver = it.vm().heap().resolve(&receiver);

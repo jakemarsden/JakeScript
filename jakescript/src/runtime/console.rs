@@ -11,11 +11,16 @@ pub struct ConsoleBuiltin {
 }
 
 impl Builtin for ConsoleBuiltin {
-    fn init(heap: &mut Heap) -> Result<Self, InitialisationError> {
-        let assert = AssertBuiltin::init(heap)?;
-        let assert_equal = AssertEqualBuiltin::init(heap)?;
-        let assert_not_reached = AssertNotReachedBuiltin::init(heap)?;
-        let log = LogBuiltin::init(heap)?;
+    type InitArgs = (Reference, Reference);
+
+    fn init(
+        heap: &mut Heap,
+        (obj_proto, fn_proto): Self::InitArgs,
+    ) -> Result<Self, InitialisationError> {
+        let assert = AssertBuiltin::init(heap, fn_proto.clone())?;
+        let assert_equal = AssertEqualBuiltin::init(heap, fn_proto.clone())?;
+        let assert_not_reached = AssertNotReachedBuiltin::init(heap, fn_proto.clone())?;
+        let log = LogBuiltin::init(heap, fn_proto)?;
 
         let props = hash_map![
             prop_key!("assert") => Property::new_user(assert.as_value()),
@@ -24,7 +29,12 @@ impl Builtin for ConsoleBuiltin {
             prop_key!("log") => Property::new_user(log.as_value()),
         ];
 
-        let obj_ref = heap.allocate(Object::new(None, props, ObjectData::None, Extensible::Yes))?;
+        let obj_ref = heap.allocate(Object::new(
+            Some(obj_proto),
+            props,
+            ObjectData::None,
+            Extensible::Yes,
+        ))?;
         Ok(Self { obj_ref })
     }
 

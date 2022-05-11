@@ -1,59 +1,79 @@
-use super::array::ArrayBuiltin;
-use super::boolean::BooleanBuiltin;
+use super::array::{ArrayCtorBuiltin, ArrayProtoBuiltin};
+use super::boolean::BooleanCtorBuiltin;
 use super::console::ConsoleBuiltin;
+use super::function::FunctionProtoBuiltin;
 use super::math::MathBuiltin;
-use super::number::NumberBuiltin;
-use super::string::StringBuiltin;
+use super::number::NumberCtorBuiltin;
+use super::string::{StringCtorBuiltin, StringProtoBuiltin};
 use super::Builtin;
 use crate::interpreter::{
     ExecutionState, Extensible, Heap, InitialisationError, Number, Object, ObjectData, Property,
     Reference, Value,
 };
+use crate::runtime::object::ObjectProtoBuiltin;
 use crate::{builtin_fn, prop_key};
 use common_macros::hash_map;
 
-pub struct GlobalObject {
-    array: ArrayBuiltin,
-    boolean: BooleanBuiltin,
-    math: MathBuiltin,
-    number: NumberBuiltin,
-    string: StringBuiltin,
+pub struct GlobalObjectProto {
     obj_ref: Reference,
 }
 
+pub struct GlobalObject {
+    // TODO: Prototypes should probably be members of the `Runtime` rather than of the
+    //  `GlobalObject`.
+    array_proto: ArrayProtoBuiltin,
+    string_proto: StringProtoBuiltin,
+    obj_ref: Reference,
+}
+
+impl Builtin for GlobalObjectProto {
+    type InitArgs = Reference;
+
+    fn init(heap: &mut Heap, obj_proto: Self::InitArgs) -> Result<Self, InitialisationError> {
+        let obj_ref = heap.allocate(Object::new(
+            Some(obj_proto),
+            hash_map![],
+            ObjectData::None,
+            Extensible::Yes,
+        ))?;
+        Ok(Self { obj_ref })
+    }
+
+    fn obj_ref(&self) -> &Reference {
+        &self.obj_ref
+    }
+}
+
 impl GlobalObject {
-    pub fn array(&self) -> &ArrayBuiltin {
-        &self.array
+    pub fn array_proto(&self) -> &ArrayProtoBuiltin {
+        &self.array_proto
     }
 
-    pub fn boolean(&self) -> &BooleanBuiltin {
-        &self.boolean
-    }
-
-    pub fn math(&self) -> &MathBuiltin {
-        &self.math
-    }
-
-    pub fn number(&self) -> &NumberBuiltin {
-        &self.number
-    }
-
-    pub fn string(&self) -> &StringBuiltin {
-        &self.string
+    pub fn string_proto(&self) -> &StringProtoBuiltin {
+        &self.string_proto
     }
 }
 
 impl Builtin for GlobalObject {
-    fn init(heap: &mut Heap) -> Result<Self, InitialisationError> {
-        let array = ArrayBuiltin::init(heap)?;
-        let boolean = BooleanBuiltin::init(heap)?;
-        let math = MathBuiltin::init(heap)?;
-        let number = NumberBuiltin::init(heap)?;
-        let string = StringBuiltin::init(heap)?;
+    fn init(heap: &mut Heap, (): Self::InitArgs) -> Result<Self, InitialisationError> {
+        let obj_proto = ObjectProtoBuiltin::init(heap, ())?;
+        let fn_proto = FunctionProtoBuiltin::init(heap, obj_proto.as_obj_ref())?;
+        let global_obj_proto = GlobalObjectProto::init(heap, obj_proto.as_obj_ref())?;
 
-        let console = ConsoleBuiltin::init(heap)?;
-        let exit = ExitBuiltin::init(heap)?;
-        let is_nan = IsNanBuiltin::init(heap)?;
+        let array_proto =
+            ArrayProtoBuiltin::init(heap, (obj_proto.as_obj_ref(), fn_proto.as_obj_ref()))?;
+        let string_proto =
+            StringProtoBuiltin::init(heap, (obj_proto.as_obj_ref(), fn_proto.as_obj_ref()))?;
+
+        let array = ArrayCtorBuiltin::init(heap, fn_proto.as_obj_ref())?;
+        let boolean = BooleanCtorBuiltin::init(heap, fn_proto.as_obj_ref())?;
+        let math = MathBuiltin::init(heap, (obj_proto.as_obj_ref(), fn_proto.as_obj_ref()))?;
+        let number = NumberCtorBuiltin::init(heap, fn_proto.as_obj_ref())?;
+        let string = StringCtorBuiltin::init(heap, fn_proto.as_obj_ref())?;
+
+        let console = ConsoleBuiltin::init(heap, (obj_proto.as_obj_ref(), fn_proto.as_obj_ref()))?;
+        let exit = ExitBuiltin::init(heap, fn_proto.as_obj_ref())?;
+        let is_nan = IsNanBuiltin::init(heap, fn_proto.as_obj_ref())?;
 
         let props = hash_map![
             prop_key!("Infinity") => Property::new_const(Value::Number(Number::POS_INF)),
@@ -71,13 +91,15 @@ impl Builtin for GlobalObject {
             prop_key!("isNaN") => Property::new_user(is_nan.as_value()),
         ];
 
-        let obj_ref = heap.allocate(Object::new(None, props, ObjectData::None, Extensible::Yes))?;
+        let obj_ref = heap.allocate(Object::new(
+            Some(global_obj_proto.as_obj_ref()),
+            props,
+            ObjectData::None,
+            Extensible::Yes,
+        ))?;
         Ok(Self {
-            array,
-            boolean,
-            math,
-            number,
-            string,
+            array_proto,
+            string_proto,
             obj_ref,
         })
     }
