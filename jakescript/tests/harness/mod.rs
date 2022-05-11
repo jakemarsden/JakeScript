@@ -229,17 +229,18 @@ impl fmt::Display for TestCaseReport {
         } else {
             Style::default()
         };
-        let mut msg = format!(
+        write!(
+            f,
             "[{} {}] {} ({})",
             symbol,
             status_style.paint(status),
             self.source_name(),
             runtime_style.paint(format!("{:?}", runtime)),
-        );
+        )?;
         if let Some(failure_reason) = self.failure_reason() {
-            msg.push_str(&format!(": {}", failure_reason));
+            write!(f, ": {}", failure_reason)?;
         }
-        f.write_str(&msg)
+        Ok(())
     }
 }
 

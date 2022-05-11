@@ -128,7 +128,7 @@ impl<I: FallibleIterator<Item = char, Error = io::Error>> Lexer<I> {
                     IdentifierFollowingNumericLiteral,
                     self.source.location(),
                 )),
-                Some(ch) if ch.is_digit(10) => Err(Error::new(
+                Some(ch) if ch.is_ascii_digit() => Err(Error::new(
                     DigitFollowingNumericLiteral,
                     self.source.location(),
                 )),
