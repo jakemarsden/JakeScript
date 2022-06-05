@@ -30,15 +30,17 @@ function returnInside2() {
 }
 console.assertEqual(returnInside2(), 10);
 
+let emptyBody = false;
+for (; !emptyBody; emptyBody = true);
+console.assert(emptyBody);
+
 let exprAsInitialiser1Idx = false;
-// TODO: Support braceless for loops with empty bodies.
-for (1 + 1; !exprAsInitialiser1Idx; exprAsInitialiser1Idx = true) {}
+for (1 + 1; !exprAsInitialiser1Idx; exprAsInitialiser1Idx = true);
 console.assert(exprAsInitialiser1Idx);
 
 let exprAsInitialiser2 = 0;
 let exprAsInitialiser2Idx = 0;
-// TODO: Support braceless for loops with empty bodies.
-for (exprAsInitialiser2 += 1; exprAsInitialiser2Idx < 3; exprAsInitialiser2Idx += 1) {}
+for (exprAsInitialiser2 += 1; exprAsInitialiser2Idx < 3; exprAsInitialiser2Idx += 1);
 console.assertEqual(exprAsInitialiser2, 1);
 console.assertEqual(exprAsInitialiser2Idx, 3);
 

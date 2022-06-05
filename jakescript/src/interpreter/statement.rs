@@ -8,20 +8,29 @@ use crate::ast::*;
 impl Eval for Statement {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         match self {
+            Self::Empty(node) => node.eval(it),
             Self::Block(node) => node.eval(it),
             Self::Declaration(node) => node.eval(it),
             Self::Expression(node) => node.eval(it),
+
             Self::If(node) => node.eval(it),
             Self::Switch(node) => node.eval(it),
             Self::While(node) => node.eval(it),
             Self::Do(node) => node.eval(it),
             Self::For(node) => node.eval(it),
+
             Self::Continue(node) => node.eval(it),
             Self::Break(node) => node.eval(it),
             Self::Return(node) => node.eval(it),
             Self::Throw(node) => node.eval(it),
             Self::Try(node) => node.eval(it),
         }
+    }
+}
+
+impl Eval for EmptyStatement {
+    fn eval(&self, _: &mut Interpreter) -> Result<Self::Output> {
+        Ok(())
     }
 }
 

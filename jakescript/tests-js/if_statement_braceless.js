@@ -135,3 +135,9 @@ if (a === 42)
     var p = "if block!";
 else {}
 console.assertEqual(p, "if block!");
+
+let emptyBody1 = false;
+if (emptyBody1);
+
+let emptyBody2 = true;
+if (emptyBody2);

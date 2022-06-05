@@ -17,3 +17,6 @@ while (true)
     else
         shouldBreak = true;
 console.assertEqual(shouldBreak, true);
+
+let emptyBody = false;
+while (emptyBody);

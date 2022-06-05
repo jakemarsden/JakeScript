@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 #[serde(tag = "statement_type")]
 pub enum Statement {
+    Empty(EmptyStatement),
     Block(BlockStatement),
     Declaration(DeclarationStatement),
     Expression(ExpressionStatement),
@@ -24,6 +25,11 @@ pub enum Statement {
     Return(ReturnStatement),
     Throw(ThrowStatement),
     Try(TryStatement),
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct EmptyStatement {
+    pub loc: SourceLocation,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
@@ -157,6 +163,7 @@ pub struct FinallyStatement {
 impl Node for Statement {
     fn source_location(&self) -> &SourceLocation {
         match self {
+            Self::Empty(node) => node.source_location(),
             Self::Block(node) => node.source_location(),
             Self::Declaration(node) => node.source_location(),
             Self::Expression(node) => node.source_location(),
@@ -173,6 +180,12 @@ impl Node for Statement {
             Self::Throw(node) => node.source_location(),
             Self::Try(node) => node.source_location(),
         }
+    }
+}
+
+impl Node for EmptyStatement {
+    fn source_location(&self) -> &SourceLocation {
+        &self.loc
     }
 }
 

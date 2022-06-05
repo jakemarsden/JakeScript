@@ -20,3 +20,6 @@ do
         shouldBreak = true;
 while (true);
 console.assertEqual(shouldBreak, true);
+
+let emptyBody = false;
+do; while (emptyBody);

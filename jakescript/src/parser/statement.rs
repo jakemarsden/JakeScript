@@ -16,9 +16,12 @@ use fallible_iterator::FallibleIterator;
 impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
     pub(super) fn parse_statement(&mut self) -> Result<Statement> {
         match self.source.peek()? {
-            Some(elem) if let Some(OpenBrace) = elem.punctuator() => {
-                self.parse_block_statement().map(Statement::Block)
+            Some(elem) if let Some(punc) = elem.punctuator() => match punc {
+                Semi => self.parse_empty_statement().map(Statement::Empty),
+                OpenBrace => self.parse_block_statement().map(Statement::Block),
+                _ => self.parse_expression_statement().map(Statement::Expression),
             }
+
             Some(elem) if let Some(kw) = elem.keyword() => match kw {
                 Const | Function | Let | Var => {
                     self.parse_declaration_statement().map(Statement::Declaration)
@@ -38,9 +41,15 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
 
                 _ => self.parse_expression_statement().map(Statement::Expression),
             }
+
             Some(_) => self.parse_expression_statement().map(Statement::Expression),
             None => Err(Error::unexpected_eoi(Unspecified)),
         }
+    }
+
+    fn parse_empty_statement(&mut self) -> Result<EmptyStatement> {
+        let loc = self.expect_punctuator(Semi)?;
+        Ok(EmptyStatement { loc })
     }
 
     fn parse_block_statement(&mut self) -> Result<BlockStatement> {
