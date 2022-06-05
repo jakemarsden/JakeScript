@@ -222,7 +222,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
 
         let initialiser = match self.source.peek()? {
             Some(elem) if elem.punctuator() == Some(Semi) => None,
-            _ => Some(self.parse_variable_declaration()?),
+            _ => Some(self.parse_loop_initialiser()?),
         };
         self.skip_non_tokens()?;
         self.expect_punctuator(Semi)?;
@@ -251,6 +251,16 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             condition,
             incrementor,
             body: Box::new(body),
+        })
+    }
+
+    fn parse_loop_initialiser(&mut self) -> Result<LoopInitialiser> {
+        Ok(match self.source.peek()? {
+            Some(elem) if matches!(elem.keyword(), Some(Const | Let | Var)) => self
+                .parse_variable_declaration()
+                .map(LoopInitialiser::VariableDeclaration)?,
+            Some(_) => self.parse_expression().map(LoopInitialiser::Expression)?,
+            None => return Err(Error::unexpected_eoi(Unspecified)),
         })
     }
 

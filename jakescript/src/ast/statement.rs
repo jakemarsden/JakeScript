@@ -87,10 +87,26 @@ pub struct WhileStatement {
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct ForStatement {
     pub loc: SourceLocation,
-    pub initialiser: Option<VariableDeclaration>,
+    pub initialiser: Option<LoopInitialiser>,
     pub condition: Option<Expression>,
     pub incrementor: Option<Expression>,
     pub body: Box<Statement>,
+}
+
+// TODO: a better way to factor this, if there is one. A for-loop's initialiser can either be a
+//  variable declaration or an expression (why?), so it's type can't be as simple as
+//  `VariableDeclaration`. It also can't be `Expression` because a declaration can't be made a type
+//  of expression, and it can't be `Statement` because only certain types of statement are allowed.
+//  - valid:   for (var i = 0;;) {}                  // can be a variable declaration
+//  - valid:   for (1 + 1;;) {}                      // can be any expression
+//  - valid:   for (console.log("hello world");;) {} // can be any expression
+//  - invalid: for (if (true) {};;) {}               // can't be any statement
+//  - invalid: console.log(let foo = "bar");         // a declaration can't be a type of expression
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[serde(tag = "initialiser_type")]
+pub enum LoopInitialiser {
+    Expression(Expression),
+    VariableDeclaration(VariableDeclaration),
 }
 
 // TODO: Support labels.
@@ -227,6 +243,15 @@ impl Node for WhileStatement {
 impl Node for ForStatement {
     fn source_location(&self) -> &SourceLocation {
         &self.loc
+    }
+}
+
+impl Node for LoopInitialiser {
+    fn source_location(&self) -> &SourceLocation {
+        match self {
+            Self::Expression(node) => node.source_location(),
+            Self::VariableDeclaration(node) => node.source_location(),
+        }
     }
 }
 

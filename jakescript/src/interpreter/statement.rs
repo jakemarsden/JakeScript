@@ -237,6 +237,15 @@ impl Eval for ForStatement {
     }
 }
 
+impl Eval for LoopInitialiser {
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
+        match self {
+            Self::Expression(node) => node.eval(it).map(|_| ()),
+            Self::VariableDeclaration(node) => node.eval(it),
+        }
+    }
+}
+
 impl Eval for ContinueStatement {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         it.vm_mut()

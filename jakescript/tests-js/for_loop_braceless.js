@@ -29,3 +29,32 @@ function returnInside2() {
     console.assertNotReached();
 }
 console.assertEqual(returnInside2(), 10);
+
+let exprAsInitialiser1Idx = false;
+// TODO: Support braceless for loops with empty bodies.
+for (1 + 1; !exprAsInitialiser1Idx; exprAsInitialiser1Idx = true) {}
+console.assert(exprAsInitialiser1Idx);
+
+let exprAsInitialiser2 = 0;
+let exprAsInitialiser2Idx = 0;
+// TODO: Support braceless for loops with empty bodies.
+for (exprAsInitialiser2 += 1; exprAsInitialiser2Idx < 3; exprAsInitialiser2Idx += 1) {}
+console.assertEqual(exprAsInitialiser2, 1);
+console.assertEqual(exprAsInitialiser2Idx, 3);
+
+let exprAsInitialiser5Idx = 0;
+let exprAsInitialiser5Counter = 0;
+for (false; exprAsInitialiser5Idx < 3; exprAsInitialiser5Idx += 1) exprAsInitialiser5Counter += 1;
+console.assertEqual(exprAsInitialiser5Idx, 3);
+console.assertEqual(exprAsInitialiser5Counter, 3);
+
+let exprAsInitialiser4 = 0;
+for (exprAsInitialiser4 += 1; false;) console.assertNotReached();
+console.assertEqual(exprAsInitialiser4, 1);
+
+let exprAsInitialiser5Called = 0;
+function expressionAsInitialiser5() {
+    exprAsInitialiser5Called += 1;
+}
+for (expressionAsInitialiser5(); false;) console.assertNotReached();
+console.assertEqual(exprAsInitialiser5Called, 1);
