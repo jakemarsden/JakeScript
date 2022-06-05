@@ -27,7 +27,7 @@ pub enum Statement {
     Throw(ThrowStatement),
 }
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct EmptyStatement {
     pub loc: SourceLocation,
 }
@@ -138,13 +138,13 @@ pub struct FinallyStatement {
 }
 
 // TODO: Support labels.
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct ContinueStatement {
     pub loc: SourceLocation,
 }
 
 // TODO: Support labels.
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct BreakStatement {
     pub loc: SourceLocation,
 }

@@ -72,7 +72,7 @@ struct DataProperty {
 }
 
 /// [Table 3 — Attributes of an Accessor Property](https://262.ecma-international.org/6.0/#table-3)
-#[derive(PartialEq)]
+#[derive(Eq, PartialEq)]
 struct AccessorProperty {
     get: Option<Reference>,
     set: Option<Reference>,

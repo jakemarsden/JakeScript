@@ -26,13 +26,13 @@ pub enum Expression {
     Ternary(TernaryExpression),
 }
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct IdentifierReferenceExpression {
     pub loc: SourceLocation,
     pub identifier: Identifier,
 }
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct ThisExpression {
     pub loc: SourceLocation,
 }

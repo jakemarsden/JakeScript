@@ -109,7 +109,7 @@ impl fmt::Display for AllowToken {
                 );
                 for t in rest {
                     str.push_str(" or ");
-                    str.push_str(&highlight(t.to_string()).to_string());
+                    str.push_str(&highlight(t.to_string()));
                 }
                 f.write_str(&str)
             }
