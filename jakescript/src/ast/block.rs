@@ -13,13 +13,7 @@ pub struct Script {
 pub struct Block {
     loc: SourceLocation,
     hoisted_declarations: Vec<Declaration>,
-    body: Vec<BlockItem>,
-}
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub enum BlockItem {
-    Declaration(Declaration),
-    Statement(Statement),
+    body: Vec<Statement>,
 }
 
 impl Script {
@@ -42,7 +36,7 @@ impl Block {
     pub fn new(
         loc: SourceLocation,
         hoisted_declarations: Vec<Declaration>,
-        body: Vec<BlockItem>,
+        body: Vec<Statement>,
     ) -> Self {
         Self {
             loc,
@@ -55,7 +49,7 @@ impl Block {
         &self.hoisted_declarations
     }
 
-    pub fn body(&self) -> &[BlockItem] {
+    pub fn body(&self) -> &[Statement] {
         &self.body
     }
 }
@@ -63,14 +57,5 @@ impl Block {
 impl Node for Block {
     fn source_location(&self) -> &SourceLocation {
         &self.loc
-    }
-}
-
-impl Node for BlockItem {
-    fn source_location(&self) -> &SourceLocation {
-        match self {
-            Self::Declaration(node) => node.source_location(),
-            Self::Statement(node) => node.source_location(),
-        }
     }
 }

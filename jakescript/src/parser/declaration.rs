@@ -1,4 +1,3 @@
-use super::block::Braces;
 use super::error::AllowToken::AnyOf;
 use super::error::{Error, Result};
 use super::Parser;
@@ -42,7 +41,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         self.skip_non_tokens()?;
         let formal_parameters = self.parse_fn_parameters()?;
         self.skip_non_tokens()?;
-        let body = self.parse_block(Braces::Require)?;
+        let body = self.parse_block()?;
         Ok(FunctionDeclaration {
             loc,
             binding,

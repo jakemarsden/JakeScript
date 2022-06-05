@@ -55,7 +55,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             .unwrap_or_default();
 
         self.skip_non_tokens()?;
-        let body = self.parse_multi_statement_block_body(loc)?;
+        let body = self.parse_block_body(loc)?;
         Ok(Script::new(body))
     }
 

@@ -5,7 +5,6 @@ use crate::ast::{self, *};
 use crate::iter::peek_fallible::PeekableNthFallibleIterator;
 use crate::lexer;
 use crate::non_empty_str;
-use crate::parser::block::Braces;
 use crate::token::Keyword::Function;
 use crate::token::Punctuator::{
     CloseBrace, CloseBracket, Colon, Comma, OpenBrace, OpenBracket, OpenParen,
@@ -179,7 +178,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         self.skip_non_tokens()?;
         let formal_parameters = self.parse_fn_parameters()?;
         self.skip_non_tokens()?;
-        let body = self.parse_block(Braces::Require)?;
+        let body = self.parse_block()?;
         Ok(FunctionExpression {
             loc,
             binding,

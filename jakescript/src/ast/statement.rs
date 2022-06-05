@@ -1,5 +1,5 @@
-use super::block::{Block, BlockItem};
-use super::declaration::VariableDeclaration;
+use super::block::Block;
+use super::declaration::{Declaration, VariableDeclaration};
 use super::expression::Expression;
 use super::identifier::Identifier;
 use super::Node;
@@ -9,6 +9,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 #[serde(tag = "statement_type")]
 pub enum Statement {
+    Block(BlockStatement),
+    Declaration(DeclarationStatement),
     Expression(ExpressionStatement),
 
     If(IfStatement),
@@ -25,6 +27,16 @@ pub enum Statement {
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct BlockStatement {
+    pub block: Block,
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct DeclarationStatement {
+    pub declaration: Declaration,
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct ExpressionStatement {
     pub expression: Expression,
 }
@@ -33,8 +45,8 @@ pub struct ExpressionStatement {
 pub struct IfStatement {
     pub loc: SourceLocation,
     pub condition: Expression,
-    pub body: Block,
-    pub else_body: Option<Block>,
+    pub body: Box<Statement>,
+    pub else_body: Option<Box<Statement>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
@@ -49,19 +61,19 @@ pub struct SwitchStatement {
 pub struct CaseStatement {
     pub loc: SourceLocation,
     pub expected: Expression,
-    pub body: Vec<BlockItem>,
+    pub body: Vec<Statement>,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct DefaultCaseStatement {
     pub loc: SourceLocation,
-    pub body: Vec<BlockItem>,
+    pub body: Vec<Statement>,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct DoStatement {
     pub loc: SourceLocation,
-    pub body: Block,
+    pub body: Box<Statement>,
     pub condition: Expression,
 }
 
@@ -69,7 +81,7 @@ pub struct DoStatement {
 pub struct WhileStatement {
     pub loc: SourceLocation,
     pub condition: Expression,
-    pub body: Block,
+    pub body: Box<Statement>,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
@@ -78,7 +90,7 @@ pub struct ForStatement {
     pub initialiser: Option<VariableDeclaration>,
     pub condition: Option<Expression>,
     pub incrementor: Option<Expression>,
-    pub body: Block,
+    pub body: Box<Statement>,
 }
 
 // TODO: Support labels.
@@ -129,6 +141,8 @@ pub struct FinallyStatement {
 impl Node for Statement {
     fn source_location(&self) -> &SourceLocation {
         match self {
+            Self::Block(node) => node.source_location(),
+            Self::Declaration(node) => node.source_location(),
             Self::Expression(node) => node.source_location(),
 
             Self::If(node) => node.source_location(),
@@ -143,6 +157,28 @@ impl Node for Statement {
             Self::Throw(node) => node.source_location(),
             Self::Try(node) => node.source_location(),
         }
+    }
+}
+
+impl Node for BlockStatement {
+    fn source_location(&self) -> &SourceLocation {
+        self.block.source_location()
+    }
+}
+
+impl DeclarationStatement {
+    pub fn is_hoisted(&self) -> bool {
+        self.declaration.is_hoisted()
+    }
+
+    pub fn into_declaration_and_initialiser(self) -> (Declaration, Vec<Expression>) {
+        self.declaration.into_declaration_and_initialiser()
+    }
+}
+
+impl Node for DeclarationStatement {
+    fn source_location(&self) -> &SourceLocation {
+        self.declaration.source_location()
     }
 }
 

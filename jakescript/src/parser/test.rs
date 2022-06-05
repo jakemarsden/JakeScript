@@ -103,7 +103,7 @@ mod simple {
                 body: Block::new(
                     at![loc@2:19],
                     vec![],
-                    vec![BlockItem::Statement(Statement::Return(ReturnStatement {
+                    vec![Statement::Return(ReturnStatement {
                         loc: at![loc@3:4],
                         value: Some(Expression::Binary(BinaryExpression {
                             loc: at![loc@3:11],
@@ -119,28 +119,26 @@ mod simple {
                                 value: ast::Literal::Numeric(ast::NumericLiteral::Int(2)),
                             })),
                         })),
-                    }))],
+                    })],
                 ),
             })],
-            vec![BlockItem::Statement(Statement::Expression(
-                ExpressionStatement {
-                    expression: Expression::Member(MemberExpression::FunctionCall(
-                        FunctionCallExpression {
-                            loc: at![loc@0:0],
-                            function: Box::new(Expression::IdentifierReference(
-                                IdentifierReferenceExpression {
-                                    loc: at![loc@0:0],
-                                    identifier: ident!("square"),
-                                },
-                            )),
-                            arguments: vec![Expression::Literal(LiteralExpression {
-                                loc: at![loc@0:7],
-                                value: Literal::Numeric(NumericLiteral::Int(4)),
-                            })],
-                        },
-                    )),
-                },
-            ))],
+            vec![Statement::Expression(ExpressionStatement {
+                expression: Expression::Member(MemberExpression::FunctionCall(
+                    FunctionCallExpression {
+                        loc: at![loc@0:0],
+                        function: Box::new(Expression::IdentifierReference(
+                            IdentifierReferenceExpression {
+                                loc: at![loc@0:0],
+                                identifier: ident!("square"),
+                            },
+                        )),
+                        arguments: vec![Expression::Literal(LiteralExpression {
+                            loc: at![loc@0:7],
+                            value: Literal::Numeric(NumericLiteral::Int(4)),
+                        })],
+                    },
+                )),
+            })],
         ))
     }
 }

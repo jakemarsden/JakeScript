@@ -8,6 +8,8 @@ use crate::ast::*;
 impl Eval for Statement {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         match self {
+            Self::Block(node) => node.eval(it),
+            Self::Declaration(node) => node.eval(it),
             Self::Expression(node) => node.eval(it),
             Self::If(node) => node.eval(it),
             Self::Switch(node) => node.eval(it),
@@ -20,6 +22,18 @@ impl Eval for Statement {
             Self::Throw(node) => node.eval(it),
             Self::Try(node) => node.eval(it),
         }
+    }
+}
+
+impl Eval for BlockStatement {
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
+        self.block.eval(it).map(|_| ())
+    }
+}
+
+impl Eval for DeclarationStatement {
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
+        self.declaration.eval(it)
     }
 }
 
