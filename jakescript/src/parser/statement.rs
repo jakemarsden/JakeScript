@@ -32,12 +32,12 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                 Do => self.parse_do_statement().map(Statement::Do),
                 While => self.parse_while_statement().map(Statement::While),
                 For => self.parse_for_statement().map(Statement::For),
+                Try => self.parse_try_statement().map(Statement::Try),
 
                 Continue => self.parse_continue_statement().map(Statement::Continue),
                 Break => self.parse_break_statement().map(Statement::Break),
                 Return => self.parse_return_statement().map(Statement::Return),
                 Throw => self.parse_throw_statement().map(Statement::Throw),
-                Try => self.parse_try_statement().map(Statement::Try),
 
                 _ => self.parse_expression_statement().map(Statement::Expression),
             }
@@ -273,41 +273,6 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         })
     }
 
-    fn parse_continue_statement(&mut self) -> Result<ContinueStatement> {
-        let loc = self.expect_keyword(Continue)?;
-        self.skip_non_tokens()?;
-        self.expect_punctuator(Semi)?;
-        Ok(ContinueStatement { loc })
-    }
-
-    fn parse_break_statement(&mut self) -> Result<BreakStatement> {
-        let loc = self.expect_keyword(Break)?;
-        self.skip_non_tokens()?;
-        self.expect_punctuator(Semi)?;
-        Ok(BreakStatement { loc })
-    }
-
-    fn parse_return_statement(&mut self) -> Result<ReturnStatement> {
-        let loc = self.expect_keyword(Return)?;
-        self.skip_non_tokens()?;
-        let value = match self.source.peek()? {
-            Some(elem) if elem.punctuator() == Some(Semi) => None,
-            _ => Some(self.parse_expression()?),
-        };
-        self.skip_non_tokens()?;
-        self.expect_punctuator(Semi)?;
-        Ok(ReturnStatement { loc, value })
-    }
-
-    fn parse_throw_statement(&mut self) -> Result<ThrowStatement> {
-        let loc = self.expect_keyword(Throw)?;
-        self.skip_non_tokens()?;
-        let exception = self.parse_expression()?;
-        self.skip_non_tokens()?;
-        self.expect_punctuator(Semi)?;
-        Ok(ThrowStatement { loc, exception })
-    }
-
     fn parse_try_statement(&mut self) -> Result<TryStatement> {
         let loc = self.expect_keyword(Try)?;
         self.skip_non_tokens()?;
@@ -370,5 +335,40 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         self.skip_non_tokens()?;
         let body = self.parse_block()?;
         Ok(ast::FinallyStatement { loc, body })
+    }
+
+    fn parse_continue_statement(&mut self) -> Result<ContinueStatement> {
+        let loc = self.expect_keyword(Continue)?;
+        self.skip_non_tokens()?;
+        self.expect_punctuator(Semi)?;
+        Ok(ContinueStatement { loc })
+    }
+
+    fn parse_break_statement(&mut self) -> Result<BreakStatement> {
+        let loc = self.expect_keyword(Break)?;
+        self.skip_non_tokens()?;
+        self.expect_punctuator(Semi)?;
+        Ok(BreakStatement { loc })
+    }
+
+    fn parse_return_statement(&mut self) -> Result<ReturnStatement> {
+        let loc = self.expect_keyword(Return)?;
+        self.skip_non_tokens()?;
+        let value = match self.source.peek()? {
+            Some(elem) if elem.punctuator() == Some(Semi) => None,
+            _ => Some(self.parse_expression()?),
+        };
+        self.skip_non_tokens()?;
+        self.expect_punctuator(Semi)?;
+        Ok(ReturnStatement { loc, value })
+    }
+
+    fn parse_throw_statement(&mut self) -> Result<ThrowStatement> {
+        let loc = self.expect_keyword(Throw)?;
+        self.skip_non_tokens()?;
+        let exception = self.parse_expression()?;
+        self.skip_non_tokens()?;
+        self.expect_punctuator(Semi)?;
+        Ok(ThrowStatement { loc, exception })
     }
 }

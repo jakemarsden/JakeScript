@@ -19,12 +19,12 @@ pub enum Statement {
     Do(DoStatement),
     While(WhileStatement),
     For(ForStatement),
+    Try(TryStatement),
 
     Continue(ContinueStatement),
     Break(BreakStatement),
     Return(ReturnStatement),
     Throw(ThrowStatement),
-    Try(TryStatement),
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
@@ -115,6 +115,27 @@ pub enum LoopInitialiser {
     VariableDeclaration(VariableDeclaration),
 }
 
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct TryStatement {
+    pub loc: SourceLocation,
+    pub body: Block,
+    pub catch: Option<CatchStatement>,
+    pub finally: Option<FinallyStatement>,
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct CatchStatement {
+    pub loc: SourceLocation,
+    pub parameter: Option<Identifier>,
+    pub body: Block,
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct FinallyStatement {
+    pub loc: SourceLocation,
+    pub body: Block,
+}
+
 // TODO: Support labels.
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct ContinueStatement {
@@ -139,27 +160,6 @@ pub struct ThrowStatement {
     pub exception: Expression,
 }
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct TryStatement {
-    pub loc: SourceLocation,
-    pub body: Block,
-    pub catch: Option<CatchStatement>,
-    pub finally: Option<FinallyStatement>,
-}
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct CatchStatement {
-    pub loc: SourceLocation,
-    pub parameter: Option<Identifier>,
-    pub body: Block,
-}
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct FinallyStatement {
-    pub loc: SourceLocation,
-    pub body: Block,
-}
-
 impl Node for Statement {
     fn source_location(&self) -> &SourceLocation {
         match self {
@@ -173,12 +173,12 @@ impl Node for Statement {
             Self::Do(node) => node.source_location(),
             Self::While(node) => node.source_location(),
             Self::For(node) => node.source_location(),
+            Self::Try(node) => node.source_location(),
 
             Self::Continue(node) => node.source_location(),
             Self::Break(node) => node.source_location(),
             Self::Return(node) => node.source_location(),
             Self::Throw(node) => node.source_location(),
-            Self::Try(node) => node.source_location(),
         }
     }
 }
@@ -268,6 +268,24 @@ impl Node for LoopInitialiser {
     }
 }
 
+impl Node for TryStatement {
+    fn source_location(&self) -> &SourceLocation {
+        &self.loc
+    }
+}
+
+impl Node for CatchStatement {
+    fn source_location(&self) -> &SourceLocation {
+        &self.loc
+    }
+}
+
+impl Node for FinallyStatement {
+    fn source_location(&self) -> &SourceLocation {
+        &self.loc
+    }
+}
+
 impl Node for ContinueStatement {
     fn source_location(&self) -> &SourceLocation {
         &self.loc
@@ -287,24 +305,6 @@ impl Node for ReturnStatement {
 }
 
 impl Node for ThrowStatement {
-    fn source_location(&self) -> &SourceLocation {
-        &self.loc
-    }
-}
-
-impl Node for TryStatement {
-    fn source_location(&self) -> &SourceLocation {
-        &self.loc
-    }
-}
-
-impl Node for CatchStatement {
-    fn source_location(&self) -> &SourceLocation {
-        &self.loc
-    }
-}
-
-impl Node for FinallyStatement {
     fn source_location(&self) -> &SourceLocation {
         &self.loc
     }

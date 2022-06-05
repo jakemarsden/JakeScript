@@ -18,12 +18,12 @@ impl Eval for Statement {
             Self::While(node) => node.eval(it),
             Self::Do(node) => node.eval(it),
             Self::For(node) => node.eval(it),
+            Self::Try(node) => node.eval(it),
 
             Self::Continue(node) => node.eval(it),
             Self::Break(node) => node.eval(it),
             Self::Return(node) => node.eval(it),
             Self::Throw(node) => node.eval(it),
-            Self::Try(node) => node.eval(it),
         }
     }
 }
@@ -255,43 +255,6 @@ impl Eval for LoopInitialiser {
     }
 }
 
-impl Eval for ContinueStatement {
-    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        it.vm_mut()
-            .set_execution_state(ExecutionState::BreakContinue);
-        Ok(())
-    }
-}
-
-impl Eval for BreakStatement {
-    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        it.vm_mut().set_execution_state(ExecutionState::Break);
-        Ok(())
-    }
-}
-
-impl Eval for ReturnStatement {
-    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        let value = if let Some(ref expr) = self.value {
-            expr.eval(it)?
-        } else {
-            Value::Undefined
-        };
-        it.vm_mut()
-            .set_execution_state(ExecutionState::Return(value));
-        Ok(())
-    }
-}
-
-impl Eval for ThrowStatement {
-    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        let ex = self.exception.eval(it)?;
-        it.vm_mut()
-            .set_execution_state(ExecutionState::Exception(ex));
-        Ok(())
-    }
-}
-
 impl Eval for TryStatement {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         self.body.eval(it)?;
@@ -333,5 +296,42 @@ impl Eval for FinallyStatement {
         let result = self.body.eval(it).map(|_| ());
         it.vm_mut().restore_hidden_exception();
         result
+    }
+}
+
+impl Eval for ContinueStatement {
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
+        it.vm_mut()
+            .set_execution_state(ExecutionState::BreakContinue);
+        Ok(())
+    }
+}
+
+impl Eval for BreakStatement {
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
+        it.vm_mut().set_execution_state(ExecutionState::Break);
+        Ok(())
+    }
+}
+
+impl Eval for ReturnStatement {
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
+        let value = if let Some(ref expr) = self.value {
+            expr.eval(it)?
+        } else {
+            Value::Undefined
+        };
+        it.vm_mut()
+            .set_execution_state(ExecutionState::Return(value));
+        Ok(())
+    }
+}
+
+impl Eval for ThrowStatement {
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
+        let ex = self.exception.eval(it)?;
+        it.vm_mut()
+            .set_execution_state(ExecutionState::Exception(ex));
+        Ok(())
     }
 }
