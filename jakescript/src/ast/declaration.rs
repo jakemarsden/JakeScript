@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 pub enum Declaration {
     Function(FunctionDeclaration),
     Variable(VariableDeclaration),
+    Lexical(LexicalDeclaration),
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
@@ -25,15 +26,20 @@ pub struct FunctionDeclaration {
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub struct VariableDeclaration {
     pub loc: SourceLocation,
-    pub kind: VariableDeclarationKind,
+    pub bindings: Vec<VariableBinding>,
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct LexicalDeclaration {
+    pub loc: SourceLocation,
+    pub kind: LexicalDeclarationKind,
     pub bindings: Vec<VariableBinding>,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
-pub enum VariableDeclarationKind {
+pub enum LexicalDeclarationKind {
     Const,
     Let,
-    Var,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
@@ -46,14 +52,14 @@ pub struct VariableBinding {
 impl Declaration {
     pub fn is_hoisted(&self) -> bool {
         match self {
-            Self::Function(..) => true,
-            Self::Variable(node) => node.is_hoisted(),
+            Self::Function(..) | Self::Variable(..) => true,
+            Self::Lexical(..) => false,
         }
     }
 
     pub fn into_declaration_and_initialiser(self) -> (Self, Vec<Expression>) {
         match self {
-            Self::Function(..) => (self, vec![]),
+            Self::Function(..) | Self::Lexical(..) => (self, vec![]),
             Self::Variable(node) => {
                 let (decl, initialisers) = node.into_declaration_and_initialiser();
                 (Self::Variable(decl), initialisers)
@@ -67,6 +73,7 @@ impl Node for Declaration {
         match self {
             Self::Function(node) => node.source_location(),
             Self::Variable(node) => node.source_location(),
+            Self::Lexical(node) => node.source_location(),
         }
     }
 }
@@ -78,20 +85,6 @@ impl Node for FunctionDeclaration {
 }
 
 impl VariableDeclaration {
-    pub fn is_escalated(&self) -> bool {
-        match self.kind {
-            VariableDeclarationKind::Const | VariableDeclarationKind::Let => false,
-            VariableDeclarationKind::Var => true,
-        }
-    }
-
-    pub fn is_hoisted(&self) -> bool {
-        match self.kind {
-            VariableDeclarationKind::Const | VariableDeclarationKind::Let => false,
-            VariableDeclarationKind::Var => true,
-        }
-    }
-
     /// Split the declaration into
     ///
     /// 1. a "main" [`VariableDeclaration`], sans initialisers, to declare each entry
@@ -120,6 +113,12 @@ impl VariableDeclaration {
 }
 
 impl Node for VariableDeclaration {
+    fn source_location(&self) -> &SourceLocation {
+        &self.loc
+    }
+}
+
+impl Node for LexicalDeclaration {
     fn source_location(&self) -> &SourceLocation {
         &self.loc
     }

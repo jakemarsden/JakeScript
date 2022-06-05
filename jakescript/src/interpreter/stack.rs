@@ -1,7 +1,7 @@
 use super::error::{AssignToConstVariableError, VariableAlreadyDefinedError};
 use super::heap::Reference;
 use super::value::Value;
-use crate::ast::{Identifier, VariableDeclarationKind};
+use crate::ast::{Identifier, LexicalDeclarationKind};
 use std::cell::{Ref, RefCell};
 use std::rc::Rc;
 
@@ -230,12 +230,11 @@ impl Variable {
     }
 }
 
-impl From<VariableDeclarationKind> for VariableKind {
-    fn from(decl_kind: VariableDeclarationKind) -> Self {
+impl From<LexicalDeclarationKind> for VariableKind {
+    fn from(decl_kind: LexicalDeclarationKind) -> Self {
         match decl_kind {
-            VariableDeclarationKind::Const => Self::Const,
-            VariableDeclarationKind::Let => Self::Let,
-            VariableDeclarationKind::Var => Self::Var,
+            LexicalDeclarationKind::Const => Self::Const,
+            LexicalDeclarationKind::Let => Self::Let,
         }
     }
 }

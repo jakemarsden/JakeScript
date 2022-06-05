@@ -265,9 +265,12 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
 
     fn parse_loop_initialiser(&mut self) -> Result<LoopInitialiser> {
         Ok(match self.source.peek()? {
-            Some(elem) if matches!(elem.keyword(), Some(Const | Let | Var)) => self
+            Some(elem) if matches!(elem.keyword(), Some(Var)) => self
                 .parse_variable_declaration()
                 .map(LoopInitialiser::VariableDeclaration)?,
+            Some(elem) if matches!(elem.keyword(), Some(Const | Let)) => self
+                .parse_lexical_declaration()
+                .map(LoopInitialiser::LexicalDeclaration)?,
             Some(_) => self.parse_expression().map(LoopInitialiser::Expression)?,
             None => return Err(Error::unexpected_eoi(Unspecified)),
         })

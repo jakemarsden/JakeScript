@@ -1,5 +1,5 @@
 use super::block::Block;
-use super::declaration::{Declaration, VariableDeclaration};
+use super::declaration::{Declaration, LexicalDeclaration, VariableDeclaration};
 use super::expression::Expression;
 use super::identifier::Identifier;
 use super::Node;
@@ -113,6 +113,7 @@ pub struct ForStatement {
 pub enum LoopInitialiser {
     Expression(Expression),
     VariableDeclaration(VariableDeclaration),
+    LexicalDeclaration(LexicalDeclaration),
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
@@ -264,6 +265,7 @@ impl Node for LoopInitialiser {
         match self {
             Self::Expression(node) => node.source_location(),
             Self::VariableDeclaration(node) => node.source_location(),
+            Self::LexicalDeclaration(node) => node.source_location(),
         }
     }
 }

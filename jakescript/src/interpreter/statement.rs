@@ -251,6 +251,7 @@ impl Eval for LoopInitialiser {
         match self {
             Self::Expression(node) => node.eval(it).map(|_| ()),
             Self::VariableDeclaration(node) => node.eval(it),
+            Self::LexicalDeclaration(node) => node.eval(it),
         }
     }
 }
