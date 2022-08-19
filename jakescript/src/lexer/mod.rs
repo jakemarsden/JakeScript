@@ -69,6 +69,8 @@ impl<I: FallibleIterator<Item = char, Error = io::Error>> Lexer<I> {
             Some(Token::Literal(value))
         } else if let Some(value) = self.parse_punctuator()? {
             Some(Token::Punctuator(value))
+        } else if let Some(value) = self.parse_template()? {
+            Some(Token::Template(value))
         } else {
             self.parse_keyword_or_identifier()?
         })
@@ -301,6 +303,24 @@ impl<I: FallibleIterator<Item = char, Error = io::Error>> Lexer<I> {
         self.source.advance_by(raw_content_len)?.unwrap();
         assert!(self.source.next_if_eq(&qt)?.is_some());
         Ok(Some(content))
+    }
+
+    /// ```plain
+    /// TemplateLiteral::
+    ///     NoSubstitutionTemplate
+    ///     SubstitutionTemplate
+    ///
+    /// NoSubstitutionTemplate::
+    ///     ` TemplateCharacters(opt) `
+    /// ```
+    fn parse_template(&mut self) -> Result<Option<Template>> {
+        if !matches!(self.source.peek()?, Some('`')) {
+            return Ok(None);
+        }
+        // TODO: Parse template literals properly (extract the inner ${expression}s for
+        //  substitution, etc.)
+        let value = self.parse_string_literal_impl('`')?.unwrap();
+        Ok(Some(Template { value }))
     }
 
     /// ```plain

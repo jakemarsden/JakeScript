@@ -2,6 +2,7 @@ pub use keyword::*;
 pub use literal::*;
 pub use location::*;
 pub use punctuator::*;
+pub use template::*;
 
 use crate::str::NonEmptyString;
 use std::fmt;
@@ -13,6 +14,7 @@ mod keyword;
 mod literal;
 mod location;
 mod punctuator;
+mod template;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Element {
@@ -34,6 +36,7 @@ pub enum Token {
     Keyword(Keyword),
     Literal(Literal),
     Punctuator(Punctuator),
+    Template(Template),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -233,6 +236,7 @@ impl fmt::Display for Token {
             Self::Keyword(it) => write!(f, "{}", it),
             Self::Literal(it) => write!(f, "{}", it),
             Self::Punctuator(it) => write!(f, "{}", it),
+            Self::Template(it) => write!(f, "{}", it),
         }
     }
 }
