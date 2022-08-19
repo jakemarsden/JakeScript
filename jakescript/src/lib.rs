@@ -4,7 +4,6 @@
 #![feature(if_let_guard)]
 #![feature(iter_advance_by)]
 #![feature(iter_intersperse)]
-#![feature(let_chains)]
 
 pub mod ast;
 pub mod interpreter;

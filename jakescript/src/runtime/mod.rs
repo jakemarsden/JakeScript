@@ -84,10 +84,10 @@ pub trait Builtin {
     }
 }
 
+type NativeFn<'a> = &'a dyn Fn(&mut Interpreter, Reference, &[Value]) -> Result<Value, ErrorKind>;
+
 #[derive(Clone)]
-pub struct NativeCall(
-    &'static dyn Fn(&mut Interpreter, Reference, &[Value]) -> Result<Value, ErrorKind>,
-);
+pub struct NativeCall(NativeFn<'static>);
 
 impl Runtime {
     pub fn with_default_global_object(heap: &mut Heap) -> Result<Self, InitialisationError> {
