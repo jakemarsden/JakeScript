@@ -2,6 +2,7 @@
 members = [
     "jakescript",
     "jakescript-cli",
+    "jakescript-test262",
 ]
 
 [profile.release]

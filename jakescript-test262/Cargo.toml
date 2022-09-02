@@ -1,0 +1,10 @@
+[package]
+name = "jakescript-tests262"
+version = "0.1.0"
+authors = ["Jake Marsden <jakemarsdenjm@gmail.com>"]
+edition = "2021"
+publish = false
+
+[dependencies]
+jakescript = { path = "../jakescript" }
+test262-harness = "0.1"
