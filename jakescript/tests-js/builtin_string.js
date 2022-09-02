@@ -51,3 +51,15 @@ console.assertEqual("Hello, world!".substring(99), "");
 console.assertEqual("Hello, world!".substring(7, 99), "world!");
 console.assertEqual("Hello, world!".substring(99, 7), "world!");
 console.assertEqual("Hello, world!".substring(99, 99), "");
+
+let firewood = "fire, wood";
+let kindling = firewood.split(', ');
+console.assertEqual(kindling.length, 2);
+console.assertEqual(kindling[0], "fire");
+console.assertEqual(kindling[1], "wood");
+
+let firewood2 = "fire,wood";
+let kindling2 = firewood2.split();
+console.assertEqual(kindling2.length, 2);
+console.assertEqual(kindling2[0], "fire");
+console.assertEqual(kindling2[1], "wood");

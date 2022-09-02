@@ -71,6 +71,13 @@ impl Number {
         }
     }
 
+    pub fn is_negative(self) -> bool {
+        match self {
+            Self::Float(value) => value < 0.0,
+            Self::Int(value) => value < 0,
+        }
+    }
+
     pub fn as_i64(self) -> i64 {
         match self {
             #[allow(clippy::cast_possible_truncation)]

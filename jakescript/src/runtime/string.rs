@@ -20,11 +20,13 @@ impl Builtin for StringProtoBuiltin {
     ) -> Result<Self, InitialisationError> {
         let length = GetLengthBuiltin::init(heap, fn_proto.clone())?;
         let char_at = CharAtBuiltin::init(heap, fn_proto.clone())?;
+        let split = SplitBuiltin::init(heap, fn_proto.clone())?;
         let substring = SubstringBuiltin::init(heap, fn_proto)?;
 
         let props = hash_map![
             prop_key!("length") => Property::new_const_accessor(length.as_obj_ref()),
             prop_key!("charAt") => Property::new_user(char_at.as_value()),
+            prop_key!("split") => Property::new_user(split.as_value()),
             prop_key!("substring") => Property::new_user(substring.as_value()),
         ];
 
@@ -83,6 +85,33 @@ builtin_fn!(CharAtBuiltin, Extensible::Yes, (it, receiver, args) => {
     it.alloc_string(char_str)
         .map(Value::Object)
         .map_err(ErrorKind::from)
+});
+
+builtin_fn!(SplitBuiltin, Extensible::Yes, (it, receiver, args) => {
+    let receiver = it.coerce_to_string(&Value::Object(receiver));
+    let mut args = args.iter();
+    let separator = if let Some(arg) = args.next() {
+        it.coerce_to_string(arg)
+    } else {
+        Box::from(",")
+    };
+    let limit = if let Some(arg) = args.next() {
+        it.coerce_to_number(arg)
+    } else {
+        Number::from(-1)
+    };
+    let limit = if !limit.is_negative() {
+        usize::try_from(limit.as_i64()).expect("overflow")
+    } else {
+        usize::MAX
+    };
+
+    let mut parts = Vec::new();
+    for part in receiver.split(separator.as_ref()).take(limit) {
+        let part = it.alloc_string(Box::from(part))?;
+        parts.push(Value::Object(part));
+    }
+    it.alloc_array(parts).map(Value::Object).map_err(ErrorKind::from)
 });
 
 builtin_fn!(SubstringBuiltin, Extensible::Yes, (it, receiver, args) => {
