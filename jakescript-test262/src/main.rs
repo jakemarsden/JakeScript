@@ -35,60 +35,42 @@ fn main() {
         };
 
         let test_path = test.path.clone();
-        let negative = test.desc.negative.clone();
+        let expected = Expected::from(test.desc.negative.as_ref());
 
         // TODO: Timeout after awhile, for tests which fail by entering an infinite loop.
         let test_result = exec_test_suppressing_panic(test);
 
-        match (test_result, &negative) {
-            (Ok(()), None)
-            | (Err(FailureReason::Parse(..)), Some(Negative { phase: Parse, .. }))
-            | (
-                Err(FailureReason::Eval(..)),
-                Some(Negative {
-                    phase: Early | Resolution | Runtime,
-                    ..
-                }),
-            ) => {
+        match (test_result, expected) {
+            (Ok(()), Expected::Pass)
+            | (Err(FailureReason::Parse(..)), Expected::ParserFail)
+            | (Err(FailureReason::Eval(..)), Expected::RuntimeFail) => {
                 pass_count += 1;
                 eprintln!("|{}| PASS {}", test_number, test_path.display());
             }
 
-            (Ok(()), Some(Negative { phase, .. })) => {
+            (Ok(()), expected @ (Expected::ParserFail | Expected::RuntimeFail)) => {
                 fail_count += 1;
                 eprintln!(
-                    "|{}| FAIL {}: Expected to fail {:?} but passed",
+                    "|{}| FAIL {}: Expected to {} but passed",
                     test_number,
                     test_path.display(),
-                    phase
+                    expected,
                 );
             }
 
-            (
-                Err(err @ FailureReason::Parse(..)),
-                Some(Negative {
-                    phase: phase @ (Early | Resolution | Runtime),
-                    ..
-                }),
-            )
-            | (
-                Err(err @ FailureReason::Eval(..)),
-                Some(Negative {
-                    phase: phase @ Parse,
-                    ..
-                }),
-            ) => {
+            (Err(err @ FailureReason::Parse(..)), expected @ Expected::RuntimeFail)
+            | (Err(err @ FailureReason::Eval(..)), expected @ Expected::ParserFail) => {
                 fail_count += 1;
                 eprintln!(
-                    "|{}| FAIL {}: Expected to fail {:?} but failed {}",
+                    "|{}| FAIL {}: Expected to {} but failed {}",
                     test_number,
                     test_path.display(),
-                    phase,
+                    expected,
                     err
                 );
             }
 
-            (Err(err @ (FailureReason::Parse(..) | FailureReason::Eval(..))), None) => {
+            (Err(err @ (FailureReason::Parse(..) | FailureReason::Eval(..))), Expected::Pass) => {
                 fail_count += 1;
                 eprintln!("|{}| FAIL {}: {}", test_number, test_path.display(), err);
             }
@@ -130,6 +112,36 @@ fn exec_test(test: &Test) -> Result<(), FailureReason> {
     script.eval(&mut it)?;
 
     Ok(())
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum Expected {
+    Pass,
+    ParserFail,
+    RuntimeFail,
+}
+
+impl fmt::Display for Expected {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str(match self {
+            Self::Pass => "pass",
+            Self::ParserFail => "fail at parse time",
+            Self::RuntimeFail => "fail at runtime",
+        })
+    }
+}
+
+impl From<Option<&Negative>> for Expected {
+    fn from(negative: Option<&Negative>) -> Self {
+        match negative {
+            None => Self::Pass,
+            Some(Negative { phase: Parse, .. }) => Self::ParserFail,
+            Some(Negative {
+                phase: Early | Resolution | Runtime,
+                ..
+            }) => Self::RuntimeFail,
+        }
+    }
 }
 
 // TODO: Using `String` as a workaround for the fact that `parser::Error` and `interpreter::Error`
