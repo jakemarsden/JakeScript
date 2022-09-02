@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="clippy" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
-    <option name="command" value="clippy --all-features --all-targets --workspace -- -Wwarnings -Wclippy::all -Wclippy::pedantic -Wclippy::missing-panics-doc -Aclippy::if-not-else -Aclippy::missing-errors-doc -Aclippy::module-name-repetitions -Aclippy::must-use-candidate -Aclippy::too-many-lines -Aclippy::return-self-not-must-use -Aclippy::wildcard_imports" />
+    <option name="command" value="clippy --all-features --all-targets --workspace -- -Wwarnings -Wclippy::all -Wclippy::pedantic -Wclippy::missing-panics-doc -Aclippy::if-not-else -Aclippy::missing-errors-doc -Aclippy::module-name-repetitions -Aclippy::must-use-candidate -Aclippy::result-large-err -Aclippy::return-self-not-must-use -Aclippy::too-many-lines -Aclippy::wildcard_imports" />
     <option name="workingDirectory" value="file://$PROJECT_DIR$" />
     <option name="channel" value="DEFAULT" />
     <option name="requiredFeatures" value="true" />

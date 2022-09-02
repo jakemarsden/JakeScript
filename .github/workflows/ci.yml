@@ -81,8 +81,9 @@ jobs:
             -Aclippy::missing-errors-doc
             -Aclippy::module-name-repetitions
             -Aclippy::must-use-candidate
-            -Aclippy::too-many-lines
+            -Aclippy::result-large-err
             -Aclippy::return-self-not-must-use
+            -Aclippy::too-many-lines
             -Aclippy::wildcard_imports
 
       - name: Test
