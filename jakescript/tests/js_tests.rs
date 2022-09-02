@@ -1,10 +1,11 @@
-use harness::{TestCaseReport, TestSuiteReport, TestSuiteSummary};
+use harness::{TestCaseReport, TestSuiteReport};
+use std::process;
 use walkdir::{DirEntry, WalkDir};
 
 pub mod harness;
 
 #[test]
-fn js_tests() -> TestSuiteSummary {
+fn js_tests() -> impl process::Termination {
     harness::init();
     WalkDir::new("tests-js")
         .into_iter()

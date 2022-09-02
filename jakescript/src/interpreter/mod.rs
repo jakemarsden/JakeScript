@@ -301,8 +301,6 @@ impl Interpreter {
         self.checked_numeric_binary_op(lhs, rhs, Number::checked_add)
     }
 
-    // unnecessary_wraps: Future-proofing
-    #[allow(clippy::unnecessary_wraps)]
     fn concat(&mut self, lhs: &Value, rhs: &Value) -> std::result::Result<Value, ErrorKind> {
         let out = format!(
             "{}{}",
