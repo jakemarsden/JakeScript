@@ -9,7 +9,8 @@ use jakescript::{interpreter, parser};
 use std::any::Any;
 use std::path::Path;
 use std::{fmt, thread};
-use test262_harness::{Error, Harness, Test};
+use test262_harness::Phase::{Early, Parse, Resolution, Runtime};
+use test262_harness::{Error, Harness, Negative, Test};
 
 static TEST262_ROOT_DIR: &str = "../test262";
 static TEST262_TEST_DIR: &str = "../test262/test";
@@ -18,8 +19,7 @@ fn main() {
     let harness = Harness::new(TEST262_ROOT_DIR).expect("failed to initialize harness");
 
     let mut pass_count = 0_usize;
-    let mut parse_fail_count = 0_usize;
-    let mut exec_fail_count = 0_usize;
+    let mut fail_count = 0_usize;
     let mut panic_count = 0_usize;
     for (idx, test) in harness.enumerate() {
         let test_number = idx + 1;
@@ -35,33 +35,78 @@ fn main() {
         };
 
         let test_path = test.path.clone();
-        match exec_test_suppressing_panic(test) {
-            Ok(()) => {
+        let negative = test.desc.negative.clone();
+
+        // TODO: Timeout after awhile, for tests which fail by entering an infinite loop.
+        let test_result = exec_test_suppressing_panic(test);
+
+        match (test_result, &negative) {
+            (Ok(()), None)
+            | (Err(FailureReason::Parse(..)), Some(Negative { phase: Parse, .. }))
+            | (
+                Err(FailureReason::Eval(..)),
+                Some(Negative {
+                    phase: Early | Resolution | Runtime,
+                    ..
+                }),
+            ) => {
                 pass_count += 1;
-                eprintln!("|{}| PASS {}", test_number, test_path.display())
+                eprintln!("|{}| PASS {}", test_number, test_path.display());
             }
-            Err(err) => {
-                match err {
-                    FailureReason::Parse(..) => parse_fail_count += 1,
-                    FailureReason::Exec(..) => exec_fail_count += 1,
-                    FailureReason::Panic(..) => panic_count += 1,
-                }
-                eprintln!("|{}| FAIL {}: {}", test_number, test_path.display(), err)
+
+            (Ok(()), Some(Negative { phase, .. })) => {
+                fail_count += 1;
+                eprintln!(
+                    "|{}| FAIL {}: Expected to fail {:?} but passed",
+                    test_number,
+                    test_path.display(),
+                    phase
+                );
+            }
+
+            (
+                Err(err @ FailureReason::Parse(..)),
+                Some(Negative {
+                    phase: phase @ (Early | Resolution | Runtime),
+                    ..
+                }),
+            )
+            | (
+                Err(err @ FailureReason::Eval(..)),
+                Some(Negative {
+                    phase: phase @ Parse,
+                    ..
+                }),
+            ) => {
+                fail_count += 1;
+                eprintln!(
+                    "|{}| FAIL {}: Expected to fail {:?} but failed {}",
+                    test_number,
+                    test_path.display(),
+                    phase,
+                    err
+                );
+            }
+
+            (Err(err @ (FailureReason::Parse(..) | FailureReason::Eval(..))), None) => {
+                fail_count += 1;
+                eprintln!("|{}| FAIL {}: {}", test_number, test_path.display(), err);
+            }
+
+            (Err(FailureReason::Panic(..)), _) => {
+                panic_count += 1;
+                eprintln!("|{}| PANIC {}", test_number, test_path.display());
             }
         }
     }
 
-    let fail_count = parse_fail_count
-        .saturating_add(exec_fail_count)
+    let total_count = pass_count
+        .saturating_add(fail_count)
         .saturating_add(panic_count);
-    let total_count = pass_count.saturating_add(fail_count);
-
     eprintln!(" -- TEST262 COMPLETED --");
-    eprintln!("Passed: {} of {}", pass_count, total_count);
-    eprintln!(
-        "Failed: {} ({} during parse, {} during exec, {} panicked)",
-        fail_count, parse_fail_count, exec_fail_count, panic_count
-    )
+    eprintln!("Passed:   {} of {}", pass_count, total_count);
+    eprintln!("Failed:   {}", fail_count);
+    eprintln!("Panicked: {}", panic_count);
 }
 
 fn is_test_we_care_about(path: impl AsRef<Path>) -> bool {
@@ -92,7 +137,7 @@ fn exec_test(test: &Test) -> Result<(), FailureReason> {
 #[derive(Debug)]
 enum FailureReason {
     Parse(String),
-    Exec(String),
+    Eval(String),
     Panic(Box<dyn Any + Send + 'static>),
 }
 
@@ -102,7 +147,7 @@ impl fmt::Display for FailureReason {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Parse(source) => write!(f, "parse: {}", source),
-            Self::Exec(source) => write!(f, "exec: {}", source),
+            Self::Eval(source) => write!(f, "eval: {}", source),
             Self::Panic(_) => f.write_str("panic"),
         }
     }
@@ -116,7 +161,7 @@ impl From<parser::Error> for FailureReason {
 
 impl From<interpreter::Error> for FailureReason {
     fn from(source: interpreter::Error) -> Self {
-        Self::Exec(source.to_string())
+        Self::Eval(source.to_string())
     }
 }
 
