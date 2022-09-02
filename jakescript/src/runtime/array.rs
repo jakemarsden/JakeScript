@@ -1,7 +1,7 @@
 use super::Builtin;
 use crate::interpreter::{
     ErrorKind, Extensible, Heap, InitialisationError, Number, Object, ObjectData, Property,
-    Reference, Value,
+    PropertyKey, Reference, Value,
 };
 use crate::{builtin_fn, prop_key};
 use common_macros::hash_map;
@@ -17,10 +17,12 @@ impl Builtin for ArrayProtoBuiltin {
         heap: &mut Heap,
         (obj_proto, fn_proto): Self::InitArgs,
     ) -> Result<Self, InitialisationError> {
-        let length = GetLengthBuiltin::init(heap, fn_proto)?;
+        let length = GetLengthBuiltin::init(heap, fn_proto.clone())?;
+        let push = PushBuiltin::init(heap, fn_proto)?;
 
         let props = hash_map![
             prop_key!("length") => Property::new_const_accessor(length.as_obj_ref()),
+            prop_key!("push") => Property::new_user(push.as_value()),
         ];
 
         let obj_ref = heap.allocate(Object::new(
@@ -51,4 +53,28 @@ builtin_fn!(GetLengthBuiltin, Extensible::No, (it, receiver, _args) => {
         unreachable!()
     });
     Ok(Value::Number(length))
+});
+
+builtin_fn!(PushBuiltin, Extensible::Yes, (it, receiver, args) => {
+    let mut array = it.vm_mut().heap_mut().resolve_mut(&receiver);
+    let start_len = array.own_property_keys().count();
+    args.iter()
+        .cloned()
+        .enumerate()
+        .map(|(idx, value)| {
+            (
+                PropertyKey::from(start_len + idx),
+                Property::new_enumerable(value),
+            )
+        })
+        .for_each(|(prop_key, prop_value)| {
+            let defined = array.define_own_property(prop_key, prop_value);
+            assert!(defined);
+        });
+    let finish_len = array.own_property_keys().count();
+    let finish_len = Number::try_from(finish_len).unwrap_or_else(|_| {
+        // TODO
+        unreachable!()
+    });
+    Ok(Value::Number(finish_len))
 });
