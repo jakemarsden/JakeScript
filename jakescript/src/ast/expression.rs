@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 pub enum Expression {
     IdentifierReference(IdentifierReferenceExpression),
     This(ThisExpression),
+    New(NewExpression),
     Literal(LiteralExpression),
     Array(ArrayExpression),
     Object(ObjectExpression),
@@ -35,6 +36,13 @@ pub struct IdentifierReferenceExpression {
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct ThisExpression {
     pub loc: SourceLocation,
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct NewExpression {
+    pub loc: SourceLocation,
+    pub type_name: Identifier,
+    pub arguments: Vec<Expression>,
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
@@ -249,6 +257,7 @@ impl Node for Expression {
         match self {
             Self::IdentifierReference(node) => node.source_location(),
             Self::This(node) => node.source_location(),
+            Self::New(node) => node.source_location(),
             Self::Literal(node) => node.source_location(),
             Self::Array(node) => node.source_location(),
             Self::Object(node) => node.source_location(),
@@ -273,6 +282,12 @@ impl Node for IdentifierReferenceExpression {
 }
 
 impl Node for ThisExpression {
+    fn source_location(&self) -> &SourceLocation {
+        &self.loc
+    }
+}
+
+impl Node for NewExpression {
     fn source_location(&self) -> &SourceLocation {
         &self.loc
     }

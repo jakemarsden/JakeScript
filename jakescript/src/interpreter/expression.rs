@@ -12,6 +12,7 @@ impl Eval for Expression {
         match self {
             Self::IdentifierReference(ref node) => node.eval(it),
             Self::This(ref node) => node.eval(it),
+            Self::New(ref node) => node.eval(it),
             Self::Literal(ref node) => node.eval(it),
             Self::Array(ref node) => node.eval(it),
             Self::Object(ref node) => node.eval(it),
@@ -65,6 +66,14 @@ impl Eval for ThisExpression {
                 .cloned()
                 .unwrap_or_else(|| it.vm().runtime().global_object_ref().clone()),
         ))
+    }
+}
+
+impl Eval for NewExpression {
+    type Output = Value;
+
+    fn eval(&self, _: &mut Interpreter) -> Result<Self::Output> {
+        todo!("NewExpression::eval: {:#?}", self)
     }
 }
 

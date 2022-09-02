@@ -5,7 +5,7 @@ use crate::ast::*;
 use crate::iter::peek_fallible::PeekableNthFallibleIterator;
 use crate::lexer;
 use crate::non_empty_str;
-use crate::token::Keyword::{Function, This};
+use crate::token::Keyword::{Function, New, This};
 use crate::token::Punctuator::{
     self, Amp, AmpAmp, AmpEq, Bang, BangEq, BangEqEq, Caret, CaretEq, CloseBracket, CloseParen,
     Colon, Comma, Dot, Eq, EqEq, EqEqEq, Gt, GtEq, GtGt, GtGtEq, GtGtGt, GtGtGtEq, Lt, LtEq, LtLt,
@@ -66,6 +66,9 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                 .map(Expression::IdentifierReference)?,
             Some(elem) if elem.keyword() == Some(This) => {
                 self.parse_this_expression().map(Expression::This)?
+            }
+            Some(elem) if elem.keyword() == Some(New) => {
+                self.parse_new_expression().map(Expression::New)?
             }
             Some(elem) if elem.literal().is_some() => {
                 self.parse_literal_expression().map(Expression::Literal)?
@@ -174,6 +177,30 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
     fn parse_this_expression(&mut self) -> Result<ThisExpression> {
         let loc = self.expect_keyword(This)?;
         Ok(ThisExpression { loc })
+    }
+
+    fn parse_new_expression(&mut self) -> Result<NewExpression> {
+        let loc = self.expect_keyword(New)?;
+        self.skip_non_tokens()?;
+        let (type_name, _) = self.expect_identifier(non_empty_str!("type_name"))?;
+        self.skip_non_tokens()?;
+        let arguments = if self
+            .source
+            .next_if(|elem| elem.punctuator() == Some(OpenParen))?
+            .is_some()
+        {
+            let args = self.parse_fn_arguments()?;
+            self.skip_non_tokens()?;
+            self.expect_punctuator(CloseParen)?;
+            args
+        } else {
+            vec![]
+        };
+        Ok(NewExpression {
+            loc,
+            type_name,
+            arguments,
+        })
     }
 
     fn parse_assignment_expression(
