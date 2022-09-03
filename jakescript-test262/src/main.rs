@@ -34,27 +34,27 @@ fn main() {
             Err(err) => panic!("{}", err),
         };
 
-        let test_path = test.path.clone();
         let expected = Expected::from(test.desc.negative.as_ref());
+        let test_path = &test.path.display();
 
-        // TODO: Timeout after awhile, for tests which fail by entering an infinite loop.
-        let test_result = exec_test_suppressing_panic(test);
+        // TODO: Time out to protect against tests which fail by entering an infinite loop.
+        let test_result = exec_test_suppressing_panic(&test);
 
+        // TODO: For negative test cases, check that the name of the thrown exception matches the
+        //  `Negative::type` (as well as the `Negative::phase`) in the test description.
         match (test_result, expected) {
             (Ok(()), Expected::Pass)
             | (Err(FailureReason::Parse(..)), Expected::ParserFail)
             | (Err(FailureReason::Eval(..)), Expected::RuntimeFail) => {
                 pass_count += 1;
-                eprintln!("|{}| PASS {}", test_number, test_path.display());
+                eprintln!("|{}| PASS {}", test_number, test_path);
             }
 
             (Ok(()), expected @ (Expected::ParserFail | Expected::RuntimeFail)) => {
                 fail_count += 1;
                 eprintln!(
                     "|{}| FAIL {}: Expected to {} but passed",
-                    test_number,
-                    test_path.display(),
-                    expected,
+                    test_number, test_path, expected,
                 );
             }
 
@@ -63,21 +63,18 @@ fn main() {
                 fail_count += 1;
                 eprintln!(
                     "|{}| FAIL {}: Expected to {} but failed {}",
-                    test_number,
-                    test_path.display(),
-                    expected,
-                    err
+                    test_number, test_path, expected, err
                 );
             }
 
             (Err(err @ (FailureReason::Parse(..) | FailureReason::Eval(..))), Expected::Pass) => {
                 fail_count += 1;
-                eprintln!("|{}| FAIL {}: {}", test_number, test_path.display(), err);
+                eprintln!("|{}| FAIL {}: {}", test_number, test_path, err);
             }
 
             (Err(FailureReason::Panic(..)), _) => {
                 panic_count += 1;
-                eprintln!("|{}| PANIC {}", test_number, test_path.display());
+                eprintln!("|{}| PANIC {}", test_number, test_path);
             }
         }
     }
@@ -85,7 +82,7 @@ fn main() {
     let total_count = pass_count
         .saturating_add(fail_count)
         .saturating_add(panic_count);
-    eprintln!(" -- TEST262 COMPLETED --");
+    eprintln!("-- TEST262 COMPLETED --");
     eprintln!("Passed:   {} of {}", pass_count, total_count);
     eprintln!("Failed:   {}", fail_count);
     eprintln!("Panicked: {}", panic_count);
@@ -95,10 +92,12 @@ fn is_test_we_care_about(path: impl AsRef<Path>) -> bool {
     path.as_ref().starts_with(TEST262_TEST_DIR)
 }
 
-fn exec_test_suppressing_panic(test: Test) -> Result<(), FailureReason> {
-    let t = thread::spawn(move || exec_test(&test));
-    t.join()
-        .unwrap_or_else(|payload| Err(FailureReason::from_panic_payload(payload)))
+fn exec_test_suppressing_panic(test: &Test) -> Result<(), FailureReason> {
+    thread::scope(|s| {
+        s.spawn(|| exec_test(test))
+            .join()
+            .unwrap_or_else(|payload| Err(FailureReason::from_panic_payload(payload)))
+    })
 }
 
 fn exec_test(test: &Test) -> Result<(), FailureReason> {
