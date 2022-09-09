@@ -16,23 +16,6 @@ use crate::token::Punctuator::{
 use crate::token::{Element, SourceLocation, Token};
 use fallible_iterator::FallibleIterator;
 
-trait TryParse {
-    fn try_parse(punc: Punctuator, pos: Position) -> Option<Self>
-    where
-        Self: Sized;
-}
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub(super) enum Position {
-    /// For example:
-    /// - `++a`
-    Prefix,
-    /// For example:
-    /// - `a++`
-    /// - `a + b`
-    PostfixOrInfix,
-}
-
 impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
     pub(super) fn parse_expression(&mut self) -> Result<Expression> {
         self.parse_expression_impl(Precedence::MIN)
@@ -402,6 +385,23 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             rhs: Box::new(rhs),
         })
     }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub(super) enum Position {
+    /// For example:
+    /// - `++a`
+    Prefix,
+    /// For example:
+    /// - `a++`
+    /// - `a + b`
+    PostfixOrInfix,
+}
+
+trait TryParse {
+    fn try_parse(punc: Punctuator, pos: Position) -> Option<Self>
+        where
+            Self: Sized;
 }
 
 impl TryParse for Operator {

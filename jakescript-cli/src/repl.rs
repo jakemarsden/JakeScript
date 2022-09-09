@@ -15,23 +15,9 @@ where
     brace_depth: usize,
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub(crate) enum Result {
-    ExitNormally,
-    ExitWithRuntimeError,
-    EndOfInput,
-}
-
-enum BufferState {
-    Execute,
-    KeepBuffering,
-    EndOfInput,
-    Err(lexer::Error),
-}
-
 impl<I> Repl<I>
-where
-    I: FallibleIterator<Item = char, Error = io::Error>,
+    where
+        I: FallibleIterator<Item = char, Error = io::Error>,
 {
     pub(crate) fn new(input: Lexer<I>) -> Self {
         Self {
@@ -135,4 +121,18 @@ where
             };
         }
     }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub(crate) enum Result {
+    ExitNormally,
+    ExitWithRuntimeError,
+    EndOfInput,
+}
+
+enum BufferState {
+    Execute,
+    KeepBuffering,
+    EndOfInput,
+    Err(lexer::Error),
 }

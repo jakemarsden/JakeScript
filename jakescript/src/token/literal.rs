@@ -11,35 +11,6 @@ pub enum Literal {
     Null,
 }
 
-/// Numeric literal tokens are **always unsigned** (but can be made negative at runtime with the
-/// negation unary operator).
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub enum NumericLiteral {
-    BinInt(u64),
-    OctInt(u64),
-    DecInt(u64),
-    HexInt(u64),
-    Decimal(f64),
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct StringLiteral {
-    pub kind: StringLiteralKind,
-    pub value: String,
-}
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum StringLiteralKind {
-    SingleQuoted,
-    DoubleQuoted,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct RegExLiteral {
-    pub content: NonEmptyString,
-    pub flags: Vec<char>,
-}
-
 impl fmt::Display for Literal {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -50,6 +21,17 @@ impl fmt::Display for Literal {
             Self::Null => f.write_str("null"),
         }
     }
+}
+
+/// Numeric literal tokens are **always unsigned** (but can be made negative at runtime with the
+/// negation unary operator).
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum NumericLiteral {
+    BinInt(u64),
+    OctInt(u64),
+    DecInt(u64),
+    HexInt(u64),
+    Decimal(f64),
 }
 
 impl fmt::Display for NumericLiteral {
@@ -64,6 +46,12 @@ impl fmt::Display for NumericLiteral {
     }
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct StringLiteral {
+    pub kind: StringLiteralKind,
+    pub value: String,
+}
+
 impl fmt::Display for StringLiteral {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.kind {
@@ -71,6 +59,18 @@ impl fmt::Display for StringLiteral {
             StringLiteralKind::DoubleQuoted => write!(f, r#""{}""#, self.value),
         }
     }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum StringLiteralKind {
+    SingleQuoted,
+    DoubleQuoted,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RegExLiteral {
+    pub content: NonEmptyString,
+    pub flags: Vec<char>,
 }
 
 impl fmt::Display for RegExLiteral {

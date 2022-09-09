@@ -67,32 +67,6 @@ pub enum TestCaseResult {
     Fail(FailureReason),
 }
 
-#[derive(Debug)]
-pub struct TestCaseReport {
-    source_name: String,
-    runtime: Duration,
-    result: TestCaseResult,
-}
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum TestSuiteSummary {
-    Success(usize, Duration),
-    Failure(usize, usize, Duration),
-}
-
-#[derive(Debug)]
-pub struct TestSuiteReport {
-    test_cases: Vec<TestCaseReport>,
-    summary: TestSuiteSummary,
-}
-
-#[derive(Debug)]
-pub enum FailureReason {
-    Read(io::Error),
-    Parse(parser::Error),
-    Runtime(interpreter::Error),
-}
-
 impl TestCaseResult {
     pub fn is_pass(&self) -> bool {
         match self {
@@ -128,6 +102,13 @@ impl TestCaseResult {
             Self::Fail(reason) => Some(reason),
         }
     }
+}
+
+#[derive(Debug)]
+pub struct TestCaseReport {
+    source_name: String,
+    runtime: Duration,
+    result: TestCaseResult,
 }
 
 impl TestCaseReport {
@@ -244,6 +225,12 @@ impl fmt::Display for TestCaseReport {
     }
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum TestSuiteSummary {
+    Success(usize, Duration),
+    Failure(usize, usize, Duration),
+}
+
 impl TestSuiteSummary {
     pub fn is_success(&self) -> bool {
         match self {
@@ -326,6 +313,12 @@ impl From<&[TestCaseReport]> for TestSuiteSummary {
     }
 }
 
+#[derive(Debug)]
+pub struct TestSuiteReport {
+    test_cases: Vec<TestCaseReport>,
+    summary: TestSuiteSummary,
+}
+
 impl TestSuiteReport {
     pub fn cases(&self) -> &[TestCaseReport] {
         &self.test_cases
@@ -355,6 +348,13 @@ impl FromIterator<TestCaseReport> for TestSuiteReport {
         let test_cases: Vec<_> = iter.into_iter().collect();
         Self::from(test_cases)
     }
+}
+
+#[derive(Debug)]
+pub enum FailureReason {
+    Read(io::Error),
+    Parse(parser::Error),
+    Runtime(interpreter::Error),
 }
 
 impl fmt::Display for FailureReason {

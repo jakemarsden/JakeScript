@@ -3,17 +3,11 @@ use super::statement::Statement;
 use super::Node;
 use crate::token::SourceLocation;
 use serde::{Deserialize, Serialize};
+use crate::impl_node;
 
 #[derive(Clone, Debug, Default, PartialEq, Deserialize, Serialize)]
 pub struct Script {
     body: Block,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Deserialize, Serialize)]
-pub struct Block {
-    loc: SourceLocation,
-    hoisted_declarations: Vec<Declaration>,
-    body: Vec<Statement>,
 }
 
 impl Script {
@@ -30,6 +24,13 @@ impl Node for Script {
     fn source_location(&self) -> &SourceLocation {
         self.body.source_location()
     }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Deserialize, Serialize)]
+pub struct Block {
+    loc: SourceLocation,
+    hoisted_declarations: Vec<Declaration>,
+    body: Vec<Statement>,
 }
 
 impl Block {
@@ -54,8 +55,4 @@ impl Block {
     }
 }
 
-impl Node for Block {
-    fn source_location(&self) -> &SourceLocation {
-        &self.loc
-    }
-}
+impl_node!(Block);

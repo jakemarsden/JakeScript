@@ -11,44 +11,6 @@ pub struct CallStack {
     frames: Vec<CallFrame>,
 }
 
-#[derive(Debug, Default)]
-pub struct CallFrame {
-    scope: Scope,
-    receiver: Option<Reference>,
-}
-
-#[derive(Clone, Debug)]
-pub struct Scope(Rc<RefCell<ScopeInner>>);
-
-#[derive(Debug)]
-struct ScopeInner {
-    ctx: ScopeCtx,
-    escalation_boundary: bool,
-    parent: Option<Rc<RefCell<ScopeInner>>>,
-}
-
-#[derive(Debug, Default)]
-pub struct ScopeCtx {
-    declared_variables: Vec<Variable>,
-}
-
-#[derive(Clone, Debug)]
-pub struct Variable(Rc<RefCell<VariableInner>>);
-
-#[derive(Debug)]
-struct VariableInner {
-    kind: VariableKind,
-    name: Identifier,
-    value: Value,
-}
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum VariableKind {
-    Const,
-    Let,
-    Var,
-}
-
 impl CallStack {
     pub fn frame(&self) -> &CallFrame {
         self.frames.last().unwrap_or(&self.root)
@@ -64,6 +26,12 @@ impl CallStack {
     pub fn pop_frame(&mut self) {
         self.frames.pop().expect("Cannot pop top-level call frame");
     }
+}
+
+#[derive(Debug, Default)]
+pub struct CallFrame {
+    scope: Scope,
+    receiver: Option<Reference>,
 }
 
 impl CallFrame {
@@ -92,6 +60,9 @@ impl CallFrame {
         self.scope = parent_scope.expect("Cannot pop top-level scope context");
     }
 }
+
+#[derive(Clone, Debug)]
+pub struct Scope(Rc<RefCell<ScopeInner>>);
 
 impl Scope {
     fn new_child_of(ctx: ScopeCtx, escalation_boundary: bool, parent: Self) -> Self {
@@ -148,6 +119,13 @@ impl Default for Scope {
     }
 }
 
+#[derive(Debug)]
+struct ScopeInner {
+    ctx: ScopeCtx,
+    escalation_boundary: bool,
+    parent: Option<Rc<RefCell<ScopeInner>>>,
+}
+
 impl ScopeInner {
     fn is_escalation_boundary(&self) -> bool {
         self.escalation_boundary
@@ -173,6 +151,11 @@ impl ScopeInner {
     }
 }
 
+#[derive(Debug, Default)]
+pub struct ScopeCtx {
+    declared_variables: Vec<Variable>,
+}
+
 impl ScopeCtx {
     pub fn new(declared_variables: Vec<Variable>) -> Self {
         Self { declared_variables }
@@ -189,6 +172,9 @@ impl ScopeCtx {
         self.declared_variables.push(variable);
     }
 }
+
+#[derive(Clone, Debug)]
+pub struct Variable(Rc<RefCell<VariableInner>>);
 
 impl Variable {
     pub fn new_unassigned(kind: VariableKind, name: Identifier) -> Self {
@@ -228,6 +214,20 @@ impl Variable {
             VariableKind::Const => Err(AssignToConstVariableError),
         }
     }
+}
+
+#[derive(Debug)]
+struct VariableInner {
+    kind: VariableKind,
+    name: Identifier,
+    value: Value,
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum VariableKind {
+    Const,
+    Let,
+    Var,
 }
 
 impl From<LexicalDeclarationKind> for VariableKind {

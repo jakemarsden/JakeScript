@@ -106,29 +106,6 @@ fn eval(ast: &Script) -> interpreter::Result<(interpreter::Value, Duration)> {
 #[derive(Clone, Debug)]
 struct Options(Mode, Option<Format>, Option<PathBuf>);
 
-#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash)]
-enum Mode {
-    #[default]
-    Eval,
-    Parse,
-    Lex,
-    Repl,
-}
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-enum Format {
-    Json,
-    Yaml,
-}
-
-enum Error {
-    Options(ParseOptionsError),
-    Lex(lexer::Error),
-    Parse(parser::Error),
-    Eval(interpreter::Error),
-    Io(io::Error),
-}
-
 impl TryFrom<env::Args> for Options {
     type Error = ParseOptionsError;
 
@@ -164,6 +141,15 @@ impl TryFrom<env::Args> for Options {
     }
 }
 
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Hash)]
+enum Mode {
+    #[default]
+    Eval,
+    Parse,
+    Lex,
+    Repl,
+}
+
 impl FromStr for Mode {
     type Err = ();
 
@@ -178,6 +164,12 @@ impl FromStr for Mode {
     }
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+enum Format {
+    Json,
+    Yaml,
+}
+
 impl FromStr for Format {
     type Err = ();
 
@@ -188,6 +180,14 @@ impl FromStr for Format {
             _ => Err(()),
         }
     }
+}
+
+enum Error {
+    Options(ParseOptionsError),
+    Lex(lexer::Error),
+    Parse(parser::Error),
+    Eval(interpreter::Error),
+    Io(io::Error),
 }
 
 impl fmt::Display for Error {
@@ -220,11 +220,6 @@ impl std::error::Error for Error {
     }
 }
 
-#[derive(Debug)]
-struct ParseOptionsError {
-    executable_path: String,
-}
-
 impl From<lexer::Error> for Error {
     fn from(source: lexer::Error) -> Self {
         Self::Lex(source)
@@ -253,6 +248,11 @@ impl From<io::Error> for Error {
     fn from(source: io::Error) -> Self {
         Self::Io(source)
     }
+}
+
+#[derive(Debug)]
+struct ParseOptionsError {
+    executable_path: String,
 }
 
 impl Default for ParseOptionsError {

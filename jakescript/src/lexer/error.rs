@@ -9,14 +9,6 @@ pub struct Error {
     loc: SourceLocation,
 }
 
-#[derive(Debug)]
-pub enum ErrorKind {
-    DigitFollowingNumericLiteral,
-    IdentifierFollowingNumericLiteral,
-    UnclosedComment,
-    Io(io::Error),
-}
-
 impl Error {
     pub fn new(kind: impl Into<ErrorKind>, loc: &SourceLocation) -> Self {
         Self {
@@ -59,6 +51,14 @@ impl From<(io::Error, SourceLocation)> for Error {
     fn from((source, loc): (io::Error, SourceLocation)) -> Self {
         Self::new(source, &loc)
     }
+}
+
+#[derive(Debug)]
+pub enum ErrorKind {
+    DigitFollowingNumericLiteral,
+    IdentifierFollowingNumericLiteral,
+    UnclosedComment,
+    Io(io::Error),
 }
 
 impl fmt::Display for ErrorKind {

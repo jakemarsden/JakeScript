@@ -6,6 +6,7 @@ use super::identifier::Identifier;
 use super::Node;
 use crate::token::SourceLocation;
 use serde::{Deserialize, Serialize};
+use crate::impl_node;
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 #[serde(tag = "declaration_type")]
@@ -13,40 +14,6 @@ pub enum Declaration {
     Function(FunctionDeclaration),
     Variable(VariableDeclaration),
     Lexical(LexicalDeclaration),
-}
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct FunctionDeclaration {
-    pub loc: SourceLocation,
-    pub binding: Identifier,
-    pub formal_parameters: Vec<Identifier>,
-    pub body: Block,
-}
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct VariableDeclaration {
-    pub loc: SourceLocation,
-    pub bindings: Vec<VariableBinding>,
-}
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct LexicalDeclaration {
-    pub loc: SourceLocation,
-    pub kind: LexicalDeclarationKind,
-    pub bindings: Vec<VariableBinding>,
-}
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
-pub enum LexicalDeclarationKind {
-    Const,
-    Let,
-}
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct VariableBinding {
-    pub loc: SourceLocation,
-    pub identifier: Identifier,
-    pub initialiser: Option<Expression>,
 }
 
 impl Declaration {
@@ -78,10 +45,20 @@ impl Node for Declaration {
     }
 }
 
-impl Node for FunctionDeclaration {
-    fn source_location(&self) -> &SourceLocation {
-        &self.loc
-    }
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct FunctionDeclaration {
+    pub loc: SourceLocation,
+    pub binding: Identifier,
+    pub formal_parameters: Vec<Identifier>,
+    pub body: Block,
+}
+
+impl_node!(FunctionDeclaration);
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct VariableDeclaration {
+    pub loc: SourceLocation,
+    pub bindings: Vec<VariableBinding>,
 }
 
 impl VariableDeclaration {
@@ -112,20 +89,28 @@ impl VariableDeclaration {
     }
 }
 
-impl Node for VariableDeclaration {
-    fn source_location(&self) -> &SourceLocation {
-        &self.loc
-    }
+impl_node!(VariableDeclaration);
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct LexicalDeclaration {
+    pub loc: SourceLocation,
+    pub kind: LexicalDeclarationKind,
+    pub bindings: Vec<VariableBinding>,
 }
 
-impl Node for LexicalDeclaration {
-    fn source_location(&self) -> &SourceLocation {
-        &self.loc
-    }
+impl_node!(LexicalDeclaration);
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+pub enum LexicalDeclarationKind {
+    Const,
+    Let,
 }
 
-impl VariableBinding {
-    pub fn source_location(&self) -> &SourceLocation {
-        &self.loc
-    }
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct VariableBinding {
+    pub loc: SourceLocation,
+    pub identifier: Identifier,
+    pub initialiser: Option<Expression>,
 }
+
+impl_node!(VariableBinding);

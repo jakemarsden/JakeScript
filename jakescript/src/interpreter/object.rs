@@ -42,63 +42,6 @@ pub struct Object {
     extensible: Extensible,
 }
 
-#[derive(Debug, Default)]
-pub enum ObjectData {
-    #[default]
-    None,
-    Call(Call),
-    String(Box<str>),
-}
-
-pub type PropertyKey = Identifier;
-
-/// [Table 4 — Default Attribute Values](https://262.ecma-international.org/6.0/#table-4)
-#[derive(PartialEq)]
-pub struct Property(PropertyInner);
-
-#[derive(PartialEq)]
-enum PropertyInner {
-    Data(DataProperty),
-    Accessor(AccessorProperty),
-}
-
-/// [Table 2 — Attributes of a Data Property](https://262.ecma-international.org/6.0/#table-2)
-#[derive(PartialEq)]
-struct DataProperty {
-    value: Value,
-    writable: Writable,
-    enumerable: Enumerable,
-    configurable: Configurable,
-}
-
-/// [Table 3 — Attributes of an Accessor Property](https://262.ecma-international.org/6.0/#table-3)
-#[derive(Eq, PartialEq)]
-struct AccessorProperty {
-    get: Option<Reference>,
-    set: Option<Reference>,
-    enumerable: Enumerable,
-    configurable: Configurable,
-}
-
-bool_enum!(pub Configurable);
-bool_enum!(pub Enumerable);
-bool_enum!(pub Extensible);
-bool_enum!(pub Writable);
-
-#[derive(Clone, Debug)]
-pub enum Call {
-    User(UserFunction),
-    Native(NativeCall),
-}
-
-#[derive(Clone, Debug)]
-pub struct UserFunction {
-    name: Option<Identifier>,
-    declared_parameters: Vec<Identifier>,
-    declared_scope: Scope,
-    body: Block,
-}
-
 impl Object {
     pub fn new_string(proto: Reference, data: Box<str>, extensible: Extensible) -> Self {
         Self::new(
@@ -295,6 +238,20 @@ impl Object {
     }
 }
 
+#[derive(Debug, Default)]
+pub enum ObjectData {
+    #[default]
+    None,
+    Call(Call),
+    String(Box<str>),
+}
+
+pub type PropertyKey = Identifier;
+
+/// [Table 4 — Default Attribute Values](https://262.ecma-international.org/6.0/#table-4)
+#[derive(PartialEq)]
+pub struct Property(PropertyInner);
+
 impl Property {
     pub fn new_const(value: Value) -> Self {
         Self::new_data(value, Writable::No, Enumerable::No, Configurable::No)
@@ -408,6 +365,49 @@ impl Property {
             PropertyInner::Accessor(ref inner) => inner.configurable,
         }
     }
+}
+
+#[derive(PartialEq)]
+enum PropertyInner {
+    Data(DataProperty),
+    Accessor(AccessorProperty),
+}
+
+/// [Table 2 — Attributes of a Data Property](https://262.ecma-international.org/6.0/#table-2)
+#[derive(PartialEq)]
+struct DataProperty {
+    value: Value,
+    writable: Writable,
+    enumerable: Enumerable,
+    configurable: Configurable,
+}
+
+/// [Table 3 — Attributes of an Accessor Property](https://262.ecma-international.org/6.0/#table-3)
+#[derive(Eq, PartialEq)]
+struct AccessorProperty {
+    get: Option<Reference>,
+    set: Option<Reference>,
+    enumerable: Enumerable,
+    configurable: Configurable,
+}
+
+bool_enum!(pub Configurable);
+bool_enum!(pub Enumerable);
+bool_enum!(pub Extensible);
+bool_enum!(pub Writable);
+
+#[derive(Clone, Debug)]
+pub enum Call {
+    User(UserFunction),
+    Native(NativeCall),
+}
+
+#[derive(Clone, Debug)]
+pub struct UserFunction {
+    name: Option<Identifier>,
+    declared_parameters: Vec<Identifier>,
+    declared_scope: Scope,
+    body: Block,
 }
 
 impl UserFunction {

@@ -12,12 +12,6 @@ pub enum Value {
     Undefined,
 }
 
-#[derive(Copy, Clone, Debug)]
-pub enum Number {
-    Float(f64),
-    Int(i64),
-}
-
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -28,6 +22,12 @@ impl fmt::Display for Value {
             Self::Undefined => f.write_str("undefined"),
         }
     }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub enum Number {
+    Float(f64),
+    Int(i64),
 }
 
 impl Number {

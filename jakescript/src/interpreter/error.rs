@@ -10,50 +10,6 @@ pub struct Error {
     loc: SourceLocation,
 }
 
-#[derive(Clone, Debug)]
-pub enum ErrorKind {
-    /// Required to be able to "upcast" from an [`Error`] to an [`ErrorKind`].
-    Boxed(Box<Error>),
-
-    Assertion(AssertionError),
-    AssignToConstVariable(AssignToConstVariableError),
-    FunctionNotDefined(FunctionNotDefinedError),
-    NotCallable(NotCallableError),
-    NumericOverflow(NumericOverflowError),
-    OutOfMemory(OutOfMemoryError),
-    VariableAlreadyDefined(VariableAlreadyDefinedError),
-    VariableNotDefined(VariableNotDefinedError),
-}
-
-#[derive(Clone, Debug)]
-pub struct AssertionError {
-    detail_msg: String,
-}
-
-#[derive(Clone, Debug)]
-pub struct AssignToConstVariableError;
-
-#[derive(Clone, Debug)]
-pub struct VariableAlreadyDefinedError;
-
-#[derive(Clone, Debug)]
-pub struct VariableNotDefinedError;
-
-#[derive(Clone, Debug)]
-pub struct FunctionNotDefinedError;
-
-#[derive(Clone, Debug)]
-pub struct NotCallableError;
-
-#[derive(Clone, Debug)]
-pub struct NumericOverflowError;
-
-#[derive(Clone, Debug)]
-pub struct OutOfMemoryError;
-
-#[derive(Clone, Debug)]
-pub struct InitialisationError(ErrorKind);
-
 impl Error {
     pub fn new(source: impl Into<ErrorKind>, loc: &SourceLocation) -> Self {
         Self {
@@ -106,6 +62,21 @@ impl std::error::Error for Error {
     }
 }
 
+#[derive(Clone, Debug)]
+pub enum ErrorKind {
+    /// Required to be able to "upcast" from an [`Error`] to an [`ErrorKind`].
+    Boxed(Box<Error>),
+
+    Assertion(AssertionError),
+    AssignToConstVariable(AssignToConstVariableError),
+    FunctionNotDefined(FunctionNotDefinedError),
+    NotCallable(NotCallableError),
+    NumericOverflow(NumericOverflowError),
+    OutOfMemory(OutOfMemoryError),
+    VariableAlreadyDefined(VariableAlreadyDefinedError),
+    VariableNotDefined(VariableNotDefinedError),
+}
+
 impl fmt::Display for ErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -120,6 +91,11 @@ impl fmt::Display for ErrorKind {
             Self::VariableNotDefined(source) => write!(f, "{}", source),
         }
     }
+}
+
+#[derive(Clone, Debug)]
+pub struct AssertionError {
+    detail_msg: String,
 }
 
 impl AssertionError {
@@ -146,6 +122,9 @@ impl From<AssertionError> for ErrorKind {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct AssignToConstVariableError;
+
 impl fmt::Display for AssignToConstVariableError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(r#"Cannot assign to a variable declared as "const""#)
@@ -159,6 +138,9 @@ impl From<AssignToConstVariableError> for ErrorKind {
         Self::AssignToConstVariable(source)
     }
 }
+
+#[derive(Clone, Debug)]
+pub struct VariableAlreadyDefinedError;
 
 impl fmt::Display for VariableAlreadyDefinedError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -174,6 +156,9 @@ impl From<VariableAlreadyDefinedError> for ErrorKind {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct VariableNotDefinedError;
+
 impl fmt::Display for VariableNotDefinedError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str("Variable not defined in the current scope")
@@ -187,6 +172,9 @@ impl From<VariableNotDefinedError> for ErrorKind {
         Self::VariableNotDefined(source)
     }
 }
+
+#[derive(Clone, Debug)]
+pub struct FunctionNotDefinedError;
 
 impl fmt::Display for FunctionNotDefinedError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -202,6 +190,9 @@ impl From<FunctionNotDefinedError> for ErrorKind {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct NotCallableError;
+
 impl fmt::Display for NotCallableError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str("Object or primitive not callable")
@@ -215,6 +206,9 @@ impl From<NotCallableError> for ErrorKind {
         Self::NotCallable(source)
     }
 }
+
+#[derive(Clone, Debug)]
+pub struct NumericOverflowError;
 
 impl fmt::Display for NumericOverflowError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -230,6 +224,9 @@ impl From<NumericOverflowError> for ErrorKind {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct OutOfMemoryError;
+
 impl fmt::Display for OutOfMemoryError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str("Out of memory")
@@ -243,6 +240,9 @@ impl From<OutOfMemoryError> for ErrorKind {
         Self::OutOfMemory(source)
     }
 }
+
+#[derive(Clone, Debug)]
+pub struct InitialisationError(ErrorKind);
 
 impl InitialisationError {
     pub fn into_kind(self) -> ErrorKind {

@@ -16,6 +16,17 @@ mod identifier;
 mod literal;
 mod statement;
 
+#[macro_export(crate)]
+macro_rules! impl_node {
+    ($type_name:ident) => {
+        impl $crate::ast::Node for $type_name {
+            fn source_location(&self) -> &$crate::token::SourceLocation {
+                &self.loc
+            }
+        }
+    };
+}
+
 pub trait Node: Clone + fmt::Debug + PartialEq + de::DeserializeOwned + ser::Serialize {
     fn source_location(&self) -> &SourceLocation;
 }

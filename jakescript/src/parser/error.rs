@@ -9,21 +9,6 @@ pub type Result<T = Script> = std::result::Result<T, Error>;
 #[derive(Debug)]
 pub struct Error(ErrorKind);
 
-#[derive(Debug)]
-pub enum ErrorKind {
-    Lexical(lexer::Error),
-    UnexpectedEoi(AllowToken),
-    UnexpectedToken(AllowToken, Element),
-}
-
-#[derive(Debug)]
-pub enum AllowToken {
-    // TODO: Be more specific in the cases where this is used, and remove if possible
-    Unspecified,
-    Exactly(Token),
-    AnyOf(Token, Token, Vec<Token>),
-}
-
 impl Error {
     pub fn lexical(source: lexer::Error) -> Self {
         Self(ErrorKind::Lexical(source))
@@ -67,6 +52,13 @@ impl From<lexer::Error> for Error {
     }
 }
 
+#[derive(Debug)]
+pub enum ErrorKind {
+    Lexical(lexer::Error),
+    UnexpectedEoi(AllowToken),
+    UnexpectedToken(AllowToken, Element),
+}
+
 impl ErrorKind {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
@@ -94,6 +86,14 @@ impl fmt::Display for ErrorKind {
             }
         }
     }
+}
+
+#[derive(Debug)]
+pub enum AllowToken {
+    // TODO: Be more specific in the cases where this is used, and remove if possible
+    Unspecified,
+    Exactly(Token),
+    AnyOf(Token, Token, Vec<Token>),
 }
 
 impl fmt::Display for AllowToken {

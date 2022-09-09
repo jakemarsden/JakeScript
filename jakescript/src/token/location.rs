@@ -10,9 +10,6 @@ pub struct SourceLocation {
     position: SourcePosition,
 }
 
-#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd)]
-pub struct SourcePosition(usize, usize);
-
 impl SourceLocation {
     pub fn at_start_of(location: impl Into<PathBuf>) -> Self {
         Self::new(location, SourcePosition::default())
@@ -91,6 +88,9 @@ impl ser::Serialize for SourceLocation {
         s.serialize_str(&self.to_string())
     }
 }
+
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd)]
+pub struct SourcePosition(usize, usize);
 
 impl SourcePosition {
     /// - `line` - Zero-based.

@@ -19,50 +19,6 @@ pub enum Identifier {
     WellKnown(WellKnownIdentifier),
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-#[allow(non_camel_case_types)]
-pub enum WellKnownIdentifier {
-    E,
-    LN2,
-    LN10,
-    LOG2E,
-    LOG10E,
-    PI,
-    SQRT1_2,
-    SQRT2,
-
-    Array,
-    Boolean,
-    Function,
-    Infinity,
-    Math,
-    NaN,
-    Number,
-    Object,
-    String,
-
-    abs,
-    assert,
-    assertEqual,
-    assertNotReached,
-    charAt,
-    console,
-    exit,
-    floor,
-    isNaN,
-    length,
-    log,
-    max,
-    min,
-    sqrt,
-    substring,
-    trunc,
-    undefined,
-}
-
-#[derive(Debug)]
-pub struct ParseIdentifierError(Box<str>);
-
 impl Identifier {
     fn new_from_str(s: &str) -> Self {
         WellKnownIdentifier::from_str(s)
@@ -168,6 +124,47 @@ impl TryFrom<Box<str>> for Identifier {
     }
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+#[allow(non_camel_case_types)]
+pub enum WellKnownIdentifier {
+    E,
+    LN2,
+    LN10,
+    LOG2E,
+    LOG10E,
+    PI,
+    SQRT1_2,
+    SQRT2,
+
+    Array,
+    Boolean,
+    Function,
+    Infinity,
+    Math,
+    NaN,
+    Number,
+    Object,
+    String,
+
+    abs,
+    assert,
+    assertEqual,
+    assertNotReached,
+    charAt,
+    console,
+    exit,
+    floor,
+    isNaN,
+    length,
+    log,
+    max,
+    min,
+    sqrt,
+    substring,
+    trunc,
+    undefined,
+}
+
 impl WellKnownIdentifier {
     const ALL: &'static [Self] = &[
         Self::E,
@@ -259,6 +256,9 @@ impl FromStr for WellKnownIdentifier {
             .ok_or(())
     }
 }
+
+#[derive(Debug)]
+pub struct ParseIdentifierError(Box<str>);
 
 impl fmt::Display for ParseIdentifierError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

@@ -66,29 +66,6 @@ pub struct Runtime<T: Builtin = GlobalObject> {
     global_object: T,
 }
 
-pub trait Builtin {
-    type InitArgs = ();
-
-    fn init(heap: &mut Heap, _: Self::InitArgs) -> Result<Self, InitialisationError>
-    where
-        Self: Sized;
-
-    fn obj_ref(&self) -> &Reference;
-
-    fn as_obj_ref(&self) -> Reference {
-        self.obj_ref().clone()
-    }
-
-    fn as_value(&self) -> Value {
-        Value::Object(self.as_obj_ref())
-    }
-}
-
-type NativeFn<'a> = &'a dyn Fn(&mut Interpreter, Reference, &[Value]) -> Result<Value, ErrorKind>;
-
-#[derive(Clone)]
-pub struct NativeCall(NativeFn<'static>);
-
 impl Runtime {
     pub fn with_default_global_object(heap: &mut Heap) -> Result<Self, InitialisationError> {
         Runtime::<GlobalObject>::with_custom_global_object(heap, ())
@@ -112,6 +89,29 @@ impl<T: Builtin> Runtime<T> {
         self.global_object().obj_ref()
     }
 }
+
+pub trait Builtin {
+    type InitArgs = ();
+
+    fn init(heap: &mut Heap, _: Self::InitArgs) -> Result<Self, InitialisationError>
+    where
+        Self: Sized;
+
+    fn obj_ref(&self) -> &Reference;
+
+    fn as_obj_ref(&self) -> Reference {
+        self.obj_ref().clone()
+    }
+
+    fn as_value(&self) -> Value {
+        Value::Object(self.as_obj_ref())
+    }
+}
+
+type NativeFn<'a> = &'a dyn Fn(&mut Interpreter, Reference, &[Value]) -> Result<Value, ErrorKind>;
+
+#[derive(Clone)]
+pub struct NativeCall(NativeFn<'static>);
 
 impl NativeCall {
     pub fn call(

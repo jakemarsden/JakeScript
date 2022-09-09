@@ -16,17 +16,6 @@ pub struct Vm {
     stack: CallStack,
 }
 
-#[derive(Clone, Debug, Default)]
-pub enum ExecutionState {
-    #[default]
-    Advance,
-    Break,
-    BreakContinue,
-    Return(Value),
-    Exception(Value),
-    Exit,
-}
-
 impl Vm {
     pub fn new() -> Result<Self, InitialisationError> {
         let mut heap = Heap::default();
@@ -170,4 +159,15 @@ impl Vm {
         // Note: Print to stderr as stdout is swallowed when running in the REPL.
         eprintln!("{}", message);
     }
+}
+
+#[derive(Clone, Debug, Default)]
+pub enum ExecutionState {
+    #[default]
+    Advance,
+    Break,
+    BreakContinue,
+    Return(Value),
+    Exception(Value),
+    Exit,
 }

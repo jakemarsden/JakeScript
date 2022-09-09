@@ -22,54 +22,6 @@ pub struct Element {
     loc: SourceLocation,
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub enum ElementKind {
-    Token(Token),
-    Comment(Comment),
-    LineTerminator(LineTerminator),
-    Whitespace(Whitespace),
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub enum Token {
-    Identifier(NonEmptyString),
-    Keyword(Keyword),
-    Literal(Literal),
-    Punctuator(Punctuator),
-    Template(Template),
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Comment {
-    pub kind: CommentKind,
-    pub value: String,
-}
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum CommentKind {
-    SingleLine,
-    MultiLine,
-}
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum LineTerminator {
-    /// Carriage return + line feed
-    Crlf,
-    /// Carriage return
-    Cr,
-    /// Line feed
-    Lf,
-    /// Line separator
-    Ls,
-    /// Paragraph separator
-    Ps,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Whitespace {
-    value: NonEmptyString,
-}
-
 impl Element {
     pub fn new_identifier(it: NonEmptyString, loc: SourceLocation) -> Self {
         Self::new_token(Token::Identifier(it), loc)
@@ -229,6 +181,23 @@ impl fmt::Display for Element {
     }
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub enum ElementKind {
+    Token(Token),
+    Comment(Comment),
+    LineTerminator(LineTerminator),
+    Whitespace(Whitespace),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum Token {
+    Identifier(NonEmptyString),
+    Keyword(Keyword),
+    Literal(Literal),
+    Punctuator(Punctuator),
+    Template(Template),
+}
+
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -241,6 +210,12 @@ impl fmt::Display for Token {
     }
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Comment {
+    pub kind: CommentKind,
+    pub value: String,
+}
+
 impl fmt::Display for Comment {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.kind {
@@ -248,6 +223,26 @@ impl fmt::Display for Comment {
             CommentKind::MultiLine => write!(f, "/*{}*/", self.value),
         }
     }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum CommentKind {
+    SingleLine,
+    MultiLine,
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum LineTerminator {
+    /// Carriage return + line feed
+    Crlf,
+    /// Carriage return
+    Cr,
+    /// Line feed
+    Lf,
+    /// Line separator
+    Ls,
+    /// Paragraph separator
+    Ps,
 }
 
 impl LineTerminator {
@@ -270,6 +265,11 @@ impl fmt::Display for LineTerminator {
             (ch0, None) => f.write_char(ch0),
         }
     }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Whitespace {
+    value: NonEmptyString,
 }
 
 impl fmt::Display for Whitespace {
