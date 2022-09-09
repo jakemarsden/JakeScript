@@ -4,7 +4,6 @@ use super::Parser;
 use crate::ast::*;
 use crate::iter::peek_fallible::PeekableNthFallibleIterator;
 use crate::lexer;
-use crate::non_empty_str;
 use crate::token::Keyword::{Const, Function, Let, Var};
 use crate::token::Punctuator::{CloseParen, Comma, Eq, OpenParen, Semi};
 use crate::token::{Element, Token};
@@ -43,7 +42,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
     fn parse_function_declaration(&mut self) -> Result<FunctionDeclaration> {
         let loc = self.expect_keyword(Function)?;
         self.skip_non_tokens()?;
-        let (binding, _) = self.expect_identifier(non_empty_str!("function_name"))?;
+        let (binding, _) = self.expect_identifier("function_name")?;
         self.skip_non_tokens()?;
         let formal_parameters = self.parse_fn_parameters()?;
         self.skip_non_tokens()?;
@@ -70,7 +69,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         let mut params = Vec::new();
         loop {
             self.skip_non_tokens()?;
-            let (param, _) = self.expect_identifier(non_empty_str!("parameter_name"))?;
+            let (param, _) = self.expect_identifier("parameter_name")?;
             params.push(param);
             self.skip_non_tokens()?;
             match self.source.next()? {
@@ -147,7 +146,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
     }
 
     fn parse_variable_binding(&mut self) -> Result<VariableBinding> {
-        let (identifier, loc) = self.expect_identifier(non_empty_str!("variable_name"))?;
+        let (identifier, loc) = self.expect_identifier("variable_name")?;
         self.skip_non_tokens()?;
         let initialiser = match self.source.peek()? {
             Some(elem) if elem.punctuator() == Some(Eq) => {

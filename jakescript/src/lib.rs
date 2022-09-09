@@ -11,7 +11,6 @@ pub mod interpreter;
 pub mod lexer;
 pub mod parser;
 pub mod runtime;
-pub mod str;
 pub mod token;
 
 pub(crate) mod iter;

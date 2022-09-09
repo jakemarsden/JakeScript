@@ -1,11 +1,10 @@
-use crate::str::NonEmptyString;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use std::{cmp, fmt};
 
 #[macro_export]
 macro_rules! ident {
-    // TODO: Turn into a proc macro and check validity at compile-time.
+    // TODO: Turn into a proc macro to do the work at compile-time.
     ($s:literal) => {
         $crate::ast::Identifier::try_from($s)
             .unwrap_or_else(|_| panic!(r#"Invalid identifier: "{}""#, $s))
@@ -20,15 +19,6 @@ pub enum Identifier {
 }
 
 impl Identifier {
-    fn new_from_str(s: &str) -> Self {
-        WellKnownIdentifier::from_str(s)
-            .map_or_else(|_| Self::Custom(Box::from(s)), Self::WellKnown)
-    }
-
-    fn new_from_boxed_str(s: Box<str>) -> Self {
-        WellKnownIdentifier::from_str(&s).map_or_else(|_| Self::Custom(s), Self::WellKnown)
-    }
-
     pub fn as_str(&self) -> &str {
         match self {
             Self::Custom(v) => v,
@@ -70,57 +60,38 @@ impl From<Identifier> for Box<str> {
 
 impl From<i64> for Identifier {
     fn from(n: i64) -> Self {
-        Self::new_from_boxed_str(n.to_string().into_boxed_str())
+        Self::from(n.to_string())
     }
 }
 
 impl From<usize> for Identifier {
     fn from(n: usize) -> Self {
-        Self::new_from_boxed_str(n.to_string().into_boxed_str())
-    }
-}
-
-impl From<NonEmptyString> for Identifier {
-    fn from(s: NonEmptyString) -> Self {
-        Self::new_from_boxed_str(s.into_inner().into_boxed_str())
+        Self::from(n.to_string())
     }
 }
 
 impl From<char> for Identifier {
     fn from(c: char) -> Self {
-        Self::new_from_boxed_str(c.to_string().into_boxed_str())
+        Self::from(c.to_string())
     }
 }
 
-impl FromStr for Identifier {
-    type Err = ParseIdentifierError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if !s.is_empty() {
-            Ok(Self::new_from_str(s))
-        } else {
-            Err(ParseIdentifierError(Box::from(s)))
-        }
+impl From<&str> for Identifier {
+    fn from(s: &str) -> Self {
+        WellKnownIdentifier::from_str(s)
+            .map_or_else(|()| Self::Custom(Box::from(s)), Self::WellKnown)
     }
 }
 
-impl TryFrom<&str> for Identifier {
-    type Error = <Self as FromStr>::Err;
-
-    fn try_from(s: &str) -> Result<Self, Self::Error> {
-        Self::from_str(s)
+impl From<Box<str>> for Identifier {
+    fn from(s: Box<str>) -> Self {
+        WellKnownIdentifier::from_str(&s).map_or_else(|()| Self::Custom(s), Self::WellKnown)
     }
 }
 
-impl TryFrom<Box<str>> for Identifier {
-    type Error = <Self as FromStr>::Err;
-
-    fn try_from(s: Box<str>) -> Result<Self, Self::Error> {
-        if !s.is_empty() {
-            Ok(Self::new_from_boxed_str(s))
-        } else {
-            Err(ParseIdentifierError(s))
-        }
+impl From<String> for Identifier {
+    fn from(s: String) -> Self {
+        Self::from(s.into_boxed_str())
     }
 }
 

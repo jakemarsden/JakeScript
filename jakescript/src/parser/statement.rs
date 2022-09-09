@@ -4,7 +4,6 @@ use super::Parser;
 use crate::ast::{self, *};
 use crate::iter::peek_fallible::PeekableNthFallibleIterator;
 use crate::lexer;
-use crate::non_empty_str;
 use crate::token::Keyword::{
     Break, Case, Catch, Const, Continue, Default, Do, Else, Finally, For, Function, If, Let,
     Return, Switch, Throw, Try, Var, While,
@@ -317,7 +316,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             .is_some()
         {
             self.skip_non_tokens()?;
-            let (parameter, _) = self.expect_identifier(non_empty_str!("catch_parameter"))?;
+            let (parameter, _) = self.expect_identifier("catch_parameter")?;
             self.skip_non_tokens()?;
             self.expect_punctuator(CloseParen)?;
             Some(parameter)

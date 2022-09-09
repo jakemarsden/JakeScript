@@ -1,9 +1,9 @@
 use super::declaration::Declaration;
 use super::statement::Statement;
 use super::Node;
+use crate::impl_node;
 use crate::token::SourceLocation;
 use serde::{Deserialize, Serialize};
-use crate::impl_node;
 
 #[derive(Clone, Debug, Default, PartialEq, Deserialize, Serialize)]
 pub struct Script {

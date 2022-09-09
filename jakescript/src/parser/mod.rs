@@ -5,7 +5,6 @@ use crate::iter::peek_fallible::{
     IntoPeekableNthFallible, PeekableNthFallible, PeekableNthFallibleIterator,
 };
 use crate::lexer::{self, Lexer};
-use crate::str::NonEmptyString;
 use crate::token::{self, Element, Keyword, Punctuator, SourceLocation, Token};
 use error::AllowToken::{Exactly, Unspecified};
 use fallible_iterator::FallibleIterator;
@@ -81,17 +80,14 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         }
     }
 
-    fn expect_identifier(
-        &mut self,
-        placeholder: NonEmptyString,
-    ) -> Result<(Identifier, SourceLocation)> {
+    fn expect_identifier(&mut self, placeholder: &str) -> Result<(Identifier, SourceLocation)> {
         match self.source.next()? {
             Some(elem) if elem.identifier().is_some() => {
                 let loc = elem.source_location().clone();
                 Ok((Identifier::from(elem.into_identifier().unwrap()), loc))
             }
             elem => Err(Error::unexpected(
-                Exactly(Token::Identifier(placeholder)),
+                Exactly(Token::Identifier(Box::from(placeholder))),
                 elem,
             )),
         }

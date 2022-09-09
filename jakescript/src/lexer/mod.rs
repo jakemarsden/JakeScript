@@ -1,7 +1,6 @@
 pub use error::*;
 
 use crate::iter::peek_fallible::PeekableNthFallibleIterator;
-use crate::str::NonEmptyString;
 use crate::token::symbol::*;
 use crate::token::*;
 use error::ErrorKind::{
@@ -229,7 +228,7 @@ impl<I: FallibleIterator<Item = char, Error = io::Error>> Lexer<I> {
         Ok(Some(StringLiteral { kind, value }))
     }
 
-    fn parse_string_literal_impl(&mut self, qt: char) -> Result<Option<String>> {
+    fn parse_string_literal_impl(&mut self, qt: char) -> Result<Option<Box<str>>> {
         if self.source.peek()? != Some(&qt) {
             return Ok(None);
         }
@@ -237,7 +236,7 @@ impl<I: FallibleIterator<Item = char, Error = io::Error>> Lexer<I> {
         if self.source.peek_nth(1)? == Some(&qt) {
             assert!(self.source.next_if_eq(&qt)?.is_some());
             assert!(self.source.next_if_eq(&qt)?.is_some());
-            return Ok(Some(String::with_capacity(0)));
+            return Ok(Some(Box::from("")));
         }
         let mut escaped = false;
         let mut content = String::new();
@@ -302,7 +301,7 @@ impl<I: FallibleIterator<Item = char, Error = io::Error>> Lexer<I> {
         assert!(self.source.next_if_eq(&qt)?.is_some());
         self.source.advance_by(raw_content_len)?.unwrap();
         assert!(self.source.next_if_eq(&qt)?.is_some());
-        Ok(Some(content))
+        Ok(Some(content.into_boxed_str()))
     }
 
     /// ```plain
@@ -387,15 +386,14 @@ impl<I: FallibleIterator<Item = char, Error = io::Error>> Lexer<I> {
         self.source.advance_by(raw_content_len)?.unwrap();
         assert!(self.source.next_if_eq(&'/')?.is_some());
 
-        // Safety: The string cannot be empty because it's not possible to break out of the loop,
-        // unless returning, without pushing at least one character to the string.
-        let content = unsafe { NonEmptyString::from_unchecked(content) };
-
         let mut flags = Vec::new();
         while let Some(ch) = self.source.next_if(|ch| is_identifier_start(*ch))? {
             flags.push(ch);
         }
-        Ok(Some(RegExLiteral { content, flags }))
+        Ok(Some(RegExLiteral {
+            content: content.into_boxed_str(),
+            flags,
+        }))
     }
 
     fn parse_keyword_or_identifier(&mut self) -> Result<Option<Token>> {
@@ -405,13 +403,13 @@ impl<I: FallibleIterator<Item = char, Error = io::Error>> Lexer<I> {
         }))
     }
 
-    fn parse_identifier_name(&mut self) -> Result<Option<NonEmptyString>> {
+    fn parse_identifier_name(&mut self) -> Result<Option<Box<str>>> {
         if let Some(ch0) = self.source.next_if(|ch| is_identifier_start(*ch))? {
-            let mut content = NonEmptyString::from(ch0);
+            let mut content = String::from(ch0);
             while let Some(ch) = self.source.next_if(|ch| is_identifier_part(*ch))? {
                 content.push(ch);
             }
-            Ok(Some(content))
+            Ok(Some(content.into_boxed_str()))
         } else {
             Ok(None)
         }
@@ -419,11 +417,11 @@ impl<I: FallibleIterator<Item = char, Error = io::Error>> Lexer<I> {
 
     fn parse_whitespace(&mut self) -> Result<Option<Whitespace>> {
         if let Some(ch0) = self.source.next_if(|ch| is_whitespace(*ch))? {
-            let mut content = NonEmptyString::from(ch0);
+            let mut content = String::from(ch0);
             while let Some(ch) = self.source.next_if(|ch| is_whitespace(*ch))? {
                 content.push(ch);
             }
-            Ok(Some(Whitespace::from(content)))
+            Ok(Some(Whitespace::from(content.into_boxed_str())))
         } else {
             Ok(None)
         }

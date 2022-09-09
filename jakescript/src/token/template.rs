@@ -3,7 +3,7 @@ use std::fmt;
 // TODO: Proper template support.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Template {
-    pub value: String,
+    pub value: Box<str>,
 }
 
 impl fmt::Display for Template {

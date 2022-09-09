@@ -16,8 +16,8 @@ where
 }
 
 impl<I> Repl<I>
-    where
-        I: FallibleIterator<Item = char, Error = io::Error>,
+where
+    I: FallibleIterator<Item = char, Error = io::Error>,
 {
     pub(crate) fn new(input: Lexer<I>) -> Self {
         Self {

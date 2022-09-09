@@ -4,7 +4,6 @@ pub use location::*;
 pub use punctuator::*;
 pub use template::*;
 
-use crate::str::NonEmptyString;
 use std::fmt;
 use symbol::*;
 
@@ -23,18 +22,18 @@ pub struct Element {
 }
 
 impl Element {
-    pub fn new_identifier(it: NonEmptyString, loc: SourceLocation) -> Self {
+    pub fn new_identifier(it: Box<str>, loc: SourceLocation) -> Self {
         Self::new_token(Token::Identifier(it), loc)
     }
 
-    pub fn into_identifier(self) -> Option<NonEmptyString> {
+    pub fn into_identifier(self) -> Option<Box<str>> {
         match self.into_token() {
             Some(Token::Identifier(it)) => Some(it),
             _ => None,
         }
     }
 
-    pub fn identifier(&self) -> Option<&NonEmptyString> {
+    pub fn identifier(&self) -> Option<&str> {
         match self.token() {
             Some(Token::Identifier(it)) => Some(it),
             _ => None,
@@ -191,7 +190,7 @@ pub enum ElementKind {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Token {
-    Identifier(NonEmptyString),
+    Identifier(Box<str>),
     Keyword(Keyword),
     Literal(Literal),
     Punctuator(Punctuator),
@@ -269,7 +268,7 @@ impl fmt::Display for LineTerminator {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Whitespace {
-    value: NonEmptyString,
+    value: Box<str>,
 }
 
 impl fmt::Display for Whitespace {
@@ -278,8 +277,8 @@ impl fmt::Display for Whitespace {
     }
 }
 
-impl From<NonEmptyString> for Whitespace {
-    fn from(s: NonEmptyString) -> Whitespace {
+impl From<Box<str>> for Whitespace {
+    fn from(s: Box<str>) -> Whitespace {
         Self { value: s }
     }
 }

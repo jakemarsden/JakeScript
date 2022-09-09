@@ -45,7 +45,7 @@ fn tokenise_string_literal() {
             Some(Element::new_literal(
                 Literal::String(StringLiteral {
                     kind: expected_kind,
-                    value: expected.to_owned(),
+                    value: Box::from(expected),
                 }),
                 SourceLocation::new("", SourcePosition::at(0, 0))
             ))

@@ -1,7 +1,6 @@
 use super::error::{AllowToken, ErrorKind};
 use super::Parser;
 use crate::ast::{self, *};
-use crate::non_empty_str;
 use crate::token::Keyword::{Function, Let, Return, While};
 use crate::token::Punctuator::{
     CloseBrace, CloseParen, Eq, OpenBrace, OpenParen, Plus, Semi, StarStar,
@@ -15,6 +14,12 @@ macro_rules! at {
     };
 }
 
+macro_rules! identifier {
+    ($name:literal, $loc:expr) => {
+        $crate::token::Element::new_identifier(Box::from($name), $loc)
+    };
+}
+
 macro_rules! line_terminator {
     ($value:ident, $loc:expr) => {
         $crate::token::Element::new_line_terminator($crate::token::LineTerminator::$value, $loc)
@@ -24,7 +29,7 @@ macro_rules! line_terminator {
 macro_rules! whitespace {
     ($value:literal, $loc:expr) => {
         $crate::token::Element::new_whitespace(
-            $crate::token::Whitespace::from(non_empty_str!($value)),
+            $crate::token::Whitespace::from(Box::from($value)),
             $loc,
         )
     };
@@ -53,7 +58,7 @@ mod simple {
     fn source_elements() -> Vec<Element> {
         let loc = SourceLocation::at_start_of("test");
         vec![
-            Element::new_identifier(non_empty_str!("square"), at![loc@0:0]),
+            identifier!("square", at![loc@0:0]),
             Element::new_punctuator(OpenParen, at![loc@0:6]),
             Element::new_literal(
                 token::Literal::Numeric(token::NumericLiteral::DecInt(4)),
@@ -65,9 +70,9 @@ mod simple {
             line_terminator!(Lf, at![loc@1:0]),
             Element::new_keyword(Function, at![loc@2:0]),
             whitespace!(" ", at![loc@2:8]),
-            Element::new_identifier(non_empty_str!("square"), at![loc@2:9]),
+            identifier!("square", at![loc@2:9]),
             Element::new_punctuator(OpenParen, at![loc@2:15]),
-            Element::new_identifier(non_empty_str!("n"), at![loc@2:16]),
+            identifier!("n", at![loc@2:16]),
             Element::new_punctuator(CloseParen, at![loc@2:17]),
             whitespace!(" ", at![loc@2:18]),
             Element::new_punctuator(OpenBrace, at![loc@2:19]),
@@ -75,7 +80,7 @@ mod simple {
             whitespace!("    ", at![loc@3:0]),
             Element::new_keyword(Return, at![loc@3:4]),
             whitespace!(" ", at![loc@3:10]),
-            Element::new_identifier(non_empty_str!("n"), at![loc@3:11]),
+            identifier!("n", at![loc@3:11]),
             whitespace!(" ", at![loc@3:12]),
             Element::new_punctuator(StarStar, at![loc@3:13]),
             whitespace!(" ", at![loc@3:15]),
@@ -209,7 +214,7 @@ fn parse_unfinished_binary_expression() {
     let loc = SourceLocation::at_start_of("test");
     let source = vec![
         Element::new_keyword(Let, at![loc@0:0]),
-        Element::new_identifier(non_empty_str!("a"), at![loc@0:3]),
+        identifier!("a", at![loc@0:3]),
         Element::new_punctuator(Eq, at![loc@0:4]),
         Element::new_literal(
             token::Literal::Numeric(token::NumericLiteral::DecInt(1)),

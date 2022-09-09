@@ -1,4 +1,3 @@
-use crate::str::NonEmptyString;
 use std::fmt;
 
 // TODO: Support RegEx literals.
@@ -49,7 +48,7 @@ impl fmt::Display for NumericLiteral {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StringLiteral {
     pub kind: StringLiteralKind,
-    pub value: String,
+    pub value: Box<str>,
 }
 
 impl fmt::Display for StringLiteral {
@@ -69,7 +68,7 @@ pub enum StringLiteralKind {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RegExLiteral {
-    pub content: NonEmptyString,
+    pub content: Box<str>,
     pub flags: Vec<char>,
 }
 

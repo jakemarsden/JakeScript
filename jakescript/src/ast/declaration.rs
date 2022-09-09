@@ -4,9 +4,9 @@ use super::expression::{
 };
 use super::identifier::Identifier;
 use super::Node;
+use crate::impl_node;
 use crate::token::SourceLocation;
 use serde::{Deserialize, Serialize};
-use crate::impl_node;
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 #[serde(tag = "declaration_type")]

@@ -4,7 +4,6 @@ use super::Parser;
 use crate::ast::*;
 use crate::iter::peek_fallible::PeekableNthFallibleIterator;
 use crate::lexer;
-use crate::non_empty_str;
 use crate::token::Keyword::{Function, New, This};
 use crate::token::Punctuator::{
     self, Amp, AmpAmp, AmpEq, Bang, BangEq, BangEqEq, Caret, CaretEq, CloseBracket, CloseParen,
@@ -153,7 +152,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
     }
 
     fn parse_identifier_reference_expression(&mut self) -> Result<IdentifierReferenceExpression> {
-        let (identifier, loc) = self.expect_identifier(non_empty_str!("identifier_reference"))?;
+        let (identifier, loc) = self.expect_identifier("identifier_reference")?;
         Ok(IdentifierReferenceExpression { loc, identifier })
     }
 
@@ -165,7 +164,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
     fn parse_new_expression(&mut self) -> Result<NewExpression> {
         let loc = self.expect_keyword(New)?;
         self.skip_non_tokens()?;
-        let (type_name, _) = self.expect_identifier(non_empty_str!("type_name"))?;
+        let (type_name, _) = self.expect_identifier("type_name")?;
         self.skip_non_tokens()?;
         let arguments = if self
             .source
@@ -400,8 +399,8 @@ pub(super) enum Position {
 
 trait TryParse {
     fn try_parse(punc: Punctuator, pos: Position) -> Option<Self>
-        where
-            Self: Sized;
+    where
+        Self: Sized;
 }
 
 impl TryParse for Operator {

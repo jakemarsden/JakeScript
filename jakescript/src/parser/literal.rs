@@ -4,7 +4,6 @@ use super::Parser;
 use crate::ast::{self, *};
 use crate::iter::peek_fallible::PeekableNthFallibleIterator;
 use crate::lexer;
-use crate::non_empty_str;
 use crate::token::Keyword::Function;
 use crate::token::Punctuator::{
     CloseBrace, CloseBracket, Colon, Comma, OpenBrace, OpenBracket, OpenParen,
@@ -26,9 +25,9 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             token::Literal::Numeric(token::NumericLiteral::Decimal(value)) => {
                 ast::Literal::Numeric(ast::NumericLiteral::Float(value))
             }
-            token::Literal::String(value) => ast::Literal::String(ast::StringLiteral {
-                value: value.value.into_boxed_str(),
-            }),
+            token::Literal::String(value) => {
+                ast::Literal::String(ast::StringLiteral { value: value.value })
+            }
             token::Literal::RegEx(value) => {
                 // FIXME: Support Literal::RegEx properly.
                 ast::Literal::String(ast::StringLiteral {
@@ -108,7 +107,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                     return Err(Error::unexpected(
                         AnyOf(
                             Token::Punctuator(CloseBrace),
-                            Token::Identifier(non_empty_str!("property_key")),
+                            Token::Identifier(Box::from("property_key")),
                             vec![],
                         ),
                         elem.cloned(),
@@ -143,7 +142,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             }
             elem => {
                 return Err(Error::unexpected(
-                    Exactly(Token::Identifier(non_empty_str!("property_key"))),
+                    Exactly(Token::Identifier(Box::from("property_key"))),
                     elem,
                 ))
             }
@@ -160,7 +159,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         self.skip_non_tokens()?;
         let binding = match self.source.peek()? {
             Some(elem) if elem.identifier().is_some() => {
-                let (binding, _) = self.expect_identifier(non_empty_str!("function_name"))?;
+                let (binding, _) = self.expect_identifier("function_name")?;
                 Some(binding)
             }
             Some(elem) if elem.punctuator() == Some(OpenParen) => None,
@@ -168,7 +167,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                 return Err(Error::unexpected(
                     AnyOf(
                         Token::Punctuator(OpenParen),
-                        Token::Identifier(non_empty_str!("function_name")),
+                        Token::Identifier(Box::from("function_name")),
                         vec![],
                     ),
                     elem.cloned(),
