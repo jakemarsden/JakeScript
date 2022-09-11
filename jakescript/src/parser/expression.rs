@@ -341,15 +341,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                 Some(elem) if elem.punctuator() == Some(CloseParen) => {
                     break Ok(args);
                 }
-                elem => {
-                    return Err(Error::unexpected(
-                        (
-                            Expected::Punctuator(Comma),
-                            Expected::Punctuator(CloseParen),
-                        ),
-                        elem.cloned(),
-                    ))
-                }
+                elem => return Err(Error::unexpected((Comma, CloseParen), elem.cloned())),
             }
         }
     }

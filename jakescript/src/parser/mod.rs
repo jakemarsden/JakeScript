@@ -65,14 +65,14 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
     fn expect_keyword(&mut self, expected: Keyword) -> Result<SourceLocation> {
         match self.source.next()? {
             Some(elem) if elem.keyword() == Some(expected) => Ok(elem.source_location().clone()),
-            actual => Err(Error::unexpected(Expected::Keyword(expected), actual)),
+            actual => Err(Error::unexpected(expected, actual)),
         }
     }
 
     fn expect_punctuator(&mut self, expected: Punctuator) -> Result<SourceLocation> {
         match self.source.next()? {
             Some(elem) if elem.punctuator() == Some(expected) => Ok(elem.source_location().clone()),
-            actual => Err(Error::unexpected(Expected::Punctuator(expected), actual)),
+            actual => Err(Error::unexpected(expected, actual)),
         }
     }
 

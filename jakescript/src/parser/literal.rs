@@ -68,15 +68,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                 Some(elem) if elem.punctuator() == Some(CloseBracket) => {
                     break Ok(elems);
                 }
-                elem => {
-                    break Err(Error::unexpected(
-                        (
-                            Expected::Punctuator(Comma),
-                            Expected::Punctuator(CloseBracket),
-                        ),
-                        elem.cloned(),
-                    ))
-                }
+                elem => break Err(Error::unexpected((Comma, CloseBracket), elem.cloned())),
             }
         }
     }
@@ -104,10 +96,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                 }
                 elem => {
                     return Err(Error::unexpected(
-                        (
-                            Expected::Punctuator(CloseBrace),
-                            Expected::Identifier("property_key"),
-                        ),
+                        (CloseBrace, Expected::Identifier("property_key")),
                         elem.cloned(),
                     ))
                 }
@@ -118,15 +107,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                 Some(elem) if elem.punctuator() == Some(Comma) => {
                     self.source.next()?.unwrap();
                 }
-                elem => {
-                    return Err(Error::unexpected(
-                        (
-                            Expected::Punctuator(CloseBrace),
-                            Expected::Punctuator(Comma),
-                        ),
-                        elem.cloned(),
-                    ))
-                }
+                elem => return Err(Error::unexpected((CloseBrace, Comma), elem.cloned())),
             }
         })
     }
@@ -162,10 +143,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             Some(elem) if elem.punctuator() == Some(OpenParen) => None,
             elem => {
                 return Err(Error::unexpected(
-                    (
-                        Expected::Punctuator(OpenParen),
-                        Expected::Identifier("function_name"),
-                    ),
+                    (OpenParen, Expected::Identifier("function_name")),
                     elem.cloned(),
                 ))
             }

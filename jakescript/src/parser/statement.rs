@@ -125,11 +125,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                 }
                 elem => {
                     return Err(Error::unexpected(
-                        (
-                            Expected::Keyword(Case),
-                            Expected::Keyword(Default),
-                            Expected::Punctuator(CloseBrace),
-                        ),
+                        (Case, Default, CloseBrace),
                         elem.cloned(),
                     ))
                 }
@@ -273,9 +269,9 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             Some(_) => self.parse_expression().map(LoopInitialiser::Expression)?,
             None => {
                 return Err(Error::unexpected_eoi((
-                    Expected::Keyword(Const),
-                    Expected::Keyword(Let),
-                    Expected::Keyword(Var),
+                    Const,
+                    Let,
+                    Var,
                     Expected::AnyExpression,
                 )))
             }
@@ -308,7 +304,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             })
         } else {
             Err(Error::unexpected(
-                (Expected::Keyword(Catch), Expected::Keyword(Finally)),
+                (Catch, Finally),
                 self.source.peek()?.cloned(),
             ))
         }

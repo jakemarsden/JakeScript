@@ -128,6 +128,18 @@ pub enum Expected {
     Or4(Box<[Expected; 4]>),
 }
 
+impl From<Keyword> for Expected {
+    fn from(expected: Keyword) -> Self {
+        Self::Keyword(expected)
+    }
+}
+
+impl From<Punctuator> for Expected {
+    fn from(expected: Punctuator) -> Self {
+        Self::Punctuator(expected)
+    }
+}
+
 macro_rules! expected_from_n {
     ($variant:ident($($argument:ident: $generic_param:ident, )*)) => {
         impl<$($generic_param, )*> From<($($generic_param, )*)> for Expected
@@ -147,12 +159,12 @@ expected_from_n!(Or4(a: A, b: B, c: C, d: D,));
 impl fmt::Display for Expected {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::AnyExpression => write!(f, "{}", emphasis("any expression")),
-            Self::AnyStatement => write!(f, "{}", emphasis("any statement")),
+            Self::AnyExpression => f.write_str("any expression"),
+            Self::AnyStatement => f.write_str("any statement"),
 
             Self::Identifier(placeholder) => write!(f, "{} identifier", emphasis(*placeholder)),
             Self::Keyword(expected) => write!(f, "{}", highlight(expected.as_str())),
-            Self::Literal => write!(f, "{}", emphasis("literal expression")),
+            Self::Literal => f.write_str("literal expression"),
             Self::Punctuator(expected) => write!(f, "{}", highlight(expected.as_str())),
 
             Self::Or2(box [a, b]) => write!(f, "{a} or {b}"),

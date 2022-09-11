@@ -3,7 +3,6 @@ use super::Parser;
 use crate::ast::*;
 use crate::iter::peek_fallible::PeekableNthFallibleIterator;
 use crate::lexer;
-use crate::parser::Expected;
 use crate::token::Keyword::{Const, Function, Let, Var};
 use crate::token::Punctuator::{CloseParen, Comma, Eq, OpenParen, Semi};
 use crate::token::{Element, Token};
@@ -29,12 +28,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                 Ok(Declaration::Lexical(decl))
             }
             _ => Err(Error::unexpected(
-                (
-                    Expected::Keyword(Const),
-                    Expected::Keyword(Function),
-                    Expected::Keyword(Let),
-                    Expected::Keyword(Var),
-                ),
+                (Function, Var, Const, Let),
                 elem.cloned(),
             )),
         }
@@ -79,13 +73,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                     break Ok(params);
                 }
                 elem => {
-                    return Err(Error::unexpected(
-                        (
-                            Expected::Punctuator(Comma),
-                            Expected::Punctuator(CloseParen),
-                        ),
-                        elem,
-                    ));
+                    return Err(Error::unexpected((Comma, CloseParen), elem));
                 }
             }
         }
@@ -108,10 +96,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                 (LexicalDeclarationKind::Let, elem.source_location().clone())
             }
             elem => {
-                return Err(Error::unexpected(
-                    (Expected::Keyword(Const), Expected::Keyword(Let)),
-                    elem,
-                ));
+                return Err(Error::unexpected((Const, Let), elem));
             }
         };
         self.skip_non_tokens()?;
@@ -135,12 +120,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                     self.source.next()?.unwrap();
                 }
                 Some(elem) if elem.punctuator() == Some(Semi) => break Ok(bindings),
-                elem => {
-                    return Err(Error::unexpected(
-                        (Expected::Punctuator(Comma), Expected::Punctuator(Semi)),
-                        elem.cloned(),
-                    ))
-                }
+                elem => return Err(Error::unexpected((Comma, Semi), elem.cloned())),
             }
         }
     }
@@ -155,16 +135,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                 Some(self.parse_expression()?)
             }
             Some(elem) if matches!(elem.punctuator(), Some(Comma | Semi)) => None,
-            elem => {
-                return Err(Error::unexpected(
-                    (
-                        Expected::Punctuator(Eq),
-                        Expected::Punctuator(Comma),
-                        Expected::Punctuator(Semi),
-                    ),
-                    elem.cloned(),
-                ))
-            }
+            elem => return Err(Error::unexpected((Eq, Comma, Semi), elem.cloned())),
         };
         Ok(VariableBinding {
             loc,
