@@ -1,4 +1,4 @@
-use super::error::{AllowToken, ErrorKind};
+use super::error::{Actual, ErrorKind, Expected};
 use super::Parser;
 use crate::ast::{self, *};
 use crate::token::Keyword::{Function, Let, Return, While};
@@ -164,7 +164,7 @@ fn parse_unclosed_block() {
         parser.execute(),
         Err(err) if matches!(
             err.kind(),
-            ErrorKind::UnexpectedEoi(AllowToken::Exactly(Token::Punctuator(CloseBrace)))
+            ErrorKind::Parser(Expected::Punctuator(CloseBrace), Actual::EndOfInput)
         )
     );
 }
@@ -184,7 +184,7 @@ fn parse_unclosed_paren() {
         parser.execute(),
         Err(err) if matches!(
             err.kind(),
-            ErrorKind::UnexpectedToken(AllowToken::Exactly(Token::Punctuator(CloseParen)), actual)
+            ErrorKind::Parser(Expected::Punctuator(CloseParen), Actual::Element(actual))
             if actual == &Element::new_punctuator(OpenBrace, at![loc@0:10])
         )
     );
@@ -203,7 +203,7 @@ fn parse_unfinished_variable_decl() {
         parser.execute(),
         Err(err) if matches!(
             err.kind(),
-            ErrorKind::UnexpectedToken(AllowToken::Exactly(Token::Identifier(_)), actual)
+            ErrorKind::Parser(Expected::Identifier(_), Actual::Element(actual))
             if actual == &Element::new_punctuator(Semi, at![loc@0:3])
         )
     );
@@ -234,7 +234,7 @@ fn parse_unfinished_binary_expression() {
         parser.execute(),
         Err(err) if matches!(
             err.kind(),
-            ErrorKind::UnexpectedToken(AllowToken::Unspecified, actual)
+            ErrorKind::Parser(Expected::AnyExpression, Actual::Element(actual))
             if actual == &Element::new_punctuator(Semi, at![loc@0:9])
         )
     );

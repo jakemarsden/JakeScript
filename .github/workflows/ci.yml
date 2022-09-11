@@ -78,6 +78,7 @@ jobs:
             -Dclippy::pedantic
             -Dclippy::missing-panics-doc
             -Aclippy::if-not-else
+            -Aclippy::many-single-char-names
             -Aclippy::missing-errors-doc
             -Aclippy::module-name-repetitions
             -Aclippy::must-use-candidate

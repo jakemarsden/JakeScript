@@ -1,9 +1,9 @@
-use super::error::AllowToken::AnyOf;
 use super::error::{Error, Result};
 use super::Parser;
 use crate::ast::*;
 use crate::iter::peek_fallible::PeekableNthFallibleIterator;
 use crate::lexer;
+use crate::parser::Expected;
 use crate::token::Keyword::{Const, Function, Let, Var};
 use crate::token::Punctuator::{CloseParen, Comma, Eq, OpenParen, Semi};
 use crate::token::{Element, Token};
@@ -29,10 +29,11 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                 Ok(Declaration::Lexical(decl))
             }
             _ => Err(Error::unexpected(
-                AnyOf(
-                    Token::Keyword(Const),
-                    Token::Keyword(Function),
-                    vec![Token::Keyword(Let), Token::Keyword(Var)],
+                (
+                    Expected::Keyword(Const),
+                    Expected::Keyword(Function),
+                    Expected::Keyword(Let),
+                    Expected::Keyword(Var),
                 ),
                 elem.cloned(),
             )),
@@ -79,10 +80,9 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                 }
                 elem => {
                     return Err(Error::unexpected(
-                        AnyOf(
-                            Token::Punctuator(Comma),
-                            Token::Punctuator(CloseParen),
-                            vec![],
+                        (
+                            Expected::Punctuator(Comma),
+                            Expected::Punctuator(CloseParen),
                         ),
                         elem,
                     ));
@@ -109,7 +109,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             }
             elem => {
                 return Err(Error::unexpected(
-                    AnyOf(Token::Keyword(Const), Token::Keyword(Let), vec![]),
+                    (Expected::Keyword(Const), Expected::Keyword(Let)),
                     elem,
                 ));
             }
@@ -137,7 +137,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                 Some(elem) if elem.punctuator() == Some(Semi) => break Ok(bindings),
                 elem => {
                     return Err(Error::unexpected(
-                        AnyOf(Token::Punctuator(Comma), Token::Punctuator(Semi), vec![]),
+                        (Expected::Punctuator(Comma), Expected::Punctuator(Semi)),
                         elem.cloned(),
                     ))
                 }
@@ -157,10 +157,10 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             Some(elem) if matches!(elem.punctuator(), Some(Comma | Semi)) => None,
             elem => {
                 return Err(Error::unexpected(
-                    AnyOf(
-                        Token::Punctuator(Eq),
-                        Token::Punctuator(Comma),
-                        vec![Token::Punctuator(Semi)],
+                    (
+                        Expected::Punctuator(Eq),
+                        Expected::Punctuator(Comma),
+                        Expected::Punctuator(Semi),
                     ),
                     elem.cloned(),
                 ))

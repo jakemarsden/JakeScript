@@ -1,9 +1,9 @@
-use super::error::AllowToken::{AnyOf, Unspecified};
 use super::error::{Error, Result};
 use super::Parser;
 use crate::ast::*;
 use crate::iter::peek_fallible::PeekableNthFallibleIterator;
 use crate::lexer;
+use crate::parser::Expected;
 use crate::token::Keyword::{Function, New, This};
 use crate::token::Punctuator::{
     self, Amp, AmpAmp, AmpEq, Bang, BangEq, BangEqEq, Caret, CaretEq, CloseBracket, CloseParen,
@@ -12,7 +12,7 @@ use crate::token::Punctuator::{
     Pipe, PipeEq, PipePipe, Plus, PlusEq, PlusPlus, Question, Slash, SlashEq, Star, StarEq,
     StarStar, StarStarEq, Tilde,
 };
-use crate::token::{Element, SourceLocation, Token};
+use crate::token::{Element, SourceLocation};
 use fallible_iterator::FallibleIterator;
 
 impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
@@ -66,14 +66,14 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                 .map(Box::new)
                 .map(Expression::Function)?,
             Some(elem) if elem.punctuator().is_some() => self.parse_primary_prefix_expression()?,
-            elem => return Err(Error::unexpected(Unspecified, elem.cloned())),
+            elem => return Err(Error::unexpected(Expected::AnyExpression, elem.cloned())),
         })
     }
 
     fn parse_primary_prefix_expression(&mut self) -> Result<Expression> {
         let (elem, punc) = match self.source.next()? {
             Some(elem) if let Some(punc) = elem.punctuator() => (elem, punc),
-            elem => return Err(Error::unexpected(Unspecified, elem)),
+            elem => return Err(Error::unexpected(Expected::AnyExpression, elem)),
         };
         let loc = elem.source_location().clone();
         self.skip_non_tokens()?;
@@ -90,7 +90,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
 
             Some(op_kind) => unreachable!("{:?}", op_kind),
             None => {
-                return Err(Error::unexpected_token(Unspecified, elem));
+                return Err(Error::unexpected_token(Expected::AnyExpression, elem));
             }
         })
     }
@@ -102,7 +102,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
     ) -> Result<std::result::Result<Expression, Expression>> {
         let punc = match self.source.peek()? {
             Some(elem) if let Some(punc) = elem.punctuator() => punc,
-            elem => return Err(Error::unexpected(Unspecified, elem.cloned())),
+            elem => return Err(Error::unexpected(Expected::AnyExpression, elem.cloned())),
         };
         let op_kind = match Operator::try_parse(punc, Position::PostfixOrInfix) {
             Some(op) => op,
@@ -343,10 +343,9 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                 }
                 elem => {
                     return Err(Error::unexpected(
-                        AnyOf(
-                            Token::Punctuator(Comma),
-                            Token::Punctuator(CloseParen),
-                            vec![],
+                        (
+                            Expected::Punctuator(Comma),
+                            Expected::Punctuator(CloseParen),
                         ),
                         elem.cloned(),
                     ))

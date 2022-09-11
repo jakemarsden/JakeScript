@@ -1,14 +1,14 @@
-use super::error::AllowToken::{AnyOf, Exactly};
 use super::error::{Error, Result};
 use super::Parser;
 use crate::ast::{self, *};
 use crate::iter::peek_fallible::PeekableNthFallibleIterator;
 use crate::lexer;
+use crate::parser::Expected;
 use crate::token::Keyword::Function;
 use crate::token::Punctuator::{
     CloseBrace, CloseBracket, Colon, Comma, OpenBrace, OpenBracket, OpenParen,
 };
-use crate::token::{self, Element, Token};
+use crate::token::{self, Element};
 use fallible_iterator::FallibleIterator;
 
 impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
@@ -70,10 +70,9 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                 }
                 elem => {
                     break Err(Error::unexpected(
-                        AnyOf(
-                            Token::Punctuator(Comma),
-                            Token::Punctuator(CloseBracket),
-                            vec![],
+                        (
+                            Expected::Punctuator(Comma),
+                            Expected::Punctuator(CloseBracket),
                         ),
                         elem.cloned(),
                     ))
@@ -105,10 +104,9 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                 }
                 elem => {
                     return Err(Error::unexpected(
-                        AnyOf(
-                            Token::Punctuator(CloseBrace),
-                            Token::Identifier(Box::from("property_key")),
-                            vec![],
+                        (
+                            Expected::Punctuator(CloseBrace),
+                            Expected::Identifier("property_key"),
                         ),
                         elem.cloned(),
                     ))
@@ -122,10 +120,9 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                 }
                 elem => {
                     return Err(Error::unexpected(
-                        AnyOf(
-                            Token::Punctuator(CloseBrace),
-                            Token::Punctuator(Comma),
-                            vec![],
+                        (
+                            Expected::Punctuator(CloseBrace),
+                            Expected::Punctuator(Comma),
                         ),
                         elem.cloned(),
                     ))
@@ -142,7 +139,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             }
             elem => {
                 return Err(Error::unexpected(
-                    Exactly(Token::Identifier(Box::from("property_key"))),
+                    Expected::Identifier("property_key"),
                     elem,
                 ))
             }
@@ -165,10 +162,9 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             Some(elem) if elem.punctuator() == Some(OpenParen) => None,
             elem => {
                 return Err(Error::unexpected(
-                    AnyOf(
-                        Token::Punctuator(OpenParen),
-                        Token::Identifier(Box::from("function_name")),
-                        vec![],
+                    (
+                        Expected::Punctuator(OpenParen),
+                        Expected::Identifier("function_name"),
                     ),
                     elem.cloned(),
                 ))

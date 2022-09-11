@@ -5,8 +5,7 @@ use crate::iter::peek_fallible::{
     IntoPeekableNthFallible, PeekableNthFallible, PeekableNthFallibleIterator,
 };
 use crate::lexer::{self, Lexer};
-use crate::token::{self, Element, Keyword, Punctuator, SourceLocation, Token};
-use error::AllowToken::{Exactly, Unspecified};
+use crate::token::{self, Element, Keyword, Punctuator, SourceLocation};
 use fallible_iterator::FallibleIterator;
 use std::{io, iter};
 
@@ -66,30 +65,27 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
     fn expect_keyword(&mut self, expected: Keyword) -> Result<SourceLocation> {
         match self.source.next()? {
             Some(elem) if elem.keyword() == Some(expected) => Ok(elem.source_location().clone()),
-            elem => Err(Error::unexpected(Exactly(Token::Keyword(expected)), elem)),
+            actual => Err(Error::unexpected(Expected::Keyword(expected), actual)),
         }
     }
 
     fn expect_punctuator(&mut self, expected: Punctuator) -> Result<SourceLocation> {
         match self.source.next()? {
             Some(elem) if elem.punctuator() == Some(expected) => Ok(elem.source_location().clone()),
-            elem => Err(Error::unexpected(
-                Exactly(Token::Punctuator(expected)),
-                elem,
-            )),
+            actual => Err(Error::unexpected(Expected::Punctuator(expected), actual)),
         }
     }
 
-    fn expect_identifier(&mut self, placeholder: &str) -> Result<(Identifier, SourceLocation)> {
+    fn expect_identifier(
+        &mut self,
+        placeholder: &'static str,
+    ) -> Result<(Identifier, SourceLocation)> {
         match self.source.next()? {
             Some(elem) if elem.identifier().is_some() => {
                 let loc = elem.source_location().clone();
                 Ok((Identifier::from(elem.into_identifier().unwrap()), loc))
             }
-            elem => Err(Error::unexpected(
-                Exactly(Token::Identifier(Box::from(placeholder))),
-                elem,
-            )),
+            elem => Err(Error::unexpected(Expected::Identifier(placeholder), elem)),
         }
     }
 
@@ -99,7 +95,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                 let loc = elem.source_location().clone();
                 Ok((elem.into_literal().unwrap(), loc))
             }
-            elem => Err(Error::unexpected(Unspecified, elem)),
+            elem => Err(Error::unexpected(Expected::Literal, elem)),
         }
     }
 }

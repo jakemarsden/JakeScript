@@ -1,15 +1,15 @@
-use super::error::AllowToken::{AnyOf, Unspecified};
 use super::error::{Error, Result};
 use super::Parser;
 use crate::ast::{self, *};
 use crate::iter::peek_fallible::PeekableNthFallibleIterator;
 use crate::lexer;
+use crate::parser::Expected;
+use crate::token::Element;
 use crate::token::Keyword::{
     Break, Case, Catch, Const, Continue, Default, Do, Else, Finally, For, Function, If, Let,
     Return, Switch, Throw, Try, Var, While,
 };
 use crate::token::Punctuator::{CloseBrace, CloseParen, Colon, OpenBrace, OpenParen, Semi};
-use crate::token::{Element, Token};
 use fallible_iterator::FallibleIterator;
 
 impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
@@ -42,7 +42,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             }
 
             Some(_) => self.parse_expression_statement().map(Statement::Expression),
-            None => Err(Error::unexpected_eoi(Unspecified)),
+            None => Err(Error::unexpected_eoi(Expected::AnyStatement)),
         }
     }
 
@@ -125,10 +125,10 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                 }
                 elem => {
                     return Err(Error::unexpected(
-                        AnyOf(
-                            Token::Keyword(Case),
-                            Token::Keyword(Default),
-                            vec![Token::Punctuator(CloseBrace)],
+                        (
+                            Expected::Keyword(Case),
+                            Expected::Keyword(Default),
+                            Expected::Punctuator(CloseBrace),
                         ),
                         elem.cloned(),
                     ))
@@ -271,7 +271,14 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                 .parse_lexical_declaration()
                 .map(LoopInitialiser::LexicalDeclaration)?,
             Some(_) => self.parse_expression().map(LoopInitialiser::Expression)?,
-            None => return Err(Error::unexpected_eoi(Unspecified)),
+            None => {
+                return Err(Error::unexpected_eoi((
+                    Expected::Keyword(Const),
+                    Expected::Keyword(Let),
+                    Expected::Keyword(Var),
+                    Expected::AnyExpression,
+                )))
+            }
         })
     }
 
@@ -301,7 +308,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             })
         } else {
             Err(Error::unexpected(
-                AnyOf(Token::Keyword(Catch), Token::Keyword(Finally), vec![]),
+                (Expected::Keyword(Catch), Expected::Keyword(Finally)),
                 self.source.peek()?.cloned(),
             ))
         }

@@ -1,7 +1,8 @@
 use crate::ast::Script;
 use crate::lexer;
-use crate::token::{Element, Token};
+use crate::token::{Element, Keyword, Punctuator};
 use ansi_term::Style;
+use std::borrow::Cow;
 use std::fmt;
 
 pub type Result<T = Script> = std::result::Result<T, Error>;
@@ -14,19 +15,16 @@ impl Error {
         Self(ErrorKind::Lexical(source))
     }
 
-    pub fn unexpected(expected: AllowToken, actual: Option<Element>) -> Self {
-        match actual {
-            Some(actual) => Self::unexpected_token(expected, actual),
-            None => Self::unexpected_eoi(expected),
-        }
+    pub fn unexpected(expected: impl Into<Expected>, actual: impl Into<Actual>) -> Self {
+        Self(ErrorKind::Parser(expected.into(), actual.into()))
     }
 
-    pub fn unexpected_eoi(expected: AllowToken) -> Self {
-        Self(ErrorKind::UnexpectedEoi(expected))
+    pub fn unexpected_token(expected: impl Into<Expected>, actual: Element) -> Self {
+        Self(ErrorKind::Parser(expected.into(), Actual::Element(actual)))
     }
 
-    pub fn unexpected_token(expected: AllowToken, actual: Element) -> Self {
-        Self(ErrorKind::UnexpectedToken(expected, actual))
+    pub fn unexpected_eoi(expected: impl Into<Expected>) -> Self {
+        Self(ErrorKind::Parser(expected.into(), Actual::EndOfInput))
     }
 
     pub fn kind(&self) -> &ErrorKind {
@@ -55,15 +53,14 @@ impl From<lexer::Error> for Error {
 #[derive(Debug)]
 pub enum ErrorKind {
     Lexical(lexer::Error),
-    UnexpectedEoi(AllowToken),
-    UnexpectedToken(AllowToken, Element),
+    Parser(Expected, Actual),
 }
 
 impl ErrorKind {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             ErrorKind::Lexical(source) => Some(source),
-            ErrorKind::UnexpectedEoi(..) | ErrorKind::UnexpectedToken(..) => None,
+            ErrorKind::Parser(..) => None,
         }
     }
 }
@@ -71,52 +68,104 @@ impl ErrorKind {
 impl fmt::Display for ErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::Lexical(source) => write!(f, "Lexical error: {}", source),
-            Self::UnexpectedEoi(expected) => {
-                write!(f, "Unexpected end of input: Expected {}", expected)
-            }
-            Self::UnexpectedToken(expected, actual) => {
-                write!(
-                    f,
-                    "{} - Unexpected token: Expected {} but was {}",
-                    actual.source_location(),
-                    expected,
-                    highlight(actual.to_string()),
-                )
+            Self::Lexical(source) => write!(f, "lexical error: {}", source),
+            Self::Parser(expected, Actual::Element(actual)) => write!(
+                f,
+                "expected {} at {} but was {}",
+                expected,
+                actual.source_location(),
+                actual
+            ),
+            Self::Parser(expected, Actual::EndOfInput) => {
+                write!(f, "expected {} but reached end of input", expected)
             }
         }
     }
 }
 
 #[derive(Debug)]
-pub enum AllowToken {
-    // TODO: Be more specific in the cases where this is used, and remove if possible
-    Unspecified,
-    Exactly(Token),
-    AnyOf(Token, Token, Vec<Token>),
+pub enum Actual {
+    Element(Element),
+    EndOfInput,
 }
 
-impl fmt::Display for AllowToken {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Self::Unspecified => f.write_str("any token"),
-            Self::Exactly(t0) => write!(f, "{}", highlight(t0.to_string())),
-            Self::AnyOf(t0, t1, rest) => {
-                let mut str = format!(
-                    "{} or {}",
-                    highlight(t0.to_string()),
-                    highlight(t1.to_string())
-                );
-                for t in rest {
-                    str.push_str(" or ");
-                    str.push_str(&highlight(t.to_string()));
-                }
-                f.write_str(&str)
-            }
+impl From<Element> for Actual {
+    fn from(actual: Element) -> Self {
+        Self::Element(actual)
+    }
+}
+
+impl From<Option<Element>> for Actual {
+    fn from(actual: Option<Element>) -> Self {
+        match actual {
+            Some(actual) => Self::Element(actual),
+            None => Self::EndOfInput,
         }
     }
 }
 
-fn highlight<'a>(input: String) -> ansi_term::ANSIGenericString<'a, str> {
+impl fmt::Display for Actual {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Element(actual) => write!(f, "{}", highlight(actual.to_string())),
+            Self::EndOfInput => write!(f, "{}", emphasis("end of input")),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum Expected {
+    AnyExpression,
+    AnyStatement,
+
+    Identifier(&'static str),
+    Keyword(Keyword),
+    Literal,
+    Punctuator(Punctuator),
+
+    Or2(Box<[Expected; 2]>),
+    Or3(Box<[Expected; 3]>),
+    Or4(Box<[Expected; 4]>),
+}
+
+macro_rules! expected_from_n {
+    ($variant:ident($($argument:ident: $generic_param:ident, )*)) => {
+        impl<$($generic_param, )*> From<($($generic_param, )*)> for Expected
+        where
+            $($generic_param: Into<Expected>, )*
+        {
+            fn from(($($argument, )*): ($($generic_param, )*)) -> Self {
+                Self::$variant(Box::new([$($argument.into(), )*]))
+            }
+        }
+    };
+}
+expected_from_n!(Or2(a: A, b: B,));
+expected_from_n!(Or3(a: A, b: B, c: C,));
+expected_from_n!(Or4(a: A, b: B, c: C, d: D,));
+
+impl fmt::Display for Expected {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::AnyExpression => write!(f, "{}", emphasis("any expression")),
+            Self::AnyStatement => write!(f, "{}", emphasis("any statement")),
+
+            Self::Identifier(placeholder) => write!(f, "{} identifier", emphasis(*placeholder)),
+            Self::Keyword(expected) => write!(f, "{}", highlight(expected.as_str())),
+            Self::Literal => write!(f, "{}", emphasis("literal expression")),
+            Self::Punctuator(expected) => write!(f, "{}", highlight(expected.as_str())),
+
+            Self::Or2(box [a, b]) => write!(f, "{a} or {b}"),
+            Self::Or3(box [a, b, c]) => write!(f, "{a} or {b} or {c}"),
+            Self::Or4(box [a, b, c, d]) => write!(f, "{a} or {b} or {c} or {d}"),
+        }
+    }
+}
+
+fn emphasis<'a>(input: impl Into<Cow<'a, str>>) -> ansi_term::ANSIGenericString<'a, str> {
+    Style::new().italic().paint(input)
+}
+
+fn highlight<'a>(input: impl Into<Cow<'a, str>>) -> ansi_term::ANSIGenericString<'a, str> {
     Style::new().bold().paint(input)
 }
