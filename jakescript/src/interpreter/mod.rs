@@ -475,7 +475,7 @@ impl Interpreter {
     #[allow(clippy::unused_self)]
     pub fn coerce_to_number(&self, v: &Value) -> Number {
         match v {
-            Value::Boolean(v) => Number::Int(if *v { 1 } else { 0 }),
+            Value::Boolean(v) => Number::Int(i64::from(*v)),
             Value::Number(v) => *v,
             Value::Object(obj_ref) => {
                 let obj = self.vm().heap().resolve(obj_ref);
