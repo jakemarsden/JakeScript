@@ -13,10 +13,10 @@ pub enum Literal {
 impl fmt::Display for Literal {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::Boolean(value) => write!(f, "{}", value),
-            Self::Numeric(value) => write!(f, "{}", value),
-            Self::String(value) => write!(f, "{}", value),
-            Self::RegEx(value) => write!(f, "{}", value),
+            Self::Boolean(value) => write!(f, "{value}"),
+            Self::Numeric(value) => write!(f, "{value}"),
+            Self::String(value) => write!(f, "{value}"),
+            Self::RegEx(value) => write!(f, "{value}"),
             Self::Null => f.write_str("null"),
         }
     }
@@ -36,11 +36,11 @@ pub enum NumericLiteral {
 impl fmt::Display for NumericLiteral {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::BinInt(value) => write!(f, "{:#b}", value),
-            Self::OctInt(value) => write!(f, "{:#o}", value),
-            Self::DecInt(value) => write!(f, "{}", value),
-            Self::HexInt(value) => write!(f, "{:#x}", value),
-            Self::Decimal(value) => write!(f, "{}", value),
+            Self::BinInt(value) => write!(f, "{value:#b}"),
+            Self::OctInt(value) => write!(f, "{value:#o}"),
+            Self::DecInt(value) => write!(f, "{value}"),
+            Self::HexInt(value) => write!(f, "{value:#x}"),
+            Self::Decimal(value) => write!(f, "{value}"),
         }
     }
 }

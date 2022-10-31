@@ -81,14 +81,14 @@ impl fmt::Display for ErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::Boxed(box source) => fmt::Display::fmt(source.kind(), f),
-            Self::Assertion(source) => write!(f, "{}", source),
-            Self::AssignToConstVariable(source) => write!(f, "{}", source),
-            Self::FunctionNotDefined(source) => write!(f, "{}", source),
-            Self::NotCallable(source) => write!(f, "{}", source),
-            Self::NumericOverflow(source) => write!(f, "{}", source),
-            Self::OutOfMemory(source) => write!(f, "{}", source),
-            Self::VariableAlreadyDefined(source) => write!(f, "{}", source),
-            Self::VariableNotDefined(source) => write!(f, "{}", source),
+            Self::Assertion(source) => write!(f, "{source}"),
+            Self::AssignToConstVariable(source) => write!(f, "{source}"),
+            Self::FunctionNotDefined(source) => write!(f, "{source}",),
+            Self::NotCallable(source) => write!(f, "{source}",),
+            Self::NumericOverflow(source) => write!(f, "{source}",),
+            Self::OutOfMemory(source) => write!(f, "{source}",),
+            Self::VariableAlreadyDefined(source) => write!(f, "{source}",),
+            Self::VariableNotDefined(source) => write!(f, "{source}",),
         }
     }
 }

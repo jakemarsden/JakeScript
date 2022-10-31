@@ -214,10 +214,10 @@ impl Element {
 impl fmt::Display for Element {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.kind() {
-            ElementKind::Token(it) => write!(f, "{}", it),
-            ElementKind::Comment(it) => write!(f, "{}", it),
-            ElementKind::LineTerminator(it) => write!(f, "{}", it),
-            ElementKind::Whitespace(it) => write!(f, "{}", it),
+            ElementKind::Token(it) => write!(f, "{it}"),
+            ElementKind::Comment(it) => write!(f, "{it}"),
+            ElementKind::LineTerminator(it) => write!(f, "{it}"),
+            ElementKind::Whitespace(it) => write!(f, "{it}"),
         }
     }
 }
@@ -242,11 +242,11 @@ pub enum Token {
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::Identifier(it) => write!(f, "{}", it),
-            Self::Keyword(it) => write!(f, "{}", it),
-            Self::Literal(it) => write!(f, "{}", it),
-            Self::Punctuator(it) => write!(f, "{}", it),
-            Self::Template(it) => write!(f, "{}", it),
+            Self::Identifier(it) => write!(f, "{it}"),
+            Self::Keyword(it) => write!(f, "{it}"),
+            Self::Literal(it) => write!(f, "{it}"),
+            Self::Punctuator(it) => write!(f, "{it}"),
+            Self::Template(it) => write!(f, "{it}"),
         }
     }
 }
@@ -302,7 +302,7 @@ impl fmt::Display for LineTerminator {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use std::fmt::Write;
         match self.into_chars() {
-            (ch0, Some(ch1)) => write!(f, "{}{}", ch0, ch1),
+            (ch0, Some(ch1)) => write!(f, "{ch0}{ch1}"),
             (ch0, None) => f.write_char(ch0),
         }
     }

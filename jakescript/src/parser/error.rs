@@ -68,16 +68,14 @@ impl ErrorKind {
 impl fmt::Display for ErrorKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::Lexical(source) => write!(f, "lexical error: {}", source),
+            Self::Lexical(source) => write!(f, "lexical error: {source}"),
             Self::Parser(expected, Actual::Element(actual)) => write!(
                 f,
-                "expected {} at {} but was {}",
-                expected,
+                "expected {expected} at {} but was {actual}",
                 actual.source_location(),
-                actual
             ),
             Self::Parser(expected, Actual::EndOfInput) => {
-                write!(f, "expected {} but reached end of input", expected)
+                write!(f, "expected {expected} but reached end of input")
             }
         }
     }

@@ -172,9 +172,9 @@ impl TestCaseReport {
     /// See also: [`Self::report()`].
     pub fn print_report(&self) {
         if self.is_pass() {
-            println!("     {}", self);
+            println!("     {self}");
         } else {
-            eprintln!("     {}", self);
+            eprintln!("     {self}");
         }
     }
 }
@@ -212,14 +212,13 @@ impl fmt::Display for TestCaseReport {
         };
         write!(
             f,
-            "[{} {}] {} ({})",
-            symbol,
+            "[{symbol} {}] {} ({})",
             status_style.paint(status),
             self.source_name(),
-            runtime_style.paint(format!("{:?}", runtime)),
+            runtime_style.paint(format!("{runtime:?}",)),
         )?;
         if let Some(failure_reason) = self.failure_reason() {
-            write!(f, ": {}", failure_reason)?;
+            write!(f, ": {failure_reason}",)?;
         }
         Ok(())
     }
@@ -265,9 +264,9 @@ impl TestSuiteSummary {
     /// See also: [`Self::report()`].
     pub fn print_report(&self) {
         if self.is_success() {
-            println!("     {}", self);
+            println!("     {self}");
         } else {
-            eprintln!("     {}", self);
+            eprintln!("     {self}");
         }
     }
 }
@@ -360,9 +359,9 @@ pub enum FailureReason {
 impl fmt::Display for FailureReason {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::Read(source) => write!(f, "{}", source),
-            Self::Parse(source) => write!(f, "{}", source),
-            Self::Runtime(source) => write!(f, "{}", source),
+            Self::Read(source) => write!(f, "{source}"),
+            Self::Parse(source) => write!(f, "{source}"),
+            Self::Runtime(source) => write!(f, "{source}"),
         }
     }
 }

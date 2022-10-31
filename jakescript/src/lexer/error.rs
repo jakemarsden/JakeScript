@@ -69,7 +69,7 @@ impl fmt::Display for ErrorKind {
                 f.write_str("Identifier following numeric literal")
             }
             Self::UnclosedComment => f.write_str("Unclosed comment"),
-            Self::Io(source) => write!(f, "IO error: {}", source),
+            Self::Io(source) => write!(f, "IO error: {source}"),
         }
     }
 }

@@ -35,7 +35,7 @@ where
                 | ExecutionState::BreakContinue
                 | ExecutionState::Return(..) => unreachable!(),
                 ExecutionState::Exception(ex) => {
-                    eprintln!("Exception: {}", ex);
+                    eprintln!("Exception: {ex}");
                     self.input_buf.clear();
                     return Result::ExitWithRuntimeError;
                 }
@@ -53,7 +53,7 @@ where
                     continue;
                 }
                 BufferState::Err(lex_err) => {
-                    eprintln!("Lex error: {}", lex_err);
+                    eprintln!("Lex error: {lex_err}");
                     self.input_buf.clear();
                     continue;
                 }
@@ -72,7 +72,7 @@ where
             let ast = match parser.execute() {
                 Ok(ast) => ast,
                 Err(err) => {
-                    eprintln!("Parse error: {}", err);
+                    eprintln!("Parse error: {err}");
                     self.input_buf.clear();
                     continue;
                 }
@@ -81,12 +81,12 @@ where
             let value = match ast.eval(it) {
                 Ok(value) => value,
                 Err(err) => {
-                    eprintln!("Runtime error: {}", err);
+                    eprintln!("Runtime error: {err}");
                     self.input_buf.clear();
                     continue;
                 }
             };
-            eprintln!("{}", value);
+            eprintln!("{value}");
         }
     }
 

@@ -26,7 +26,7 @@ fn main() {
         let test = match test {
             Ok(test) if is_test_we_care_about(&test.path) => test,
             Err(Error::DescriptionInvalid(path)) if is_test_we_care_about(&path) => {
-                eprintln!("|{}| description invalid: {}", test_number, path.display());
+                eprintln!("|{test_number}| description invalid: {}", path.display());
                 continue;
             }
 
@@ -47,15 +47,12 @@ fn main() {
             | (Err(FailureReason::Parse(..)), Expected::ParserFail)
             | (Err(FailureReason::Eval(..)), Expected::RuntimeFail) => {
                 pass_count += 1;
-                eprintln!("|{}| PASS {}", test_number, test_path);
+                eprintln!("|{test_number}| PASS {test_path}",);
             }
 
             (Ok(()), expected @ (Expected::ParserFail | Expected::RuntimeFail)) => {
                 fail_count += 1;
-                eprintln!(
-                    "|{}| FAIL {}: Expected to {} but passed",
-                    test_number, test_path, expected,
-                );
+                eprintln!("|{test_number}| FAIL {test_path}: Expected to {expected} but passed",);
             }
 
             (Err(err @ FailureReason::Parse(..)), expected @ Expected::RuntimeFail)
@@ -69,12 +66,12 @@ fn main() {
 
             (Err(err @ (FailureReason::Parse(..) | FailureReason::Eval(..))), Expected::Pass) => {
                 fail_count += 1;
-                eprintln!("|{}| FAIL {}: {}", test_number, test_path, err);
+                eprintln!("|{test_number}| FAIL {test_path}: {err}",);
             }
 
             (Err(FailureReason::Panic(..)), _) => {
                 panic_count += 1;
-                eprintln!("|{}| PANIC {}", test_number, test_path);
+                eprintln!("|{test_number}| PANIC {test_path}");
             }
         }
     }
@@ -83,9 +80,9 @@ fn main() {
         .saturating_add(fail_count)
         .saturating_add(panic_count);
     eprintln!("-- TEST262 COMPLETED --");
-    eprintln!("Passed:   {} of {}", pass_count, total_count);
-    eprintln!("Failed:   {}", fail_count);
-    eprintln!("Panicked: {}", panic_count);
+    eprintln!("Passed:   {pass_count} of {total_count}",);
+    eprintln!("Failed:   {fail_count}",);
+    eprintln!("Panicked: {panic_count}",);
 }
 
 fn is_test_we_care_about(path: impl AsRef<Path>) -> bool {
@@ -157,8 +154,8 @@ impl std::error::Error for FailureReason {}
 impl fmt::Display for FailureReason {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::Parse(source) => write!(f, "parse: {}", source),
-            Self::Eval(source) => write!(f, "eval: {}", source),
+            Self::Parse(source) => write!(f, "parse: {source}"),
+            Self::Eval(source) => write!(f, "eval: {source}"),
             Self::Panic(_) => f.write_str("panic"),
         }
     }

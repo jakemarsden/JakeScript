@@ -15,9 +15,9 @@ pub enum Value {
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::Boolean(value) => write!(f, "{}", value),
-            Self::Number(value) => write!(f, "{}", value),
-            Self::Object(value) => write!(f, "{}", value),
+            Self::Boolean(value) => write!(f, "{value}"),
+            Self::Number(value) => write!(f, "{value}"),
+            Self::Object(value) => write!(f, "{value}"),
             Self::Null => f.write_str("null"),
             Self::Undefined => f.write_str("undefined"),
         }
@@ -271,10 +271,10 @@ impl fmt::Display for Number {
                         "-Infinity"
                     })
                 } else {
-                    write!(f, "{}", value)
+                    write!(f, "{value}")
                 }
             }
-            Self::Int(value) => write!(f, "{}", value),
+            Self::Int(value) => write!(f, "{value}"),
         }
     }
 }

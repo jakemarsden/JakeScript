@@ -157,7 +157,7 @@ impl Vm {
     #[allow(clippy::unused_self)]
     pub fn write_message(&mut self, message: &str) {
         // Note: Print to stderr as stdout is swallowed when running in the REPL.
-        eprintln!("{}", message);
+        eprintln!("{message}");
     }
 }
 

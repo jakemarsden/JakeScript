@@ -28,15 +28,14 @@ fn main() -> Result<(), Error> {
                 Lexer::for_chars_fallible(fallible_iterator::convert(buf.chars()), start_loc);
 
             let (ast, parse_runtime) = parse(lexer)?;
-            println!("Parsed in {:?}", parse_runtime);
+            println!("Parsed in {parse_runtime:?}",);
 
             let (value, eval_runtime) = eval(&ast)?;
             println!(
-                "Evaluated in {:?} (total: {:?})",
-                eval_runtime,
+                "Evaluated in {eval_runtime:?} (total: {:?})",
                 parse_runtime + eval_runtime
             );
-            println!("{:?}", value);
+            eprintln!("{value:?}");
         }
         Options(Mode::Parse, Some(format), Some(ref source_path)) => {
             let source_file = fs::File::open(source_path)?;
@@ -45,7 +44,7 @@ fn main() -> Result<(), Error> {
                 Lexer::for_chars_fallible(fallible_iterator::convert(buf.chars()), start_loc);
 
             let (ast, parse_runtime) = parse(lexer)?;
-            println!("Parsed in {:?}", parse_runtime);
+            println!("Parsed in {parse_runtime:?}",);
 
             let stdout = io::stdout().lock();
             match format {
@@ -60,7 +59,7 @@ fn main() -> Result<(), Error> {
                 Lexer::for_chars_fallible(fallible_iterator::convert(buf.chars()), start_loc);
 
             let (elements, lex_runtime) = lex_and_print(lexer)?;
-            println!("Lexed in {:?}", lex_runtime);
+            println!("Lexed in {lex_runtime:?}",);
             println!(
                 "{}",
                 elements.iter().map(Element::to_string).collect::<String>()
@@ -193,11 +192,11 @@ enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::Options(source) => write!(f, "{}", source),
-            Self::Lex(source) => write!(f, "{}", source),
-            Self::Parse(source) => write!(f, "{}", source),
-            Self::Eval(source) => write!(f, "{}", source),
-            Self::Io(source) => write!(f, "{}", source),
+            Self::Options(source) => write!(f, "{source}"),
+            Self::Lex(source) => write!(f, "{source}"),
+            Self::Parse(source) => write!(f, "{source}"),
+            Self::Eval(source) => write!(f, "{source}"),
+            Self::Io(source) => write!(f, "{source}"),
         }
     }
 }
