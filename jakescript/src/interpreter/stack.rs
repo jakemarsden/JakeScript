@@ -1,151 +1,288 @@
-use super::error::{AssignToConstVariableError, VariableAlreadyDefinedError};
-use super::heap::Reference;
+use super::error::{AssignToConstVariableError, OutOfStackSpaceError, VariableAlreadyDefinedError};
 use super::value::Value;
 use crate::ast::{Identifier, LexicalDeclarationKind};
-use std::cell::{Ref, RefCell};
-use std::rc::Rc;
+use crate::interpreter::{Reference, VariableNotDefinedError};
 
-#[derive(Debug, Default)]
 pub struct CallStack {
     root: CallFrame,
     frames: Vec<CallFrame>,
+    scopes: ScopeStack,
+}
+
+impl Default for CallStack {
+    fn default() -> Self {
+        let mut scopes = ScopeStack::default();
+        let root_scope = scopes.create_root(Vec::default()).unwrap();
+        let root = CallFrame {
+            scope: root_scope,
+            receiver: None,
+        };
+        Self {
+            root,
+            frames: Vec::default(),
+            scopes,
+        }
+    }
 }
 
 impl CallStack {
-    pub fn frame(&self) -> &CallFrame {
+    fn frame(&self) -> &CallFrame {
         self.frames.last().unwrap_or(&self.root)
     }
 
-    pub fn frame_mut(&mut self) -> &mut CallFrame {
+    fn frame_mut(&mut self) -> &mut CallFrame {
         self.frames.last_mut().unwrap_or(&mut self.root)
     }
 
-    pub fn push_frame(&mut self, scope: Scope, receiver: Option<Reference>) {
-        self.frames.push(CallFrame { scope, receiver });
+    pub fn push_empty_frame(&mut self) -> Result<(), OutOfStackSpaceError> {
+        let root_scope = self.scopes.create_root(Vec::default())?;
+        self.push_frame(root_scope, None)
+    }
+
+    pub fn push_frame_with_variables_in_scope(
+        &mut self,
+        variables: Vec<Variable>,
+    ) -> Result<(), OutOfStackSpaceError> {
+        let root_scope = self.scopes.create_root(variables)?;
+        self.push_frame(root_scope, None)
+    }
+
+    pub fn push_frame_with_existing_scope(
+        &mut self,
+        existing_scope: ScopeId,
+        receiver: Option<Reference>,
+    ) -> Result<(), OutOfStackSpaceError> {
+        self.push_frame(existing_scope, receiver)
+    }
+
+    fn push_frame(
+        &mut self,
+        root_scope: ScopeId,
+        receiver: Option<Reference>,
+    ) -> Result<(), OutOfStackSpaceError> {
+        if self.frames.len() != usize::MAX {
+            self.frames.push(CallFrame {
+                scope: root_scope,
+                receiver,
+            });
+            Ok(())
+        } else {
+            Err(OutOfStackSpaceError)
+        }
     }
 
     pub fn pop_frame(&mut self) {
-        self.frames.pop().expect("Cannot pop top-level call frame");
-    }
-}
-
-#[derive(Debug, Default)]
-pub struct CallFrame {
-    scope: Scope,
-    receiver: Option<Reference>,
-}
-
-impl CallFrame {
-    pub fn scope(&self) -> &Scope {
-        &self.scope
+        self.frames.pop().expect("cannot pop the root call frame");
     }
 
-    pub fn scope_mut(&mut self) -> &mut Scope {
-        &mut self.scope
+    pub fn scope(&self) -> ScopeId {
+        self.frame().scope
     }
 
     pub fn receiver(&self) -> Option<&Reference> {
-        self.receiver.as_ref()
+        self.frame().receiver.as_ref()
     }
 
-    pub fn push_empty_scope(&mut self) {
-        self.push_scope(ScopeCtx::default(), false);
+    pub fn push_empty_scope(
+        &mut self,
+        escalation_boundary: bool,
+    ) -> Result<(), OutOfStackSpaceError> {
+        self.push_scope(escalation_boundary, Vec::default())
     }
 
-    pub fn push_scope(&mut self, scope_ctx: ScopeCtx, escalation_boundary: bool) {
-        let parent = self.scope.clone();
-        self.scope = Scope::new_child_of(scope_ctx, escalation_boundary, parent);
+    pub fn push_scope(
+        &mut self,
+        escalation_boundary: bool,
+        variables: Vec<Variable>,
+    ) -> Result<(), OutOfStackSpaceError> {
+        let parent = self.frame().scope;
+        let scope = self
+            .scopes
+            .create_child(parent, escalation_boundary, variables)?;
+        self.frame_mut().scope = scope;
+        Ok(())
     }
 
     pub fn pop_scope(&mut self) {
-        let parent_scope = self.scope.parent();
-        self.scope = parent_scope.expect("Cannot pop top-level scope context");
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct Scope(Rc<RefCell<ScopeInner>>);
-
-impl Scope {
-    fn new_child_of(ctx: ScopeCtx, escalation_boundary: bool, parent: Self) -> Self {
-        Self(Rc::new(RefCell::new(ScopeInner {
-            ctx,
-            escalation_boundary,
-            parent: Some(parent.0),
-        })))
+        self.frame_mut().scope = self.scopes.pop(self.frame().scope);
     }
 
-    pub fn is_escalation_boundary(&self) -> bool {
-        RefCell::borrow(&self.0).is_escalation_boundary()
+    pub fn lookup_variable(&self, name: &Identifier) -> Result<&Variable, VariableNotDefinedError> {
+        self.scopes.lookup_variable(self.frame().scope, name)
     }
 
-    pub fn parent(&self) -> Option<Self> {
-        if let Some(parent_ref) = &RefCell::borrow(&self.0).parent {
-            let new_parent_ref = Rc::clone(parent_ref);
-            Some(Self(new_parent_ref))
-        } else {
-            None
-        }
-    }
-
-    pub fn ancestor(&self, within_escalation_bounds: bool) -> Self {
-        let mut ancestor_ref = self.clone();
-        while let Some(parent_ref) = ancestor_ref.parent() {
-            if within_escalation_bounds && ancestor_ref.is_escalation_boundary() {
-                break;
-            }
-            ancestor_ref = parent_ref;
-        }
-        ancestor_ref
-    }
-
-    pub fn lookup_variable(&self, name: &Identifier) -> Option<Variable> {
-        RefCell::borrow(&self.0).lookup_variable(name)
+    pub fn with_variable_mut<R>(
+        &mut self,
+        name: &Identifier,
+        op: impl FnOnce(&mut Variable) -> R,
+    ) -> Result<R, VariableNotDefinedError> {
+        self.scopes.with_variable_mut(self.frame().scope, name, op)
     }
 
     pub fn declare_variable(
         &mut self,
         variable: Variable,
     ) -> Result<(), VariableAlreadyDefinedError> {
-        RefCell::borrow_mut(&self.0).declare_variable(variable)
+        self.scopes.declare_variable(self.frame().scope, variable)
+    }
+
+    pub fn declare_variable_within_escalation_boundary(
+        &mut self,
+        variable: Variable,
+    ) -> Result<(), VariableAlreadyDefinedError> {
+        self.scopes
+            .declare_variable_within_escalation_boundary(self.frame().scope, variable)
     }
 }
 
-impl Default for Scope {
-    fn default() -> Self {
-        Self(Rc::new(RefCell::new(ScopeInner {
-            ctx: ScopeCtx::default(),
-            escalation_boundary: true,
-            parent: None,
-        })))
+struct CallFrame {
+    scope: ScopeId,
+    receiver: Option<Reference>,
+}
+
+#[derive(Default)]
+struct ScopeStack {
+    scopes: Vec<Scope>,
+}
+
+impl ScopeStack {
+    fn create_root(&mut self, variables: Vec<Variable>) -> Result<ScopeId, OutOfStackSpaceError> {
+        let scope = Scope::new_root(variables);
+        self.allocate(scope)
+    }
+
+    fn create_child(
+        &mut self,
+        parent: ScopeId,
+        escalation_boundary: bool,
+        variables: Vec<Variable>,
+    ) -> Result<ScopeId, OutOfStackSpaceError> {
+        let scope = Scope::new_child(parent, escalation_boundary, variables);
+        self.allocate(scope)
+    }
+
+    fn pop(&mut self, id: ScopeId) -> ScopeId {
+        let scope = self.lookup_mut(id);
+        scope.parent.expect("cannot pop the root scope")
+    }
+
+    fn lookup_variable(
+        &self,
+        mut search_id: ScopeId,
+        name: &Identifier,
+    ) -> Result<&Variable, VariableNotDefinedError> {
+        loop {
+            let scope = self.lookup(search_id);
+            let parent = scope.parent;
+            if let Some(variable) = scope.lookup_variable(name) {
+                break Ok(variable);
+            }
+            search_id = parent.ok_or(VariableNotDefinedError)?;
+        }
+    }
+
+    fn with_variable_mut<R>(
+        &mut self,
+        mut search_id: ScopeId,
+        name: &Identifier,
+        op: impl FnOnce(&mut Variable) -> R,
+    ) -> Result<R, VariableNotDefinedError> {
+        loop {
+            let scope = self.lookup_mut(search_id);
+            let parent = scope.parent;
+            if let Some(variable) = scope.lookup_variable_mut(name) {
+                break Ok(op(variable));
+            }
+            search_id = parent.ok_or(VariableNotDefinedError)?;
+        }
+    }
+
+    fn declare_variable(
+        &mut self,
+        scope: ScopeId,
+        variable: Variable,
+    ) -> Result<(), VariableAlreadyDefinedError> {
+        self.lookup_mut(scope).declare_variable(variable)
+    }
+
+    fn declare_variable_within_escalation_boundary(
+        &mut self,
+        scope: ScopeId,
+        variable: Variable,
+    ) -> Result<(), VariableAlreadyDefinedError> {
+        let mut id = scope;
+        loop {
+            let scope = self.lookup_mut(id);
+            if scope.is_escalation_boundary() {
+                break scope.declare_variable(variable);
+            }
+            id = scope
+                .parent
+                .expect("the root scope should always be an escalation boundary");
+        }
+    }
+
+    fn lookup(&self, id: ScopeId) -> &Scope {
+        &self.scopes[id.0]
+    }
+
+    fn lookup_mut(&mut self, id: ScopeId) -> &mut Scope {
+        &mut self.scopes[id.0]
+    }
+
+    fn allocate(&mut self, scope: Scope) -> Result<ScopeId, OutOfStackSpaceError> {
+        let idx = self.scopes.len();
+        if idx != usize::MAX {
+            self.scopes.push(scope);
+            Ok(ScopeId(idx))
+        } else {
+            Err(OutOfStackSpaceError)
+        }
     }
 }
+
+#[derive(Clone, Copy, Debug)]
+pub struct ScopeId(usize);
 
 #[derive(Debug)]
-struct ScopeInner {
-    ctx: ScopeCtx,
+struct Scope {
+    parent: Option<ScopeId>,
     escalation_boundary: bool,
-    parent: Option<Rc<RefCell<ScopeInner>>>,
+    slots: Vec<Variable>,
 }
 
-impl ScopeInner {
+impl Scope {
+    fn new_root(variables: Vec<Variable>) -> Self {
+        Self {
+            parent: None,
+            escalation_boundary: true,
+            slots: variables,
+        }
+    }
+
+    fn new_child(parent: ScopeId, escalation_boundary: bool, variables: Vec<Variable>) -> Self {
+        Self {
+            parent: Some(parent),
+            escalation_boundary,
+            slots: variables,
+        }
+    }
+
     fn is_escalation_boundary(&self) -> bool {
         self.escalation_boundary
     }
 
-    fn lookup_variable(&self, name: &Identifier) -> Option<Variable> {
-        if let Some(variable) = self.ctx.find_variable(name) {
-            Some(variable)
-        } else if let Some(ref parent) = self.parent {
-            RefCell::borrow(parent).lookup_variable(name)
-        } else {
-            None
-        }
+    fn lookup_variable(&self, name: &Identifier) -> Option<&Variable> {
+        self.slots.iter().find(|var| &var.name == name)
+    }
+
+    fn lookup_variable_mut(&mut self, name: &Identifier) -> Option<&mut Variable> {
+        self.slots.iter_mut().find(|var| &var.name == name)
     }
 
     fn declare_variable(&mut self, variable: Variable) -> Result<(), VariableAlreadyDefinedError> {
-        if self.lookup_variable(&variable.name()).is_none() {
-            self.ctx.declare_variable(variable);
+        if self.lookup_variable(variable.name()).is_none() {
+            self.slots.push(variable);
             Ok(())
         } else {
             Err(VariableAlreadyDefinedError)
@@ -153,30 +290,12 @@ impl ScopeInner {
     }
 }
 
-#[derive(Debug, Default)]
-pub struct ScopeCtx {
-    declared_variables: Vec<Variable>,
+#[derive(Debug)]
+pub struct Variable {
+    kind: VariableKind,
+    name: Identifier,
+    value: Value,
 }
-
-impl ScopeCtx {
-    pub fn new(declared_variables: Vec<Variable>) -> Self {
-        Self { declared_variables }
-    }
-
-    pub fn find_variable(&self, var_name: &Identifier) -> Option<Variable> {
-        self.declared_variables
-            .iter()
-            .find(|var| &*var.name() == var_name)
-            .cloned()
-    }
-
-    pub fn declare_variable(&mut self, variable: Variable) {
-        self.declared_variables.push(variable);
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct Variable(Rc<RefCell<VariableInner>>);
 
 impl Variable {
     pub fn new_unassigned(kind: VariableKind, name: Identifier) -> Self {
@@ -184,45 +303,34 @@ impl Variable {
     }
 
     pub fn new(kind: VariableKind, name: Identifier, initial_value: Value) -> Self {
-        Self(Rc::new(RefCell::new(VariableInner {
+        Self {
             kind,
             name,
             value: initial_value,
-        })))
+        }
     }
 
     pub fn kind(&self) -> VariableKind {
-        let inner = RefCell::borrow(&self.0);
-        inner.kind
+        self.kind
     }
 
-    pub fn name(&self) -> Ref<Identifier> {
-        let inner = RefCell::borrow(&self.0);
-        Ref::map(inner, |inner| &inner.name)
+    pub fn name(&self) -> &Identifier {
+        &self.name
     }
 
-    pub fn value(&self) -> Ref<Value> {
-        let inner = RefCell::borrow(&self.0);
-        Ref::map(inner, |inner| &inner.value)
+    pub fn value(&self) -> &Value {
+        &self.value
     }
 
     pub fn set_value(&mut self, value: Value) -> Result<(), AssignToConstVariableError> {
-        let mut inner = RefCell::borrow_mut(&self.0);
-        match inner.kind {
+        match self.kind {
             VariableKind::Let | VariableKind::Var => {
-                (*inner).value = value;
+                self.value = value;
                 Ok(())
             }
             VariableKind::Const => Err(AssignToConstVariableError),
         }
     }
-}
-
-#[derive(Debug)]
-struct VariableInner {
-    kind: VariableKind,
-    name: Identifier,
-    value: Value,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]

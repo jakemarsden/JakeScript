@@ -1,5 +1,5 @@
 use super::error::{Error, Result};
-use super::stack::{ScopeCtx, Variable, VariableKind};
+use super::stack::{Variable, VariableKind};
 use super::value::Value;
 use super::vm::ExecutionState;
 use super::{Eval, Interpreter};
@@ -56,13 +56,19 @@ impl Eval for IfStatement {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let condition = self.condition.eval(it)?;
         if it.is_truthy(&condition) {
-            it.vm_mut().stack_mut().frame_mut().push_empty_scope();
+            it.vm_mut()
+                .stack_mut()
+                .push_empty_scope(false)
+                .map_err(|err| Error::new(err, self.source_location()))?;
             self.body.eval(it)?;
-            it.vm_mut().stack_mut().frame_mut().pop_scope();
+            it.vm_mut().stack_mut().pop_scope();
         } else if let Some(ref else_block) = self.else_body {
-            it.vm_mut().stack_mut().frame_mut().push_empty_scope();
+            it.vm_mut()
+                .stack_mut()
+                .push_empty_scope(false)
+                .map_err(|err| Error::new(err, self.source_location()))?;
             else_block.eval(it)?;
-            it.vm_mut().stack_mut().frame_mut().pop_scope();
+            it.vm_mut().stack_mut().pop_scope();
         }
         Ok(())
     }
@@ -142,9 +148,12 @@ impl Eval for WhileStatement {
                 break;
             }
 
-            it.vm_mut().stack_mut().frame_mut().push_empty_scope();
+            it.vm_mut()
+                .stack_mut()
+                .push_empty_scope(false)
+                .map_err(|err| Error::new(err, self.source_location()))?;
             self.body.eval(it)?;
-            it.vm_mut().stack_mut().frame_mut().pop_scope();
+            it.vm_mut().stack_mut().pop_scope();
 
             match it.vm().execution_state() {
                 ExecutionState::Advance => {}
@@ -170,9 +179,12 @@ impl Eval for WhileStatement {
 impl Eval for DoStatement {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         loop {
-            it.vm_mut().stack_mut().frame_mut().push_empty_scope();
+            it.vm_mut()
+                .stack_mut()
+                .push_empty_scope(false)
+                .map_err(|err| Error::new(err, self.source_location()))?;
             self.body.eval(it)?;
-            it.vm_mut().stack_mut().frame_mut().pop_scope();
+            it.vm_mut().stack_mut().pop_scope();
 
             match it.vm().execution_state() {
                 ExecutionState::Advance => {}
@@ -203,7 +215,10 @@ impl Eval for DoStatement {
 impl Eval for ForStatement {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         if let Some(ref initialiser) = self.initialiser {
-            it.vm_mut().stack_mut().frame_mut().push_empty_scope();
+            it.vm_mut()
+                .stack_mut()
+                .push_empty_scope(false)
+                .map_err(|err| Error::new(err, self.source_location()))?;
             initialiser.eval(it)?;
         }
         loop {
@@ -214,9 +229,12 @@ impl Eval for ForStatement {
                 }
             }
 
-            it.vm_mut().stack_mut().frame_mut().push_empty_scope();
+            it.vm_mut()
+                .stack_mut()
+                .push_empty_scope(false)
+                .map_err(|err| Error::new(err, self.source_location()))?;
             self.body.eval(it)?;
-            it.vm_mut().stack_mut().frame_mut().pop_scope();
+            it.vm_mut().stack_mut().pop_scope();
 
             if let Some(ref incrementor) = self.incrementor {
                 incrementor.eval(it)?;
@@ -240,7 +258,7 @@ impl Eval for ForStatement {
             }
         }
         if self.initialiser.is_some() {
-            it.vm_mut().stack_mut().frame_mut().pop_scope();
+            it.vm_mut().stack_mut().pop_scope();
         }
         Ok(())
     }
@@ -277,15 +295,14 @@ impl Eval for CatchStatement {
         if let Some(ref exception_var_name) = self.parameter {
             let exception_var =
                 Variable::new(VariableKind::Let, exception_var_name.clone(), exception);
-            let scope_ctx = ScopeCtx::new(vec![exception_var]);
             it.vm_mut()
                 .stack_mut()
-                .frame_mut()
-                .push_scope(scope_ctx, false);
+                .push_scope(false, vec![exception_var])
+                .map_err(|err| Error::new(err, self.source_location()))?;
         }
         self.body.eval(it)?;
         if self.parameter.is_some() {
-            it.vm_mut().stack_mut().frame_mut().pop_scope();
+            it.vm_mut().stack_mut().pop_scope();
         }
         Ok(())
     }

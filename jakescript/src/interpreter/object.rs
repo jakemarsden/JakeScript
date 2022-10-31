@@ -1,6 +1,6 @@
 use super::error::{ErrorKind, NotCallableError};
 use super::heap::Reference;
-use super::stack::Scope;
+use super::stack::ScopeId;
 use super::value::Value;
 use super::Interpreter;
 use crate::ast::{Block, Identifier};
@@ -407,22 +407,22 @@ pub enum Call {
 #[derive(Clone, Debug)]
 pub struct UserFunction {
     name: Option<Identifier>,
+    declared_scope: ScopeId,
     declared_parameters: Vec<Identifier>,
-    declared_scope: Scope,
     body: Block,
 }
 
 impl UserFunction {
     pub fn new(
         name: Option<Identifier>,
+        declared_scope: ScopeId,
         declared_parameters: Vec<Identifier>,
-        declared_scope: Scope,
         body: Block,
     ) -> Self {
         Self {
             name,
-            declared_parameters,
             declared_scope,
+            declared_parameters,
             body,
         }
     }
@@ -431,12 +431,12 @@ impl UserFunction {
         self.name.as_ref()
     }
 
-    pub fn declared_parameters(&self) -> &[Identifier] {
-        &self.declared_parameters
+    pub fn declared_scope(&self) -> ScopeId {
+        self.declared_scope
     }
 
-    pub fn declared_scope(&self) -> &Scope {
-        &self.declared_scope
+    pub fn declared_parameters(&self) -> &[Identifier] {
+        &self.declared_parameters
     }
 
     pub fn body(&self) -> &Block {

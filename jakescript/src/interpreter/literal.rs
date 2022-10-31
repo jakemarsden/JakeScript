@@ -68,12 +68,12 @@ impl Eval for FunctionExpression {
     type Output = Value;
 
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        let declared_scope = it.vm().stack().frame().scope().clone();
+        let declared_scope = it.vm().stack().scope();
         let fn_obj_ref = it
             .alloc_function(UserFunction::new(
                 self.binding.clone(),
-                self.formal_parameters.clone(),
                 declared_scope,
+                self.formal_parameters.clone(),
                 self.body.clone(),
             ))
             .map_err(|err| Error::new(err, self.source_location()))?;

@@ -34,13 +34,7 @@ impl Eval for IdentifierReferenceExpression {
     type Output = Value;
 
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        if let Some(variable) = it
-            .vm()
-            .stack()
-            .frame()
-            .scope()
-            .lookup_variable(&self.identifier)
-        {
+        if let Ok(variable) = it.vm().stack().lookup_variable(&self.identifier) {
             let value = variable.value().clone();
             Ok(value)
         } else {
@@ -61,7 +55,6 @@ impl Eval for ThisExpression {
         Ok(Value::Object(
             it.vm()
                 .stack()
-                .frame()
                 .receiver()
                 .cloned()
                 .unwrap_or_else(|| it.vm().runtime().global_object_ref().clone()),

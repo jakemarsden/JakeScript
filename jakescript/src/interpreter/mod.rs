@@ -100,16 +100,23 @@ impl Interpreter {
         f: impl FnOnce(&mut Self, &Value) -> Result<(Value, Value)>,
         e: impl FnOnce(ErrorKind) -> Error,
     ) -> Result {
-        if let Some(mut var) = self.vm().stack().frame().scope().lookup_variable(key) {
-            let value = var.value().clone();
-            let (result_value, updated_value) = f(self, &value)?;
-            var.set_value(updated_value)
-                .map_err(ErrorKind::from)
-                .map_err(e)?;
-            Ok(result_value)
-        } else {
-            let global_obj_ref = self.vm().runtime().global_object_ref().clone();
-            self.update_object_property(&global_obj_ref, key, f, e)
+        // TODO: Performance: Avoid repeated variable lookup.
+        match self.vm().stack().lookup_variable(key) {
+            Ok(variable) => {
+                let curr_value = variable.value().clone();
+                let (result_value, updated_value) = f(self, &curr_value)?;
+                self.vm_mut()
+                    .stack_mut()
+                    .with_variable_mut(key, |variable| variable.set_value(updated_value))
+                    .expect("variable somehow disappeared while computing the new value")
+                    .map_err(ErrorKind::from)
+                    .map_err(e)?;
+                Ok(result_value)
+            }
+            Err(VariableNotDefinedError) => {
+                let global_obj_ref = self.vm().runtime().global_object_ref().clone();
+                self.update_object_property(&global_obj_ref, key, f, e)
+            }
         }
     }
 
@@ -136,6 +143,10 @@ impl Interpreter {
         Ok(result_value)
     }
 
+    /// # Panics
+    ///
+    /// Panics if the a [`OutOfStackSpaceError`] occurs while trying to call the
+    /// function. TODO: Propagate the error to the caller instead.
     pub fn call_user_fn(
         &mut self,
         f: &UserFunction,
@@ -155,35 +166,35 @@ impl Interpreter {
             ));
         }
 
-        let declared_scope = f.declared_scope().clone();
-        let fn_scope_ctx = ScopeCtx::new(variables);
+        let declared_scope = f.declared_scope();
 
         self.vm_mut()
             .stack_mut()
-            .push_frame(declared_scope, receiver);
+            .push_frame_with_existing_scope(declared_scope, receiver)
+            .map_err(|_| todo!())?;
         if let Some(fn_name) = f.name() {
             // Create an outer scope with nothing but the function's name, which points to
             // itself, so that named function literals may recurse using their name without
             // making the name visible outside of the function body. It has its own outer
             // scope so it can still be shadowed by parameters with the same name.
-            let fn_scope_ctx_outer = ScopeCtx::new(vec![Variable::new(
+            let outer_variables = vec![Variable::new(
                 VariableKind::Var,
                 fn_name.clone(),
                 Value::Object(fn_obj_ref.clone()),
-            )]);
+            )];
             self.vm_mut()
                 .stack_mut()
-                .frame_mut()
-                .push_scope(fn_scope_ctx_outer, false);
+                .push_scope(false, outer_variables)
+                .map_err(|_| todo!())?;
         }
         self.vm_mut()
             .stack_mut()
-            .frame_mut()
-            .push_scope(fn_scope_ctx, true);
+            .push_scope(true, variables)
+            .map_err(|_| todo!())?;
         f.body().eval(self)?;
-        self.vm_mut().stack_mut().frame_mut().pop_scope();
+        self.vm_mut().stack_mut().pop_scope();
         if f.name().is_some() {
-            self.vm_mut().stack_mut().frame_mut().pop_scope();
+            self.vm_mut().stack_mut().pop_scope();
         }
         self.vm_mut().stack_mut().pop_frame();
 

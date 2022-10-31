@@ -17,12 +17,12 @@ impl Eval for Declaration {
 
 impl Eval for FunctionDeclaration {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        let declared_scope = it.vm().stack().frame().scope().clone();
+        let declared_scope = it.vm().stack().scope();
         let fn_obj_ref = it
             .alloc_function(UserFunction::new(
                 None,
-                self.formal_parameters.clone(),
                 declared_scope,
+                self.formal_parameters.clone(),
                 self.body.clone(),
             ))
             .map_err(|err| Error::new(err, self.source_location()))?;
@@ -33,8 +33,6 @@ impl Eval for FunctionDeclaration {
         );
         it.vm_mut()
             .stack_mut()
-            .frame_mut()
-            .scope_mut()
             .declare_variable(variable)
             .map_err(|err| Error::new(err, self.source_location()))?;
         Ok(())
@@ -52,10 +50,7 @@ impl Eval for VariableDeclaration {
             };
             it.vm_mut()
                 .stack_mut()
-                .frame_mut()
-                .scope_mut()
-                .ancestor(true)
-                .declare_variable(variable)
+                .declare_variable_within_escalation_boundary(variable)
                 .map_err(|err| Error::new(err, self.source_location()))?;
         }
         Ok(())
@@ -74,8 +69,6 @@ impl Eval for LexicalDeclaration {
             };
             it.vm_mut()
                 .stack_mut()
-                .frame_mut()
-                .scope_mut()
                 .declare_variable(variable)
                 .map_err(|err| Error::new(err, self.source_location()))?;
         }

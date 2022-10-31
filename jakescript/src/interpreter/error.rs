@@ -56,6 +56,7 @@ impl std::error::Error for Error {
             ErrorKind::NumericOverflow(source) => source,
             ErrorKind::NotCallable(source) => source,
             ErrorKind::OutOfMemory(source) => source,
+            ErrorKind::OutOfStackSpace(source) => source,
             ErrorKind::VariableAlreadyDefined(source) => source,
             ErrorKind::VariableNotDefined(source) => source,
         })
@@ -73,6 +74,7 @@ pub enum ErrorKind {
     NotCallable(NotCallableError),
     NumericOverflow(NumericOverflowError),
     OutOfMemory(OutOfMemoryError),
+    OutOfStackSpace(OutOfStackSpaceError),
     VariableAlreadyDefined(VariableAlreadyDefinedError),
     VariableNotDefined(VariableNotDefinedError),
 }
@@ -87,6 +89,7 @@ impl fmt::Display for ErrorKind {
             Self::NotCallable(source) => write!(f, "{source}",),
             Self::NumericOverflow(source) => write!(f, "{source}",),
             Self::OutOfMemory(source) => write!(f, "{source}",),
+            Self::OutOfStackSpace(source) => write!(f, "{source}",),
             Self::VariableAlreadyDefined(source) => write!(f, "{source}",),
             Self::VariableNotDefined(source) => write!(f, "{source}",),
         }
@@ -238,6 +241,23 @@ impl std::error::Error for OutOfMemoryError {}
 impl From<OutOfMemoryError> for ErrorKind {
     fn from(source: OutOfMemoryError) -> Self {
         Self::OutOfMemory(source)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct OutOfStackSpaceError;
+
+impl fmt::Display for OutOfStackSpaceError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str("Out of stack space")
+    }
+}
+
+impl std::error::Error for OutOfStackSpaceError {}
+
+impl From<OutOfStackSpaceError> for ErrorKind {
+    fn from(source: OutOfStackSpaceError) -> Self {
+        Self::OutOfStackSpace(source)
     }
 }
 
