@@ -123,8 +123,8 @@ impl<I: FallibleIterator> PeekableNthFallible<I> {
 }
 
 impl<I: FallibleIterator> FallibleIterator for PeekableNthFallible<I> {
-    type Item = I::Item;
     type Error = I::Error;
+    type Item = I::Item;
 
     fn next(&mut self) -> Result<Option<Self::Item>, Self::Error> {
         match self.peeked.pop_front() {

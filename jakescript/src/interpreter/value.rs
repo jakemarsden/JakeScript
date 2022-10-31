@@ -31,9 +31,9 @@ pub enum Number {
 }
 
 impl Number {
-    pub const POS_INF: Self = Self::Float(f64::INFINITY);
-    pub const NEG_INF: Self = Self::Float(f64::NEG_INFINITY);
     pub const NAN: Self = Self::Float(f64::NAN);
+    pub const NEG_INF: Self = Self::Float(f64::NEG_INFINITY);
+    pub const POS_INF: Self = Self::Float(f64::INFINITY);
 
     pub fn infinity(sign: i64) -> Self {
         if sign >= 0 {

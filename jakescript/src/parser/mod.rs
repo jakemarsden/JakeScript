@@ -1,11 +1,10 @@
-pub use error::*;
-
 use crate::ast::*;
 use crate::iter::peek_fallible::{
     IntoPeekableNthFallible, PeekableNthFallible, PeekableNthFallibleIterator,
 };
 use crate::lexer::{self, Lexer};
 use crate::token::{self, Element, Keyword, Punctuator, SourceLocation};
+pub use error::*;
 use fallible_iterator::FallibleIterator;
 use std::{io, iter};
 
@@ -44,12 +43,12 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
     }
 
     pub fn execute(mut self) -> Result {
+        // FIXME: Path is discarded for empty scripts.
         let loc = self
             .source
             .peek()?
             .map(Element::source_location)
             .cloned()
-            // FIXME: Path is discarded for empty scripts.
             .unwrap_or_default();
 
         self.skip_non_tokens()?;

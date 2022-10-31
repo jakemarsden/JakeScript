@@ -1,7 +1,8 @@
 #![feature(assert_matches)]
 
-// TODO: Do something useful with this test (e.g. check the actual AST), or get rid of it, because
-//  it doesn't seem to have much over the straight "js_tests/operator_precedence.js" at the moment.
+// TODO: Do something useful with this test (e.g. check the actual AST), or get
+// rid of it, because it doesn't seem to have much over the straight
+// "js_tests/operator_precedence.js" at the moment.
 
 use jakescript::interpreter::{Number, Value};
 use std::assert_matches::assert_matches;

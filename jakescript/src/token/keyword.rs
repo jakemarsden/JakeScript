@@ -1,8 +1,8 @@
 use crate::simple_enumeration;
 
-// TODO: Some variants should only be _contextually_ disallowed as identifiers, i.e. in certain
-//  circumstances they should be allowed as identifiers. Unfortunately, this may need to be handled
-//  by the parser.
+// TODO: Some variants should only be _contextually_ disallowed as identifiers,
+// i.e. in certain circumstances they should be allowed as identifiers.
+// Unfortunately, this may need to be handled  by the parser.
 simple_enumeration!(pub Keyword {
     As => "as",
     Async => "async",

@@ -22,8 +22,8 @@ impl fmt::Display for Literal {
     }
 }
 
-/// Numeric literal tokens are **always unsigned** (but can be made negative at runtime with the
-/// negation unary operator).
+/// Numeric literal tokens are **always unsigned** (but can be made negative at
+/// runtime with the negation unary operator).
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum NumericLiteral {
     BinInt(u64),

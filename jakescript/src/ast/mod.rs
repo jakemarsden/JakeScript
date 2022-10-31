@@ -1,12 +1,11 @@
+use crate::token::SourceLocation;
 pub use block::*;
 pub use declaration::*;
 pub use expression::*;
 pub use identifier::*;
 pub use literal::*;
-pub use statement::*;
-
-use crate::token::SourceLocation;
 use serde::{de, ser};
+pub use statement::*;
 use std::fmt;
 
 mod block;

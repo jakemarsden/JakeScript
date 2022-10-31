@@ -127,7 +127,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                     return Err(Error::unexpected(
                         (Case, Default, CloseBrace),
                         elem.cloned(),
-                    ))
+                    ));
                 }
             }
         }
@@ -273,7 +273,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                     Let,
                     Var,
                     Expected::AnyExpression,
-                )))
+                )));
             }
         })
     }

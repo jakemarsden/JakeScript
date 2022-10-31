@@ -35,7 +35,8 @@ impl Vm {
 
     /// # Panics
     ///
-    /// Panics if the current execution state is not [`ExecutionState::Advance`].
+    /// Panics if the current execution state is not
+    /// [`ExecutionState::Advance`].
     pub fn set_execution_state(&mut self, execution_state: ExecutionState) {
         assert_matches!(self.execution_state, ExecutionState::Advance);
         self.execution_state = execution_state;
@@ -45,10 +46,11 @@ impl Vm {
         mem::take(&mut self.execution_state)
     }
 
-    /// If the current execution state is an exception, reset it to [`ExecutionState::Advance`] and
-    /// stash the exception value away so it may be [restored][Self::restore_hidden_exception()]
-    /// later. If an exception has already been hidden, discard the exception value taken from the
-    /// execution state.
+    /// If the current execution state is an exception, reset it to
+    /// [`ExecutionState::Advance`] and stash the exception value away so it
+    /// may be [restored][Self::restore_hidden_exception()] later. If an
+    /// exception has already been hidden, discard the exception value taken
+    /// from the execution state.
     ///
     /// This is useful for allowing `finally` blocks to function properly.
     ///
@@ -102,9 +104,10 @@ impl Vm {
         }
     }
 
-    /// If an exception was previously [hidden][Self::hide_current_exception()], restore it by
-    /// putting it back into the execution state. If the execution state already contains an
-    /// exception, discard the hidden exception.
+    /// If an exception was previously [hidden][Self::hide_current_exception()],
+    /// restore it by putting it back into the execution state. If the
+    /// execution state already contains an exception, discard the hidden
+    /// exception.
     pub fn restore_hidden_exception(&mut self) {
         if let Some(exception) = self.hidden_exception.take() {
             if !matches!(self.execution_state(), ExecutionState::Exception(..)) {
@@ -113,8 +116,8 @@ impl Vm {
         }
     }
 
-    /// Reset the execution state to [`ExecutionState::Advance`] if it contains an exception, and
-    /// discard any hidden exception.
+    /// Reset the execution state to [`ExecutionState::Advance`] if it contains
+    /// an exception, and discard any hidden exception.
     pub fn clear_exception(&mut self) -> Option<Value> {
         self.hidden_exception.take();
         if matches!(self.execution_state(), ExecutionState::Exception(..)) {
@@ -131,6 +134,7 @@ impl Vm {
     pub fn heap(&self) -> &Heap {
         &self.heap
     }
+
     pub fn heap_mut(&mut self) -> &mut Heap {
         &mut self.heap
     }
@@ -138,6 +142,7 @@ impl Vm {
     pub fn runtime(&self) -> &Runtime {
         &self.runtime
     }
+
     pub fn runtime_mut(&mut self) -> &mut Runtime {
         &mut self.runtime
     }
@@ -145,6 +150,7 @@ impl Vm {
     pub fn stack(&self) -> &CallStack {
         &self.stack
     }
+
     pub fn stack_mut(&mut self) -> &mut CallStack {
         &mut self.stack
     }

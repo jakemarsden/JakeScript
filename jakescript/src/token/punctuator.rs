@@ -57,11 +57,12 @@ simple_enumeration!(pub Punctuator {
 });
 
 impl Punctuator {
-    /// Unlike for [`Self::all()`], **order is important**. For multiple punctuators which start
-    /// with the same substring, the longest needs to come first. This is relied on by the `Lexer`.
+    /// Unlike for [`Self::all()`], **order is important**. For multiple
+    /// punctuators which start with the same substring, the longest needs
+    /// to come first. This is relied on by the `Lexer`.
     ///
-    /// TODO: Sort at compile-time and return a `&'static [Self]`, presumably by writing a proc
-    ///  macro.
+    /// TODO: Sort at compile-time and return a `&'static [Self]`, presumably by
+    /// writing a proc  macro.
     pub fn all_in_lexical_order() -> Vec<Self> {
         let mut values = Self::all().to_vec();
         values.sort_by_key(|value| usize::MAX - value.as_str().len());

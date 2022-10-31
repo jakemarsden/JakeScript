@@ -1,6 +1,5 @@
-pub use global::GlobalObject;
-
 use crate::interpreter::{ErrorKind, Heap, InitialisationError, Interpreter, Reference, Value};
+pub use global::GlobalObject;
 use std::fmt;
 
 mod array;

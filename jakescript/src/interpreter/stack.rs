@@ -15,6 +15,7 @@ impl CallStack {
     pub fn frame(&self) -> &CallFrame {
         self.frames.last().unwrap_or(&self.root)
     }
+
     pub fn frame_mut(&mut self) -> &mut CallFrame {
         self.frames.last_mut().unwrap_or(&mut self.root)
     }
@@ -38,6 +39,7 @@ impl CallFrame {
     pub fn scope(&self) -> &Scope {
         &self.scope
     }
+
     pub fn scope_mut(&mut self) -> &mut Scope {
         &mut self.scope
     }

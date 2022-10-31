@@ -1,11 +1,10 @@
-pub use error::*;
-
 use crate::iter::peek_fallible::PeekableNthFallibleIterator;
 use crate::token::symbol::*;
 use crate::token::*;
 use error::ErrorKind::{
     DigitFollowingNumericLiteral, IdentifierFollowingNumericLiteral, UnclosedComment,
 };
+pub use error::*;
 use fallible_iterator::FallibleIterator;
 use source::{Fallible, SourceCode};
 use std::io;
@@ -335,9 +334,9 @@ impl<I: FallibleIterator<Item = char, Error = io::Error>> Lexer<I> {
             return Ok(None);
         }
         if matches!(self.source.peek_nth(1)?, Some('/')) {
-            // Not a valid `RegularExpressionFirstChar`. Empty regexes aren't representable because
-            // `//` represents the start of a single-line comment. The spec suggests using `/(?:)/`
-            // as a workaround.
+            // Not a valid `RegularExpressionFirstChar`. Empty regexes aren't representable
+            // because `//` represents the start of a single-line comment. The
+            // spec suggests using `/(?:)/` as a workaround.
             return Ok(None);
         }
         let mut escaped = false;
@@ -484,7 +483,8 @@ impl<I: FallibleIterator<Item = char, Error = io::Error>> Lexer<I> {
             return Ok(None);
         }
         let mut content = String::new();
-        // Number of code points. Different from `content.len()`, which is the number of bytes.
+        // Number of code points. Different from `content.len()`, which is the number of
+        // bytes.
         let mut content_len = 0;
         for offset in 2.. {
             let ch = match self.source.peek_nth(offset)? {
@@ -510,8 +510,8 @@ impl<I: FallibleIterator<Item = char, Error = io::Error>> Lexer<I> {
 }
 
 impl<I: FallibleIterator<Item = char, Error = io::Error>> FallibleIterator for Lexer<I> {
-    type Item = Element;
     type Error = Error;
+    type Item = Element;
 
     fn next(&mut self) -> std::result::Result<Option<Self::Item>, Self::Error> {
         if self.source.peek()?.is_some() {

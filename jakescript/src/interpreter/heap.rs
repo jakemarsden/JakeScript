@@ -16,22 +16,26 @@ impl Heap {
         Ok(Reference::new(obj_idx, obj))
     }
 
-    // unused_self: Will be used in the future, see comment about storing objects inside the heap.
+    // unused_self: Will be used in the future, see comment about storing objects
+    // inside the heap.
     #[allow(clippy::unused_self)]
     pub fn resolve<'a>(&self, refr: &'a Reference) -> Ref<'a, Object> {
         refr.deref()
     }
-    // unused_self: Will be used in the future, see comment about storing objects inside the heap.
+
+    // unused_self: Will be used in the future, see comment about storing objects
+    // inside the heap.
     #[allow(clippy::unused_self)]
     pub fn resolve_mut<'a>(&mut self, refr: &'a Reference) -> RefMut<'a, Object> {
         refr.deref_mut()
     }
 }
 
-// TODO: Store objects inside the actual `Heap` struct, rather than ref-counting them in the
-//  `Reference` type because currently, the heap stores nothing. This was done for simplicity, and
-//  to avoid needing to worry about garbage collection. Also simplify the `Reference` type to
-//  `#[derive(Copy, Clone)] pub struct Reference(usize)` when possible.
+// TODO: Store objects inside the actual `Heap` struct, rather than ref-counting
+// them in the  `Reference` type because currently, the heap stores nothing.
+// This was done for simplicity, and  to avoid needing to worry about garbage
+// collection. Also simplify the `Reference` type to  `#[derive(Copy, Clone)]
+// pub struct Reference(usize)` when possible.
 #[derive(Clone)]
 pub struct Reference(usize, Rc<RefCell<Object>>);
 
@@ -43,6 +47,7 @@ impl Reference {
     fn deref(&self) -> Ref<Object> {
         RefCell::borrow(&self.1)
     }
+
     fn deref_mut(&self) -> RefMut<Object> {
         RefCell::borrow_mut(&self.1)
     }
@@ -58,7 +63,8 @@ impl PartialEq for Reference {
 
 impl fmt::Display for Reference {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        // Note: 6 includes the 2 chars for the "0x" prefix, so only 4 actual digits are displayed.
+        // Note: 6 includes the 2 chars for the "0x" prefix, so only 4 actual digits are
+        // displayed.
         write!(f, "{:#06x}", self.0)
     }
 }

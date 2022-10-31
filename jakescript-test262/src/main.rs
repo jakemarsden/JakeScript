@@ -37,11 +37,13 @@ fn main() {
         let expected = Expected::from(test.desc.negative.as_ref());
         let test_path = &test.path.display();
 
-        // TODO: Time out to protect against tests which fail by entering an infinite loop.
+        // TODO: Time out to protect against tests which fail by entering an infinite
+        // loop.
         let test_result = exec_test_suppressing_panic(&test);
 
-        // TODO: For negative test cases, check that the name of the thrown exception matches the
-        //  `Negative::type` (as well as the `Negative::phase`) in the test description.
+        // TODO: For negative test cases, check that the name of the thrown exception
+        // matches the `Negative::type` (as well as the `Negative::phase`) in the test
+        // description.
         match (test_result, expected) {
             (Ok(()), Expected::Pass)
             | (Err(FailureReason::Parse(..)), Expected::ParserFail)
@@ -140,8 +142,8 @@ impl From<Option<&Negative>> for Expected {
     }
 }
 
-// TODO: Using `String` as a workaround for the fact that `parser::Error` and `interpreter::Error`
-//  aren't currently `Send`.
+// TODO: Using `String` as a workaround for the fact that `parser::Error` and
+// `interpreter::Error` aren't currently `Send`.
 #[derive(Debug)]
 enum FailureReason {
     Parse(String),

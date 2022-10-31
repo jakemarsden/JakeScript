@@ -84,8 +84,8 @@ impl Eval for SwitchStatement {
             }
             cases.next().unwrap();
         }
-        // Evaluate remaining cases in turn (may do nothing if any of the cases change the execution
-        // state).
+        // Evaluate remaining cases in turn (may do nothing if any of the cases change
+        // the execution state).
         for case in cases {
             case.eval(it)?;
         }
@@ -102,8 +102,8 @@ impl Eval for SwitchStatement {
             | ExecutionState::Return(_)
             | ExecutionState::Exception(_)
             | ExecutionState::Exit => {
-                // Don't reset the execution state just yet so that it can be handled/cleared by
-                // some calling AST node.
+                // Don't reset the execution state just yet so that it can be
+                // handled/cleared by some calling AST node.
             }
         }
         Ok(())

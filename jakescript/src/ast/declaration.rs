@@ -64,9 +64,10 @@ pub struct VariableDeclaration {
 impl VariableDeclaration {
     /// Split the declaration into
     ///
-    /// 1. a "main" [`VariableDeclaration`], sans initialisers, to declare each entry
-    /// 2. a new, synthesised [`Expression`] to initialise each entry, for each entry which started
-    /// with an initialiser.
+    /// 1. a "main" [`VariableDeclaration`], sans initialisers, to declare each
+    /// entry.
+    /// 2. a new, synthesised [`Expression`] to initialise each
+    /// entry, for each entry which started with an initialiser.
     pub fn into_declaration_and_initialiser(mut self) -> (Self, Vec<Expression>) {
         let mut initialisers = Vec::with_capacity(self.bindings.len());
         for entry in &mut self.bindings {

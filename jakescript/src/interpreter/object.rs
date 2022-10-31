@@ -113,6 +113,7 @@ impl Object {
     pub fn prototype(&self) -> Option<&Reference> {
         self.proto.as_ref()
     }
+
     pub fn set_prototype(&mut self, proto: Option<Reference>) -> bool {
         match self.extensible() {
             Extensible::Yes => {
@@ -130,6 +131,7 @@ impl Object {
     pub fn own_property(&self, key: &PropertyKey) -> Option<&Property> {
         self.props.get(key)
     }
+
     pub fn own_property_mut(&mut self, key: &PropertyKey) -> Option<&mut Property> {
         self.props.get_mut(key)
     }

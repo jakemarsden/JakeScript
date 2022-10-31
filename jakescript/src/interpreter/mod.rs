@@ -1,16 +1,15 @@
+use crate::ast::*;
+use crate::runtime::{Builtin, NativeCall};
 pub use error::*;
 pub use heap::*;
 pub use object::*;
 pub use stack::*;
-pub use value::*;
-pub use vm::*;
-
-use crate::ast::*;
-use crate::runtime::{Builtin, NativeCall};
 use std::cmp;
 use std::collections::HashMap;
 use std::ops::{BitAnd, BitOr, BitXor, Not};
 use std::str::FromStr;
+pub use value::*;
+pub use vm::*;
 
 mod block;
 mod declaration;
@@ -42,6 +41,7 @@ impl Interpreter {
     pub fn vm(&self) -> &Vm {
         &self.vm
     }
+
     pub fn vm_mut(&mut self) -> &mut Vm {
         &mut self.vm
     }
@@ -162,10 +162,10 @@ impl Interpreter {
             .stack_mut()
             .push_frame(declared_scope, receiver);
         if let Some(fn_name) = f.name() {
-            // Create an outer scope with nothing but the function's name, which points to itself,
-            // so that named function literals may recurse using their name without making the name
-            // visible outside of the function body. It has its own outer scope so it can still be
-            // shadowed by parameters with the same name.
+            // Create an outer scope with nothing but the function's name, which points to
+            // itself, so that named function literals may recurse using their name without
+            // making the name visible outside of the function body. It has its own outer
+            // scope so it can still be shadowed by parameters with the same name.
             let fn_scope_ctx_outer = ScopeCtx::new(vec![Variable::new(
                 VariableKind::Var,
                 fn_name.clone(),

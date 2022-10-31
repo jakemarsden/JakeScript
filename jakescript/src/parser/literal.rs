@@ -98,7 +98,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                     return Err(Error::unexpected(
                         (CloseBrace, Expected::Identifier("property_key")),
                         elem.cloned(),
-                    ))
+                    ));
                 }
             }
             self.skip_non_tokens()?;
@@ -122,7 +122,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                 return Err(Error::unexpected(
                     Expected::Identifier("property_key"),
                     elem,
-                ))
+                ));
             }
         };
         self.skip_non_tokens()?;
@@ -145,7 +145,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                 return Err(Error::unexpected(
                     (OpenParen, Expected::Identifier("function_name")),
                     elem.cloned(),
-                ))
+                ));
             }
         };
         self.skip_non_tokens()?;

@@ -2,10 +2,9 @@ pub use keyword::*;
 pub use literal::*;
 pub use location::*;
 pub use punctuator::*;
-pub use template::*;
-
 use std::fmt;
 use symbol::*;
+pub use template::*;
 
 pub mod symbol;
 

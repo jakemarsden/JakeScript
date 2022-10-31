@@ -487,6 +487,6 @@ pub enum Associativity {
 pub struct Precedence(u8);
 
 impl Precedence {
-    pub const MIN: Self = Self(1);
     pub const MAX: Self = Self(21);
+    pub const MIN: Self = Self(1);
 }

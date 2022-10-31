@@ -58,8 +58,8 @@ impl<I> FallibleIterator for SourceCode<I>
 where
     I: FallibleIterator<Item = char, Error = io::Error>,
 {
-    type Item = char;
     type Error = (io::Error, SourceLocation);
+    type Item = char;
 
     fn next(&mut self) -> Result<Option<Self::Item>, Self::Error> {
         let ch = self
@@ -68,8 +68,9 @@ where
             .map_err(|err| (err, self.location().clone()))?;
         match ch {
             Some(LF) if self.crlf_sequence => {
-                // This is the LF of a CRLF line terminator sequence. The line was already advanced
-                // at the start of the sequence so don't advance it now.
+                // This is the LF of a CRLF line terminator sequence. The line
+                // was already advanced at the start of the sequence so don't
+                // advance it now.
             }
             Some(ch) if is_line_terminator(ch) => {
                 self.location.advance_line();
