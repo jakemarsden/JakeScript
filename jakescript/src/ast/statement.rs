@@ -168,17 +168,16 @@ pub struct ForStatement {
 impl_node!(ForStatement);
 
 // TODO: a better way to factor this, if there is one. A for-loop's initialiser
-// can either be a  variable declaration or an expression (why?), so it's type
-// can't be as simple as  `VariableDeclaration`. It also can't be `Expression`
-// because a declaration can't be made a type  of expression, and it can't be
+// can either be a variable declaration or an expression (why?), so it's type
+// can't be as simple as `VariableDeclaration`. It also can't be `Expression`
+// because a declaration can't be made a type of expression, and it can't be
 // `Statement` because only certain types of statement are allowed.
-//  - valid:   for (var i = 0;;) {}                  // can be a variable
-//    declaration
-//  - valid:   for (1 + 1;;) {}                      // can be any expression
-//  - valid:   for (console.log("hello world");;) {} // can be any expression
-//  - invalid: for (if (true) {};;) {}               // can't be any statement
-//  - invalid: console.log(let foo = "bar");         // a declaration can't be a
-//    type of expression
+// - valid (can be a variable declaration): `for (var i = 0;;) {}`
+// - valid (can be any expression): `for (1 + 1;;) {}`
+// - valid (can be any expression): `for (console.log("hello world");;) {}`
+// - invalid (can't be any statement): `for (if (true) {};;) {}`
+// - invalid (a declaration can't be type of expression): `console.log(let foo =
+//   "bar");`
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 #[serde(tag = "initialiser_type")]
 pub enum LoopInitialiser {

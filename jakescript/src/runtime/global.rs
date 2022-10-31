@@ -20,7 +20,7 @@ pub struct GlobalObjectProto {
 
 pub struct GlobalObject {
     // TODO: Prototypes should probably be members of the `Runtime` rather than of the
-    //  `GlobalObject`.
+    // `GlobalObject`.
     array_proto: ArrayProtoBuiltin,
     string_proto: StringProtoBuiltin,
     obj_ref: Reference,

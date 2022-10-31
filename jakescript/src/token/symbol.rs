@@ -29,7 +29,7 @@ pub const ZWNBSP: char = '\u{FEFF}';
 
 pub fn is_whitespace(ch: char) -> bool {
     // FIXME: Return `true` for USP (any other code point classified in the
-    // "Space_Separator"  category, which is not the same as the Unicode
+    // "Space_Separator" category, which is not the same as the Unicode
     // "White_Space" property).
     matches!(ch, HT | VT | FF | SP | NBSP | ZWNBSP)
 }

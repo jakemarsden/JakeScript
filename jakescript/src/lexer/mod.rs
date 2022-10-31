@@ -316,7 +316,7 @@ impl<I: FallibleIterator<Item = char, Error = io::Error>> Lexer<I> {
             return Ok(None);
         }
         // TODO: Parse template literals properly (extract the inner ${expression}s for
-        //  substitution, etc.)
+        // substitution, etc.)
         let value = self.parse_string_literal_impl('`')?.unwrap();
         Ok(Some(Template { value }))
     }

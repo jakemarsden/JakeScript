@@ -62,7 +62,7 @@ impl Punctuator {
     /// to come first. This is relied on by the `Lexer`.
     ///
     /// TODO: Sort at compile-time and return a `&'static [Self]`, presumably by
-    /// writing a proc  macro.
+    /// writing a proc macro.
     pub fn all_in_lexical_order() -> Vec<Self> {
         let mut values = Self::all().to_vec();
         values.sort_by_key(|value| usize::MAX - value.as_str().len());

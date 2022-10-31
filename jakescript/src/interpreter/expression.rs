@@ -121,7 +121,7 @@ impl Eval for AssignmentExpression {
                         let prop_name = it.coerce_to_string(&prop_value);
                         let prop_key = PropertyKey::try_from(prop_name).unwrap_or_else(|_| {
                             // FIXME: Remove this restriction as I think it's actually OK to key an
-                            //  object property by the empty string.
+                            // object property by the empty string.
                             todo!("AssignmentExpression::eval: prop_name={}", prop_value)
                         });
                         it.update_object_property(&lhs_ref, &prop_key, compute_updated, map_err)

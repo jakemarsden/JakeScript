@@ -32,10 +32,10 @@ impl Heap {
 }
 
 // TODO: Store objects inside the actual `Heap` struct, rather than ref-counting
-// them in the  `Reference` type because currently, the heap stores nothing.
-// This was done for simplicity, and  to avoid needing to worry about garbage
-// collection. Also simplify the `Reference` type to  `#[derive(Copy, Clone)]
-// pub struct Reference(usize)` when possible.
+// them in the `Reference` type because currently, the heap stores nothing. This
+// was done for simplicity, and to avoid needing to worry about garbage
+// collection. Also simplify the `Reference` type to `#[derive(Copy, Clone)] pub
+// struct Reference(usize)` when possible.
 #[derive(Clone)]
 pub struct Reference(usize, Rc<RefCell<Object>>);
 
