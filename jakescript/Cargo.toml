@@ -13,5 +13,5 @@ serde = { version = "1.0", features = ["derive"] }
 
 [dev-dependencies]
 serde_test = "1.0"
-utf8-chars = "1.0"
+utf8-chars = "2.0"
 walkdir = "2.3"
