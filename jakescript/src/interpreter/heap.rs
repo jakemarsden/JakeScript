@@ -1,4 +1,4 @@
-use super::error::OutOfMemoryError;
+use super::error::OutOfHeapSpaceError;
 use super::object::Object;
 use std::cell::{Ref, RefCell, RefMut};
 use std::fmt;
@@ -10,9 +10,12 @@ pub struct Heap {
 }
 
 impl Heap {
-    pub fn allocate(&mut self, obj: Object) -> Result<Reference, OutOfMemoryError> {
+    pub fn allocate(&mut self, obj: Object) -> Result<Reference, OutOfHeapSpaceError> {
         let obj_idx = self.next_obj_idx;
-        self.next_obj_idx = self.next_obj_idx.checked_add(1).ok_or(OutOfMemoryError)?;
+        self.next_obj_idx = self
+            .next_obj_idx
+            .checked_add(1)
+            .ok_or_else(OutOfHeapSpaceError::new)?;
         Ok(Reference::new(obj_idx, obj))
     }
 

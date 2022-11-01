@@ -1,6 +1,67 @@
 use super::value::Value;
-use crate::token::SourceLocation;
+use crate::ast::{Identifier, SourceLocation};
 use std::fmt;
+
+macro_rules! error_kinds {
+    ($vis:vis enum $type_name:ident {$(
+        $(#[$variant_attr:meta] )*
+        $variant:ident($(#[$inner_attr:meta] )* $inner_vis:vis struct $inner:ident {
+            $($inner_field_vis:vis $inner_field:ident: $inner_field_ty:ty, )*
+        }) => $display_name:literal,
+    )*}) => {
+        #[derive(Clone, Debug)]
+        $vis enum $type_name {$(
+            $(#[$variant_attr] )*
+            $variant($inner),
+        )*}
+
+        impl ::std::error::Error for $type_name {
+            fn source(&self) -> ::std::option::Option<&(dyn ::std::error::Error + 'static)> {
+                ::std::option::Option::Some(match self {
+                    $(Self::$variant(source) => source, )*
+                })
+            }
+        }
+
+        impl ::std::fmt::Display for $type_name {
+            fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+                if f.alternate() {
+                    match self {
+                        $(Self::$variant(source) => write!(f, "{source}"), )*
+                    }
+                } else {
+                    f.write_str(match self {
+                        $(Self::$variant(_) => $display_name, )*
+                    })
+                }
+            }
+        }
+
+        $($(#[$inner_attr] )*
+        #[derive(Clone, Debug)]
+        $inner_vis struct $inner {
+            $($inner_field: $inner_field_ty, )*
+        }
+
+        impl $inner {
+            $inner_vis fn new($($inner_field: $inner_field_ty, )*) -> Self {
+                Self { $($inner_field, )* }
+            }
+
+            $($inner_field_vis fn $inner_field(&self) -> &$inner_field_ty {
+                &self.$inner_field
+            })*
+        }
+
+        impl ::std::error::Error for $inner {}
+
+        impl ::std::convert::From<$inner> for $type_name {
+            fn from(inner: $inner) -> Self {
+                Self::$variant(inner)
+            }
+        })*
+    };
+}
 
 pub type Result<T = Value> = std::result::Result<T, Error>;
 
@@ -11,253 +72,150 @@ pub struct Error {
 }
 
 impl Error {
-    pub fn new(source: impl Into<ErrorKind>, loc: &SourceLocation) -> Self {
+    pub fn new(kind: impl Into<ErrorKind>, loc: &SourceLocation) -> Self {
         Self {
-            kind: source.into(),
+            kind: kind.into(),
             loc: loc.clone(),
         }
     }
 
-    pub fn into_kind(self) -> ErrorKind {
-        match self.kind {
-            ErrorKind::Boxed(box boxed) => boxed.into_kind(),
-            kind => kind,
-        }
+    pub fn kind(&self) -> &ErrorKind {
+        &self.kind
     }
 
-    pub fn kind(&self) -> &ErrorKind {
-        match self.kind {
-            ErrorKind::Boxed(box ref boxed) => boxed.kind(),
-            ref kind => kind,
-        }
+    pub fn into_kind(self) -> ErrorKind {
+        self.kind
     }
 
     pub fn source_location(&self) -> &SourceLocation {
-        match self.kind {
-            ErrorKind::Boxed(box ref boxed) => boxed.source_location(),
-            _ => &self.loc,
-        }
-    }
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{} - {}", self.source_location(), self.kind())
+        &self.loc
     }
 }
 
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        Some(match self.kind() {
-            ErrorKind::Boxed(box boxed) => return boxed.source(),
-            ErrorKind::Assertion(source) => source,
-            ErrorKind::AssignToConstVariable(source) => source,
-            ErrorKind::FunctionNotDefined(source) => source,
-            ErrorKind::NumericOverflow(source) => source,
-            ErrorKind::NotCallable(source) => source,
-            ErrorKind::OutOfMemory(source) => source,
-            ErrorKind::OutOfStackSpace(source) => source,
-            ErrorKind::VariableAlreadyDefined(source) => source,
-            ErrorKind::VariableNotDefined(source) => source,
-        })
+        self.kind().source()
     }
 }
 
-#[derive(Clone, Debug)]
-pub enum ErrorKind {
-    /// Required to be able to "upcast" from an [`Error`] to an [`ErrorKind`].
-    Boxed(Box<Error>),
-
-    Assertion(AssertionError),
-    AssignToConstVariable(AssignToConstVariableError),
-    FunctionNotDefined(FunctionNotDefinedError),
-    NotCallable(NotCallableError),
-    NumericOverflow(NumericOverflowError),
-    OutOfMemory(OutOfMemoryError),
-    OutOfStackSpace(OutOfStackSpaceError),
-    VariableAlreadyDefined(VariableAlreadyDefinedError),
-    VariableNotDefined(VariableNotDefinedError),
-}
-
-impl fmt::Display for ErrorKind {
+impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Self::Boxed(box source) => fmt::Display::fmt(source.kind(), f),
-            Self::Assertion(source) => write!(f, "{source}"),
-            Self::AssignToConstVariable(source) => write!(f, "{source}"),
-            Self::FunctionNotDefined(source) => write!(f, "{source}",),
-            Self::NotCallable(source) => write!(f, "{source}",),
-            Self::NumericOverflow(source) => write!(f, "{source}",),
-            Self::OutOfMemory(source) => write!(f, "{source}",),
-            Self::OutOfStackSpace(source) => write!(f, "{source}",),
-            Self::VariableAlreadyDefined(source) => write!(f, "{source}",),
-            Self::VariableNotDefined(source) => write!(f, "{source}",),
-        }
+        write!(
+            f,
+            "{} at {:#}: {:#}",
+            self.kind(),
+            self.source_location(),
+            self.kind()
+        )
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct AssertionError {
-    detail_msg: String,
-}
+// TODO: Most of these variants should be thrown as exceptions within the
+// interpreter, and shouldn't cause it to exit.
+error_kinds!(pub enum ErrorKind {
+    Assertion(pub struct AssertionError {
+        pub detail_msg: String,
+    }) => "assertion failed",
 
-impl AssertionError {
-    pub fn new(detail_msg: String) -> Self {
-        Self { detail_msg }
-    }
+    AssignToConstVariable(pub struct AssignToConstVariableError {
+        pub name: Identifier,
+    }) => "assign to const variable",
 
-    pub fn detail_msg(&self) -> &str {
-        &self.detail_msg
+    VariableAlreadyDefined(pub struct VariableAlreadyDefinedError {
+        pub name: Identifier,
+    }) => "variable already defined",
+
+    VariableNotDefined(pub struct VariableNotDefinedError {
+        pub name: Identifier,
+    }) => "variable not defined",
+
+    FunctionNotDefined(pub struct FunctionNotDefinedError {
+        pub name: Identifier,
+    }) => "function not defined",
+    NotCallable(#[derive(Default)] pub struct NotCallableError {
+    }) => "object or primitive not callable",
+
+    NumericOverflow(#[derive(Default)] pub struct NumericOverflowError {}) => "numeric overflow",
+
+    OutOfHeapSpace(#[derive(Default)] pub struct OutOfHeapSpaceError {}) => "out of heap space",
+    OutOfStackSpace(#[derive(Default)] pub struct OutOfStackSpaceError {}) => "out of stack space",
+
+    #[doc = "Temporary hack to allow errors to be propagated outside of function calls while still \
+    retaining source location information."]
+    Boxed(pub struct BoxedError {
+        inner: Box<Error>,
+    }) => "function call",
+});
+
+impl ErrorKind {
+    pub fn boxed(inner: Error) -> Self {
+        Self::from(BoxedError::from(inner))
     }
 }
 
 impl fmt::Display for AssertionError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Assertion failed: {}", self.detail_msg)
+        f.write_str(self.detail_msg())
     }
 }
-
-impl std::error::Error for AssertionError {}
-
-impl From<AssertionError> for ErrorKind {
-    fn from(source: AssertionError) -> Self {
-        Self::Assertion(source)
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct AssignToConstVariableError;
 
 impl fmt::Display for AssignToConstVariableError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(r#"Cannot assign to a variable declared as "const""#)
+        write!(f, "`{}` was declared as `const`", self.name())
     }
 }
-
-impl std::error::Error for AssignToConstVariableError {}
-
-impl From<AssignToConstVariableError> for ErrorKind {
-    fn from(source: AssignToConstVariableError) -> Self {
-        Self::AssignToConstVariable(source)
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct VariableAlreadyDefinedError;
 
 impl fmt::Display for VariableAlreadyDefinedError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str("A variable with the same name is already defined in the current scope")
+        write!(f, "`{}` already exists in the current scope", self.name())
     }
 }
-
-impl std::error::Error for VariableAlreadyDefinedError {}
-
-impl From<VariableAlreadyDefinedError> for ErrorKind {
-    fn from(source: VariableAlreadyDefinedError) -> Self {
-        Self::VariableAlreadyDefined(source)
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct VariableNotDefinedError;
 
 impl fmt::Display for VariableNotDefinedError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str("Variable not defined in the current scope")
+        write!(f, "`{}` is not visible from the current scope", self.name())
     }
 }
-
-impl std::error::Error for VariableNotDefinedError {}
-
-impl From<VariableNotDefinedError> for ErrorKind {
-    fn from(source: VariableNotDefinedError) -> Self {
-        Self::VariableNotDefined(source)
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct FunctionNotDefinedError;
 
 impl fmt::Display for FunctionNotDefinedError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str("Function not defined in the current scope")
+        write!(f, "`{}` is not visible from the current scope", self.name())
     }
 }
-
-impl std::error::Error for FunctionNotDefinedError {}
-
-impl From<FunctionNotDefinedError> for ErrorKind {
-    fn from(source: FunctionNotDefinedError) -> Self {
-        Self::FunctionNotDefined(source)
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct NotCallableError;
 
 impl fmt::Display for NotCallableError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str("Object or primitive not callable")
+        f.write_str("object or primitive is not callable")
     }
 }
-
-impl std::error::Error for NotCallableError {}
-
-impl From<NotCallableError> for ErrorKind {
-    fn from(source: NotCallableError) -> Self {
-        Self::NotCallable(source)
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct NumericOverflowError;
 
 impl fmt::Display for NumericOverflowError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str("Numeric overflow")
+    fn fmt(&self, _: &mut fmt::Formatter) -> fmt::Result {
+        Ok(())
     }
 }
 
-impl std::error::Error for NumericOverflowError {}
-
-impl From<NumericOverflowError> for ErrorKind {
-    fn from(source: NumericOverflowError) -> Self {
-        Self::NumericOverflow(source)
+impl fmt::Display for OutOfHeapSpaceError {
+    fn fmt(&self, _: &mut fmt::Formatter) -> fmt::Result {
+        Ok(())
     }
 }
-
-#[derive(Clone, Debug)]
-pub struct OutOfMemoryError;
-
-impl fmt::Display for OutOfMemoryError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str("Out of memory")
-    }
-}
-
-impl std::error::Error for OutOfMemoryError {}
-
-impl From<OutOfMemoryError> for ErrorKind {
-    fn from(source: OutOfMemoryError) -> Self {
-        Self::OutOfMemory(source)
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct OutOfStackSpaceError;
 
 impl fmt::Display for OutOfStackSpaceError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str("Out of stack space")
+    fn fmt(&self, _: &mut fmt::Formatter) -> fmt::Result {
+        Ok(())
     }
 }
 
-impl std::error::Error for OutOfStackSpaceError {}
+impl fmt::Display for BoxedError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.inner())
+    }
+}
 
-impl From<OutOfStackSpaceError> for ErrorKind {
-    fn from(source: OutOfStackSpaceError) -> Self {
-        Self::OutOfStackSpace(source)
+impl From<Error> for BoxedError {
+    fn from(inner: Error) -> Self {
+        Self::new(Box::new(inner))
     }
 }
 
@@ -265,22 +223,26 @@ impl From<OutOfStackSpaceError> for ErrorKind {
 pub struct InitialisationError(ErrorKind);
 
 impl InitialisationError {
+    pub fn kind(&self) -> &ErrorKind {
+        &self.0
+    }
+
     pub fn into_kind(self) -> ErrorKind {
         self.0
     }
+}
 
-    pub fn kind(&self) -> &ErrorKind {
-        &self.0
+impl std::error::Error for InitialisationError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(self.kind())
     }
 }
 
 impl fmt::Display for InitialisationError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Initialisation error: {}", self.0)
+        write!(f, "initialisation error: {}", self.0)
     }
 }
-
-impl std::error::Error for InitialisationError {}
 
 impl<T> From<T> for InitialisationError
 where

@@ -43,7 +43,12 @@ impl Eval for IdentifierReferenceExpression {
             global_obj
                 .get(it, &self.identifier, receiver.clone())
                 .map_err(|err| Error::new(err, self.source_location()))?
-                .ok_or_else(|| Error::new(VariableNotDefinedError, self.source_location()))
+                .ok_or_else(|| {
+                    Error::new(
+                        VariableNotDefinedError::new(self.identifier.clone()),
+                        self.source_location(),
+                    )
+                })
         }
     }
 }
@@ -301,7 +306,9 @@ impl Eval for FunctionCallExpression {
 
         let fn_obj_ref = match function {
             Value::Object(fn_obj_ref) => fn_obj_ref,
-            _ => return Err(Error::new(NotCallableError, self.source_location())),
+            _ => {
+                return Err(Error::new(NotCallableError::new(), self.source_location()));
+            }
         };
 
         let mut supplied_args = Vec::with_capacity(self.arguments.len());

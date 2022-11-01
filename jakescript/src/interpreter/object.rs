@@ -208,9 +208,9 @@ impl Object {
         match self.call_data() {
             Some(Call::User(ref user_fn)) => it
                 .call_user_fn(user_fn, self_ref, receiver, args)
-                .map_err(|err| ErrorKind::Boxed(Box::new(err))),
+                .map_err(ErrorKind::boxed),
             Some(Call::Native(ref native_fn)) => it.call_native_fn(native_fn, receiver, args),
-            None => Err(ErrorKind::from(NotCallableError)),
+            None => Err(ErrorKind::from(NotCallableError::new())),
         }
     }
 

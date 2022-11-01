@@ -64,7 +64,7 @@ builtin_fn!(AbsBuiltin, Extensible::Yes, (it, _receiver, args) => {
     it.coerce_to_number(&arg)
         .checked_abs()
         .map(Value::Number)
-        .ok_or(ErrorKind::NumericOverflow(NumericOverflowError))
+        .ok_or(ErrorKind::NumericOverflow(NumericOverflowError::new()))
 });
 
 builtin_fn!(FloorBuiltin, Extensible::Yes, (it, _receiver, args) => {

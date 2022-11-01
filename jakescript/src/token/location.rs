@@ -48,7 +48,13 @@ impl SourceLocation {
 
 impl fmt::Display for SourceLocation {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}@{}", self.location().display(), self.position())
+        let location = self.location().display();
+        let position = self.position();
+        if f.alternate() {
+            write!(f, "{position:#} of {location:#}",)
+        } else {
+            write!(f, "<{location}@{position}>")
+        }
     }
 }
 
@@ -123,12 +129,13 @@ impl SourcePosition {
 
 impl fmt::Display for SourcePosition {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}:{}",
-            self.line().saturating_add(1),
-            self.column().saturating_add(1)
-        )
+        let line = self.line().saturating_add(1);
+        let column = self.column().saturating_add(1);
+        if f.alternate() {
+            write!(f, "line {line}, column {column}",)
+        } else {
+            write!(f, "{line}:{column}",)
+        }
     }
 }
 

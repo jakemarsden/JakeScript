@@ -67,7 +67,7 @@ impl CallStack {
             });
             Ok(())
         } else {
-            Err(OutOfStackSpaceError)
+            Err(OutOfStackSpaceError::new())
         }
     }
 
@@ -177,7 +177,7 @@ impl ScopeStack {
             if let Some(variable) = scope.lookup_variable(name) {
                 break Ok(variable);
             }
-            search_id = parent.ok_or(VariableNotDefinedError)?;
+            search_id = parent.ok_or_else(|| VariableNotDefinedError::new(name.clone()))?;
         }
     }
 
@@ -193,7 +193,7 @@ impl ScopeStack {
             if let Some(variable) = scope.lookup_variable_mut(name) {
                 break Ok(op(variable));
             }
-            search_id = parent.ok_or(VariableNotDefinedError)?;
+            search_id = parent.ok_or_else(|| VariableNotDefinedError::new(name.clone()))?;
         }
     }
 
@@ -236,7 +236,7 @@ impl ScopeStack {
             self.scopes.push(scope);
             Ok(ScopeId(idx))
         } else {
-            Err(OutOfStackSpaceError)
+            Err(OutOfStackSpaceError::new())
         }
     }
 }
@@ -285,7 +285,7 @@ impl Scope {
             self.slots.push(variable);
             Ok(())
         } else {
-            Err(VariableAlreadyDefinedError)
+            Err(VariableAlreadyDefinedError::new(variable.name().clone()))
         }
     }
 }
@@ -328,7 +328,7 @@ impl Variable {
                 self.value = value;
                 Ok(())
             }
-            VariableKind::Const => Err(AssignToConstVariableError),
+            VariableKind::Const => Err(AssignToConstVariableError::new(self.name().clone())),
         }
     }
 }

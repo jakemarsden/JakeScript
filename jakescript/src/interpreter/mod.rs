@@ -49,7 +49,7 @@ impl Interpreter {
     pub fn alloc_string(
         &mut self,
         s: Box<str>,
-    ) -> std::result::Result<Reference, OutOfMemoryError> {
+    ) -> std::result::Result<Reference, OutOfHeapSpaceError> {
         let proto = self
             .vm()
             .runtime()
@@ -64,7 +64,7 @@ impl Interpreter {
     pub fn alloc_array(
         &mut self,
         elems: Vec<Value>,
-    ) -> std::result::Result<Reference, OutOfMemoryError> {
+    ) -> std::result::Result<Reference, OutOfHeapSpaceError> {
         let proto = self
             .vm()
             .runtime()
@@ -79,7 +79,7 @@ impl Interpreter {
     pub fn alloc_object(
         &mut self,
         props: HashMap<PropertyKey, Value>,
-    ) -> std::result::Result<Reference, OutOfMemoryError> {
+    ) -> std::result::Result<Reference, OutOfHeapSpaceError> {
         self.vm_mut()
             .heap_mut()
             .allocate(Object::new_object(None, props, Extensible::Yes))
@@ -88,7 +88,7 @@ impl Interpreter {
     pub fn alloc_function(
         &mut self,
         f: UserFunction,
-    ) -> std::result::Result<Reference, OutOfMemoryError> {
+    ) -> std::result::Result<Reference, OutOfHeapSpaceError> {
         self.vm_mut()
             .heap_mut()
             .allocate(Object::new_function(f, Extensible::Yes))
@@ -113,7 +113,7 @@ impl Interpreter {
                     .map_err(e)?;
                 Ok(result_value)
             }
-            Err(VariableNotDefinedError) => {
+            Err(VariableNotDefinedError { .. }) => {
                 let global_obj_ref = self.vm().runtime().global_object_ref().clone();
                 self.update_object_property(&global_obj_ref, key, f, e)
             }
@@ -520,7 +520,7 @@ impl Interpreter {
     ) -> std::result::Result<Value, ErrorKind> {
         checked_op(self.coerce_to_number(operand))
             .map(Value::Number)
-            .ok_or(ErrorKind::NumericOverflow(NumericOverflowError))
+            .ok_or(ErrorKind::NumericOverflow(NumericOverflowError::new()))
     }
 
     // unnecessary_wraps: Future-proofing
@@ -543,7 +543,7 @@ impl Interpreter {
     ) -> std::result::Result<Value, ErrorKind> {
         checked_op(self.coerce_to_number(lhs), self.coerce_to_number(rhs))
             .map(Value::Number)
-            .ok_or(ErrorKind::NumericOverflow(NumericOverflowError))
+            .ok_or(ErrorKind::NumericOverflow(NumericOverflowError::new()))
     }
 
     // unnecessary_wraps: Future-proofing
