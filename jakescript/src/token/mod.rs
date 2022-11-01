@@ -14,48 +14,6 @@ mod location;
 mod punctuator;
 mod template;
 
-#[macro_export(crate)]
-macro_rules! simple_enumeration {
-    ($vis:vis $type_name:ident { $($variant:ident => $value:literal, )* }) => {
-        #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
-        $vis enum $type_name {
-            $($variant, )*
-        }
-
-        impl $type_name {
-            $vis fn all() -> &'static [Self] {
-                const ALL: &'static [$type_name] = &[
-                    $($type_name::$variant, )*
-                ];
-                ALL
-            }
-
-            $vis fn as_str(self) -> &'static str {
-                match self {
-                    $(Self::$variant => $value, )*
-                }
-            }
-        }
-
-        impl ::std::str::FromStr for $type_name {
-            type Err = ();
-
-            fn from_str(s: &str) -> ::std::result::Result<Self, Self::Err> {
-                ::std::result::Result::Ok(match s {
-                    $($value => Self::$variant, )*
-                    _ => return ::std::result::Result::Err(()),
-                })
-            }
-        }
-
-        impl ::std::fmt::Display for $type_name {
-            fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-                f.write_str(self.as_str())
-            }
-        }
-    };
-}
-
 #[derive(Clone, Debug, PartialEq)]
 pub struct Element {
     kind: ElementKind,

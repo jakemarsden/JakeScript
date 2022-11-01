@@ -1,103 +1,82 @@
 use super::identifier::Identifier;
 use super::literal::{Literal, NumericLiteral, StringLiteral};
-use super::Node;
 use crate::ast::Block;
-use crate::impl_node;
+use crate::ast_node;
 use crate::token::SourceLocation;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-#[serde(tag = "expression_type")]
-pub enum Expression {
-    IdentifierReference(IdentifierReferenceExpression),
-    This(ThisExpression),
-    New(NewExpression),
-    Literal(LiteralExpression),
-    Array(ArrayExpression),
-    Object(ObjectExpression),
-    /// Boxed due to large size only.
-    Function(Box<FunctionExpression>),
+ast_node!(
+    #[serde(tag = "expression_type")]
+    pub enum Expression {
+        IdentifierReference(IdentifierReferenceExpression),
+        This(ThisExpression),
+        New(NewExpression),
+        Literal(LiteralExpression),
+        Array(ArrayExpression),
+        Object(ObjectExpression),
+        /// Boxed due to large size only.
+        Function(Box<FunctionExpression>),
 
-    Assignment(AssignmentExpression),
-    Binary(BinaryExpression),
-    Relational(RelationalExpression),
-    Unary(UnaryExpression),
-    Update(UpdateExpression),
-    Member(MemberExpression),
-    Grouping(GroupingExpression),
-    Ternary(TernaryExpression),
-}
+        Assignment(AssignmentExpression),
+        Binary(BinaryExpression),
+        Relational(RelationalExpression),
+        Unary(UnaryExpression),
+        Update(UpdateExpression),
+        Member(MemberExpression),
+        Grouping(GroupingExpression),
+        Ternary(TernaryExpression),
+    }
+);
 
-impl Node for Expression {
-    fn source_location(&self) -> &SourceLocation {
-        match self {
-            Self::IdentifierReference(node) => node.source_location(),
-            Self::This(node) => node.source_location(),
-            Self::New(node) => node.source_location(),
-            Self::Literal(node) => node.source_location(),
-            Self::Array(node) => node.source_location(),
-            Self::Object(node) => node.source_location(),
-            Self::Function(node) => node.source_location(),
-
-            Self::Assignment(node) => node.source_location(),
-            Self::Binary(node) => node.source_location(),
-            Self::Relational(node) => node.source_location(),
-            Self::Unary(node) => node.source_location(),
-            Self::Update(node) => node.source_location(),
-            Self::Member(node) => node.source_location(),
-            Self::Grouping(node) => node.source_location(),
-            Self::Ternary(node) => node.source_location(),
-        }
+impl From<FunctionExpression> for Expression {
+    fn from(inner: FunctionExpression) -> Self {
+        Self::from(Box::new(inner))
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
-pub struct IdentifierReferenceExpression {
-    pub loc: SourceLocation,
-    pub identifier: Identifier,
-}
+ast_node!(
+    #[derive(Eq)]
+    pub struct IdentifierReferenceExpression {
+        pub loc: SourceLocation,
+        pub identifier: Identifier,
+    }
+);
 
-impl_node!(IdentifierReferenceExpression);
+ast_node!(
+    #[derive(Eq)]
+    pub struct ThisExpression {
+        pub loc: SourceLocation,
+    }
+);
 
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
-pub struct ThisExpression {
-    pub loc: SourceLocation,
-}
+ast_node!(
+    pub struct NewExpression {
+        pub loc: SourceLocation,
+        pub type_name: Identifier,
+        pub arguments: Vec<Expression>,
+    }
+);
 
-impl_node!(ThisExpression);
+ast_node!(
+    pub struct LiteralExpression {
+        pub loc: SourceLocation,
+        pub value: Literal,
+    }
+);
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct NewExpression {
-    pub loc: SourceLocation,
-    pub type_name: Identifier,
-    pub arguments: Vec<Expression>,
-}
+ast_node!(
+    pub struct ArrayExpression {
+        pub loc: SourceLocation,
+        pub declared_elements: Vec<Expression>,
+    }
+);
 
-impl_node!(NewExpression);
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct LiteralExpression {
-    pub loc: SourceLocation,
-    pub value: Literal,
-}
-
-impl_node!(LiteralExpression);
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct ArrayExpression {
-    pub loc: SourceLocation,
-    pub declared_elements: Vec<Expression>,
-}
-
-impl_node!(ArrayExpression);
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct ObjectExpression {
-    pub loc: SourceLocation,
-    pub declared_properties: Vec<DeclaredProperty>,
-}
-
-impl_node!(ObjectExpression);
+ast_node!(
+    pub struct ObjectExpression {
+        pub loc: SourceLocation,
+        pub declared_properties: Vec<DeclaredProperty>,
+    }
+);
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
 pub enum DeclaredPropertyName {
@@ -113,125 +92,105 @@ pub struct DeclaredProperty {
     pub initialiser: Expression,
 }
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct FunctionExpression {
-    pub loc: SourceLocation,
-    pub binding: Option<Identifier>,
-    pub formal_parameters: Vec<Identifier>,
-    pub body: Block,
-}
-
-impl_node!(FunctionExpression);
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct AssignmentExpression {
-    pub loc: SourceLocation,
-    pub op: AssignmentOperator,
-    pub lhs: Box<Expression>,
-    pub rhs: Box<Expression>,
-}
-
-impl_node!(AssignmentExpression);
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct BinaryExpression {
-    pub loc: SourceLocation,
-    pub op: BinaryOperator,
-    pub lhs: Box<Expression>,
-    pub rhs: Box<Expression>,
-}
-
-impl_node!(BinaryExpression);
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct RelationalExpression {
-    pub loc: SourceLocation,
-    pub op: RelationalOperator,
-    pub lhs: Box<Expression>,
-    pub rhs: Box<Expression>,
-}
-
-impl_node!(RelationalExpression);
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct UnaryExpression {
-    pub loc: SourceLocation,
-    pub op: UnaryOperator,
-    pub operand: Box<Expression>,
-}
-
-impl_node!(UnaryExpression);
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct UpdateExpression {
-    pub loc: SourceLocation,
-    pub op: UpdateOperator,
-    pub operand: Box<Expression>,
-}
-
-impl_node!(UpdateExpression);
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub enum MemberExpression {
-    MemberAccess(MemberAccessExpression),
-    ComputedMemberAccess(ComputedMemberAccessExpression),
-    FunctionCall(FunctionCallExpression),
-}
-
-impl Node for MemberExpression {
-    fn source_location(&self) -> &SourceLocation {
-        match self {
-            Self::MemberAccess(node) => node.source_location(),
-            Self::ComputedMemberAccess(node) => node.source_location(),
-            Self::FunctionCall(node) => node.source_location(),
-        }
+ast_node!(
+    pub struct FunctionExpression {
+        pub loc: SourceLocation,
+        pub binding: Option<Identifier>,
+        pub formal_parameters: Vec<Identifier>,
+        pub body: Block,
     }
-}
+);
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct MemberAccessExpression {
-    pub loc: SourceLocation,
-    pub base: Box<Expression>,
-    pub member: Identifier,
-}
+ast_node!(
+    pub struct AssignmentExpression {
+        pub loc: SourceLocation,
+        pub op: AssignmentOperator,
+        pub lhs: Box<Expression>,
+        pub rhs: Box<Expression>,
+    }
+);
 
-impl_node!(MemberAccessExpression);
+ast_node!(
+    pub struct BinaryExpression {
+        pub loc: SourceLocation,
+        pub op: BinaryOperator,
+        pub lhs: Box<Expression>,
+        pub rhs: Box<Expression>,
+    }
+);
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct ComputedMemberAccessExpression {
-    pub loc: SourceLocation,
-    pub base: Box<Expression>,
-    pub member: Box<Expression>,
-}
+ast_node!(
+    pub struct RelationalExpression {
+        pub loc: SourceLocation,
+        pub op: RelationalOperator,
+        pub lhs: Box<Expression>,
+        pub rhs: Box<Expression>,
+    }
+);
 
-impl_node!(ComputedMemberAccessExpression);
+ast_node!(
+    pub struct UnaryExpression {
+        pub loc: SourceLocation,
+        pub op: UnaryOperator,
+        pub operand: Box<Expression>,
+    }
+);
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct FunctionCallExpression {
-    pub loc: SourceLocation,
-    pub function: Box<Expression>,
-    pub arguments: Vec<Expression>,
-}
+ast_node!(
+    pub struct UpdateExpression {
+        pub loc: SourceLocation,
+        pub op: UpdateOperator,
+        pub operand: Box<Expression>,
+    }
+);
 
-impl_node!(FunctionCallExpression);
+ast_node!(
+    pub enum MemberExpression {
+        MemberAccess(MemberAccessExpression),
+        ComputedMemberAccess(ComputedMemberAccessExpression),
+        FunctionCall(FunctionCallExpression),
+    }
+);
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct GroupingExpression {
-    pub loc: SourceLocation,
-    pub inner: Box<Expression>,
-}
+ast_node!(
+    pub struct MemberAccessExpression {
+        pub loc: SourceLocation,
+        pub base: Box<Expression>,
+        pub member: Identifier,
+    }
+);
 
-impl_node!(GroupingExpression);
+ast_node!(
+    pub struct ComputedMemberAccessExpression {
+        pub loc: SourceLocation,
+        pub base: Box<Expression>,
+        pub member: Box<Expression>,
+    }
+);
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct TernaryExpression {
-    pub loc: SourceLocation,
-    pub condition: Box<Expression>,
-    pub lhs: Box<Expression>,
-    pub rhs: Box<Expression>,
-}
+ast_node!(
+    pub struct FunctionCallExpression {
+        pub loc: SourceLocation,
+        pub function: Box<Expression>,
+        pub arguments: Vec<Expression>,
+    }
+);
 
-impl_node!(TernaryExpression);
+ast_node!(
+    pub struct GroupingExpression {
+        pub loc: SourceLocation,
+        pub inner: Box<Expression>,
+    }
+);
+
+ast_node!(
+    pub struct TernaryExpression {
+        pub loc: SourceLocation,
+        pub condition: Box<Expression>,
+        pub lhs: Box<Expression>,
+        pub rhs: Box<Expression>,
+    }
+);
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Operator {

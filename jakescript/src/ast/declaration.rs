@@ -4,17 +4,18 @@ use super::expression::{
 };
 use super::identifier::Identifier;
 use super::Node;
-use crate::impl_node;
+use crate::ast_node;
 use crate::token::SourceLocation;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-#[serde(tag = "declaration_type")]
-pub enum Declaration {
-    Function(FunctionDeclaration),
-    Variable(VariableDeclaration),
-    Lexical(LexicalDeclaration),
-}
+ast_node!(
+    #[serde(tag = "declaration_type")]
+    pub enum Declaration {
+        Function(FunctionDeclaration),
+        Variable(VariableDeclaration),
+        Lexical(LexicalDeclaration),
+    }
+);
 
 impl Declaration {
     pub fn is_hoisted(&self) -> bool {
@@ -35,31 +36,21 @@ impl Declaration {
     }
 }
 
-impl Node for Declaration {
-    fn source_location(&self) -> &SourceLocation {
-        match self {
-            Self::Function(node) => node.source_location(),
-            Self::Variable(node) => node.source_location(),
-            Self::Lexical(node) => node.source_location(),
-        }
+ast_node!(
+    pub struct FunctionDeclaration {
+        pub loc: SourceLocation,
+        pub binding: Identifier,
+        pub formal_parameters: Vec<Identifier>,
+        pub body: Block,
     }
-}
+);
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct FunctionDeclaration {
-    pub loc: SourceLocation,
-    pub binding: Identifier,
-    pub formal_parameters: Vec<Identifier>,
-    pub body: Block,
-}
-
-impl_node!(FunctionDeclaration);
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct VariableDeclaration {
-    pub loc: SourceLocation,
-    pub bindings: Vec<VariableBinding>,
-}
+ast_node!(
+    pub struct VariableDeclaration {
+        pub loc: SourceLocation,
+        pub bindings: Vec<VariableBinding>,
+    }
+);
 
 impl VariableDeclaration {
     /// Split the declaration into
@@ -90,16 +81,13 @@ impl VariableDeclaration {
     }
 }
 
-impl_node!(VariableDeclaration);
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct LexicalDeclaration {
-    pub loc: SourceLocation,
-    pub kind: LexicalDeclarationKind,
-    pub bindings: Vec<VariableBinding>,
-}
-
-impl_node!(LexicalDeclaration);
+ast_node!(
+    pub struct LexicalDeclaration {
+        pub loc: SourceLocation,
+        pub kind: LexicalDeclarationKind,
+        pub bindings: Vec<VariableBinding>,
+    }
+);
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub enum LexicalDeclarationKind {
@@ -107,11 +95,10 @@ pub enum LexicalDeclarationKind {
     Let,
 }
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct VariableBinding {
-    pub loc: SourceLocation,
-    pub identifier: Identifier,
-    pub initialiser: Option<Expression>,
-}
-
-impl_node!(VariableBinding);
+ast_node!(
+    pub struct VariableBinding {
+        pub loc: SourceLocation,
+        pub identifier: Identifier,
+        pub initialiser: Option<Expression>,
+    }
+);

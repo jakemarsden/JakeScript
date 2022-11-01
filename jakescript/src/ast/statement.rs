@@ -2,77 +2,52 @@ use super::block::Block;
 use super::declaration::{Declaration, LexicalDeclaration, VariableDeclaration};
 use super::expression::Expression;
 use super::identifier::Identifier;
-use super::Node;
-use crate::impl_node;
+use crate::ast_node;
 use crate::token::SourceLocation;
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-#[serde(tag = "statement_type")]
-pub enum Statement {
-    Empty(EmptyStatement),
-    Block(BlockStatement),
-    Declaration(DeclarationStatement),
-    Expression(ExpressionStatement),
+ast_node!(
+    #[serde(tag = "statement_type")]
+    pub enum Statement {
+        Empty(EmptyStatement),
+        Block(BlockStatement),
+        Declaration(DeclarationStatement),
+        Expression(ExpressionStatement),
 
-    If(IfStatement),
-    Switch(SwitchStatement),
-    Do(DoStatement),
-    While(WhileStatement),
-    For(ForStatement),
-    Try(TryStatement),
+        If(IfStatement),
+        Switch(SwitchStatement),
+        Do(DoStatement),
+        While(WhileStatement),
+        For(ForStatement),
+        Try(TryStatement),
 
-    Continue(ContinueStatement),
-    Break(BreakStatement),
-    Return(ReturnStatement),
-    Throw(ThrowStatement),
-}
-
-impl Node for Statement {
-    fn source_location(&self) -> &SourceLocation {
-        match self {
-            Self::Empty(node) => node.source_location(),
-            Self::Block(node) => node.source_location(),
-            Self::Declaration(node) => node.source_location(),
-            Self::Expression(node) => node.source_location(),
-
-            Self::If(node) => node.source_location(),
-            Self::Switch(node) => node.source_location(),
-            Self::Do(node) => node.source_location(),
-            Self::While(node) => node.source_location(),
-            Self::For(node) => node.source_location(),
-            Self::Try(node) => node.source_location(),
-
-            Self::Continue(node) => node.source_location(),
-            Self::Break(node) => node.source_location(),
-            Self::Return(node) => node.source_location(),
-            Self::Throw(node) => node.source_location(),
-        }
+        Continue(ContinueStatement),
+        Break(BreakStatement),
+        Return(ReturnStatement),
+        Throw(ThrowStatement),
     }
-}
+);
 
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
-pub struct EmptyStatement {
-    pub loc: SourceLocation,
-}
-
-impl_node!(EmptyStatement);
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct BlockStatement {
-    pub block: Block,
-}
-
-impl Node for BlockStatement {
-    fn source_location(&self) -> &SourceLocation {
-        self.block.source_location()
+ast_node!(
+    #[derive(Eq)]
+    pub struct EmptyStatement {
+        pub loc: SourceLocation,
     }
-}
+);
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct DeclarationStatement {
-    pub declaration: Declaration,
-}
+ast_node!(
+    ##[source_location = |self| self.block.source_location()]
+    pub struct BlockStatement {
+        pub block: Block,
+    }
+);
+
+ast_node!(
+    ##[source_location = |self| self.declaration.source_location()]
+    pub struct DeclarationStatement {
+        pub declaration: Declaration,
+    }
+);
 
 impl DeclarationStatement {
     pub fn is_hoisted(&self) -> bool {
@@ -84,88 +59,71 @@ impl DeclarationStatement {
     }
 }
 
-impl Node for DeclarationStatement {
-    fn source_location(&self) -> &SourceLocation {
-        self.declaration.source_location()
+ast_node!(
+    ##[source_location = |self| self.expression.source_location()]
+    pub struct ExpressionStatement {
+        pub expression: Expression,
     }
-}
+);
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct ExpressionStatement {
-    pub expression: Expression,
-}
-
-impl Node for ExpressionStatement {
-    fn source_location(&self) -> &SourceLocation {
-        self.expression.source_location()
+ast_node!(
+    pub struct IfStatement {
+        pub loc: SourceLocation,
+        pub condition: Expression,
+        pub body: Box<Statement>,
+        pub else_body: Option<Box<Statement>>,
     }
-}
+);
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct IfStatement {
-    pub loc: SourceLocation,
-    pub condition: Expression,
-    pub body: Box<Statement>,
-    pub else_body: Option<Box<Statement>>,
-}
+ast_node!(
+    pub struct SwitchStatement {
+        pub loc: SourceLocation,
+        pub value: Expression,
+        pub cases: Vec<CaseStatement>,
+        pub default_case: Option<DefaultCaseStatement>,
+    }
+);
 
-impl_node!(IfStatement);
+ast_node!(
+    pub struct CaseStatement {
+        pub loc: SourceLocation,
+        pub expected: Expression,
+        pub body: Vec<Statement>,
+    }
+);
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct SwitchStatement {
-    pub loc: SourceLocation,
-    pub value: Expression,
-    pub cases: Vec<CaseStatement>,
-    pub default_case: Option<DefaultCaseStatement>,
-}
+ast_node!(
+    pub struct DefaultCaseStatement {
+        pub loc: SourceLocation,
+        pub body: Vec<Statement>,
+    }
+);
 
-impl_node!(SwitchStatement);
+ast_node!(
+    pub struct DoStatement {
+        pub loc: SourceLocation,
+        pub body: Box<Statement>,
+        pub condition: Expression,
+    }
+);
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct CaseStatement {
-    pub loc: SourceLocation,
-    pub expected: Expression,
-    pub body: Vec<Statement>,
-}
+ast_node!(
+    pub struct WhileStatement {
+        pub loc: SourceLocation,
+        pub condition: Expression,
+        pub body: Box<Statement>,
+    }
+);
 
-impl_node!(CaseStatement);
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct DefaultCaseStatement {
-    pub loc: SourceLocation,
-    pub body: Vec<Statement>,
-}
-
-impl_node!(DefaultCaseStatement);
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct DoStatement {
-    pub loc: SourceLocation,
-    pub body: Box<Statement>,
-    pub condition: Expression,
-}
-
-impl_node!(DoStatement);
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct WhileStatement {
-    pub loc: SourceLocation,
-    pub condition: Expression,
-    pub body: Box<Statement>,
-}
-
-impl_node!(WhileStatement);
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct ForStatement {
-    pub loc: SourceLocation,
-    pub initialiser: Option<LoopInitialiser>,
-    pub condition: Option<Expression>,
-    pub incrementor: Option<Expression>,
-    pub body: Box<Statement>,
-}
-
-impl_node!(ForStatement);
+ast_node!(
+    pub struct ForStatement {
+        pub loc: SourceLocation,
+        pub initialiser: Option<LoopInitialiser>,
+        pub condition: Option<Expression>,
+        pub incrementor: Option<Expression>,
+        pub body: Box<Statement>,
+    }
+);
 
 // TODO: a better way to factor this, if there is one. A for-loop's initialiser
 // can either be a variable declaration or an expression (why?), so it's type
@@ -178,79 +136,65 @@ impl_node!(ForStatement);
 // - invalid (can't be any statement): `for (if (true) {};;) {}`
 // - invalid (a declaration can't be type of expression): `console.log(let foo =
 //   "bar");`
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-#[serde(tag = "initialiser_type")]
-pub enum LoopInitialiser {
-    Expression(Expression),
-    VariableDeclaration(VariableDeclaration),
-    LexicalDeclaration(LexicalDeclaration),
-}
-
-impl Node for LoopInitialiser {
-    fn source_location(&self) -> &SourceLocation {
-        match self {
-            Self::Expression(node) => node.source_location(),
-            Self::VariableDeclaration(node) => node.source_location(),
-            Self::LexicalDeclaration(node) => node.source_location(),
-        }
+ast_node!(
+    #[serde(tag = "initialiser_type")]
+    pub enum LoopInitialiser {
+        Expression(Expression),
+        VariableDeclaration(VariableDeclaration),
+        LexicalDeclaration(LexicalDeclaration),
     }
-}
+);
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct TryStatement {
-    pub loc: SourceLocation,
-    pub body: Block,
-    pub catch: Option<CatchStatement>,
-    pub finally: Option<FinallyStatement>,
-}
+ast_node!(
+    pub struct TryStatement {
+        pub loc: SourceLocation,
+        pub body: Block,
+        pub catch: Option<CatchStatement>,
+        pub finally: Option<FinallyStatement>,
+    }
+);
 
-impl_node!(TryStatement);
+ast_node!(
+    pub struct CatchStatement {
+        pub loc: SourceLocation,
+        pub parameter: Option<Identifier>,
+        pub body: Block,
+    }
+);
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct CatchStatement {
-    pub loc: SourceLocation,
-    pub parameter: Option<Identifier>,
-    pub body: Block,
-}
-
-impl_node!(CatchStatement);
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct FinallyStatement {
-    pub loc: SourceLocation,
-    pub body: Block,
-}
-
-impl_node!(FinallyStatement);
+ast_node!(
+    pub struct FinallyStatement {
+        pub loc: SourceLocation,
+        pub body: Block,
+    }
+);
 
 // TODO: Support labels.
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
-pub struct ContinueStatement {
-    pub loc: SourceLocation,
-}
-
-impl_node!(ContinueStatement);
+ast_node!(
+    #[derive(Eq)]
+    pub struct ContinueStatement {
+        pub loc: SourceLocation,
+    }
+);
 
 // TODO: Support labels.
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
-pub struct BreakStatement {
-    pub loc: SourceLocation,
-}
+ast_node!(
+    #[derive(Eq)]
+    pub struct BreakStatement {
+        pub loc: SourceLocation,
+    }
+);
 
-impl_node!(BreakStatement);
+ast_node!(
+    pub struct ReturnStatement {
+        pub loc: SourceLocation,
+        pub value: Option<Expression>,
+    }
+);
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct ReturnStatement {
-    pub loc: SourceLocation,
-    pub value: Option<Expression>,
-}
-
-impl_node!(ReturnStatement);
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct ThrowStatement {
-    pub loc: SourceLocation,
-    pub exception: Expression,
-}
-
-impl_node!(ThrowStatement);
+ast_node!(
+    pub struct ThrowStatement {
+        pub loc: SourceLocation,
+        pub exception: Expression,
+    }
+);

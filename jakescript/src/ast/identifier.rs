@@ -1,3 +1,4 @@
+use crate::simple_enumeration;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use std::{cmp, fmt};
@@ -95,138 +96,47 @@ impl From<String> for Identifier {
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-#[allow(non_camel_case_types)]
-pub enum WellKnownIdentifier {
-    E,
-    LN2,
-    LN10,
-    LOG2E,
-    LOG10E,
-    PI,
-    SQRT1_2,
-    SQRT2,
+simple_enumeration!(
+    #[allow(non_camel_case_types)]
+    pub WellKnownIdentifier {
+        E => "E",
+        LN2 => "LN2",
+        LN10 => "LN10",
+        LOG2E => "LOG2E",
+        LOG10E => "LOG10E",
+        PI => "PI",
+        SQRT1_2 => "SQRT1_2",
+        SQRT2 => "SQRT2",
 
-    Array,
-    Boolean,
-    Function,
-    Infinity,
-    Math,
-    NaN,
-    Number,
-    Object,
-    String,
+        Array => "Array",
+        Boolean => "Boolean",
+        Function => "Function",
+        Infinity => "Infinity",
+        Math => "Math",
+        NaN => "NaN",
+        Number => "Number",
+        Object => "Object",
+        String => "String",
 
-    abs,
-    assert,
-    assertEqual,
-    assertNotReached,
-    charAt,
-    console,
-    exit,
-    floor,
-    isNaN,
-    length,
-    log,
-    max,
-    min,
-    sqrt,
-    substring,
-    trunc,
-    undefined,
-}
-
-impl WellKnownIdentifier {
-    const ALL: &'static [Self] = &[
-        Self::E,
-        Self::LN2,
-        Self::LN10,
-        Self::LOG2E,
-        Self::LOG10E,
-        Self::PI,
-        Self::SQRT1_2,
-        Self::SQRT2,
-        Self::Array,
-        Self::Boolean,
-        Self::Function,
-        Self::Infinity,
-        Self::Math,
-        Self::NaN,
-        Self::Number,
-        Self::Object,
-        Self::String,
-        Self::abs,
-        Self::assert,
-        Self::assertEqual,
-        Self::assertNotReached,
-        Self::charAt,
-        Self::console,
-        Self::exit,
-        Self::floor,
-        Self::isNaN,
-        Self::length,
-        Self::log,
-        Self::max,
-        Self::min,
-        Self::sqrt,
-        Self::substring,
-        Self::trunc,
-        Self::undefined,
-    ];
-
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::E => "E",
-            Self::LN2 => "LN2",
-            Self::LN10 => "LN10",
-            Self::LOG2E => "LOG2E",
-            Self::LOG10E => "LOG10E",
-            Self::PI => "PI",
-            Self::SQRT1_2 => "SQRT1_2",
-            Self::SQRT2 => "SQRT2",
-
-            Self::Array => "Array",
-            Self::Boolean => "Boolean",
-            Self::Function => "Function",
-            Self::Infinity => "Infinity",
-            Self::Math => "Math",
-            Self::NaN => "NaN",
-            Self::Number => "Number",
-            Self::Object => "Object",
-            Self::String => "String",
-
-            Self::abs => "abs",
-            Self::assert => "assert",
-            Self::assertEqual => "assertEqual",
-            Self::assertNotReached => "assertNotReached",
-            Self::charAt => "charAt",
-            Self::console => "console",
-            Self::exit => "exit",
-            Self::floor => "floor",
-            Self::isNaN => "isNaN",
-            Self::length => "length",
-            Self::log => "log",
-            Self::max => "max",
-            Self::min => "min",
-            Self::sqrt => "sqrt",
-            Self::substring => "substring",
-            Self::trunc => "trunc",
-            Self::undefined => "undefined",
-        }
+        abs => "abs",
+        assert => "assert",
+        assertEqual => "assertEqual",
+        assertNotReached => "assertNotReached",
+        charAt => "charAt",
+        console => "console",
+        exit => "exit",
+        floor => "floor",
+        isNaN => "isNaN",
+        length => "length",
+        log => "log",
+        max => "max",
+        min => "min",
+        sqrt => "sqrt",
+        substring => "substring",
+        trunc => "trunc",
+        undefined => "undefined",
     }
-}
-
-impl FromStr for WellKnownIdentifier {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::ALL
-            .iter()
-            .copied()
-            .find(|v| v.as_str() == s)
-            .ok_or(())
-    }
-}
+);
 
 #[derive(Debug)]
 pub struct ParseIdentifierError(Box<str>);
