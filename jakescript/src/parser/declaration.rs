@@ -39,13 +39,13 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         self.skip_non_tokens()?;
         let (binding, _) = self.expect_identifier("function_name")?;
         self.skip_non_tokens()?;
-        let formal_parameters = self.parse_fn_parameters()?;
+        let parameters = self.parse_fn_parameters()?;
         self.skip_non_tokens()?;
         let body = self.parse_block()?;
         Ok(FunctionDeclaration {
             loc,
             binding,
-            formal_parameters,
+            parameters,
             body,
         })
     }

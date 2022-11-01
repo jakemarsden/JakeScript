@@ -22,7 +22,7 @@ impl Eval for FunctionDeclaration {
             .alloc_function(UserFunction::new(
                 None,
                 declared_scope,
-                self.formal_parameters.clone(),
+                self.parameters.clone(),
                 self.body.clone(),
             ))
             .map_err(|err| Error::new(err, self.source_location()))?;

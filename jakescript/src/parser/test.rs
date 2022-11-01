@@ -104,7 +104,7 @@ mod simple {
             vec![Declaration::Function(FunctionDeclaration {
                 loc: at![loc@2:0],
                 binding: ident!("square"),
-                formal_parameters: vec![ident!("n")],
+                parameters: vec![ident!("n")],
                 body: Block::new(
                     at![loc@2:19],
                     vec![],

@@ -1,10 +1,9 @@
-use super::block::Block;
 use super::declaration::{Declaration, LexicalDeclaration, VariableDeclaration};
 use super::expression::Expression;
 use super::identifier::Identifier;
+use super::Block;
 use crate::ast_node;
 use crate::token::SourceLocation;
-use serde::{Deserialize, Serialize};
 
 ast_node!(
     #[serde(tag = "statement_type")]

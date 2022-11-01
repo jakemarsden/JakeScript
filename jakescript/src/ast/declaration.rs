@@ -1,9 +1,7 @@
-use super::block::Block;
-use super::expression::{
-    AssignmentExpression, AssignmentOperator, Expression, IdentifierReferenceExpression,
-};
+use super::expression::{AssignmentExpression, Expression, IdentifierReferenceExpression};
 use super::identifier::Identifier;
-use super::Node;
+use super::op::AssignmentOperator;
+use super::{Block, Node};
 use crate::ast_node;
 use crate::token::SourceLocation;
 use serde::{Deserialize, Serialize};
@@ -40,7 +38,7 @@ ast_node!(
     pub struct FunctionDeclaration {
         pub loc: SourceLocation,
         pub binding: Identifier,
-        pub formal_parameters: Vec<Identifier>,
+        pub parameters: Vec<Identifier>,
         pub body: Block,
     }
 );

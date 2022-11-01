@@ -1,18 +1,18 @@
 pub use crate::token::{SourceLocation, SourcePosition};
-pub use block::*;
 pub use declaration::*;
 pub use expression::*;
 pub use identifier::*;
 pub use literal::*;
+pub use op::*;
 use serde::{de, ser};
 pub use statement::*;
 use std::fmt;
 
-mod block;
 mod declaration;
 mod expression;
 mod identifier;
 mod literal;
+mod op;
 mod statement;
 
 #[macro_export(crate)]
@@ -41,7 +41,7 @@ macro_rules! ast_node {
             $member_vis:vis $member:ident: $member_type:ty,
         )*}
     ) => {
-        #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+        #[derive(Clone, Debug, PartialEq, ::serde::Deserialize, ::serde::Serialize)]
         $(#[$attribute] )*
         $vis struct $type_name {$(
             $(#[$member_attribute] )*
@@ -61,7 +61,7 @@ macro_rules! ast_node {
             $variant:ident($inner:ty),
         )*}
     ) => {
-        #[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+        #[derive(Clone, Debug, PartialEq, ::serde::Deserialize, ::serde::Serialize)]
         $(#[$attribute] )*
         $vis enum $type_name {$(
             $(#[$variant_attribute] )*
@@ -98,4 +98,53 @@ macro_rules! ast_node {
 
 pub trait Node: Clone + fmt::Debug + PartialEq + de::DeserializeOwned + ser::Serialize {
     fn source_location(&self) -> &SourceLocation;
+}
+
+ast_node!(
+    #[derive(Default)]
+    ##[source_location = |self| self.body.source_location()]
+    pub struct Script {
+        body: Block,
+    }
+);
+
+impl Script {
+    pub fn new(body: Block) -> Self {
+        Self { body }
+    }
+
+    pub fn body(&self) -> &Block {
+        &self.body
+    }
+}
+
+ast_node!(
+    #[derive(Default)]
+    pub struct Block {
+        loc: SourceLocation,
+        hoisted_declarations: Vec<Declaration>,
+        body: Vec<Statement>,
+    }
+);
+
+impl Block {
+    pub fn new(
+        loc: SourceLocation,
+        hoisted_declarations: Vec<Declaration>,
+        body: Vec<Statement>,
+    ) -> Self {
+        Self {
+            loc,
+            hoisted_declarations,
+            body,
+        }
+    }
+
+    pub fn hoisted_declarations(&self) -> &[Declaration] {
+        &self.hoisted_declarations
+    }
+
+    pub fn body(&self) -> &[Statement] {
+        &self.body
+    }
 }
