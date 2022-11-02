@@ -114,7 +114,7 @@ builtin_fn!(ExitBuiltin, Extensible::Yes, (it, _receiver, _args) => {
 });
 
 builtin_fn!(IsNanBuiltin, Extensible::Yes, (_it, _receiver, args) => {
-    let arg = args.first().unwrap_or(&Value::Undefined);
+    let arg = args.first().copied().unwrap_or(Value::Undefined);
     Ok(Value::Boolean(match arg {
         Value::Boolean(_) | Value::Object(_) | Value::Null | Value::Undefined => true,
         Value::Number(arg) => arg.is_nan(),

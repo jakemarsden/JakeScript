@@ -87,14 +87,14 @@ impl Interpreter {
     pub fn update_variable_or_global_object_property(
         &mut self,
         key: &Identifier,
-        f: impl FnOnce(&mut Self, &Value) -> Result<(Value, Value)>,
+        f: impl FnOnce(&mut Self, Value) -> Result<(Value, Value)>,
         e: impl FnOnce(ErrorKind) -> Error,
     ) -> Result {
         // TODO: Performance: Avoid repeated variable lookup.
         match self.vm().stack().lookup_variable(key) {
             Ok(variable) => {
-                let curr_value = variable.value().clone();
-                let (result_value, updated_value) = f(self, &curr_value)?;
+                let curr_value = variable.value();
+                let (result_value, updated_value) = f(self, curr_value)?;
                 self.vm_mut()
                     .stack_mut()
                     .with_variable_mut(key, |variable| variable.set_value(updated_value))
@@ -114,7 +114,7 @@ impl Interpreter {
         &mut self,
         base_ref: Reference,
         key: &PropertyKey,
-        f: impl FnOnce(&mut Self, &Value) -> Result<(Value, Value)>,
+        f: impl FnOnce(&mut Self, Value) -> Result<(Value, Value)>,
         e: impl FnOnce(ErrorKind) -> Error,
     ) -> Result {
         let value = {
@@ -125,7 +125,7 @@ impl Interpreter {
             };
             value
         };
-        let (result_value, updated_value) = f(self, &value)?;
+        let (result_value, updated_value) = f(self, value)?;
         self.vm_mut()
             .heap_mut()
             .resolve_mut(base_ref)
@@ -147,10 +147,10 @@ impl Interpreter {
         args: &[Value],
     ) -> Result {
         let declared_params = f.declared_parameters();
-        let mut supplied_args = args.iter();
+        let mut supplied_args = args.iter().copied();
         let mut variables = Vec::with_capacity(declared_params.len());
         for declared_param_name in declared_params.iter() {
-            let arg_value = supplied_args.next().cloned().unwrap_or_default();
+            let arg_value = supplied_args.next().unwrap_or_default();
             variables.push(Variable::new(
                 VariableKind::Let,
                 declared_param_name.clone(),
@@ -220,8 +220,8 @@ impl Interpreter {
     pub fn eval_binary_op(
         &mut self,
         op: BinaryOperator,
-        lhs: &Value,
-        rhs: &Value,
+        lhs: Value,
+        rhs: Value,
     ) -> std::result::Result<Value, ErrorKind> {
         match op {
             BinaryOperator::Addition => self.add_or_concat(lhs, rhs),
@@ -248,8 +248,8 @@ impl Interpreter {
     pub fn eval_relational_op(
         &mut self,
         op: RelationalOperator,
-        lhs: &Value,
-        rhs: &Value,
+        lhs: Value,
+        rhs: Value,
     ) -> std::result::Result<Value, ErrorKind> {
         match op {
             RelationalOperator::Equality => self.equal(lhs, rhs),
@@ -266,7 +266,7 @@ impl Interpreter {
     pub fn eval_unary_op(
         &mut self,
         op: UnaryOperator,
-        operand: &Value,
+        operand: Value,
     ) -> std::result::Result<Value, ErrorKind> {
         match op {
             UnaryOperator::NumericPlus => self.plus(operand),
@@ -279,29 +279,29 @@ impl Interpreter {
     pub fn eval_update_op(
         &mut self,
         op: UpdateOperator,
-        operand: &Value,
+        operand: Value,
     ) -> std::result::Result<(Value, Value), ErrorKind> {
         let one = Value::Number(Number::Int(1));
         match op {
-            UpdateOperator::GetAndIncrement => self
-                .add(operand, &one)
-                .map(|updated| (operand.clone(), updated)),
-            UpdateOperator::IncrementAndGet => self
-                .add(operand, &one)
-                .map(|updated| (updated.clone(), updated)),
-            UpdateOperator::GetAndDecrement => self
-                .sub(operand, &one)
-                .map(|updated| (operand.clone(), updated)),
-            UpdateOperator::DecrementAndGet => self
-                .sub(operand, &one)
-                .map(|updated| (updated.clone(), updated)),
+            UpdateOperator::GetAndIncrement => {
+                self.add(operand, one).map(|updated| (operand, updated))
+            }
+            UpdateOperator::IncrementAndGet => {
+                self.add(operand, one).map(|updated| (updated, updated))
+            }
+            UpdateOperator::GetAndDecrement => {
+                self.sub(operand, one).map(|updated| (operand, updated))
+            }
+            UpdateOperator::DecrementAndGet => {
+                self.sub(operand, one).map(|updated| (updated, updated))
+            }
         }
     }
 
     pub fn add_or_concat(
         &mut self,
-        lhs: &Value,
-        rhs: &Value,
+        lhs: Value,
+        rhs: Value,
     ) -> std::result::Result<Value, ErrorKind> {
         if matches!(lhs, Value::Object(_)) || matches!(rhs, Value::Object(_)) {
             self.concat(lhs, rhs)
@@ -310,11 +310,11 @@ impl Interpreter {
         }
     }
 
-    fn add(&self, lhs: &Value, rhs: &Value) -> std::result::Result<Value, ErrorKind> {
+    fn add(&self, lhs: Value, rhs: Value) -> std::result::Result<Value, ErrorKind> {
         self.checked_numeric_binary_op(lhs, rhs, Number::checked_add)
     }
 
-    fn concat(&mut self, lhs: &Value, rhs: &Value) -> std::result::Result<Value, ErrorKind> {
+    fn concat(&mut self, lhs: Value, rhs: Value) -> std::result::Result<Value, ErrorKind> {
         let out = format!(
             "{}{}",
             self.coerce_to_string(lhs),
@@ -325,59 +325,59 @@ impl Interpreter {
             .map_err(ErrorKind::from)
     }
 
-    pub fn sub(&self, lhs: &Value, rhs: &Value) -> std::result::Result<Value, ErrorKind> {
+    pub fn sub(&self, lhs: Value, rhs: Value) -> std::result::Result<Value, ErrorKind> {
         self.checked_numeric_binary_op(lhs, rhs, Number::checked_sub)
     }
 
-    pub fn mul(&self, lhs: &Value, rhs: &Value) -> std::result::Result<Value, ErrorKind> {
+    pub fn mul(&self, lhs: Value, rhs: Value) -> std::result::Result<Value, ErrorKind> {
         self.checked_numeric_binary_op(lhs, rhs, Number::checked_mul)
     }
 
-    pub fn div(&self, lhs: &Value, rhs: &Value) -> std::result::Result<Value, ErrorKind> {
+    pub fn div(&self, lhs: Value, rhs: Value) -> std::result::Result<Value, ErrorKind> {
         self.checked_numeric_binary_op(lhs, rhs, Number::checked_div)
     }
 
-    pub fn rem(&self, lhs: &Value, rhs: &Value) -> std::result::Result<Value, ErrorKind> {
+    pub fn rem(&self, lhs: Value, rhs: Value) -> std::result::Result<Value, ErrorKind> {
         self.checked_numeric_binary_op(lhs, rhs, Number::checked_rem)
     }
 
-    pub fn pow(&self, lhs: &Value, rhs: &Value) -> std::result::Result<Value, ErrorKind> {
+    pub fn pow(&self, lhs: Value, rhs: Value) -> std::result::Result<Value, ErrorKind> {
         self.numeric_binary_op(lhs, rhs, Number::pow)
     }
 
-    pub fn bitand(&self, lhs: &Value, rhs: &Value) -> std::result::Result<Value, ErrorKind> {
+    pub fn bitand(&self, lhs: Value, rhs: Value) -> std::result::Result<Value, ErrorKind> {
         self.numeric_binary_op(lhs, rhs, Number::bitand)
     }
 
-    pub fn bitor(&self, lhs: &Value, rhs: &Value) -> std::result::Result<Value, ErrorKind> {
+    pub fn bitor(&self, lhs: Value, rhs: Value) -> std::result::Result<Value, ErrorKind> {
         self.numeric_binary_op(lhs, rhs, Number::bitor)
     }
 
-    pub fn bitxor(&self, lhs: &Value, rhs: &Value) -> std::result::Result<Value, ErrorKind> {
+    pub fn bitxor(&self, lhs: Value, rhs: Value) -> std::result::Result<Value, ErrorKind> {
         self.numeric_binary_op(lhs, rhs, Number::bitxor)
     }
 
-    pub fn shl(&self, lhs: &Value, rhs: &Value) -> std::result::Result<Value, ErrorKind> {
+    pub fn shl(&self, lhs: Value, rhs: Value) -> std::result::Result<Value, ErrorKind> {
         self.checked_numeric_binary_op(lhs, rhs, Number::checked_shl)
     }
 
-    pub fn shr_signed(&self, lhs: &Value, rhs: &Value) -> std::result::Result<Value, ErrorKind> {
+    pub fn shr_signed(&self, lhs: Value, rhs: Value) -> std::result::Result<Value, ErrorKind> {
         self.checked_numeric_binary_op(lhs, rhs, Number::checked_shr_signed)
     }
 
-    pub fn shr_unsigned(&self, lhs: &Value, rhs: &Value) -> std::result::Result<Value, ErrorKind> {
+    pub fn shr_unsigned(&self, lhs: Value, rhs: Value) -> std::result::Result<Value, ErrorKind> {
         self.checked_numeric_binary_op(lhs, rhs, Number::checked_shr_unsigned)
     }
 
-    pub fn equal(&self, lhs: &Value, rhs: &Value) -> std::result::Result<Value, ErrorKind> {
+    pub fn equal(&self, lhs: Value, rhs: Value) -> std::result::Result<Value, ErrorKind> {
         Ok(Value::Boolean(match lhs {
-            Value::Boolean(lhs) => *lhs == self.coerce_to_bool(rhs),
-            Value::Number(lhs) => *lhs == self.coerce_to_number(rhs),
+            Value::Boolean(lhs) => lhs == self.coerce_to_bool(rhs),
+            Value::Number(lhs) => lhs == self.coerce_to_number(rhs),
             Value::Object(lhs) => {
                 if let Value::Object(rhs) = rhs {
                     lhs == rhs || {
-                        let lhs_obj = self.vm().heap().resolve(*lhs);
-                        let rhs_obj = self.vm().heap().resolve(*rhs);
+                        let lhs_obj = self.vm().heap().resolve(lhs);
+                        let rhs_obj = self.vm().heap().resolve(rhs);
                         let value = if let Some(lhs_str) = lhs_obj.as_ref().string_data()
                             && let Some(rhs_str) = rhs_obj.as_ref().string_data()
                         {
@@ -395,24 +395,20 @@ impl Interpreter {
         }))
     }
 
-    pub fn not_equal(&self, lhs: &Value, rhs: &Value) -> std::result::Result<Value, ErrorKind> {
-        self.equal(lhs, rhs).and_then(|ref result| self.not(result))
+    pub fn not_equal(&self, lhs: Value, rhs: Value) -> std::result::Result<Value, ErrorKind> {
+        self.equal(lhs, rhs).and_then(|result| self.not(result))
     }
 
     // unused_self: Will be used when string values are stored on the heap.
     #[allow(clippy::unused_self)]
-    pub fn strictly_equal(
-        &self,
-        lhs: &Value,
-        rhs: &Value,
-    ) -> std::result::Result<Value, ErrorKind> {
+    pub fn strictly_equal(&self, lhs: Value, rhs: Value) -> std::result::Result<Value, ErrorKind> {
         Ok(Value::Boolean(match (lhs, rhs) {
             (Value::Boolean(lhs), Value::Boolean(rhs)) => lhs == rhs,
             (Value::Number(lhs), Value::Number(rhs)) => lhs == rhs,
             (Value::Object(lhs), Value::Object(rhs)) => {
                 lhs == rhs || {
-                    let lhs_obj = self.vm().heap().resolve(*lhs);
-                    let rhs_obj = self.vm().heap().resolve(*rhs);
+                    let lhs_obj = self.vm().heap().resolve(lhs);
+                    let rhs_obj = self.vm().heap().resolve(rhs);
                     if lhs_obj.as_ref().string_data().is_some()
                         || rhs_obj.as_ref().string_data().is_some()
                     {
@@ -429,57 +425,57 @@ impl Interpreter {
 
     pub fn not_strictly_equal(
         &self,
-        lhs: &Value,
-        rhs: &Value,
+        lhs: Value,
+        rhs: Value,
     ) -> std::result::Result<Value, ErrorKind> {
         self.strictly_equal(lhs, rhs)
-            .and_then(|ref result| self.not(result))
+            .and_then(|result| self.not(result))
     }
 
-    pub fn gt(&self, lhs: &Value, rhs: &Value) -> std::result::Result<Value, ErrorKind> {
+    pub fn gt(&self, lhs: Value, rhs: Value) -> std::result::Result<Value, ErrorKind> {
         self.comparison_op(lhs, rhs, cmp::Ordering::is_gt)
     }
 
-    pub fn ge(&self, lhs: &Value, rhs: &Value) -> std::result::Result<Value, ErrorKind> {
+    pub fn ge(&self, lhs: Value, rhs: Value) -> std::result::Result<Value, ErrorKind> {
         self.comparison_op(lhs, rhs, cmp::Ordering::is_ge)
     }
 
-    pub fn lt(&self, lhs: &Value, rhs: &Value) -> std::result::Result<Value, ErrorKind> {
+    pub fn lt(&self, lhs: Value, rhs: Value) -> std::result::Result<Value, ErrorKind> {
         self.comparison_op(lhs, rhs, cmp::Ordering::is_lt)
     }
 
-    pub fn le(&self, lhs: &Value, rhs: &Value) -> std::result::Result<Value, ErrorKind> {
+    pub fn le(&self, lhs: Value, rhs: Value) -> std::result::Result<Value, ErrorKind> {
         self.comparison_op(lhs, rhs, cmp::Ordering::is_le)
     }
 
-    pub fn plus(&self, operand: &Value) -> std::result::Result<Value, ErrorKind> {
+    pub fn plus(&self, operand: Value) -> std::result::Result<Value, ErrorKind> {
         self.numeric_unary_op(operand, |operand| operand)
     }
 
-    pub fn negate(&self, operand: &Value) -> std::result::Result<Value, ErrorKind> {
+    pub fn negate(&self, operand: Value) -> std::result::Result<Value, ErrorKind> {
         self.checked_numeric_unary_op(operand, Number::checked_neg)
     }
 
-    pub fn bitnot(&self, operand: &Value) -> std::result::Result<Value, ErrorKind> {
+    pub fn bitnot(&self, operand: Value) -> std::result::Result<Value, ErrorKind> {
         self.numeric_unary_op(operand, Number::not)
     }
 
-    pub fn not(&self, operand: &Value) -> std::result::Result<Value, ErrorKind> {
+    pub fn not(&self, operand: Value) -> std::result::Result<Value, ErrorKind> {
         Ok(Value::Boolean(!self.coerce_to_bool(operand)))
     }
 
-    pub fn is_truthy(&self, v: &Value) -> bool {
+    pub fn is_truthy(&self, v: Value) -> bool {
         self.coerce_to_bool(v)
     }
 
     // unused_self: Will be used when string values are stored on the heap.
     #[allow(clippy::unused_self)]
-    pub fn coerce_to_bool(&self, v: &Value) -> bool {
+    pub fn coerce_to_bool(&self, v: Value) -> bool {
         match v {
-            Value::Boolean(v) => *v,
+            Value::Boolean(v) => v,
             Value::Number(v) => !v.is_zero() && !v.is_nan(),
             Value::Object(obj_ref) => {
-                let obj = self.vm().heap().resolve(*obj_ref);
+                let obj = self.vm().heap().resolve(obj_ref);
                 let value = obj
                     .as_ref()
                     .string_data()
@@ -492,12 +488,12 @@ impl Interpreter {
 
     // unused_self: Will be used when string values are stored on the heap.
     #[allow(clippy::unused_self)]
-    pub fn coerce_to_number(&self, v: &Value) -> Number {
+    pub fn coerce_to_number(&self, v: Value) -> Number {
         match v {
-            Value::Boolean(v) => Number::Int(i64::from(*v)),
-            Value::Number(v) => *v,
+            Value::Boolean(v) => Number::Int(i64::from(v)),
+            Value::Number(v) => v,
             Value::Object(obj_ref) => {
-                let obj = self.vm().heap().resolve(*obj_ref);
+                let obj = self.vm().heap().resolve(obj_ref);
                 let value = obj
                     .as_ref()
                     .string_data()
@@ -510,12 +506,12 @@ impl Interpreter {
         }
     }
 
-    pub fn coerce_to_string(&self, v: &Value) -> Box<str> {
+    pub fn coerce_to_string(&self, v: Value) -> Box<str> {
         match v {
             Value::Boolean(v) => v.to_string().into_boxed_str(),
             Value::Number(v) => v.to_string().into_boxed_str(),
             Value::Object(obj_ref) => {
-                let obj = self.vm().heap().resolve(*obj_ref);
+                let obj = self.vm().heap().resolve(obj_ref);
                 let value = obj.as_ref().js_to_string();
                 value
             }
@@ -527,7 +523,7 @@ impl Interpreter {
     #[inline]
     fn checked_numeric_unary_op(
         &self,
-        operand: &Value,
+        operand: Value,
         checked_op: impl FnOnce(Number) -> Option<Number>,
     ) -> std::result::Result<Value, ErrorKind> {
         checked_op(self.coerce_to_number(operand))
@@ -540,7 +536,7 @@ impl Interpreter {
     #[inline]
     fn numeric_unary_op(
         &self,
-        operand: &Value,
+        operand: Value,
         op: impl FnOnce(Number) -> Number,
     ) -> std::result::Result<Value, ErrorKind> {
         Ok(Value::Number(op(self.coerce_to_number(operand))))
@@ -549,8 +545,8 @@ impl Interpreter {
     #[inline]
     fn checked_numeric_binary_op(
         &self,
-        lhs: &Value,
-        rhs: &Value,
+        lhs: Value,
+        rhs: Value,
         checked_op: impl FnOnce(Number, Number) -> Option<Number>,
     ) -> std::result::Result<Value, ErrorKind> {
         checked_op(self.coerce_to_number(lhs), self.coerce_to_number(rhs))
@@ -563,8 +559,8 @@ impl Interpreter {
     #[inline]
     fn numeric_binary_op(
         &self,
-        lhs: &Value,
-        rhs: &Value,
+        lhs: Value,
+        rhs: Value,
         op: impl FnOnce(Number, Number) -> Number,
     ) -> std::result::Result<Value, ErrorKind> {
         Ok(Value::Number(op(
@@ -577,8 +573,8 @@ impl Interpreter {
     #[allow(clippy::unnecessary_wraps)]
     fn comparison_op(
         &self,
-        lhs: &Value,
-        rhs: &Value,
+        lhs: Value,
+        rhs: Value,
         op: impl FnOnce(cmp::Ordering) -> bool,
     ) -> std::result::Result<Value, ErrorKind> {
         let ord = if matches!(lhs, Value::Object(_)) || matches!(rhs, Value::Object(_)) {

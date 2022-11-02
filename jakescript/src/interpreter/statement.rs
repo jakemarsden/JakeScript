@@ -55,7 +55,7 @@ impl Eval for ExpressionStatement {
 impl Eval for IfStatement {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let condition = self.condition.eval(it)?;
-        if it.is_truthy(&condition) {
+        if it.is_truthy(condition) {
             it.vm_mut()
                 .stack_mut()
                 .push_empty_scope(false)
@@ -83,9 +83,9 @@ impl Eval for SwitchStatement {
         while let Some(case) = cases.peek() {
             let expected = case.expected.eval(it)?;
             let matches = it
-                .equal(&expected, &value)
+                .equal(expected, value)
                 .map_err(|err| Error::new(err, case.source_location()))?;
-            if it.is_truthy(&matches) {
+            if it.is_truthy(matches) {
                 break;
             }
             cases.next().unwrap();
@@ -144,7 +144,7 @@ impl Eval for WhileStatement {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         loop {
             let condition = self.condition.eval(it)?;
-            if !it.is_truthy(&condition) {
+            if !it.is_truthy(condition) {
                 break;
             }
 
@@ -182,7 +182,7 @@ impl Eval for DoStatement {
             }
 
             let condition = self.condition.eval(it)?;
-            if !it.is_truthy(&condition) {
+            if !it.is_truthy(condition) {
                 break;
             }
         }
@@ -202,7 +202,7 @@ impl Eval for ForStatement {
         loop {
             if let Some(ref condition) = self.condition {
                 let condition = condition.eval(it)?;
-                if !it.is_truthy(&condition) {
+                if !it.is_truthy(condition) {
                     break;
                 }
             }

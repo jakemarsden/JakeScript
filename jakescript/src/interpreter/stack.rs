@@ -318,8 +318,8 @@ impl Variable {
         &self.name
     }
 
-    pub fn value(&self) -> &Value {
-        &self.value
+    pub fn value(&self) -> Value {
+        self.value
     }
 
     pub fn set_value(&mut self, value: Value) -> Result<(), AssignToConstVariableError> {

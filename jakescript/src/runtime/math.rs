@@ -60,16 +60,16 @@ impl Builtin for MathBuiltin {
 }
 
 builtin_fn!(AbsBuiltin, Extensible::Yes, (it, _receiver, args) => {
-    let arg = args.first().cloned().unwrap_or_default();
-    it.coerce_to_number(&arg)
+    let arg = args.first().copied().unwrap_or_default();
+    it.coerce_to_number(arg)
         .checked_abs()
         .map(Value::Number)
         .ok_or(ErrorKind::NumericOverflow(NumericOverflowError::new()))
 });
 
 builtin_fn!(FloorBuiltin, Extensible::Yes, (it, _receiver, args) => {
-    let arg = args.first().cloned().unwrap_or_default();
-    Ok(Value::Number(match it.coerce_to_number(&arg) {
+    let arg = args.first().copied().unwrap_or_default();
+    Ok(Value::Number(match it.coerce_to_number(arg) {
         n if !n.is_finite() => n,
         Number::Int(n) => Number::Int(n),
         #[allow(clippy::cast_possible_truncation)]
@@ -80,7 +80,7 @@ builtin_fn!(FloorBuiltin, Extensible::Yes, (it, _receiver, args) => {
 builtin_fn!(MaxBuiltin, Extensible::Yes, (it, _receiver, args) => {
     let mut acc = Number::NEG_INF;
     for arg in args {
-        let n = it.coerce_to_number(arg);
+        let n = it.coerce_to_number(*arg);
         if n.is_nan() {
             return Ok(Value::Number(Number::NAN));
         }
@@ -94,7 +94,7 @@ builtin_fn!(MaxBuiltin, Extensible::Yes, (it, _receiver, args) => {
 builtin_fn!(MinBuiltin, Extensible::Yes, (it, _receiver, args) => {
     let mut acc = Number::POS_INF;
     for arg in args {
-        let n = it.coerce_to_number(arg);
+        let n = it.coerce_to_number(*arg);
         if n.is_nan() {
             return Ok(Value::Number(Number::NAN));
         }
@@ -106,13 +106,13 @@ builtin_fn!(MinBuiltin, Extensible::Yes, (it, _receiver, args) => {
 });
 
 builtin_fn!(SqrtBuiltin, Extensible::Yes, (it, _receiver, args) => {
-    let arg = args.first().cloned().unwrap_or_default();
-    Ok(Value::Number(it.coerce_to_number(&arg).sqrt()))
+    let arg = args.first().copied().unwrap_or_default();
+    Ok(Value::Number(it.coerce_to_number(arg).sqrt()))
 });
 
 builtin_fn!(TruncBuiltin, Extensible::Yes, (it, _receiver, args) => {
-    let arg = args.first().cloned().unwrap_or_default();
-    let n = it.coerce_to_number(&arg);
+    let arg = args.first().copied().unwrap_or_default();
+    let n = it.coerce_to_number(arg);
     Ok(Value::Number(if n.is_finite() {
         Number::Int(n.as_i64())
     } else {

@@ -45,7 +45,7 @@ impl Builtin for ConsoleBuiltin {
 
 builtin_fn!(AssertBuiltin, Extensible::Yes, (it, _receiver, args) => {
     let mut args = args.iter();
-    let assertion = args.next().unwrap_or(&Value::Undefined);
+    let assertion = args.next().copied().unwrap_or(Value::Undefined);
     if it.is_truthy(assertion) {
         Ok(Value::Undefined)
     } else {
@@ -55,14 +55,14 @@ builtin_fn!(AssertBuiltin, Extensible::Yes, (it, _receiver, args) => {
 });
 
 builtin_fn!(AssertEqualBuiltin, Extensible::Yes, (it, _receiver, args) => {
-    fn is_nan(v: &Value) -> bool {
+    fn is_nan(v: Value) -> bool {
         matches!(v, Value::Number(n) if n.is_nan())
     }
 
     let mut args = args.iter();
-    let actual = args.next().unwrap_or(&Value::Undefined);
-    let expected = args.next().unwrap_or(&Value::Boolean(true));
-    if is_nan(expected) && is_nan(actual) || it.is_truthy(&it.strictly_equal(actual, expected)?)
+    let actual = args.next().copied().unwrap_or(Value::Undefined);
+    let expected = args.next().copied().unwrap_or(Value::Boolean(true));
+    if is_nan(expected) && is_nan(actual) || it.is_truthy(it.strictly_equal(actual, expected)?)
     {
         Ok(Value::Undefined)
     } else {
@@ -89,7 +89,7 @@ builtin_fn!(LogBuiltin, Extensible::Yes, (it, _receiver, args) => {
 
 fn build_msg<'a>(it: &Interpreter, values: impl Iterator<Item = &'a Value>) -> String {
     values
-        .map(|arg| it.coerce_to_string(arg))
+        .map(|&arg| it.coerce_to_string(arg))
         .intersperse_with(|| Box::from(" "))
         .collect()
 }

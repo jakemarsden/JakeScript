@@ -36,7 +36,7 @@ impl Eval for IdentifierReferenceExpression {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         Ok(
             if let Ok(variable) = it.vm().stack().lookup_variable(&self.identifier) {
-                variable.value().clone()
+                variable.value()
             } else {
                 let receiver = it.vm().runtime().global_object_ref();
                 let global_obj = it.vm().heap().resolve(receiver);
@@ -82,15 +82,15 @@ impl Eval for AssignmentExpression {
 
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let map_err = |err: ErrorKind| Error::new(err, self.source_location());
-        let compute_updated = |it: &mut Interpreter, lhs: &Value| match self.op {
+        let compute_updated = |it: &mut Interpreter, lhs: Value| match self.op {
             AssignmentOperator::Assign => {
                 let rhs = self.rhs.eval(it)?;
-                Ok((rhs.clone(), rhs))
+                Ok((rhs, rhs))
             }
             AssignmentOperator::ComputeAssign(op) => {
                 let rhs = self.rhs.eval(it)?;
-                it.eval_binary_op(op, lhs, &rhs)
-                    .map(|result_value| (result_value.clone(), result_value))
+                it.eval_binary_op(op, lhs, rhs)
+                    .map(|result_value| (result_value, result_value))
                     .map_err(map_err)
             }
         };
@@ -118,7 +118,7 @@ impl Eval for AssignmentExpression {
                 match lhs_node.base.eval(it)? {
                     Value::Object(lhs_ref) => {
                         let prop_value = lhs_node.member.eval(it)?;
-                        let prop_name = it.coerce_to_string(&prop_value);
+                        let prop_name = it.coerce_to_string(prop_value);
                         let prop_key = PropertyKey::try_from(prop_name).unwrap_or_else(|_| {
                             // FIXME: Remove this restriction as I think it's actually OK to key an
                             // object property by the empty string.
@@ -142,19 +142,19 @@ impl Eval for BinaryExpression {
             BinaryOperator::LogicalAnd => {
                 assert_matches!(self.op.associativity(), Associativity::LeftToRight);
                 match self.lhs.eval(it)? {
-                    lhs if it.is_truthy(&lhs) => self.rhs.eval(it)?,
+                    lhs if it.is_truthy(lhs) => self.rhs.eval(it)?,
                     lhs => lhs,
                 }
             }
             BinaryOperator::LogicalOr => {
                 assert_matches!(self.op.associativity(), Associativity::LeftToRight);
                 match self.lhs.eval(it)? {
-                    lhs if !it.is_truthy(&lhs) => self.rhs.eval(it)?,
+                    lhs if !it.is_truthy(lhs) => self.rhs.eval(it)?,
                     lhs => lhs,
                 }
             }
             kind => {
-                let (ref lhs, ref rhs) = match kind.associativity() {
+                let (lhs, rhs) = match kind.associativity() {
                     Associativity::LeftToRight => {
                         let lhs = self.lhs.eval(it)?;
                         let rhs = self.rhs.eval(it)?;
@@ -178,8 +178,8 @@ impl Eval for RelationalExpression {
 
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         assert_matches!(self.op.associativity(), Associativity::LeftToRight);
-        let lhs = &self.lhs.eval(it)?;
-        let rhs = &self.rhs.eval(it)?;
+        let lhs = self.lhs.eval(it)?;
+        let rhs = self.rhs.eval(it)?;
         it.eval_relational_op(self.op, lhs, rhs)
             .map_err(|err| Error::new(err, self.source_location()))
     }
@@ -189,7 +189,7 @@ impl Eval for UnaryExpression {
     type Output = Value;
 
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        let operand = &self.operand.eval(it)?;
+        let operand = self.operand.eval(it)?;
         it.eval_unary_op(self.op, operand)
             .map_err(|err| Error::new(err, self.source_location()))
     }
@@ -200,7 +200,7 @@ impl Eval for UpdateExpression {
 
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let map_err = |err: ErrorKind| Error::new(err, self.source_location());
-        let compute_updated = |it: &mut Interpreter, operand: &Value| {
+        let compute_updated = |it: &mut Interpreter, operand: Value| {
             it.eval_update_op(self.op, operand).map_err(map_err)
         };
 
@@ -343,7 +343,7 @@ impl Eval for TernaryExpression {
 
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let condition = self.condition.eval(it)?;
-        if it.is_truthy(&condition) {
+        if it.is_truthy(condition) {
             self.lhs.eval(it)
         } else {
             self.rhs.eval(it)

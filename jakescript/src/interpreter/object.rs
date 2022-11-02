@@ -146,7 +146,7 @@ impl Object {
                 entry.insert(value);
                 true
             }
-            (Extensible::No, hash_map::Entry::Occupied(entry)) => entry.get() == &value,
+            (Extensible::No, hash_map::Entry::Occupied(entry)) => *entry.get() == value,
             (Extensible::No, hash_map::Entry::Vacant(_)) => false,
         }
     }
@@ -306,7 +306,7 @@ impl Property {
 
     pub fn get(&self, it: &mut Interpreter, receiver: Reference) -> Result<Value, ErrorKind> {
         match self.0 {
-            PropertyInner::Data(ref inner) => Ok(inner.value.clone()),
+            PropertyInner::Data(ref inner) => Ok(inner.value),
             PropertyInner::Accessor(ref inner) => match inner.get {
                 Some(get) => {
                     let get_obj = it.vm().heap().resolve(get);

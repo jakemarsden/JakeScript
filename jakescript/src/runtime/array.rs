@@ -59,7 +59,7 @@ builtin_fn!(PushBuiltin, Extensible::Yes, (it, receiver, args) => {
     let mut array = it.vm_mut().heap_mut().resolve_mut(receiver);
     let start_len = array.as_ref().own_property_keys().count();
     args.iter()
-        .cloned()
+        .copied()
         .enumerate()
         .map(|(idx, value)| {
             (

@@ -46,7 +46,7 @@ impl Builtin for StringProtoBuiltin {
 
 builtin_fn!(pub StringCtorBuiltin, Extensible::Yes, (it, _receiver, args) => {
     let arg = args.first();
-    let str = arg.map(|arg| it.coerce_to_string(arg)).unwrap_or_default();
+    let str = arg.map(|arg| it.coerce_to_string(*arg)).unwrap_or_default();
     it.alloc_string(str)
         .map(Value::Object)
         .map_err(ErrorKind::from)
@@ -63,9 +63,9 @@ builtin_fn!(GetLengthBuiltin, Extensible::No, (it, receiver, _args) => {
 });
 
 builtin_fn!(CharAtBuiltin, Extensible::Yes, (it, receiver, args) => {
-    let arg = args.first().cloned().unwrap_or_default();
+    let arg = args.first().copied().unwrap_or_default();
     let idx = {
-        let n = it.coerce_to_number(&arg);
+        let n = it.coerce_to_number(arg);
         if !n.is_nan() {
             n
         } else {
@@ -74,7 +74,7 @@ builtin_fn!(CharAtBuiltin, Extensible::Yes, (it, receiver, args) => {
     };
     let char_str = if idx >= Number::Int(0) {
         let idx = usize::try_from(idx.as_i64()).unwrap();
-        it.coerce_to_string(&Value::Object(receiver))
+        it.coerce_to_string(Value::Object(receiver))
             .chars()
             .nth(idx)
             .map(|ch| ch.to_string().into_boxed_str())
@@ -88,14 +88,14 @@ builtin_fn!(CharAtBuiltin, Extensible::Yes, (it, receiver, args) => {
 });
 
 builtin_fn!(SplitBuiltin, Extensible::Yes, (it, receiver, args) => {
-    let receiver = it.coerce_to_string(&Value::Object(receiver));
+    let receiver = it.coerce_to_string(Value::Object(receiver));
     let mut args = args.iter();
-    let separator = if let Some(arg) = args.next() {
+    let separator = if let Some(&arg) = args.next() {
         it.coerce_to_string(arg)
     } else {
         Box::from(",")
     };
-    let limit = if let Some(arg) = args.next() {
+    let limit = if let Some(&arg) = args.next() {
         it.coerce_to_number(arg)
     } else {
         Number::from(-1)
@@ -116,17 +116,17 @@ builtin_fn!(SplitBuiltin, Extensible::Yes, (it, receiver, args) => {
 
 builtin_fn!(SubstringBuiltin, Extensible::Yes, (it, receiver, args) => {
     let mut args = args.iter();
-    let start_idx = args.next().cloned().unwrap_or_default();
-    let end_idx = args.next().cloned().unwrap_or_default();
+    let start_idx = args.next().copied().unwrap_or_default();
+    let end_idx = args.next().copied().unwrap_or_default();
 
-    let str = it.coerce_to_string(&Value::Object(receiver));
-    let mut start_idx = match it.coerce_to_number(&start_idx) {
+    let str = it.coerce_to_string(Value::Object(receiver));
+    let mut start_idx = match it.coerce_to_number(start_idx) {
         n if n.is_nan() => 0,
         n if n < Number::Int(0) => 0,
         n if n > Number::Int(str.len() as i64) => str.len(),
         n => usize::try_from(n.as_i64()).unwrap_or_else(|_| unreachable!()),
     };
-    let mut end_idx = match it.coerce_to_number(&end_idx) {
+    let mut end_idx = match it.coerce_to_number(end_idx) {
         n if n.is_nan() => str.len(),
         n if n < Number::Int(0) => 0,
         n if n > Number::Int(str.len() as i64) => str.len(),

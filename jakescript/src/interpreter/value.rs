@@ -2,7 +2,7 @@ use super::heap::Reference;
 use std::str::FromStr;
 use std::{cmp, fmt, num, ops};
 
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub enum Value {
     Boolean(bool),
     Number(Number),
