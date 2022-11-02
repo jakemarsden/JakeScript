@@ -40,7 +40,8 @@ impl Builtin for ArrayProtoBuiltin {
 }
 
 builtin_fn!(pub ArrayCtorBuiltin, Extensible::Yes, (it, _receiver, args) => {
-    it.alloc_array(args.to_vec())
+    it.vm_mut()
+        .alloc_array(args.to_vec())
         .map(Value::Object)
         .map_err(ErrorKind::from)
 });

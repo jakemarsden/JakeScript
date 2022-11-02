@@ -12,6 +12,12 @@ pub enum Value {
     Undefined,
 }
 
+impl Value {
+    pub fn is_object(&self) -> bool {
+        matches!(self, Self::Object(_))
+    }
+}
+
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -33,7 +39,9 @@ pub enum Number {
 impl Number {
     pub const NAN: Self = Self::Float(f64::NAN);
     pub const NEG_INF: Self = Self::Float(f64::NEG_INFINITY);
+    pub const ONE: Self = Self::Int(1);
     pub const POS_INF: Self = Self::Float(f64::INFINITY);
+    pub const ZERO: Self = Self::Int(0);
 
     pub fn infinity(sign: i64) -> Self {
         if sign >= 0 {

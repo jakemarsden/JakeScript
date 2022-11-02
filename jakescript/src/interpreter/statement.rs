@@ -82,10 +82,7 @@ impl Eval for SwitchStatement {
         // Skip cases while `actual != expected`.
         while let Some(case) = cases.peek() {
             let expected = case.expected.eval(it)?;
-            let matches = it
-                .equal(expected, value)
-                .map_err(|err| Error::new(err, case.source_location()))?;
-            if it.is_truthy(matches) {
+            if it.equal(expected, value) {
                 break;
             }
             cases.next().unwrap();

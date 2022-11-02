@@ -6,6 +6,7 @@ use super::Interpreter;
 use crate::ast::{Block, Identifier};
 use crate::runtime::NativeCall;
 use common_macros::hash_map;
+use std::borrow::Cow;
 use std::collections::{hash_map, HashMap};
 
 #[macro_export]
@@ -234,10 +235,10 @@ impl Object {
         self.extensible
     }
 
-    pub fn js_to_string(&self) -> Box<str> {
+    pub fn js_to_string(&self) -> Cow<'static, str> {
         match self.data {
-            ObjectData::String(ref data) => data.clone(),
-            ObjectData::None | ObjectData::Call(_) => Box::from("[object Object]"),
+            ObjectData::String(ref data) => Cow::Owned(data.to_string()),
+            ObjectData::None | ObjectData::Call(_) => "[object Object]".into(),
         }
     }
 }

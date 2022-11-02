@@ -5,6 +5,7 @@ use crate::interpreter::{
 };
 use crate::{builtin_fn, prop_key};
 use common_macros::hash_map;
+use std::borrow::Cow;
 
 pub struct ConsoleBuiltin {
     obj_ref: Reference,
@@ -62,7 +63,7 @@ builtin_fn!(AssertEqualBuiltin, Extensible::Yes, (it, _receiver, args) => {
     let mut args = args.iter();
     let actual = args.next().copied().unwrap_or(Value::Undefined);
     let expected = args.next().copied().unwrap_or(Value::Boolean(true));
-    if is_nan(expected) && is_nan(actual) || it.is_truthy(it.strictly_equal(actual, expected)?)
+    if is_nan(expected) && is_nan(actual) || it.strictly_equal(actual, expected)
     {
         Ok(Value::Undefined)
     } else {
@@ -90,6 +91,6 @@ builtin_fn!(LogBuiltin, Extensible::Yes, (it, _receiver, args) => {
 fn build_msg<'a>(it: &Interpreter, values: impl Iterator<Item = &'a Value>) -> String {
     values
         .map(|&arg| it.coerce_to_string(arg))
-        .intersperse_with(|| Box::from(" "))
+        .intersperse_with(|| Cow::Borrowed(" "))
         .collect()
 }

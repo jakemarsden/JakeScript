@@ -19,6 +19,7 @@ impl Eval for FunctionDeclaration {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let declared_scope = it.vm().stack().scope();
         let fn_obj_ref = it
+            .vm_mut()
             .alloc_function(UserFunction::new(
                 None,
                 declared_scope,

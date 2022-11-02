@@ -16,7 +16,8 @@ impl Eval for LiteralExpression {
                 NumericLiteral::Float(value) => Number::Float(value),
             }),
             Literal::String(ref value) => Value::Object(
-                it.alloc_string(value.value.clone())
+                it.vm_mut()
+                    .alloc_string(value.value.clone())
                     .map_err(|err| Error::new(err, self.source_location()))?,
             ),
             Literal::Null => Value::Null,
@@ -33,6 +34,7 @@ impl Eval for ArrayExpression {
             elems.push(elem_expr.eval(it)?);
         }
         let obj_ref = it
+            .vm_mut()
             .alloc_array(elems)
             .map_err(|err| Error::new(err, self.source_location()))?;
         Ok(Value::Object(obj_ref))
@@ -58,6 +60,7 @@ impl Eval for ObjectExpression {
             resolved_props.insert(name, value);
         }
         let obj_ref = it
+            .vm_mut()
             .alloc_object(resolved_props)
             .map_err(|err| Error::new(err, self.source_location()))?;
         Ok(Value::Object(obj_ref))
@@ -70,6 +73,7 @@ impl Eval for FunctionExpression {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let declared_scope = it.vm().stack().scope();
         let fn_obj_ref = it
+            .vm_mut()
             .alloc_function(UserFunction::new(
                 self.binding.clone(),
                 declared_scope,

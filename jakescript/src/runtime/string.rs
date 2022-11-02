@@ -5,6 +5,7 @@ use crate::interpreter::{
 };
 use crate::{builtin_fn, prop_key};
 use common_macros::hash_map;
+use std::borrow::Cow;
 use std::mem;
 
 pub struct StringProtoBuiltin {
@@ -47,7 +48,8 @@ impl Builtin for StringProtoBuiltin {
 builtin_fn!(pub StringCtorBuiltin, Extensible::Yes, (it, _receiver, args) => {
     let arg = args.first();
     let str = arg.map(|arg| it.coerce_to_string(*arg)).unwrap_or_default();
-    it.alloc_string(str)
+    it.vm_mut()
+        .alloc_string(Box::from(str))
         .map(Value::Object)
         .map_err(ErrorKind::from)
 });
@@ -82,7 +84,8 @@ builtin_fn!(CharAtBuiltin, Extensible::Yes, (it, receiver, args) => {
     } else {
         Box::default()
     };
-    it.alloc_string(char_str)
+    it.vm_mut()
+        .alloc_string(char_str)
         .map(Value::Object)
         .map_err(ErrorKind::from)
 });
@@ -93,7 +96,7 @@ builtin_fn!(SplitBuiltin, Extensible::Yes, (it, receiver, args) => {
     let separator = if let Some(&arg) = args.next() {
         it.coerce_to_string(arg)
     } else {
-        Box::from(",")
+        Cow::Borrowed(",")
     };
     let limit = if let Some(&arg) = args.next() {
         it.coerce_to_number(arg)
@@ -108,10 +111,10 @@ builtin_fn!(SplitBuiltin, Extensible::Yes, (it, receiver, args) => {
 
     let mut parts = Vec::new();
     for part in receiver.split(separator.as_ref()).take(limit) {
-        let part = it.alloc_string(Box::from(part))?;
+        let part = it.vm_mut().alloc_string(Box::from(part))?;
         parts.push(Value::Object(part));
     }
-    it.alloc_array(parts).map(Value::Object).map_err(ErrorKind::from)
+    it.vm_mut().alloc_array(parts).map(Value::Object).map_err(ErrorKind::from)
 });
 
 builtin_fn!(SubstringBuiltin, Extensible::Yes, (it, receiver, args) => {
@@ -141,7 +144,8 @@ builtin_fn!(SubstringBuiltin, Extensible::Yes, (it, receiver, args) => {
         .take(end_idx - start_idx)
         .collect::<String>()
         .into_boxed_str();
-    it.alloc_string(substr)
+    it.vm_mut()
+        .alloc_string(substr)
         .map(Value::Object)
         .map_err(ErrorKind::from)
 });

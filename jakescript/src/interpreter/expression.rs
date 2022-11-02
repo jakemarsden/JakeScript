@@ -1,9 +1,13 @@
-use super::error::{Error, ErrorKind, NotCallableError, Result, VariableNotDefinedError};
+use super::error::{
+    Error, ErrorKind, NotCallableError, NumericOverflowError, Result, VariableNotDefinedError,
+};
 use super::object::PropertyKey;
 use super::value::{Number, Value};
 use super::{Eval, Interpreter};
 use crate::ast::*;
 use std::assert_matches::assert_matches;
+use std::cmp;
+use std::ops::{BitAnd, BitOr, BitXor};
 
 impl Eval for Expression {
     type Output = Value;
@@ -88,10 +92,9 @@ impl Eval for AssignmentExpression {
                 Ok((rhs, rhs))
             }
             AssignmentOperator::ComputeAssign(op) => {
-                let rhs = self.rhs.eval(it)?;
-                it.eval_binary_op(op, lhs, rhs)
+                eval_binary_op(it, op, |_| Ok(lhs), |it| self.rhs.eval(it))
+                    .map_err(map_err)?
                     .map(|result_value| (result_value, result_value))
-                    .map_err(map_err)
             }
         };
 
@@ -119,11 +122,13 @@ impl Eval for AssignmentExpression {
                     Value::Object(lhs_ref) => {
                         let prop_value = lhs_node.member.eval(it)?;
                         let prop_name = it.coerce_to_string(prop_value);
-                        let prop_key = PropertyKey::try_from(prop_name).unwrap_or_else(|_| {
-                            // FIXME: Remove this restriction as I think it's actually OK to key an
-                            // object property by the empty string.
-                            todo!("AssignmentExpression::eval: prop_name={}", prop_value)
-                        });
+                        let prop_key =
+                            PropertyKey::try_from(prop_name.as_ref()).unwrap_or_else(|_| {
+                                // FIXME: Remove this restriction as I think it's actually OK to key
+                                // an object property by the empty
+                                // string.
+                                todo!("AssignmentExpression::eval: prop_name={}", prop_value)
+                            });
                         it.update_object_property(lhs_ref, &prop_key, compute_updated, map_err)
                     }
                     lhs => todo!("AssignmentExpression::eval: base_value={:?}", lhs),
@@ -138,38 +143,8 @@ impl Eval for BinaryExpression {
     type Output = Value;
 
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        Ok(match self.op {
-            BinaryOperator::LogicalAnd => {
-                assert_matches!(self.op.associativity(), Associativity::LeftToRight);
-                match self.lhs.eval(it)? {
-                    lhs if it.is_truthy(lhs) => self.rhs.eval(it)?,
-                    lhs => lhs,
-                }
-            }
-            BinaryOperator::LogicalOr => {
-                assert_matches!(self.op.associativity(), Associativity::LeftToRight);
-                match self.lhs.eval(it)? {
-                    lhs if !it.is_truthy(lhs) => self.rhs.eval(it)?,
-                    lhs => lhs,
-                }
-            }
-            kind => {
-                let (lhs, rhs) = match kind.associativity() {
-                    Associativity::LeftToRight => {
-                        let lhs = self.lhs.eval(it)?;
-                        let rhs = self.rhs.eval(it)?;
-                        (lhs, rhs)
-                    }
-                    Associativity::RightToLeft => {
-                        let rhs = self.rhs.eval(it)?;
-                        let lhs = self.lhs.eval(it)?;
-                        (lhs, rhs)
-                    }
-                };
-                it.eval_binary_op(kind, lhs, rhs)
-                    .map_err(|err| Error::new(err, self.source_location()))?
-            }
-        })
+        eval_binary_op(it, self.op, |it| self.lhs.eval(it), |it| self.rhs.eval(it))
+            .map_err(|err| Error::new(err, self.source_location()))?
     }
 }
 
@@ -180,8 +155,17 @@ impl Eval for RelationalExpression {
         assert_matches!(self.op.associativity(), Associativity::LeftToRight);
         let lhs = self.lhs.eval(it)?;
         let rhs = self.rhs.eval(it)?;
-        it.eval_relational_op(self.op, lhs, rhs)
-            .map_err(|err| Error::new(err, self.source_location()))
+
+        Ok(Value::Boolean(match self.op {
+            RelationalOperator::Equality => it.equal(lhs, rhs),
+            RelationalOperator::Inequality => !it.equal(lhs, rhs),
+            RelationalOperator::StrictEquality => it.strictly_equal(lhs, rhs),
+            RelationalOperator::StrictInequality => !it.strictly_equal(lhs, rhs),
+            RelationalOperator::GreaterThan => it.compare(lhs, rhs, cmp::Ordering::is_gt),
+            RelationalOperator::GreaterThanOrEqual => it.compare(lhs, rhs, cmp::Ordering::is_ge),
+            RelationalOperator::LessThan => it.compare(lhs, rhs, cmp::Ordering::is_lt),
+            RelationalOperator::LessThanOrEqual => it.compare(lhs, rhs, cmp::Ordering::is_le),
+        }))
     }
 }
 
@@ -190,8 +174,17 @@ impl Eval for UnaryExpression {
 
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let operand = self.operand.eval(it)?;
-        it.eval_unary_op(self.op, operand)
-            .map_err(|err| Error::new(err, self.source_location()))
+        Ok(match self.op {
+            UnaryOperator::NumericPlus => Value::Number(it.coerce_to_number(operand)),
+            UnaryOperator::NumericNegation => it
+                .coerce_to_number(operand)
+                .checked_neg()
+                .map(Value::Number)
+                .ok_or_else(NumericOverflowError::new)
+                .map_err(|err| Error::new(err, self.source_location()))?,
+            UnaryOperator::BitwiseNot => Value::Number(!it.coerce_to_number(operand)),
+            UnaryOperator::LogicalNot => Value::Boolean(!it.coerce_to_bool(operand)),
+        })
     }
 }
 
@@ -200,9 +193,31 @@ impl Eval for UpdateExpression {
 
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let map_err = |err: ErrorKind| Error::new(err, self.source_location());
-        let compute_updated = |it: &mut Interpreter, operand: Value| {
-            it.eval_update_op(self.op, operand).map_err(map_err)
-        };
+        let compute_updated =
+            |it: &mut Interpreter, operand: Value| -> std::result::Result<_, Error> {
+                let new_value = match self.op {
+                    UpdateOperator::GetAndIncrement | UpdateOperator::IncrementAndGet => it
+                        .coerce_to_number(operand)
+                        .checked_add(Number::ONE)
+                        .map(Value::Number)
+                        .ok_or_else(NumericOverflowError::new)
+                        .map_err(|err| Error::new(err, self.source_location()))?,
+                    UpdateOperator::GetAndDecrement | UpdateOperator::DecrementAndGet => it
+                        .coerce_to_number(operand)
+                        .checked_sub(Number::ONE)
+                        .map(Value::Number)
+                        .ok_or_else(NumericOverflowError::new)
+                        .map_err(|err| Error::new(err, self.source_location()))?,
+                };
+                Ok(match self.op {
+                    UpdateOperator::GetAndIncrement | UpdateOperator::GetAndDecrement => {
+                        (operand, new_value)
+                    }
+                    UpdateOperator::IncrementAndGet | UpdateOperator::DecrementAndGet => {
+                        (new_value, new_value)
+                    }
+                })
+            };
 
         assert_matches!(self.op.associativity(), Associativity::RightToLeft);
         match self.operand.as_ref() {
@@ -349,4 +364,84 @@ impl Eval for TernaryExpression {
             self.rhs.eval(it)
         }
     }
+}
+
+fn eval_binary_op(
+    it: &mut Interpreter,
+    op_kind: BinaryOperator,
+    lhs: impl FnOnce(&mut Interpreter) -> std::result::Result<Value, Error>,
+    rhs: impl FnOnce(&mut Interpreter) -> std::result::Result<Value, Error>,
+) -> std::result::Result<std::result::Result<Value, Error>, ErrorKind> {
+    match op_kind {
+        BinaryOperator::LogicalAnd => {
+            assert_eq!(op_kind.associativity(), Associativity::LeftToRight);
+            let lhs = match lhs(it) {
+                Ok(lhs) => lhs,
+                Err(err) => return Ok(Err(err)),
+            };
+            return Ok(if it.is_truthy(lhs) { rhs(it) } else { Ok(lhs) });
+        }
+        BinaryOperator::LogicalOr => {
+            assert_eq!(op_kind.associativity(), Associativity::LeftToRight);
+            let lhs = match lhs(it) {
+                Ok(lhs) => lhs,
+                Err(err) => return Ok(Err(err)),
+            };
+            return Ok(if it.is_truthy(lhs) { Ok(lhs) } else { rhs(it) });
+        }
+        _ => {}
+    }
+
+    let (lhs, rhs) = match op_kind.associativity() {
+        Associativity::LeftToRight => {
+            let lhs = match lhs(it) {
+                Ok(lhs) => lhs,
+                Err(err) => return Ok(Err(err)),
+            };
+            let rhs = match rhs(it) {
+                Ok(rhs) => rhs,
+                Err(err) => return Ok(Err(err)),
+            };
+            (lhs, rhs)
+        }
+        Associativity::RightToLeft => {
+            let rhs = match rhs(it) {
+                Ok(rhs) => rhs,
+                Err(err) => return Ok(Err(err)),
+            };
+            let lhs = match lhs(it) {
+                Ok(lhs) => lhs,
+                Err(err) => return Ok(Err(err)),
+            };
+            (lhs, rhs)
+        }
+    };
+
+    if matches!(op_kind, BinaryOperator::Addition) && (lhs.is_object() || rhs.is_object()) {
+        let lhs = it.coerce_to_string(lhs);
+        let rhs = it.coerce_to_string(rhs);
+        return Ok(Ok(Value::Object(it.concat(&lhs, &rhs)?)));
+    }
+
+    let lhs = it.coerce_to_number(lhs);
+    let rhs = it.coerce_to_number(rhs);
+    let result = match op_kind {
+        BinaryOperator::LogicalAnd | BinaryOperator::LogicalOr => unreachable!(),
+        BinaryOperator::Addition => lhs.checked_add(rhs),
+        BinaryOperator::Division => lhs.checked_div(rhs),
+        BinaryOperator::Modulus => lhs.checked_rem(rhs),
+        BinaryOperator::Multiplication => lhs.checked_mul(rhs),
+        BinaryOperator::Exponentiation => Some(lhs.pow(rhs)),
+        BinaryOperator::Subtraction => lhs.checked_sub(rhs),
+        BinaryOperator::BitwiseAnd => Some(lhs.bitand(rhs)),
+        BinaryOperator::BitwiseOr => Some(lhs.bitor(rhs)),
+        BinaryOperator::BitwiseXOr => Some(lhs.bitxor(rhs)),
+        BinaryOperator::BitwiseLeftShift => lhs.checked_shl(rhs),
+        BinaryOperator::BitwiseRightShift => lhs.checked_shr_signed(rhs),
+        BinaryOperator::BitwiseRightShiftUnsigned => lhs.checked_shr_unsigned(rhs),
+    };
+    result
+        .map(Value::Number)
+        .map(Ok)
+        .ok_or_else(|| ErrorKind::from(NumericOverflowError::new()))
 }

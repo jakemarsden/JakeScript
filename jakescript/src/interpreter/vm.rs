@@ -1,10 +1,11 @@
-use super::error::InitialisationError;
-use super::heap::Heap;
+use super::error::{InitialisationError, OutOfHeapSpaceError};
+use super::heap::{Heap, ObjectRef, Reference};
+use super::object::{Extensible, Object, PropertyKey, UserFunction};
 use super::stack::CallStack;
 use super::value::Value;
-use crate::interpreter::ObjectRef;
-use crate::runtime::Runtime;
+use crate::runtime::{Builtin, Runtime};
 use std::assert_matches::assert_matches;
+use std::collections::HashMap;
 use std::mem;
 
 pub struct Vm {
@@ -176,6 +177,31 @@ impl Vm {
     pub fn global_object(&self) -> ObjectRef {
         let obj_ref = self.runtime().global_object_ref();
         self.heap().resolve(obj_ref)
+    }
+
+    pub fn alloc_array(&mut self, elems: Vec<Value>) -> Result<Reference, OutOfHeapSpaceError> {
+        let proto = self.runtime().global_object().array_proto().obj_ref();
+        self.heap_mut()
+            .allocate(Object::new_array(proto, elems, Extensible::Yes))
+    }
+
+    pub fn alloc_function(&mut self, f: UserFunction) -> Result<Reference, OutOfHeapSpaceError> {
+        self.heap_mut()
+            .allocate(Object::new_function(f, Extensible::Yes))
+    }
+
+    pub fn alloc_object(
+        &mut self,
+        props: HashMap<PropertyKey, Value>,
+    ) -> Result<Reference, OutOfHeapSpaceError> {
+        self.heap_mut()
+            .allocate(Object::new_object(None, props, Extensible::Yes))
+    }
+
+    pub fn alloc_string(&mut self, s: Box<str>) -> Result<Reference, OutOfHeapSpaceError> {
+        let proto = self.runtime().global_object().string_proto().obj_ref();
+        self.heap_mut()
+            .allocate(Object::new_string(proto, s, Extensible::Yes))
     }
 
     #[allow(clippy::unused_self)]
