@@ -198,10 +198,20 @@ impl Interpreter {
         }
         self.vm_mut().stack_mut().pop_frame();
 
-        Ok(match self.vm_mut().reset_execution_state() {
-            ExecutionState::Advance | ExecutionState::Exit => Value::Undefined,
-            ExecutionState::Return(value) => value,
-            execution_state => unreachable!("Unexpected execution state: {:?}", execution_state),
+        Ok(match self.vm().execution_state() {
+            ExecutionState::Advance | ExecutionState::Exception(_) | ExecutionState::Exit => {
+                Value::Undefined
+            }
+            ExecutionState::Return(_) => {
+                if let ExecutionState::Return(value) = self.vm_mut().reset_execution_state() {
+                    value
+                } else {
+                    unreachable!()
+                }
+            }
+            state @ (ExecutionState::Break | ExecutionState::Continue) => {
+                unreachable!("unexpected execution state: {state:?}")
+            }
         })
     }
 

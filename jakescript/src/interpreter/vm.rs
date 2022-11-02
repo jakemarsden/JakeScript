@@ -46,6 +46,25 @@ impl Vm {
         mem::take(&mut self.execution_state)
     }
 
+    pub fn handle_loop_execution_state(&mut self) -> IterationDecision {
+        match self.execution_state() {
+            ExecutionState::Advance => IterationDecision::Advance,
+            ExecutionState::Break => {
+                self.reset_execution_state();
+                IterationDecision::Break
+            }
+            ExecutionState::Continue => {
+                self.reset_execution_state();
+                IterationDecision::Continue
+            }
+            ExecutionState::Return(_) | ExecutionState::Exception(_) | ExecutionState::Exit => {
+                // Exit the loop, but don't reset the execution state just yet so that it can be
+                // handled/cleared by some calling AST node.
+                IterationDecision::Break
+            }
+        }
+    }
+
     /// If the current execution state is an exception, reset it to
     /// [`ExecutionState::Advance`] and stash the exception value away so it
     /// may be [restored][Self::restore_hidden_exception()] later. If an
@@ -172,8 +191,15 @@ pub enum ExecutionState {
     #[default]
     Advance,
     Break,
-    BreakContinue,
-    Return(Value),
+    Continue,
     Exception(Value),
     Exit,
+    Return(Value),
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum IterationDecision {
+    Advance,
+    Break,
+    Continue,
 }

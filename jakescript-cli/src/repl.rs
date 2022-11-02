@@ -31,9 +31,6 @@ where
         loop {
             match it.vm().execution_state() {
                 ExecutionState::Advance => {}
-                ExecutionState::Break
-                | ExecutionState::BreakContinue
-                | ExecutionState::Return(..) => unreachable!(),
                 ExecutionState::Exception(ex) => {
                     eprintln!("Exception: {ex}");
                     self.input_buf.clear();
@@ -43,6 +40,9 @@ where
                     eprintln!("Exit");
                     self.input_buf.clear();
                     return Result::ExitNormally;
+                }
+                ExecutionState::Break | ExecutionState::Continue | ExecutionState::Return(..) => {
+                    unreachable!()
                 }
             }
 

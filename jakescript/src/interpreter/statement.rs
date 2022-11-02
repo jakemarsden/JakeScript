@@ -1,7 +1,7 @@
 use super::error::{Error, Result};
 use super::stack::{Variable, VariableKind};
 use super::value::Value;
-use super::vm::ExecutionState;
+use super::vm::{ExecutionState, IterationDecision};
 use super::{Eval, Interpreter};
 use crate::ast::*;
 
@@ -104,7 +104,7 @@ impl Eval for SwitchStatement {
                 it.vm_mut().reset_execution_state();
             }
             ExecutionState::Advance
-            | ExecutionState::BreakContinue
+            | ExecutionState::Continue
             | ExecutionState::Return(_)
             | ExecutionState::Exception(_)
             | ExecutionState::Exit => {
@@ -155,21 +155,10 @@ impl Eval for WhileStatement {
             self.body.eval(it)?;
             it.vm_mut().stack_mut().pop_scope();
 
-            match it.vm().execution_state() {
-                ExecutionState::Advance => {}
-                ExecutionState::Break => {
-                    it.vm_mut().reset_execution_state();
-                    break;
-                }
-                ExecutionState::BreakContinue => {
-                    it.vm_mut().reset_execution_state();
-                    continue;
-                }
-                ExecutionState::Return(_) | ExecutionState::Exception(_) | ExecutionState::Exit => {
-                    // Exit the loop, but don't reset the execution state just yet so that it can be
-                    // handled/cleared by some calling AST node.
-                    break;
-                }
+            match it.vm_mut().handle_loop_execution_state() {
+                IterationDecision::Advance => {}
+                IterationDecision::Break => break,
+                IterationDecision::Continue => continue,
             }
         }
         Ok(())
@@ -186,21 +175,10 @@ impl Eval for DoStatement {
             self.body.eval(it)?;
             it.vm_mut().stack_mut().pop_scope();
 
-            match it.vm().execution_state() {
-                ExecutionState::Advance => {}
-                ExecutionState::Break => {
-                    it.vm_mut().reset_execution_state();
-                    break;
-                }
-                ExecutionState::BreakContinue => {
-                    it.vm_mut().reset_execution_state();
-                    continue;
-                }
-                ExecutionState::Return(_) | ExecutionState::Exception(_) | ExecutionState::Exit => {
-                    // Exit the loop, but don't reset the execution state just yet so that it can be
-                    // handled/cleared by some calling AST node.
-                    break;
-                }
+            match it.vm_mut().handle_loop_execution_state() {
+                IterationDecision::Advance => {}
+                IterationDecision::Break => break,
+                IterationDecision::Continue => continue,
             }
 
             let condition = self.condition.eval(it)?;
@@ -240,21 +218,10 @@ impl Eval for ForStatement {
                 incrementor.eval(it)?;
             }
 
-            match it.vm().execution_state() {
-                ExecutionState::Advance => {}
-                ExecutionState::Break => {
-                    it.vm_mut().reset_execution_state();
-                    break;
-                }
-                ExecutionState::BreakContinue => {
-                    it.vm_mut().reset_execution_state();
-                    continue;
-                }
-                ExecutionState::Return(_) | ExecutionState::Exception(_) | ExecutionState::Exit => {
-                    // Exit the loop, but don't reset the execution state just yet so that it can be
-                    // handled/cleared by some calling AST node.
-                    break;
-                }
+            match it.vm_mut().handle_loop_execution_state() {
+                IterationDecision::Advance => {}
+                IterationDecision::Break => break,
+                IterationDecision::Continue => continue,
             }
         }
         if self.initialiser.is_some() {
@@ -319,8 +286,7 @@ impl Eval for FinallyStatement {
 
 impl Eval for ContinueStatement {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        it.vm_mut()
-            .set_execution_state(ExecutionState::BreakContinue);
+        it.vm_mut().set_execution_state(ExecutionState::Continue);
         Ok(())
     }
 }
