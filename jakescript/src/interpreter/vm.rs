@@ -1,11 +1,10 @@
 use super::error::InitialisationError;
 use super::heap::Heap;
-use super::object::Object;
 use super::stack::CallStack;
 use super::value::Value;
+use crate::interpreter::ObjectRef;
 use crate::runtime::Runtime;
 use std::assert_matches::assert_matches;
-use std::cell::Ref;
 use std::mem;
 
 pub struct Vm {
@@ -174,7 +173,7 @@ impl Vm {
         &mut self.stack
     }
 
-    pub fn global_object(&self) -> Ref<Object> {
+    pub fn global_object(&self) -> ObjectRef {
         let obj_ref = self.runtime().global_object_ref();
         self.heap().resolve(obj_ref)
     }

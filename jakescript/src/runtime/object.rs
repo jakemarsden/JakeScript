@@ -17,7 +17,7 @@ impl Builtin for ObjectProtoBuiltin {
         Ok(Self { obj_ref })
     }
 
-    fn obj_ref(&self) -> &Reference {
-        &self.obj_ref
+    fn obj_ref(&self) -> Reference {
+        self.obj_ref
     }
 }

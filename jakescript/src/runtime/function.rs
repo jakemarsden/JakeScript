@@ -19,7 +19,7 @@ impl Builtin for FunctionProtoBuiltin {
         Ok(Self { obj_ref })
     }
 
-    fn obj_ref(&self) -> &Reference {
-        &self.obj_ref
+    fn obj_ref(&self) -> Reference {
+        self.obj_ref
     }
 }

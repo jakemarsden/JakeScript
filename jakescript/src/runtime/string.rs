@@ -18,13 +18,13 @@ impl Builtin for StringProtoBuiltin {
         heap: &mut Heap,
         (obj_proto, fn_proto): Self::InitArgs,
     ) -> Result<Self, InitialisationError> {
-        let length = GetLengthBuiltin::init(heap, fn_proto.clone())?;
-        let char_at = CharAtBuiltin::init(heap, fn_proto.clone())?;
-        let split = SplitBuiltin::init(heap, fn_proto.clone())?;
+        let length = GetLengthBuiltin::init(heap, fn_proto)?;
+        let char_at = CharAtBuiltin::init(heap, fn_proto)?;
+        let split = SplitBuiltin::init(heap, fn_proto)?;
         let substring = SubstringBuiltin::init(heap, fn_proto)?;
 
         let props = hash_map![
-            prop_key!("length") => Property::new_const_accessor(length.as_obj_ref()),
+            prop_key!("length") => Property::new_const_accessor(length.obj_ref()),
             prop_key!("charAt") => Property::new_user(char_at.as_value()),
             prop_key!("split") => Property::new_user(split.as_value()),
             prop_key!("substring") => Property::new_user(substring.as_value()),
@@ -39,8 +39,8 @@ impl Builtin for StringProtoBuiltin {
         Ok(Self { obj_ref })
     }
 
-    fn obj_ref(&self) -> &Reference {
-        &self.obj_ref
+    fn obj_ref(&self) -> Reference {
+        self.obj_ref
     }
 }
 
@@ -53,8 +53,8 @@ builtin_fn!(pub StringCtorBuiltin, Extensible::Yes, (it, _receiver, args) => {
 });
 
 builtin_fn!(GetLengthBuiltin, Extensible::No, (it, receiver, _args) => {
-    let receiver = it.vm().heap().resolve(&receiver);
-    let length = receiver.string_data().unwrap().len();
+    let receiver = it.vm().heap().resolve(receiver);
+    let length = receiver.as_ref().string_data().unwrap().len();
     let length = Number::try_from(length).unwrap_or_else(|_| {
         // TODO
         unreachable!()

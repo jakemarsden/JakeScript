@@ -34,22 +34,25 @@ impl Eval for IdentifierReferenceExpression {
     type Output = Value;
 
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        if let Ok(variable) = it.vm().stack().lookup_variable(&self.identifier) {
-            let value = variable.value().clone();
-            Ok(value)
-        } else {
-            let receiver = it.vm().runtime().global_object_ref().clone();
-            let global_obj = it.vm().heap().resolve(&receiver);
-            global_obj
-                .get(it, &self.identifier, receiver.clone())
-                .map_err(|err| Error::new(err, self.source_location()))?
-                .ok_or_else(|| {
-                    Error::new(
-                        VariableNotDefinedError::new(self.identifier.clone()),
-                        self.source_location(),
-                    )
-                })
-        }
+        Ok(
+            if let Ok(variable) = it.vm().stack().lookup_variable(&self.identifier) {
+                variable.value().clone()
+            } else {
+                let receiver = it.vm().runtime().global_object_ref();
+                let global_obj = it.vm().heap().resolve(receiver);
+                let value = global_obj
+                    .as_ref()
+                    .get(it, &self.identifier, receiver)
+                    .map_err(|err| Error::new(err, self.source_location()))?
+                    .ok_or_else(|| {
+                        Error::new(
+                            VariableNotDefinedError::new(self.identifier.clone()),
+                            self.source_location(),
+                        )
+                    })?;
+                value
+            },
+        )
     }
 }
 
@@ -61,8 +64,7 @@ impl Eval for ThisExpression {
             it.vm()
                 .stack()
                 .receiver()
-                .cloned()
-                .unwrap_or_else(|| it.vm().runtime().global_object_ref().clone()),
+                .unwrap_or_else(|| it.vm().runtime().global_object_ref()),
         ))
     }
 }
@@ -104,7 +106,7 @@ impl Eval for AssignmentExpression {
             Expression::Member(MemberExpression::MemberAccess(lhs_node)) => {
                 match lhs_node.base.eval(it)? {
                     Value::Object(lhs_ref) => it.update_object_property(
-                        &lhs_ref,
+                        lhs_ref,
                         &lhs_node.member,
                         compute_updated,
                         map_err,
@@ -122,7 +124,7 @@ impl Eval for AssignmentExpression {
                             // object property by the empty string.
                             todo!("AssignmentExpression::eval: prop_name={}", prop_value)
                         });
-                        it.update_object_property(&lhs_ref, &prop_key, compute_updated, map_err)
+                        it.update_object_property(lhs_ref, &prop_key, compute_updated, map_err)
                     }
                     lhs => todo!("AssignmentExpression::eval: base_value={:?}", lhs),
                 }
@@ -213,7 +215,7 @@ impl Eval for UpdateExpression {
             Expression::Member(MemberExpression::MemberAccess(operand_node)) => {
                 match operand_node.base.eval(it)? {
                     Value::Object(operand_ref) => it.update_object_property(
-                        &operand_ref,
+                        operand_ref,
                         &operand_node.member,
                         compute_updated,
                         map_err,
@@ -244,12 +246,14 @@ impl Eval for MemberAccessExpression {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let base_value = self.base.eval(it)?;
         match base_value {
-            Value::Object(ref base_refr) => {
+            Value::Object(base_refr) => {
                 let base_obj = it.vm().heap().resolve(base_refr);
-                Ok(base_obj
-                    .get(it, &self.member, base_refr.clone())
+                let value = base_obj
+                    .as_ref()
+                    .get(it, &self.member, base_refr)
                     .map_err(|err| Error::new(err, self.source_location()))?
-                    .unwrap_or_default())
+                    .unwrap_or_default();
+                Ok(value)
             }
             base_value => todo!("PropertyAccessExpression::eval: base={:?}", base_value),
         }
@@ -262,7 +266,7 @@ impl Eval for ComputedMemberAccessExpression {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let base_value = self.base.eval(it)?;
         let (base_refr, base_obj) = match base_value {
-            Value::Object(ref base_refr) => (base_refr, it.vm().heap().resolve(base_refr)),
+            Value::Object(base_refr) => (base_refr, it.vm().heap().resolve(base_refr)),
             base_value => todo!("ComputedPropertyExpression::eval: base={:?}", base_value),
         };
         let property_value = self.member.eval(it)?;
@@ -270,10 +274,12 @@ impl Eval for ComputedMemberAccessExpression {
             Value::Number(Number::Int(n)) => PropertyKey::from(n),
             property => todo!("ComputedPropertyExpression::eval: property={:?}", property),
         };
-        Ok(base_obj
-            .get(it, &property, base_refr.clone())
+        let value = base_obj
+            .as_ref()
+            .get(it, &property, base_refr)
             .map_err(|err| Error::new(err, self.source_location()))?
-            .unwrap_or_default())
+            .unwrap_or_default();
+        Ok(value)
     }
 }
 
@@ -315,10 +321,12 @@ impl Eval for FunctionCallExpression {
         for arg in &self.arguments {
             supplied_args.push(arg.eval(it)?);
         }
-        let fn_obj = it.vm().heap().resolve(&fn_obj_ref);
-        fn_obj
-            .call(it, &fn_obj_ref, receiver, &supplied_args)
-            .map_err(|err| Error::new(err, self.source_location()))
+        let fn_obj = it.vm().heap().resolve(fn_obj_ref);
+        let result = fn_obj
+            .as_ref()
+            .call(it, fn_obj_ref, receiver, &supplied_args)
+            .map_err(|err| Error::new(err, self.source_location()))?;
+        Ok(result)
     }
 }
 

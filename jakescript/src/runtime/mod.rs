@@ -54,8 +54,8 @@ macro_rules! builtin_fn {
                 Ok(Self { obj_ref })
             }
 
-            fn obj_ref(&self) -> &$crate::interpreter::Reference {
-                &self.obj_ref
+            fn obj_ref(&self) -> $crate::interpreter::Reference {
+                self.obj_ref
             }
         }
     };
@@ -84,7 +84,7 @@ impl<T: Builtin> Runtime<T> {
         &self.global_object
     }
 
-    pub fn global_object_ref(&self) -> &Reference {
+    pub fn global_object_ref(&self) -> Reference {
         self.global_object().obj_ref()
     }
 }
@@ -96,14 +96,10 @@ pub trait Builtin {
     where
         Self: Sized;
 
-    fn obj_ref(&self) -> &Reference;
-
-    fn as_obj_ref(&self) -> Reference {
-        self.obj_ref().clone()
-    }
+    fn obj_ref(&self) -> Reference;
 
     fn as_value(&self) -> Value {
-        Value::Object(self.as_obj_ref())
+        Value::Object(self.obj_ref())
     }
 }
 

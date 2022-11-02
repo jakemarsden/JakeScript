@@ -39,8 +39,8 @@ impl Builtin for GlobalObjectProto {
         Ok(Self { obj_ref })
     }
 
-    fn obj_ref(&self) -> &Reference {
-        &self.obj_ref
+    fn obj_ref(&self) -> Reference {
+        self.obj_ref
     }
 }
 
@@ -57,23 +57,22 @@ impl GlobalObject {
 impl Builtin for GlobalObject {
     fn init(heap: &mut Heap, (): Self::InitArgs) -> Result<Self, InitialisationError> {
         let obj_proto = ObjectProtoBuiltin::init(heap, ())?;
-        let fn_proto = FunctionProtoBuiltin::init(heap, obj_proto.as_obj_ref())?;
-        let global_obj_proto = GlobalObjectProto::init(heap, obj_proto.as_obj_ref())?;
+        let fn_proto = FunctionProtoBuiltin::init(heap, obj_proto.obj_ref())?;
+        let global_obj_proto = GlobalObjectProto::init(heap, obj_proto.obj_ref())?;
 
-        let array_proto =
-            ArrayProtoBuiltin::init(heap, (obj_proto.as_obj_ref(), fn_proto.as_obj_ref()))?;
+        let array_proto = ArrayProtoBuiltin::init(heap, (obj_proto.obj_ref(), fn_proto.obj_ref()))?;
         let string_proto =
-            StringProtoBuiltin::init(heap, (obj_proto.as_obj_ref(), fn_proto.as_obj_ref()))?;
+            StringProtoBuiltin::init(heap, (obj_proto.obj_ref(), fn_proto.obj_ref()))?;
 
-        let array = ArrayCtorBuiltin::init(heap, fn_proto.as_obj_ref())?;
-        let boolean = BooleanCtorBuiltin::init(heap, fn_proto.as_obj_ref())?;
-        let math = MathBuiltin::init(heap, (obj_proto.as_obj_ref(), fn_proto.as_obj_ref()))?;
-        let number = NumberCtorBuiltin::init(heap, fn_proto.as_obj_ref())?;
-        let string = StringCtorBuiltin::init(heap, fn_proto.as_obj_ref())?;
+        let array = ArrayCtorBuiltin::init(heap, fn_proto.obj_ref())?;
+        let boolean = BooleanCtorBuiltin::init(heap, fn_proto.obj_ref())?;
+        let math = MathBuiltin::init(heap, (obj_proto.obj_ref(), fn_proto.obj_ref()))?;
+        let number = NumberCtorBuiltin::init(heap, fn_proto.obj_ref())?;
+        let string = StringCtorBuiltin::init(heap, fn_proto.obj_ref())?;
 
-        let console = ConsoleBuiltin::init(heap, (obj_proto.as_obj_ref(), fn_proto.as_obj_ref()))?;
-        let exit = ExitBuiltin::init(heap, fn_proto.as_obj_ref())?;
-        let is_nan = IsNanBuiltin::init(heap, fn_proto.as_obj_ref())?;
+        let console = ConsoleBuiltin::init(heap, (obj_proto.obj_ref(), fn_proto.obj_ref()))?;
+        let exit = ExitBuiltin::init(heap, fn_proto.obj_ref())?;
+        let is_nan = IsNanBuiltin::init(heap, fn_proto.obj_ref())?;
 
         let props = hash_map![
             prop_key!("Infinity") => Property::new_const(Value::Number(Number::POS_INF)),
@@ -92,7 +91,7 @@ impl Builtin for GlobalObject {
         ];
 
         let obj_ref = heap.allocate(Object::new(
-            Some(global_obj_proto.as_obj_ref()),
+            Some(global_obj_proto.obj_ref()),
             props,
             ObjectData::None,
             Extensible::Yes,
@@ -104,8 +103,8 @@ impl Builtin for GlobalObject {
         })
     }
 
-    fn obj_ref(&self) -> &Reference {
-        &self.obj_ref
+    fn obj_ref(&self) -> Reference {
+        self.obj_ref
     }
 }
 

@@ -50,12 +50,7 @@ impl Interpreter {
         &mut self,
         s: Box<str>,
     ) -> std::result::Result<Reference, OutOfHeapSpaceError> {
-        let proto = self
-            .vm()
-            .runtime()
-            .global_object()
-            .string_proto()
-            .as_obj_ref();
+        let proto = self.vm().runtime().global_object().string_proto().obj_ref();
         self.vm_mut()
             .heap_mut()
             .allocate(Object::new_string(proto, s, Extensible::Yes))
@@ -65,12 +60,7 @@ impl Interpreter {
         &mut self,
         elems: Vec<Value>,
     ) -> std::result::Result<Reference, OutOfHeapSpaceError> {
-        let proto = self
-            .vm()
-            .runtime()
-            .global_object()
-            .array_proto()
-            .as_obj_ref();
+        let proto = self.vm().runtime().global_object().array_proto().obj_ref();
         self.vm_mut()
             .heap_mut()
             .allocate(Object::new_array(proto, elems, Extensible::Yes))
@@ -114,31 +104,33 @@ impl Interpreter {
                 Ok(result_value)
             }
             Err(VariableNotDefinedError { .. }) => {
-                let global_obj_ref = self.vm().runtime().global_object_ref().clone();
-                self.update_object_property(&global_obj_ref, key, f, e)
+                let global_obj_ref = self.vm().runtime().global_object_ref();
+                self.update_object_property(global_obj_ref, key, f, e)
             }
         }
     }
 
     pub fn update_object_property(
         &mut self,
-        base_ref: &Reference,
+        base_ref: Reference,
         key: &PropertyKey,
         f: impl FnOnce(&mut Self, &Value) -> Result<(Value, Value)>,
         e: impl FnOnce(ErrorKind) -> Error,
     ) -> Result {
         let value = {
             let base_obj = self.vm().heap().resolve(base_ref);
-            match base_obj.get(self, key, base_ref.clone()) {
+            let value = match base_obj.as_ref().get(self, key, base_ref) {
                 Ok(value) => value.unwrap_or_default(),
                 Err(err) => return Err(e(err)),
-            }
+            };
+            value
         };
         let (result_value, updated_value) = f(self, &value)?;
         self.vm_mut()
             .heap_mut()
             .resolve_mut(base_ref)
-            .set(self, key, base_ref.clone(), updated_value)
+            .as_ref_mut()
+            .set(self, key, base_ref, updated_value)
             .map_err(e)?;
         Ok(result_value)
     }
@@ -150,7 +142,7 @@ impl Interpreter {
     pub fn call_user_fn(
         &mut self,
         f: &UserFunction,
-        fn_obj_ref: &Reference,
+        fn_obj_ref: Reference,
         receiver: Option<Reference>,
         args: &[Value],
     ) -> Result {
@@ -180,7 +172,7 @@ impl Interpreter {
             let outer_variables = vec![Variable::new(
                 VariableKind::Var,
                 fn_name.clone(),
-                Value::Object(fn_obj_ref.clone()),
+                Value::Object(fn_obj_ref),
             )];
             self.vm_mut()
                 .stack_mut()
@@ -221,7 +213,7 @@ impl Interpreter {
         receiver: Option<Reference>,
         args: &[Value],
     ) -> std::result::Result<Value, ErrorKind> {
-        let receiver = receiver.unwrap_or_else(|| self.vm().runtime().global_object_ref().clone());
+        let receiver = receiver.unwrap_or_else(|| self.vm().runtime().global_object_ref());
         f.call(self, receiver, args)
     }
 
@@ -384,15 +376,16 @@ impl Interpreter {
             Value::Object(lhs) => {
                 if let Value::Object(rhs) = rhs {
                     lhs == rhs || {
-                        let lhs_obj = self.vm().heap().resolve(lhs);
-                        let rhs_obj = self.vm().heap().resolve(rhs);
-                        if let Some(lhs_str) = lhs_obj.string_data()
-                            && let Some(rhs_str) = rhs_obj.string_data()
+                        let lhs_obj = self.vm().heap().resolve(*lhs);
+                        let rhs_obj = self.vm().heap().resolve(*rhs);
+                        let value = if let Some(lhs_str) = lhs_obj.as_ref().string_data()
+                            && let Some(rhs_str) = rhs_obj.as_ref().string_data()
                         {
                             lhs_str == rhs_str
                         } else {
                             false
-                        }
+                        };
+                        value
                     }
                 } else {
                     false
@@ -418,10 +411,12 @@ impl Interpreter {
             (Value::Number(lhs), Value::Number(rhs)) => lhs == rhs,
             (Value::Object(lhs), Value::Object(rhs)) => {
                 lhs == rhs || {
-                    let lhs_obj = self.vm().heap().resolve(lhs);
-                    let rhs_obj = self.vm().heap().resolve(rhs);
-                    if lhs_obj.string_data().is_some() || rhs_obj.string_data().is_some() {
-                        lhs_obj.js_to_string() == rhs_obj.js_to_string()
+                    let lhs_obj = self.vm().heap().resolve(*lhs);
+                    let rhs_obj = self.vm().heap().resolve(*rhs);
+                    if lhs_obj.as_ref().string_data().is_some()
+                        || rhs_obj.as_ref().string_data().is_some()
+                    {
+                        lhs_obj.as_ref().js_to_string() == rhs_obj.as_ref().js_to_string()
                     } else {
                         false
                     }
@@ -484,9 +479,12 @@ impl Interpreter {
             Value::Boolean(v) => *v,
             Value::Number(v) => !v.is_zero() && !v.is_nan(),
             Value::Object(obj_ref) => {
-                let obj = self.vm().heap().resolve(obj_ref);
-                obj.string_data()
-                    .map_or(true, |string_data| !string_data.is_empty())
+                let obj = self.vm().heap().resolve(*obj_ref);
+                let value = obj
+                    .as_ref()
+                    .string_data()
+                    .map_or(true, |string_data| !string_data.is_empty());
+                value
             }
             Value::Null | Value::Undefined => false,
         }
@@ -499,10 +497,13 @@ impl Interpreter {
             Value::Boolean(v) => Number::Int(i64::from(*v)),
             Value::Number(v) => *v,
             Value::Object(obj_ref) => {
-                let obj = self.vm().heap().resolve(obj_ref);
-                obj.string_data()
+                let obj = self.vm().heap().resolve(*obj_ref);
+                let value = obj
+                    .as_ref()
+                    .string_data()
                     .and_then(|string_data| Number::from_str(string_data).ok())
-                    .unwrap_or(Number::NAN)
+                    .unwrap_or(Number::NAN);
+                value
             }
             Value::Null => Number::Int(0),
             Value::Undefined => Number::NAN,
@@ -514,8 +515,9 @@ impl Interpreter {
             Value::Boolean(v) => v.to_string().into_boxed_str(),
             Value::Number(v) => v.to_string().into_boxed_str(),
             Value::Object(obj_ref) => {
-                let obj = self.vm().heap().resolve(obj_ref);
-                obj.js_to_string()
+                let obj = self.vm().heap().resolve(*obj_ref);
+                let value = obj.as_ref().js_to_string();
+                value
             }
             Value::Null => Box::from("null"),
             Value::Undefined => Box::from("undefined"),

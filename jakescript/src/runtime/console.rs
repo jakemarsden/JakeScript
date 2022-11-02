@@ -17,9 +17,9 @@ impl Builtin for ConsoleBuiltin {
         heap: &mut Heap,
         (obj_proto, fn_proto): Self::InitArgs,
     ) -> Result<Self, InitialisationError> {
-        let assert = AssertBuiltin::init(heap, fn_proto.clone())?;
-        let assert_equal = AssertEqualBuiltin::init(heap, fn_proto.clone())?;
-        let assert_not_reached = AssertNotReachedBuiltin::init(heap, fn_proto.clone())?;
+        let assert = AssertBuiltin::init(heap, fn_proto)?;
+        let assert_equal = AssertEqualBuiltin::init(heap, fn_proto)?;
+        let assert_not_reached = AssertNotReachedBuiltin::init(heap, fn_proto)?;
         let log = LogBuiltin::init(heap, fn_proto)?;
 
         let props = hash_map![
@@ -38,8 +38,8 @@ impl Builtin for ConsoleBuiltin {
         Ok(Self { obj_ref })
     }
 
-    fn obj_ref(&self) -> &Reference {
-        &self.obj_ref
+    fn obj_ref(&self) -> Reference {
+        self.obj_ref
     }
 }
 

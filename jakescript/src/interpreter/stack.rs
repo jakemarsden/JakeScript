@@ -79,8 +79,8 @@ impl CallStack {
         self.frame().scope
     }
 
-    pub fn receiver(&self) -> Option<&Reference> {
-        self.frame().receiver.as_ref()
+    pub fn receiver(&self) -> Option<Reference> {
+        self.frame().receiver
     }
 
     pub fn push_empty_scope(

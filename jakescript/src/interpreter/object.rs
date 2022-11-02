@@ -110,8 +110,8 @@ impl Object {
         }
     }
 
-    pub fn prototype(&self) -> Option<&Reference> {
-        self.proto.as_ref()
+    pub fn prototype(&self) -> Option<Reference> {
+        self.proto
     }
 
     pub fn set_prototype(&mut self, proto: Option<Reference>) -> bool {
@@ -161,7 +161,8 @@ impl Object {
             prop.get(it, receiver).map(Some)
         } else if let Some(proto_ref) = self.prototype() {
             let proto_obj = it.vm().heap().resolve(proto_ref);
-            proto_obj.get(it, key, receiver)
+            let value = proto_obj.as_ref().get(it, key, receiver)?;
+            Ok(value)
         } else {
             Ok(None)
         }
@@ -178,7 +179,8 @@ impl Object {
             prop.set(it, receiver, value)
         } else if let Some(proto_ref) = self.prototype() {
             let mut proto_obj = it.vm_mut().heap_mut().resolve_mut(proto_ref);
-            proto_obj.set(it, key, receiver, value)
+            let set = proto_obj.as_ref_mut().set(it, key, receiver, value)?;
+            Ok(set)
         } else if matches!(self.extensible(), Extensible::Yes) {
             self.define_own_property(key.clone(), Property::new_user(value));
             Ok(true)
@@ -201,7 +203,7 @@ impl Object {
     pub fn call(
         &self,
         it: &mut Interpreter,
-        self_ref: &Reference,
+        self_ref: Reference,
         receiver: Option<Reference>,
         args: &[Value],
     ) -> Result<Value, ErrorKind> {
@@ -306,9 +308,10 @@ impl Property {
         match self.0 {
             PropertyInner::Data(ref inner) => Ok(inner.value.clone()),
             PropertyInner::Accessor(ref inner) => match inner.get {
-                Some(ref get) => {
+                Some(get) => {
                     let get_obj = it.vm().heap().resolve(get);
-                    get_obj.call(it, get, Some(receiver), &[])
+                    let result = get_obj.as_ref().call(it, get, Some(receiver), &[])?;
+                    Ok(result)
                 }
                 None => Ok(Value::Undefined),
             },
@@ -330,9 +333,9 @@ impl Property {
                 Writable::No => inner.value == value,
             },
             PropertyInner::Accessor(ref inner) => match inner.set {
-                Some(ref set) => {
+                Some(set) => {
                     let set_obj = it.vm().heap().resolve(set);
-                    set_obj.call(it, set, Some(receiver), &[value])?;
+                    set_obj.as_ref().call(it, set, Some(receiver), &[value])?;
                     true
                 }
                 None => false,

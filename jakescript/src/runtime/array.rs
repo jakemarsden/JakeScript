@@ -17,11 +17,11 @@ impl Builtin for ArrayProtoBuiltin {
         heap: &mut Heap,
         (obj_proto, fn_proto): Self::InitArgs,
     ) -> Result<Self, InitialisationError> {
-        let length = GetLengthBuiltin::init(heap, fn_proto.clone())?;
+        let length = GetLengthBuiltin::init(heap, fn_proto)?;
         let push = PushBuiltin::init(heap, fn_proto)?;
 
         let props = hash_map![
-            prop_key!("length") => Property::new_const_accessor(length.as_obj_ref()),
+            prop_key!("length") => Property::new_const_accessor(length.obj_ref()),
             prop_key!("push") => Property::new_user(push.as_value()),
         ];
 
@@ -34,8 +34,8 @@ impl Builtin for ArrayProtoBuiltin {
         Ok(Self { obj_ref })
     }
 
-    fn obj_ref(&self) -> &Reference {
-        &self.obj_ref
+    fn obj_ref(&self) -> Reference {
+        self.obj_ref
     }
 }
 
@@ -46,8 +46,8 @@ builtin_fn!(pub ArrayCtorBuiltin, Extensible::Yes, (it, _receiver, args) => {
 });
 
 builtin_fn!(GetLengthBuiltin, Extensible::No, (it, receiver, _args) => {
-    let receiver = it.vm().heap().resolve(&receiver);
-    let length = receiver.own_property_keys().count();
+    let receiver = it.vm().heap().resolve(receiver);
+    let length = receiver.as_ref().own_property_keys().count();
     let length = Number::try_from(length).unwrap_or_else(|_| {
         // TODO
         unreachable!()
@@ -56,8 +56,8 @@ builtin_fn!(GetLengthBuiltin, Extensible::No, (it, receiver, _args) => {
 });
 
 builtin_fn!(PushBuiltin, Extensible::Yes, (it, receiver, args) => {
-    let mut array = it.vm_mut().heap_mut().resolve_mut(&receiver);
-    let start_len = array.own_property_keys().count();
+    let mut array = it.vm_mut().heap_mut().resolve_mut(receiver);
+    let start_len = array.as_ref().own_property_keys().count();
     args.iter()
         .cloned()
         .enumerate()
@@ -68,10 +68,10 @@ builtin_fn!(PushBuiltin, Extensible::Yes, (it, receiver, args) => {
             )
         })
         .for_each(|(prop_key, prop_value)| {
-            let defined = array.define_own_property(prop_key, prop_value);
+            let defined = array.as_ref_mut().define_own_property(prop_key, prop_value);
             assert!(defined);
         });
-    let finish_len = array.own_property_keys().count();
+    let finish_len = array.as_ref().own_property_keys().count();
     let finish_len = Number::try_from(finish_len).unwrap_or_else(|_| {
         // TODO
         unreachable!()

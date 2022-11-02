@@ -18,11 +18,11 @@ impl Builtin for MathBuiltin {
         heap: &mut Heap,
         (obj_proto, fn_proto): Self::InitArgs,
     ) -> Result<Self, InitialisationError> {
-        let abs = AbsBuiltin::init(heap, fn_proto.clone())?;
-        let floor = FloorBuiltin::init(heap, fn_proto.clone())?;
-        let max = MaxBuiltin::init(heap, fn_proto.clone())?;
-        let min = MinBuiltin::init(heap, fn_proto.clone())?;
-        let sqrt = SqrtBuiltin::init(heap, fn_proto.clone())?;
+        let abs = AbsBuiltin::init(heap, fn_proto)?;
+        let floor = FloorBuiltin::init(heap, fn_proto)?;
+        let max = MaxBuiltin::init(heap, fn_proto)?;
+        let min = MinBuiltin::init(heap, fn_proto)?;
+        let sqrt = SqrtBuiltin::init(heap, fn_proto)?;
         let trunc = TruncBuiltin::init(heap, fn_proto)?;
 
         let props = hash_map![
@@ -54,8 +54,8 @@ impl Builtin for MathBuiltin {
         Ok(Self { obj_ref })
     }
 
-    fn obj_ref(&self) -> &Reference {
-        &self.obj_ref
+    fn obj_ref(&self) -> Reference {
+        self.obj_ref
     }
 }
 
