@@ -35,17 +35,11 @@ impl Heap {
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub struct Reference(usize);
 
-impl fmt::Display for Reference {
+impl fmt::Debug for Reference {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         // Note: 6 includes the 2 chars for the "0x" prefix, so only 4 actual digits are
         // displayed.
         write!(f, "{:#06x}", self.0)
-    }
-}
-
-impl fmt::Debug for Reference {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt(self, f)
     }
 }
 

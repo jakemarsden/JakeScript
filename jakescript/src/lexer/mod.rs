@@ -57,7 +57,7 @@ impl<I: FallibleIterator<Item = char, Error = io::Error>> Lexer<I> {
             Element::new_token(it, loc)
         } else {
             let ch = self.source.peek()?.unwrap();
-            todo!("Lexer::parse_element: ch={}", ch)
+            todo!("Lexer::parse_element: ch={ch}")
         })
     }
 

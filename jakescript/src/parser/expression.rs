@@ -284,8 +284,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             Expression::IdentifierReference(member_expr) => member_expr.identifier,
             member_expr => todo!(
                 "Unsupported member access expression (only simple `a.b` expressions are \
-                 supported): {:?}",
-                member_expr
+                 supported): {member_expr:?}"
             ),
         };
         Ok(MemberAccessExpression {

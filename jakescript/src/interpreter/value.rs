@@ -18,18 +18,6 @@ impl Value {
     }
 }
 
-impl fmt::Display for Value {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Self::Boolean(value) => write!(f, "{value}"),
-            Self::Number(value) => write!(f, "{value}"),
-            Self::Object(value) => write!(f, "{value}"),
-            Self::Null => f.write_str("null"),
-            Self::Undefined => f.write_str("undefined"),
-        }
-    }
-}
-
 #[derive(Copy, Clone, Debug)]
 pub enum Number {
     Float(f64),
@@ -166,21 +154,21 @@ impl Number {
     ///
     /// Always panics.
     pub fn checked_shl(self, rhs: Self) -> Option<Self> {
-        todo!("Number::checked_shl: lhs={}, rhs={}", self, rhs)
+        todo!("Number::checked_shl: lhs={self}, rhs={rhs}")
     }
 
     /// # Panics
     ///
     /// Always panics.
     pub fn checked_shr_signed(self, rhs: Self) -> Option<Self> {
-        todo!("Number::checked_shr_signed: lhs={}, rhs={}", self, rhs)
+        todo!("Number::checked_shr_signed: lhs={self}, rhs={rhs}")
     }
 
     /// # Panics
     ///
     /// Always panics.
     pub fn checked_shr_unsigned(self, rhs: Self) -> Option<Self> {
-        todo!("Number::checked_shr_unsigned: lhs={}, rhs={}", self, rhs)
+        todo!("Number::checked_shr_unsigned: lhs={self}, rhs={rhs}")
     }
 }
 

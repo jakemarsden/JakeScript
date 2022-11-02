@@ -32,7 +32,7 @@ where
             match it.vm().execution_state() {
                 ExecutionState::Advance => {}
                 ExecutionState::Exception(ex) => {
-                    eprintln!("Exception: {ex}");
+                    eprintln!("Exception: {ex:?}");
                     self.input_buf.clear();
                     return Result::ExitWithRuntimeError;
                 }
@@ -86,7 +86,7 @@ where
                     continue;
                 }
             };
-            eprintln!("{value}");
+            eprintln!("{value:?}");
         }
     }
 

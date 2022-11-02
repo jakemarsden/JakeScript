@@ -77,7 +77,7 @@ impl Eval for NewExpression {
     type Output = Value;
 
     fn eval(&self, _: &mut Interpreter) -> Result<Self::Output> {
-        todo!("NewExpression::eval: {:#?}", self)
+        todo!("NewExpression::eval: {self:#?}")
     }
 }
 
@@ -114,7 +114,7 @@ impl Eval for AssignmentExpression {
                         compute_updated,
                         map_err,
                     ),
-                    lhs => todo!("AssignmentExpression::eval: base_value={:?}", lhs),
+                    lhs => todo!("AssignmentExpression::eval: base_value={lhs:?}"),
                 }
             }
             Expression::Member(MemberExpression::ComputedMemberAccess(lhs_node)) => {
@@ -127,14 +127,14 @@ impl Eval for AssignmentExpression {
                                 // FIXME: Remove this restriction as I think it's actually OK to key
                                 // an object property by the empty
                                 // string.
-                                todo!("AssignmentExpression::eval: prop_name={}", prop_value)
+                                todo!("AssignmentExpression::eval: prop_name={prop_value:?}")
                             });
                         it.update_object_property(lhs_ref, &prop_key, compute_updated, map_err)
                     }
-                    lhs => todo!("AssignmentExpression::eval: base_value={:?}", lhs),
+                    lhs => todo!("AssignmentExpression::eval: base_value={lhs:?}"),
                 }
             }
-            lhs => todo!("AssignmentExpression::eval: lhs={:#?}", lhs),
+            lhs => todo!("AssignmentExpression::eval: lhs={lhs:#?}"),
         }
     }
 }
@@ -235,10 +235,10 @@ impl Eval for UpdateExpression {
                         compute_updated,
                         map_err,
                     ),
-                    operand => todo!("UpdateExpression::eval: operand={:?}", operand),
+                    operand => todo!("UpdateExpression::eval: operand={operand:?}"),
                 }
             }
-            operand => todo!("UpdateExpression::eval: operand={:#?}", operand),
+            operand => todo!("UpdateExpression::eval: operand={operand:#?}"),
         }
     }
 }
@@ -270,7 +270,7 @@ impl Eval for MemberAccessExpression {
                     .unwrap_or_default();
                 Ok(value)
             }
-            base_value => todo!("PropertyAccessExpression::eval: base={:?}", base_value),
+            base_value => todo!("PropertyAccessExpression::eval: base={base_value:?}"),
         }
     }
 }
@@ -282,12 +282,12 @@ impl Eval for ComputedMemberAccessExpression {
         let base_value = self.base.eval(it)?;
         let (base_refr, base_obj) = match base_value {
             Value::Object(base_refr) => (base_refr, it.vm().heap().resolve(base_refr)),
-            base_value => todo!("ComputedPropertyExpression::eval: base={:?}", base_value),
+            base_value => todo!("ComputedPropertyExpression::eval: base={base_value:?}"),
         };
         let property_value = self.member.eval(it)?;
         let property = match property_value {
             Value::Number(Number::Int(n)) => PropertyKey::from(n),
-            property => todo!("ComputedPropertyExpression::eval: property={:?}", property),
+            property => todo!("ComputedPropertyExpression::eval: property={property:?}"),
         };
         let value = base_obj
             .as_ref()
@@ -321,7 +321,7 @@ impl Eval for FunctionCallExpression {
         };
         let receiver = match receiver {
             Some(Value::Object(receiver)) => Some(receiver),
-            Some(receiver) => todo!("FunctionCallExpression: receiver={:?}", receiver),
+            Some(receiver) => todo!("FunctionCallExpression: receiver={receiver:?}"),
             None => None,
         };
 
