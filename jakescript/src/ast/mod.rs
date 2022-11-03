@@ -4,7 +4,7 @@ pub use expression::*;
 pub use identifier::*;
 pub use literal::*;
 pub use op::*;
-use serde::{de, ser};
+use serde::{de, ser, Deserialize, Serialize};
 pub use statement::*;
 use std::fmt;
 
@@ -102,15 +102,15 @@ pub trait Node: Clone + fmt::Debug + PartialEq + de::DeserializeOwned + ser::Ser
 
 ast_node!(
     #[derive(Default)]
-    ##[source_location = |self| self.body.source_location()]
     pub struct Script {
+        loc: SourceLocation,
         body: Block,
     }
 );
 
 impl Script {
-    pub fn new(body: Block) -> Self {
-        Self { body }
+    pub fn new(loc: SourceLocation, body: Block) -> Self {
+        Self { loc, body }
     }
 
     pub fn body(&self) -> &Block {
@@ -118,23 +118,35 @@ impl Script {
     }
 }
 
-ast_node!(
-    #[derive(Default)]
-    pub struct Block {
-        loc: SourceLocation,
-        hoisted_declarations: Vec<Declaration>,
-        body: Vec<Statement>,
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct Block {
+    hoisted_declarations: Vec<Declaration>,
+    body: Vec<Statement>,
+}
+
+impl Default for Block {
+    fn default() -> Self {
+        Self::empty()
     }
-);
+}
 
 impl Block {
-    pub fn new(
-        loc: SourceLocation,
-        hoisted_declarations: Vec<Declaration>,
-        body: Vec<Statement>,
-    ) -> Self {
+    pub fn empty() -> Self {
         Self {
-            loc,
+            hoisted_declarations: Vec::default(),
+            body: Vec::default(),
+        }
+    }
+
+    pub fn single_statement(statement: Statement) -> Self {
+        Self {
+            hoisted_declarations: Vec::default(),
+            body: vec![statement],
+        }
+    }
+
+    pub fn new(hoisted_declarations: Vec<Declaration>, body: Vec<Statement>) -> Self {
+        Self {
             hoisted_declarations,
             body,
         }

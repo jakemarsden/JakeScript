@@ -46,25 +46,27 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             Some(elem) if elem.identifier().is_some() => self
                 .parse_identifier_reference_expression()
                 .map(Expression::IdentifierReference)?,
-            Some(elem) if elem.keyword() == Some(This) => {
-                self.parse_this_expression().map(Expression::This)?
-            }
             Some(elem) if elem.keyword() == Some(New) => {
                 self.parse_new_expression().map(Expression::New)?
             }
+            Some(elem) if elem.keyword() == Some(This) => {
+                self.parse_this_expression().map(Expression::This)?
+            }
+
+            Some(elem) if elem.punctuator() == Some(OpenBracket) => {
+                self.parse_array_expression().map(Expression::Array)?
+            }
+            Some(elem) if elem.keyword() == Some(Function) => self
+                .parse_function_expression()
+                .map(Box::new)
+                .map(Expression::Function)?,
             Some(elem) if elem.literal().is_some() => {
                 self.parse_literal_expression().map(Expression::Literal)?
             }
-            Some(elem) if elem.punctuator() == Some(OpenBracket) => self
-                .parse_array_literal_expression()
-                .map(Expression::Array)?,
-            Some(elem) if elem.punctuator() == Some(OpenBrace) => self
-                .parse_object_literal_expression()
-                .map(Expression::Object)?,
-            Some(elem) if elem.keyword() == Some(Function) => self
-                .parse_function_literal_expression()
-                .map(Box::new)
-                .map(Expression::Function)?,
+            Some(elem) if elem.punctuator() == Some(OpenBrace) => {
+                self.parse_object_expression().map(Expression::Object)?
+            }
+
             Some(elem) if elem.punctuator().is_some() => self.parse_primary_prefix_expression()?,
             elem => return Err(Error::unexpected(Expected::AnyExpression, elem.cloned())),
         })
@@ -78,15 +80,15 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         let loc = elem.source_location().clone();
         self.skip_non_tokens()?;
         Ok(match Operator::try_parse(punc, Position::Prefix) {
+            Some(Operator::Grouping) => self
+                .parse_grouping_expression(loc)
+                .map(Expression::Grouping)?,
             Some(Operator::Unary(op_kind)) => self
                 .parse_unary_expression(loc, op_kind)
                 .map(Expression::Unary)?,
             Some(Operator::Update(op_kind)) => self
                 .parse_update_expression(loc, op_kind)
                 .map(Expression::Update)?,
-            Some(Operator::Grouping) => self
-                .parse_grouping_expression(loc)
-                .map(Expression::Grouping)?,
 
             Some(op_kind) => unreachable!("{:?}", op_kind),
             None => {
@@ -115,15 +117,29 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         self.source.next()?.unwrap();
         self.skip_non_tokens()?;
         let secondary_expression = match op_kind {
+            Operator::Member(kind) => self
+                .parse_member_expression(loc, kind, lhs)
+                .map(Expression::Member)?,
+
             Operator::Assignment(kind) => self
                 .parse_assignment_expression(loc, kind, lhs)
                 .map(Expression::Assignment)?,
+            Operator::Grouping => {
+                self.expect_punctuator(CloseParen)?;
+                Expression::Grouping(GroupingExpression {
+                    loc,
+                    inner: Box::new(lhs),
+                })
+            }
             Operator::Binary(kind) => self
                 .parse_binary_expression(loc, kind, lhs)
                 .map(Expression::Binary)?,
             Operator::Relational(kind) => self
                 .parse_relational_expression(loc, kind, lhs)
                 .map(Expression::Relational)?,
+            Operator::Ternary => self
+                .parse_ternary_expression(loc, lhs)
+                .map(Expression::Ternary)?,
             Operator::Unary(kind) => Expression::Unary(UnaryExpression {
                 loc,
                 op: kind,
@@ -134,19 +150,6 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                 op: kind,
                 operand: Box::new(lhs),
             }),
-            Operator::Member(kind) => self
-                .parse_member_expression(loc, kind, lhs)
-                .map(Expression::Member)?,
-            Operator::Grouping => {
-                self.expect_punctuator(CloseParen)?;
-                Expression::Grouping(GroupingExpression {
-                    loc,
-                    inner: Box::new(lhs),
-                })
-            }
-            Operator::Ternary => self
-                .parse_ternary_expression(loc, lhs)
-                .map(Expression::Ternary)?,
         };
         Ok(Ok(secondary_expression))
     }
@@ -156,106 +159,6 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         Ok(IdentifierReferenceExpression { loc, identifier })
     }
 
-    fn parse_this_expression(&mut self) -> Result<ThisExpression> {
-        let loc = self.expect_keyword(This)?;
-        Ok(ThisExpression { loc })
-    }
-
-    fn parse_new_expression(&mut self) -> Result<NewExpression> {
-        let loc = self.expect_keyword(New)?;
-        self.skip_non_tokens()?;
-        let (type_name, _) = self.expect_identifier("type_name")?;
-        self.skip_non_tokens()?;
-        let arguments = if self
-            .source
-            .next_if(|elem| elem.punctuator() == Some(OpenParen))?
-            .is_some()
-        {
-            let args = self.parse_fn_arguments()?;
-            self.skip_non_tokens()?;
-            self.expect_punctuator(CloseParen)?;
-            args
-        } else {
-            vec![]
-        };
-        Ok(NewExpression {
-            loc,
-            type_name,
-            arguments,
-        })
-    }
-
-    fn parse_assignment_expression(
-        &mut self,
-        loc: SourceLocation,
-        op: AssignmentOperator,
-        lhs: Expression,
-    ) -> Result<AssignmentExpression> {
-        let rhs = self.parse_expression_impl(op.precedence())?;
-        Ok(AssignmentExpression {
-            loc,
-            op,
-            lhs: Box::new(lhs),
-            rhs: Box::new(rhs),
-        })
-    }
-
-    fn parse_binary_expression(
-        &mut self,
-        loc: SourceLocation,
-        op: BinaryOperator,
-        lhs: Expression,
-    ) -> Result<BinaryExpression> {
-        let rhs = self.parse_expression_impl(op.precedence())?;
-        Ok(BinaryExpression {
-            loc,
-            op,
-            lhs: Box::new(lhs),
-            rhs: Box::new(rhs),
-        })
-    }
-
-    fn parse_relational_expression(
-        &mut self,
-        loc: SourceLocation,
-        op: RelationalOperator,
-        lhs: Expression,
-    ) -> Result<RelationalExpression> {
-        let rhs = self.parse_expression_impl(op.precedence())?;
-        Ok(RelationalExpression {
-            loc,
-            op,
-            lhs: Box::new(lhs),
-            rhs: Box::new(rhs),
-        })
-    }
-
-    fn parse_unary_expression(
-        &mut self,
-        loc: SourceLocation,
-        op: UnaryOperator,
-    ) -> Result<UnaryExpression> {
-        let operand = self.parse_expression_impl(op.precedence())?;
-        Ok(UnaryExpression {
-            loc,
-            op,
-            operand: Box::new(operand),
-        })
-    }
-
-    fn parse_update_expression(
-        &mut self,
-        loc: SourceLocation,
-        op: UpdateOperator,
-    ) -> Result<UpdateExpression> {
-        let operand = self.parse_expression_impl(op.precedence())?;
-        Ok(UpdateExpression {
-            loc,
-            op,
-            operand: Box::new(operand),
-        })
-    }
-
     fn parse_member_expression(
         &mut self,
         loc: SourceLocation,
@@ -263,35 +166,16 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         lhs: Expression,
     ) -> Result<MemberExpression> {
         match op {
-            MemberOperator::MemberAccess => self
-                .parse_member_access_expression(loc, lhs)
-                .map(MemberExpression::MemberAccess),
             MemberOperator::ComputedMemberAccess => self
                 .parse_computed_member_access_expression(loc, lhs)
                 .map(MemberExpression::ComputedMemberAccess),
             MemberOperator::FunctionCall => self
                 .parse_function_call_expression(loc, lhs)
                 .map(MemberExpression::FunctionCall),
+            MemberOperator::MemberAccess => self
+                .parse_member_access_expression(loc, lhs)
+                .map(MemberExpression::MemberAccess),
         }
-    }
-
-    fn parse_member_access_expression(
-        &mut self,
-        loc: SourceLocation,
-        lhs: Expression,
-    ) -> Result<MemberAccessExpression> {
-        let rhs = match self.parse_expression_impl(MemberOperator::MemberAccess.precedence())? {
-            Expression::IdentifierReference(member_expr) => member_expr.identifier,
-            member_expr => todo!(
-                "Unsupported member access expression (only simple `a.b` expressions are \
-                 supported): {member_expr:?}"
-            ),
-        };
-        Ok(MemberAccessExpression {
-            loc,
-            base: Box::new(lhs),
-            member: rhs,
-        })
     }
 
     fn parse_computed_member_access_expression(
@@ -345,6 +229,84 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         }
     }
 
+    fn parse_member_access_expression(
+        &mut self,
+        loc: SourceLocation,
+        lhs: Expression,
+    ) -> Result<MemberAccessExpression> {
+        let rhs = match self.parse_expression_impl(MemberOperator::MemberAccess.precedence())? {
+            Expression::IdentifierReference(member_expr) => member_expr.identifier,
+            member_expr => todo!(
+                "Unsupported member access expression (only simple `a.b` expressions are \
+                 supported): {member_expr:?}"
+            ),
+        };
+        Ok(MemberAccessExpression {
+            loc,
+            base: Box::new(lhs),
+            member: rhs,
+        })
+    }
+
+    fn parse_new_expression(&mut self) -> Result<NewExpression> {
+        let loc = self.expect_keyword(New)?;
+        self.skip_non_tokens()?;
+        let (type_name, _) = self.expect_identifier("type_name")?;
+        self.skip_non_tokens()?;
+        let arguments = if self
+            .source
+            .next_if(|elem| elem.punctuator() == Some(OpenParen))?
+            .is_some()
+        {
+            let args = self.parse_fn_arguments()?;
+            self.skip_non_tokens()?;
+            self.expect_punctuator(CloseParen)?;
+            args
+        } else {
+            vec![]
+        };
+        Ok(NewExpression {
+            loc,
+            type_name,
+            arguments,
+        })
+    }
+
+    fn parse_this_expression(&mut self) -> Result<ThisExpression> {
+        let loc = self.expect_keyword(This)?;
+        Ok(ThisExpression { loc })
+    }
+
+    fn parse_assignment_expression(
+        &mut self,
+        loc: SourceLocation,
+        op: AssignmentOperator,
+        lhs: Expression,
+    ) -> Result<AssignmentExpression> {
+        let rhs = self.parse_expression_impl(op.precedence())?;
+        Ok(AssignmentExpression {
+            loc,
+            op,
+            lhs: Box::new(lhs),
+            rhs: Box::new(rhs),
+        })
+    }
+
+    fn parse_binary_expression(
+        &mut self,
+        loc: SourceLocation,
+        op: BinaryOperator,
+        lhs: Expression,
+    ) -> Result<BinaryExpression> {
+        let rhs = self.parse_expression_impl(op.precedence())?;
+        Ok(BinaryExpression {
+            loc,
+            op,
+            lhs: Box::new(lhs),
+            rhs: Box::new(rhs),
+        })
+    }
+
     fn parse_grouping_expression(&mut self, loc: SourceLocation) -> Result<GroupingExpression> {
         let inner = self.parse_expression()?;
         self.skip_non_tokens()?;
@@ -352,6 +314,21 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         Ok(GroupingExpression {
             loc,
             inner: Box::new(inner),
+        })
+    }
+
+    fn parse_relational_expression(
+        &mut self,
+        loc: SourceLocation,
+        op: RelationalOperator,
+        lhs: Expression,
+    ) -> Result<RelationalExpression> {
+        let rhs = self.parse_expression_impl(op.precedence())?;
+        Ok(RelationalExpression {
+            loc,
+            op,
+            lhs: Box::new(lhs),
+            rhs: Box::new(rhs),
         })
     }
 
@@ -374,6 +351,32 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             rhs: Box::new(rhs),
         })
     }
+
+    fn parse_unary_expression(
+        &mut self,
+        loc: SourceLocation,
+        op: UnaryOperator,
+    ) -> Result<UnaryExpression> {
+        let operand = self.parse_expression_impl(op.precedence())?;
+        Ok(UnaryExpression {
+            loc,
+            op,
+            operand: Box::new(operand),
+        })
+    }
+
+    fn parse_update_expression(
+        &mut self,
+        loc: SourceLocation,
+        op: UpdateOperator,
+    ) -> Result<UpdateExpression> {
+        let operand = self.parse_expression_impl(op.precedence())?;
+        Ok(UpdateExpression {
+            loc,
+            op,
+            operand: Box::new(operand),
+        })
+    }
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -387,31 +390,45 @@ pub(super) enum Position {
     PostfixOrInfix,
 }
 
-trait TryParse {
+trait ParseOperator {
     fn try_parse(punc: Punctuator, pos: Position) -> Option<Self>
     where
         Self: Sized;
 }
 
-impl TryParse for Operator {
+impl ParseOperator for Operator {
     fn try_parse(punc: Punctuator, pos: Position) -> Option<Self> {
-        AssignmentOperator::try_parse(punc, pos)
-            .map(Self::Assignment)
+        MemberOperator::try_parse(punc, pos)
+            .map(Self::Member)
+            .or_else(|| AssignmentOperator::try_parse(punc, pos).map(Self::Assignment))
             .or_else(|| BinaryOperator::try_parse(punc, pos).map(Self::Binary))
             .or_else(|| RelationalOperator::try_parse(punc, pos).map(Self::Relational))
             .or_else(|| UnaryOperator::try_parse(punc, pos).map(Self::Unary))
             .or_else(|| UpdateOperator::try_parse(punc, pos).map(Self::Update))
-            .or_else(|| MemberOperator::try_parse(punc, pos).map(Self::Member))
-            .or_else(|| GroupingOperator::try_parse(punc, pos).map(|_| Self::Grouping))
-            .or_else(|| TernaryOperator::try_parse(punc, pos).map(|_| Self::Ternary))
+            .or_else(|| {
+                Some(match (punc, pos) {
+                    (OpenParen, Position::Prefix) => Self::Grouping,
+                    (Question, Position::PostfixOrInfix) => Self::Ternary,
+                    (_, _) => return None,
+                })
+            })
     }
 }
 
-impl TryParse for AssignmentOperator {
+impl ParseOperator for MemberOperator {
     fn try_parse(punc: Punctuator, pos: Position) -> Option<Self> {
-        if pos != Position::PostfixOrInfix {
-            return None;
-        }
+        Some(match (punc, pos) {
+            (Dot, Position::PostfixOrInfix) => Self::MemberAccess,
+            (OpenBracket, Position::PostfixOrInfix) => Self::ComputedMemberAccess,
+            (OpenParen, Position::PostfixOrInfix) => Self::FunctionCall,
+            (_, _) => return None,
+        })
+    }
+}
+
+impl ParseOperator for AssignmentOperator {
+    fn try_parse(punc: Punctuator, pos: Position) -> Option<Self> {
+        let Position::PostfixOrInfix = pos else { return None };
         Some(match punc {
             Eq => Self::Assign,
             PlusEq => Self::ComputeAssign(BinaryOperator::Addition),
@@ -431,11 +448,9 @@ impl TryParse for AssignmentOperator {
     }
 }
 
-impl TryParse for BinaryOperator {
+impl ParseOperator for BinaryOperator {
     fn try_parse(punc: Punctuator, pos: Position) -> Option<Self> {
-        if pos != Position::PostfixOrInfix {
-            return None;
-        }
+        let Position::PostfixOrInfix = pos else { return None };
         Some(match punc {
             Plus => Self::Addition,
             Minus => Self::Subtraction,
@@ -456,11 +471,9 @@ impl TryParse for BinaryOperator {
     }
 }
 
-impl TryParse for RelationalOperator {
+impl ParseOperator for RelationalOperator {
     fn try_parse(punc: Punctuator, pos: Position) -> Option<Self> {
-        if pos != Position::PostfixOrInfix {
-            return None;
-        }
+        let Position::PostfixOrInfix = pos else { return None };
         Some(match punc {
             EqEq => Self::Equality,
             BangEq => Self::Inequality,
@@ -475,7 +488,7 @@ impl TryParse for RelationalOperator {
     }
 }
 
-impl TryParse for UnaryOperator {
+impl ParseOperator for UnaryOperator {
     fn try_parse(punc: Punctuator, pos: Position) -> Option<Self> {
         Some(match (punc, pos) {
             (Plus, Position::Prefix) => Self::NumericPlus,
@@ -487,7 +500,7 @@ impl TryParse for UnaryOperator {
     }
 }
 
-impl TryParse for UpdateOperator {
+impl ParseOperator for UpdateOperator {
     fn try_parse(punc: Punctuator, pos: Position) -> Option<Self> {
         Some(match (punc, pos) {
             (PlusPlus, Position::PostfixOrInfix) => Self::GetAndIncrement,
@@ -496,28 +509,5 @@ impl TryParse for UpdateOperator {
             (MinusMinus, Position::Prefix) => Self::DecrementAndGet,
             (_, _) => return None,
         })
-    }
-}
-
-impl TryParse for MemberOperator {
-    fn try_parse(punc: Punctuator, pos: Position) -> Option<Self> {
-        Some(match (punc, pos) {
-            (Dot, Position::PostfixOrInfix) => Self::MemberAccess,
-            (OpenBracket, Position::PostfixOrInfix) => Self::ComputedMemberAccess,
-            (OpenParen, Position::PostfixOrInfix) => Self::FunctionCall,
-            (_, _) => return None,
-        })
-    }
-}
-
-impl TryParse for GroupingOperator {
-    fn try_parse(punc: Punctuator, pos: Position) -> Option<Self> {
-        matches!((punc, pos), (OpenParen, Position::Prefix)).then_some(Self)
-    }
-}
-
-impl TryParse for TernaryOperator {
-    fn try_parse(punc: Punctuator, pos: Position) -> Option<Self> {
-        matches!((punc, pos), (Question, Position::PostfixOrInfix)).then_some(Self)
     }
 }

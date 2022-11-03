@@ -99,16 +99,14 @@ mod simple {
     fn expected() -> Script {
         let loc = SourceLocation::at_start_of("test");
 
-        Script::new(Block::new(
+        Script::new(
             at![loc@0:0],
-            vec![Declaration::Function(FunctionDeclaration {
-                loc: at![loc@2:0],
-                binding: ident!("square"),
-                parameters: vec![ident!("n")],
-                body: Block::new(
-                    at![loc@2:19],
-                    vec![],
-                    vec![Statement::Return(ReturnStatement {
+            Block::new(
+                vec![Declaration::Function(FunctionDeclaration {
+                    loc: at![loc@2:0],
+                    binding: ident!("square"),
+                    parameters: vec![ident!("n")],
+                    body: Block::single_statement(Statement::Return(ReturnStatement {
                         loc: at![loc@3:4],
                         value: Some(Expression::Binary(BinaryExpression {
                             loc: at![loc@3:11],
@@ -124,12 +122,10 @@ mod simple {
                                 value: ast::Literal::Numeric(ast::NumericLiteral::Int(2)),
                             })),
                         })),
-                    })],
-                ),
-            })],
-            vec![Statement::Expression(ExpressionStatement {
-                expression: Expression::Member(MemberExpression::FunctionCall(
-                    FunctionCallExpression {
+                    })),
+                })],
+                vec![Statement::Expression(Expression::Member(
+                    MemberExpression::FunctionCall(FunctionCallExpression {
                         loc: at![loc@0:0],
                         function: Box::new(Expression::IdentifierReference(
                             IdentifierReferenceExpression {
@@ -141,10 +137,10 @@ mod simple {
                             loc: at![loc@0:7],
                             value: Literal::Numeric(NumericLiteral::Int(4)),
                         })],
-                    },
-                )),
-            })],
-        ))
+                    }),
+                ))],
+            ),
+        )
     }
 }
 

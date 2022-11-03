@@ -22,7 +22,7 @@ mod statement;
 mod value;
 mod vm;
 
-pub trait Eval: Node {
+pub trait Eval {
     type Output = ();
 
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output>;

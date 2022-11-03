@@ -10,8 +10,8 @@ ast_node!(
     #[serde(tag = "declaration_type")]
     pub enum Declaration {
         Function(FunctionDeclaration),
-        Variable(VariableDeclaration),
         Lexical(LexicalDeclaration),
+        Variable(VariableDeclaration),
     }
 );
 
@@ -44,9 +44,23 @@ ast_node!(
 );
 
 ast_node!(
+    pub struct LexicalDeclaration {
+        pub loc: SourceLocation,
+        pub kind: LexicalDeclarationKind,
+        pub bindings: Vec<Binding>,
+    }
+);
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+pub enum LexicalDeclarationKind {
+    Const,
+    Let,
+}
+
+ast_node!(
     pub struct VariableDeclaration {
         pub loc: SourceLocation,
-        pub bindings: Vec<VariableBinding>,
+        pub bindings: Vec<Binding>,
     }
 );
 
@@ -80,21 +94,7 @@ impl VariableDeclaration {
 }
 
 ast_node!(
-    pub struct LexicalDeclaration {
-        pub loc: SourceLocation,
-        pub kind: LexicalDeclarationKind,
-        pub bindings: Vec<VariableBinding>,
-    }
-);
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
-pub enum LexicalDeclarationKind {
-    Const,
-    Let,
-}
-
-ast_node!(
-    pub struct VariableBinding {
+    pub struct Binding {
         pub loc: SourceLocation,
         pub identifier: Identifier,
         pub initialiser: Option<Expression>,

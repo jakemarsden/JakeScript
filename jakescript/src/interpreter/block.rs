@@ -32,7 +32,7 @@ impl Eval for Block {
                 break;
             }
             result = match node {
-                Statement::Expression(expr) => expr.expression.eval(it),
+                Statement::Expression(expr) => expr.eval(it),
                 node => node.eval(it).map(|()| Value::default()),
             }?;
         }

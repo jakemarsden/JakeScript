@@ -15,17 +15,17 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             Some(Token::Keyword(Function)) => {
                 self.parse_function_declaration().map(Declaration::Function)
             }
-            Some(Token::Keyword(Var)) => {
-                let decl = self.parse_variable_declaration()?;
-                self.skip_non_tokens()?;
-                self.expect_punctuator(Semi)?;
-                Ok(Declaration::Variable(decl))
-            }
             Some(Token::Keyword(Const | Let)) => {
                 let decl = self.parse_lexical_declaration()?;
                 self.skip_non_tokens()?;
                 self.expect_punctuator(Semi)?;
                 Ok(Declaration::Lexical(decl))
+            }
+            Some(Token::Keyword(Var)) => {
+                let decl = self.parse_variable_declaration()?;
+                self.skip_non_tokens()?;
+                self.expect_punctuator(Semi)?;
+                Ok(Declaration::Variable(decl))
             }
             _ => Err(Error::unexpected(
                 (Function, Var, Const, Let),
@@ -41,7 +41,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         self.skip_non_tokens()?;
         let parameters = self.parse_fn_parameters()?;
         self.skip_non_tokens()?;
-        let body = self.parse_block()?;
+        let (_, body) = self.parse_block()?;
         Ok(FunctionDeclaration {
             loc,
             binding,
@@ -79,13 +79,6 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         }
     }
 
-    pub(super) fn parse_variable_declaration(&mut self) -> Result<VariableDeclaration> {
-        let loc = self.expect_keyword(Var)?;
-        self.skip_non_tokens()?;
-        let bindings = self.parse_variable_bindings()?;
-        Ok(VariableDeclaration { loc, bindings })
-    }
-
     pub(super) fn parse_lexical_declaration(&mut self) -> Result<LexicalDeclaration> {
         let (kind, loc) = match self.source.next()? {
             Some(elem) if elem.keyword() == Some(Const) => (
@@ -108,7 +101,14 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         })
     }
 
-    fn parse_variable_bindings(&mut self) -> Result<Vec<VariableBinding>> {
+    pub(super) fn parse_variable_declaration(&mut self) -> Result<VariableDeclaration> {
+        let loc = self.expect_keyword(Var)?;
+        self.skip_non_tokens()?;
+        let bindings = self.parse_variable_bindings()?;
+        Ok(VariableDeclaration { loc, bindings })
+    }
+
+    fn parse_variable_bindings(&mut self) -> Result<Vec<Binding>> {
         let mut bindings = Vec::new();
         loop {
             self.skip_non_tokens()?;
@@ -125,7 +125,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         }
     }
 
-    fn parse_variable_binding(&mut self) -> Result<VariableBinding> {
+    fn parse_variable_binding(&mut self) -> Result<Binding> {
         let (identifier, loc) = self.expect_identifier("variable_name")?;
         self.skip_non_tokens()?;
         let initialiser = match self.source.peek()? {
@@ -137,7 +137,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             Some(elem) if matches!(elem.punctuator(), Some(Comma | Semi)) => None,
             elem => return Err(Error::unexpected((Eq, Comma, Semi), elem.cloned())),
         };
-        Ok(VariableBinding {
+        Ok(Binding {
             loc,
             identifier,
             initialiser,

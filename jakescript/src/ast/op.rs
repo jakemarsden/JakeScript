@@ -2,40 +2,66 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Operator {
+    Member(MemberOperator),
+
     Assignment(AssignmentOperator),
     Binary(BinaryOperator),
+    Grouping,
     Relational(RelationalOperator),
+    Ternary,
     Unary(UnaryOperator),
     Update(UpdateOperator),
-    Member(MemberOperator),
-    Grouping,
-    Ternary,
 }
 
 impl Operator {
     pub fn associativity(&self) -> Associativity {
         match self {
+            Self::Member(kind) => kind.associativity(),
+
             Self::Assignment(kind) => kind.associativity(),
             Self::Binary(kind) => kind.associativity(),
+            Self::Grouping => Associativity::LeftToRight,
             Self::Relational(kind) => kind.associativity(),
+            Self::Ternary => Associativity::RightToLeft,
             Self::Unary(kind) => kind.associativity(),
             Self::Update(kind) => kind.associativity(),
-            Self::Member(kind) => kind.associativity(),
-            Self::Grouping => GroupingOperator::associativity(),
-            Self::Ternary => TernaryOperator::associativity(),
         }
     }
 
     pub fn precedence(&self) -> Precedence {
         match self {
+            Self::Member(kind) => kind.precedence(),
+
             Self::Assignment(kind) => kind.precedence(),
             Self::Binary(kind) => kind.precedence(),
+            Self::Grouping => Precedence(21),
             Self::Relational(kind) => kind.precedence(),
+            Self::Ternary => Precedence(4),
             Self::Unary(kind) => kind.precedence(),
             Self::Update(kind) => kind.precedence(),
-            Self::Member(kind) => kind.precedence(),
-            Self::Grouping => GroupingOperator::precedence(),
-            Self::Ternary => TernaryOperator::precedence(),
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+pub enum MemberOperator {
+    ComputedMemberAccess,
+    FunctionCall,
+    MemberAccess,
+}
+
+impl MemberOperator {
+    pub fn associativity(&self) -> Associativity {
+        match self {
+            Self::ComputedMemberAccess | Self::FunctionCall | Self::MemberAccess => {
+                Associativity::LeftToRight
+            }
+        }
+    }
+
+    pub fn precedence(&self) -> Precedence {
+        match self {
+            Self::ComputedMemberAccess | Self::FunctionCall | Self::MemberAccess => Precedence(20),
         }
     }
 }
@@ -192,55 +218,6 @@ impl UpdateOperator {
             Self::GetAndIncrement | Self::GetAndDecrement => Precedence(18),
             Self::IncrementAndGet | Self::DecrementAndGet => Precedence(17),
         }
-    }
-}
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
-pub enum MemberOperator {
-    MemberAccess,
-    ComputedMemberAccess,
-    FunctionCall,
-}
-
-impl MemberOperator {
-    pub fn associativity(&self) -> Associativity {
-        match self {
-            Self::MemberAccess | Self::ComputedMemberAccess | Self::FunctionCall => {
-                Associativity::LeftToRight
-            }
-        }
-    }
-
-    pub fn precedence(&self) -> Precedence {
-        match self {
-            Self::MemberAccess | Self::ComputedMemberAccess | Self::FunctionCall => Precedence(20),
-        }
-    }
-}
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub struct GroupingOperator;
-
-impl GroupingOperator {
-    pub fn associativity() -> Associativity {
-        Associativity::LeftToRight
-    }
-
-    pub fn precedence() -> Precedence {
-        Precedence(21)
-    }
-}
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub struct TernaryOperator;
-
-impl TernaryOperator {
-    pub fn associativity() -> Associativity {
-        Associativity::RightToLeft
-    }
-
-    pub fn precedence() -> Precedence {
-        Precedence(4)
     }
 }
 

@@ -43,7 +43,8 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
     }
 
     pub fn execute(mut self) -> Result {
-        // FIXME: Path is discarded for empty scripts.
+        // FIXME: Store the script path in the `Script`, not in every single AST node!
+        // The path also wouldn't be lost for empty scripts.
         let loc = self
             .source
             .peek()?
@@ -52,8 +53,8 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             .unwrap_or_default();
 
         self.skip_non_tokens()?;
-        let body = self.parse_block_body(loc)?;
-        Ok(Script::new(body))
+        let body = self.parse_block_body()?;
+        Ok(Script::new(loc, body))
     }
 
     fn skip_non_tokens(&mut self) -> lexer::Result<()> {

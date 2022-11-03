@@ -8,20 +8,22 @@ use crate::ast::*;
 impl Eval for Statement {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         match self {
+            Self::Declaration(node) => node.eval(it),
+            Self::Expression(node) => node.eval(it).map(|_| ()),
+
             Self::Empty(node) => node.eval(it),
             Self::Block(node) => node.eval(it),
-            Self::Declaration(node) => node.eval(it),
-            Self::Expression(node) => node.eval(it),
 
             Self::If(node) => node.eval(it),
             Self::Switch(node) => node.eval(it),
-            Self::While(node) => node.eval(it),
-            Self::Do(node) => node.eval(it),
-            Self::For(node) => node.eval(it),
             Self::Try(node) => node.eval(it),
 
-            Self::Continue(node) => node.eval(it),
+            Self::Do(node) => node.eval(it),
+            Self::For(node) => node.eval(it),
+            Self::While(node) => node.eval(it),
+
             Self::Break(node) => node.eval(it),
+            Self::Continue(node) => node.eval(it),
             Self::Return(node) => node.eval(it),
             Self::Throw(node) => node.eval(it),
         }
@@ -37,18 +39,6 @@ impl Eval for EmptyStatement {
 impl Eval for BlockStatement {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         self.block.eval(it).map(|_| ())
-    }
-}
-
-impl Eval for DeclarationStatement {
-    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        self.declaration.eval(it)
-    }
-}
-
-impl Eval for ExpressionStatement {
-    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        self.expression.eval(it).map(|_| ())
     }
 }
 
@@ -81,7 +71,7 @@ impl Eval for SwitchStatement {
 
         // Skip cases while `actual != expected`.
         while let Some(case) = cases.peek() {
-            let expected = case.expected.eval(it)?;
+            let expected = case.pattern.eval(it)?;
             if it.equal(expected, value) {
                 break;
             }
@@ -137,28 +127,46 @@ impl Eval for DefaultCaseStatement {
     }
 }
 
-impl Eval for WhileStatement {
+impl Eval for TryStatement {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        loop {
-            let condition = self.condition.eval(it)?;
-            if !it.is_truthy(condition) {
-                break;
-            }
-
-            it.vm_mut()
-                .stack_mut()
-                .push_empty_scope(false)
-                .map_err(|err| Error::new(err, self.source_location()))?;
-            self.body.eval(it)?;
-            it.vm_mut().stack_mut().pop_scope();
-
-            match it.vm_mut().handle_loop_execution_state() {
-                IterationDecision::Advance => {}
-                IterationDecision::Break => break,
-                IterationDecision::Continue => continue,
+        self.body.eval(it)?;
+        if let Some(ref catch) = self.catch {
+            if matches!(it.vm().execution_state(), ExecutionState::Exception(..)) {
+                catch.eval(it)?;
             }
         }
+        if let Some(ref finally) = self.finally {
+            finally.eval(it)?;
+        }
         Ok(())
+    }
+}
+
+impl Eval for CatchStatement {
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
+        let exception = it.vm_mut().clear_exception().unwrap();
+        if let Some(ref exception_var_name) = self.exception_binding {
+            let exception_var =
+                Variable::new(VariableKind::Let, exception_var_name.clone(), exception);
+            it.vm_mut()
+                .stack_mut()
+                .push_scope(false, vec![exception_var])
+                .map_err(|err| Error::new(err, self.source_location()))?;
+        }
+        self.body.eval(it)?;
+        if self.exception_binding.is_some() {
+            it.vm_mut().stack_mut().pop_scope();
+        }
+        Ok(())
+    }
+}
+
+impl Eval for FinallyStatement {
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
+        it.vm_mut().hide_current_exception();
+        let result = self.body.eval(it).map(|_| ());
+        it.vm_mut().restore_hidden_exception();
+        result
     }
 }
 
@@ -228,7 +236,7 @@ impl Eval for ForStatement {
     }
 }
 
-impl Eval for LoopInitialiser {
+impl Eval for ForInitialiser {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         match self {
             Self::Expression(node) => node.eval(it).map(|_| ()),
@@ -238,52 +246,27 @@ impl Eval for LoopInitialiser {
     }
 }
 
-impl Eval for TryStatement {
+impl Eval for WhileStatement {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        self.body.eval(it)?;
-        if let Some(ref catch) = self.catch {
-            if matches!(it.vm().execution_state(), ExecutionState::Exception(..)) {
-                catch.eval(it)?;
+        loop {
+            let condition = self.condition.eval(it)?;
+            if !it.is_truthy(condition) {
+                break;
             }
-        }
-        if let Some(ref finally) = self.finally {
-            finally.eval(it)?;
-        }
-        Ok(())
-    }
-}
 
-impl Eval for CatchStatement {
-    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        let exception = it.vm_mut().clear_exception().unwrap();
-        if let Some(ref exception_var_name) = self.parameter {
-            let exception_var =
-                Variable::new(VariableKind::Let, exception_var_name.clone(), exception);
             it.vm_mut()
                 .stack_mut()
-                .push_scope(false, vec![exception_var])
+                .push_empty_scope(false)
                 .map_err(|err| Error::new(err, self.source_location()))?;
-        }
-        self.body.eval(it)?;
-        if self.parameter.is_some() {
+            self.body.eval(it)?;
             it.vm_mut().stack_mut().pop_scope();
+
+            match it.vm_mut().handle_loop_execution_state() {
+                IterationDecision::Advance => {}
+                IterationDecision::Break => break,
+                IterationDecision::Continue => continue,
+            }
         }
-        Ok(())
-    }
-}
-
-impl Eval for FinallyStatement {
-    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        it.vm_mut().hide_current_exception();
-        let result = self.body.eval(it).map(|_| ());
-        it.vm_mut().restore_hidden_exception();
-        result
-    }
-}
-
-impl Eval for ContinueStatement {
-    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        it.vm_mut().set_execution_state(ExecutionState::Continue);
         Ok(())
     }
 }
@@ -291,6 +274,13 @@ impl Eval for ContinueStatement {
 impl Eval for BreakStatement {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         it.vm_mut().set_execution_state(ExecutionState::Break);
+        Ok(())
+    }
+}
+
+impl Eval for ContinueStatement {
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
+        it.vm_mut().set_execution_state(ExecutionState::Continue);
         Ok(())
     }
 }

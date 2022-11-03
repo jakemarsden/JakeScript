@@ -8,17 +8,17 @@ use crate::token::{Element, SourceLocation};
 use fallible_iterator::FallibleIterator;
 
 impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
-    pub(super) fn parse_block(&mut self) -> Result<Block> {
+    pub(super) fn parse_block(&mut self) -> Result<(SourceLocation, Block)> {
         let loc = self.expect_punctuator(OpenBrace)?;
         self.skip_non_tokens()?;
-        let block = self.parse_block_body(loc)?;
+        let block = self.parse_block_body()?;
         self.skip_non_tokens()?;
         self.expect_punctuator(CloseBrace)?;
-        Ok(block)
+        Ok((loc, block))
     }
 
     /// - `loc` - Location of the opening brace.
-    pub(super) fn parse_block_body(&mut self, loc: SourceLocation) -> Result<Block> {
+    pub(super) fn parse_block_body(&mut self) -> Result<Block> {
         let mut hoisted_decls = Vec::new();
         let mut body = Vec::new();
         loop {
@@ -33,15 +33,11 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                     let (decl, init_exprs) = decl.into_declaration_and_initialiser();
                     hoisted_decls.push(decl);
                     body.reserve(init_exprs.len());
-                    body.extend(init_exprs.into_iter().map(|init_expr| {
-                        Statement::Expression(ExpressionStatement {
-                            expression: init_expr,
-                        })
-                    }));
+                    body.extend(init_exprs.into_iter().map(Statement::Expression));
                 }
                 node => body.push(node),
             };
         }
-        Ok(Block::new(loc, hoisted_decls, body))
+        Ok(Block::new(hoisted_decls, body))
     }
 }

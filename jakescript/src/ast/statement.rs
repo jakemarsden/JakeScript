@@ -8,22 +8,31 @@ use crate::token::SourceLocation;
 ast_node!(
     #[serde(tag = "statement_type")]
     pub enum Statement {
-        Empty(EmptyStatement),
+        Declaration(Declaration),
+        Expression(Expression),
+
         Block(BlockStatement),
-        Declaration(DeclarationStatement),
-        Expression(ExpressionStatement),
+        Empty(EmptyStatement),
 
         If(IfStatement),
         Switch(SwitchStatement),
-        Do(DoStatement),
-        While(WhileStatement),
-        For(ForStatement),
         Try(TryStatement),
 
-        Continue(ContinueStatement),
+        Do(DoStatement),
+        For(ForStatement),
+        While(WhileStatement),
+
         Break(BreakStatement),
+        Continue(ContinueStatement),
         Return(ReturnStatement),
         Throw(ThrowStatement),
+    }
+);
+
+ast_node!(
+    pub struct BlockStatement {
+        pub loc: SourceLocation,
+        pub block: Block,
     }
 );
 
@@ -31,37 +40,6 @@ ast_node!(
     #[derive(Eq)]
     pub struct EmptyStatement {
         pub loc: SourceLocation,
-    }
-);
-
-ast_node!(
-    ##[source_location = |self| self.block.source_location()]
-    pub struct BlockStatement {
-        pub block: Block,
-    }
-);
-
-ast_node!(
-    ##[source_location = |self| self.declaration.source_location()]
-    pub struct DeclarationStatement {
-        pub declaration: Declaration,
-    }
-);
-
-impl DeclarationStatement {
-    pub fn is_hoisted(&self) -> bool {
-        self.declaration.is_hoisted()
-    }
-
-    pub fn into_declaration_and_initialiser(self) -> (Declaration, Vec<Expression>) {
-        self.declaration.into_declaration_and_initialiser()
-    }
-}
-
-ast_node!(
-    ##[source_location = |self| self.expression.source_location()]
-    pub struct ExpressionStatement {
-        pub expression: Expression,
     }
 );
 
@@ -86,7 +64,7 @@ ast_node!(
 ast_node!(
     pub struct CaseStatement {
         pub loc: SourceLocation,
-        pub expected: Expression,
+        pub pattern: Expression,
         pub body: Vec<Statement>,
     }
 );
@@ -99,6 +77,31 @@ ast_node!(
 );
 
 ast_node!(
+    pub struct TryStatement {
+        pub loc: SourceLocation,
+        pub body: Block,
+        pub catch: Option<CatchStatement>,
+        pub finally: Option<FinallyStatement>,
+    }
+);
+
+ast_node!(
+    pub struct CatchStatement {
+        pub loc: SourceLocation,
+        /// Name of the variable to bind the caught exception to.
+        pub exception_binding: Option<Identifier>,
+        pub body: Block,
+    }
+);
+
+ast_node!(
+    pub struct FinallyStatement {
+        pub loc: SourceLocation,
+        pub body: Block,
+    }
+);
+
+ast_node!(
     pub struct DoStatement {
         pub loc: SourceLocation,
         pub body: Box<Statement>,
@@ -107,17 +110,9 @@ ast_node!(
 );
 
 ast_node!(
-    pub struct WhileStatement {
-        pub loc: SourceLocation,
-        pub condition: Expression,
-        pub body: Box<Statement>,
-    }
-);
-
-ast_node!(
     pub struct ForStatement {
         pub loc: SourceLocation,
-        pub initialiser: Option<LoopInitialiser>,
+        pub initialiser: Option<ForInitialiser>,
         pub condition: Option<Expression>,
         pub incrementor: Option<Expression>,
         pub body: Box<Statement>,
@@ -137,42 +132,18 @@ ast_node!(
 //   "bar");`
 ast_node!(
     #[serde(tag = "initialiser_type")]
-    pub enum LoopInitialiser {
+    pub enum ForInitialiser {
         Expression(Expression),
-        VariableDeclaration(VariableDeclaration),
         LexicalDeclaration(LexicalDeclaration),
+        VariableDeclaration(VariableDeclaration),
     }
 );
 
 ast_node!(
-    pub struct TryStatement {
+    pub struct WhileStatement {
         pub loc: SourceLocation,
-        pub body: Block,
-        pub catch: Option<CatchStatement>,
-        pub finally: Option<FinallyStatement>,
-    }
-);
-
-ast_node!(
-    pub struct CatchStatement {
-        pub loc: SourceLocation,
-        pub parameter: Option<Identifier>,
-        pub body: Block,
-    }
-);
-
-ast_node!(
-    pub struct FinallyStatement {
-        pub loc: SourceLocation,
-        pub body: Block,
-    }
-);
-
-// TODO: Support labels.
-ast_node!(
-    #[derive(Eq)]
-    pub struct ContinueStatement {
-        pub loc: SourceLocation,
+        pub condition: Expression,
+        pub body: Box<Statement>,
     }
 );
 
@@ -180,6 +151,14 @@ ast_node!(
 ast_node!(
     #[derive(Eq)]
     pub struct BreakStatement {
+        pub loc: SourceLocation,
+    }
+);
+
+// TODO: Support labels.
+ast_node!(
+    #[derive(Eq)]
+    pub struct ContinueStatement {
         pub loc: SourceLocation,
     }
 );

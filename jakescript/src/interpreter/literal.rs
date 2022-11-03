@@ -48,10 +48,10 @@ impl Eval for ObjectExpression {
         let mut resolved_props = HashMap::with_capacity(self.declared_properties.len());
         for prop in &self.declared_properties {
             let name = match prop.name {
-                DeclaredPropertyName::Identifier(ref value) => value.clone(),
-                DeclaredPropertyName::NumericLiteral(..)
-                | DeclaredPropertyName::StringLiteral(..)
-                | DeclaredPropertyName::Computed(..) => todo!(
+                ObjectPropertyName::Identifier(ref value) => value.clone(),
+                ObjectPropertyName::NumericLiteral(..)
+                | ObjectPropertyName::StringLiteral(..)
+                | ObjectPropertyName::Computed(..) => todo!(
                     "ObjectExpression::eval: Non-identifier property name: {:?}",
                     prop.name,
                 ),
@@ -77,7 +77,7 @@ impl Eval for FunctionExpression {
             .alloc_function(UserFunction::new(
                 self.binding.clone(),
                 declared_scope,
-                self.formal_parameters.clone(),
+                self.parameters.clone(),
                 self.body.clone(),
             ))
             .map_err(|err| Error::new(err, self.source_location()))?;

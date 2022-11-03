@@ -12,34 +12,7 @@ use crate::token::{self, Element};
 use fallible_iterator::FallibleIterator;
 
 impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
-    pub(super) fn parse_literal_expression(&mut self) -> Result<LiteralExpression> {
-        let (value, loc) = self.expect_literal()?;
-        let value = match value {
-            token::Literal::Boolean(value) => ast::Literal::Boolean(value),
-            token::Literal::Numeric(
-                token::NumericLiteral::BinInt(value)
-                | token::NumericLiteral::OctInt(value)
-                | token::NumericLiteral::DecInt(value)
-                | token::NumericLiteral::HexInt(value),
-            ) => ast::Literal::Numeric(ast::NumericLiteral::Int(value)),
-            token::Literal::Numeric(token::NumericLiteral::Decimal(value)) => {
-                ast::Literal::Numeric(ast::NumericLiteral::Float(value))
-            }
-            token::Literal::String(value) => {
-                ast::Literal::String(ast::StringLiteral { value: value.value })
-            }
-            token::Literal::RegEx(value) => {
-                // FIXME: Support Literal::RegEx properly.
-                ast::Literal::String(ast::StringLiteral {
-                    value: value.to_string().into_boxed_str(),
-                })
-            }
-            token::Literal::Null => ast::Literal::Null,
-        };
-        Ok(LiteralExpression { loc, value })
-    }
-
-    pub(super) fn parse_array_literal_expression(&mut self) -> Result<ArrayExpression> {
+    pub(super) fn parse_array_expression(&mut self) -> Result<ArrayExpression> {
         let loc = self.expect_punctuator(OpenBracket)?;
         self.skip_non_tokens()?;
         let declared_elements = self.parse_array_elements()?;
@@ -73,7 +46,62 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         }
     }
 
-    pub(super) fn parse_object_literal_expression(&mut self) -> Result<ObjectExpression> {
+    pub(super) fn parse_function_expression(&mut self) -> Result<FunctionExpression> {
+        let loc = self.expect_keyword(Function)?;
+        self.skip_non_tokens()?;
+        let binding = match self.source.peek()? {
+            Some(elem) if elem.identifier().is_some() => {
+                let (binding, _) = self.expect_identifier("function_name")?;
+                Some(binding)
+            }
+            Some(elem) if elem.punctuator() == Some(OpenParen) => None,
+            elem => {
+                return Err(Error::unexpected(
+                    (OpenParen, Expected::Identifier("function_name")),
+                    elem.cloned(),
+                ));
+            }
+        };
+        self.skip_non_tokens()?;
+        let parameters = self.parse_fn_parameters()?;
+        self.skip_non_tokens()?;
+        let (_, body) = self.parse_block()?;
+        Ok(FunctionExpression {
+            loc,
+            binding,
+            parameters,
+            body,
+        })
+    }
+
+    pub(super) fn parse_literal_expression(&mut self) -> Result<LiteralExpression> {
+        let (value, loc) = self.expect_literal()?;
+        let value = match value {
+            token::Literal::Boolean(value) => ast::Literal::Boolean(value),
+            token::Literal::Numeric(
+                token::NumericLiteral::BinInt(value)
+                | token::NumericLiteral::OctInt(value)
+                | token::NumericLiteral::DecInt(value)
+                | token::NumericLiteral::HexInt(value),
+            ) => ast::Literal::Numeric(ast::NumericLiteral::Int(value)),
+            token::Literal::Numeric(token::NumericLiteral::Decimal(value)) => {
+                ast::Literal::Numeric(ast::NumericLiteral::Float(value))
+            }
+            token::Literal::String(value) => {
+                ast::Literal::String(ast::StringLiteral { value: value.value })
+            }
+            token::Literal::RegEx(value) => {
+                // FIXME: Support Literal::RegEx properly.
+                ast::Literal::String(ast::StringLiteral {
+                    value: value.to_string().into_boxed_str(),
+                })
+            }
+            token::Literal::Null => ast::Literal::Null,
+        };
+        Ok(LiteralExpression { loc, value })
+    }
+
+    pub(super) fn parse_object_expression(&mut self) -> Result<ObjectExpression> {
         let loc = self.expect_punctuator(OpenBrace)?;
         self.skip_non_tokens()?;
         let declared_properties = self.parse_object_properties()?;
@@ -85,7 +113,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         })
     }
 
-    fn parse_object_properties(&mut self) -> Result<Vec<DeclaredProperty>> {
+    fn parse_object_properties(&mut self) -> Result<Vec<ObjectProperty>> {
         let mut props = Vec::new();
         Ok(loop {
             self.skip_non_tokens()?;
@@ -112,11 +140,11 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         })
     }
 
-    fn parse_object_property(&mut self) -> Result<DeclaredProperty> {
+    fn parse_object_property(&mut self) -> Result<ObjectProperty> {
         let name = match self.source.next()? {
             // TODO: Parse non-identifier declared property names.
             Some(elem) if elem.identifier().is_some() => {
-                DeclaredPropertyName::Identifier(Identifier::from(elem.into_identifier().unwrap()))
+                ObjectPropertyName::Identifier(Identifier::from(elem.into_identifier().unwrap()))
             }
             elem => {
                 return Err(Error::unexpected(
@@ -129,34 +157,6 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         self.expect_punctuator(Colon)?;
         self.skip_non_tokens()?;
         let initialiser = self.parse_expression()?;
-        Ok(DeclaredProperty { name, initialiser })
-    }
-
-    pub(super) fn parse_function_literal_expression(&mut self) -> Result<FunctionExpression> {
-        let loc = self.expect_keyword(Function)?;
-        self.skip_non_tokens()?;
-        let binding = match self.source.peek()? {
-            Some(elem) if elem.identifier().is_some() => {
-                let (binding, _) = self.expect_identifier("function_name")?;
-                Some(binding)
-            }
-            Some(elem) if elem.punctuator() == Some(OpenParen) => None,
-            elem => {
-                return Err(Error::unexpected(
-                    (OpenParen, Expected::Identifier("function_name")),
-                    elem.cloned(),
-                ));
-            }
-        };
-        self.skip_non_tokens()?;
-        let formal_parameters = self.parse_fn_parameters()?;
-        self.skip_non_tokens()?;
-        let body = self.parse_block()?;
-        Ok(FunctionExpression {
-            loc,
-            binding,
-            formal_parameters,
-            body,
-        })
+        Ok(ObjectProperty { name, initialiser })
     }
 }
