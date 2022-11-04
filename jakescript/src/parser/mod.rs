@@ -13,6 +13,7 @@ mod declaration;
 mod error;
 mod expression;
 mod literal;
+mod op;
 mod statement;
 #[cfg(test)]
 mod test;

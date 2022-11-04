@@ -8,6 +8,7 @@ pub enum Operator {
     Binary(BinaryOperator),
     Grouping,
     Relational(RelationalOperator),
+    /// Known as the `ConditionalOperator` according to the spec.
     Ternary,
     Unary(UnaryOperator),
     Update(UpdateOperator),

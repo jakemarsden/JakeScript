@@ -82,7 +82,7 @@ impl Eval for ComputedMemberAccessExpression {
             Value::Object(base_refr) => (base_refr, it.vm().heap().resolve(base_refr)),
             base_value => todo!("ComputedPropertyExpression::eval: base={base_value:?}"),
         };
-        let property_value = self.member.eval(it)?;
+        let property_value = self.index.eval(it)?;
         let property = match property_value {
             Value::Number(Number::Int(n)) => PropertyKey::from(n),
             property => todo!("ComputedPropertyExpression::eval: property={property:?}"),
@@ -223,7 +223,7 @@ impl Eval for AssignmentExpression {
             Expression::Member(MemberExpression::ComputedMemberAccess(lhs_node)) => {
                 match lhs_node.base.eval(it)? {
                     Value::Object(lhs_ref) => {
-                        let prop_value = lhs_node.member.eval(it)?;
+                        let prop_value = lhs_node.index.eval(it)?;
                         let prop_name = it.coerce_to_string(prop_value);
                         let prop_key =
                             PropertyKey::try_from(prop_name.as_ref()).unwrap_or_else(|_| {
@@ -286,9 +286,9 @@ impl Eval for TernaryExpression {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         let condition = self.condition.eval(it)?;
         if it.is_truthy(condition) {
-            self.lhs.eval(it)
+            self.true_value.eval(it)
         } else {
-            self.rhs.eval(it)
+            self.false_value.eval(it)
         }
     }
 }

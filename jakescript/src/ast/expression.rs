@@ -58,7 +58,7 @@ ast_node!(
     pub struct ComputedMemberAccessExpression {
         pub loc: SourceLocation,
         pub base: Box<Expression>,
-        pub member: Box<Expression>,
+        pub index: Box<Expression>,
     }
 );
 
@@ -81,7 +81,7 @@ ast_node!(
 ast_node!(
     pub struct NewExpression {
         pub loc: SourceLocation,
-        pub type_name: Identifier,
+        pub constructor: Identifier,
         pub arguments: Vec<Expression>,
     }
 );
@@ -173,11 +173,12 @@ ast_node!(
 );
 
 ast_node!(
+    /// Known as the `ConditionalExpression` according to the spec.
     pub struct TernaryExpression {
         pub loc: SourceLocation,
         pub condition: Box<Expression>,
-        pub lhs: Box<Expression>,
-        pub rhs: Box<Expression>,
+        pub true_value: Box<Expression>,
+        pub false_value: Box<Expression>,
     }
 );
 
