@@ -117,10 +117,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             Some(_) | None => return Ok(ParseSecondaryExpressionOutcome::NotSecondary(lhs)),
         };
 
-        // FIXME: The location of a secondary expression should be the location of the
-        // infix/postfix punctuator.
-        let loc = lhs.source_location().clone();
-        self.expect_punctuator(punc).unwrap();
+        let loc = self.expect_punctuator(punc).unwrap();
         self.skip_non_tokens()?;
 
         Ok(ParseSecondaryExpressionOutcome::Secondary(match op_kind {

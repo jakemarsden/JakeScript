@@ -33,7 +33,7 @@ a = 20;
     if let ErrorKind::AssignToConstVariable(_) = err.kind() {
         assert_eq!(
             err.source_location(),
-            &SourceLocation::new("untitled", SourcePosition::at(2, 0))
+            &SourceLocation::new("untitled", SourcePosition::at(2, 2))
         );
     } else {
         unreachable!("{err:#?}");

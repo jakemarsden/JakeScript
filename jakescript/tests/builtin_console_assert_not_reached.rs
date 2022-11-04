@@ -2,7 +2,7 @@
 
 use harness::FailureReason;
 use jakescript::interpreter::ErrorKind;
-use jakescript::token::SourceLocation;
+use jakescript::token::{SourceLocation, SourcePosition};
 
 pub mod harness;
 
@@ -12,6 +12,7 @@ fn assertion_fails() {
     assert_fails(
         r#"console.assertNotReached();"#,
         "entered unreachable code: ",
+        SourcePosition::at(0, 24),
     );
 }
 
@@ -21,18 +22,21 @@ fn assertion_fails_with_detail_msg() {
     assert_fails(
         r#"console.assertNotReached("msg");"#,
         "entered unreachable code: msg",
+        SourcePosition::at(0, 24),
     );
     assert_fails(
         r#"console.assertNotReached("Hello", "world", "foo", "bar");"#,
         "entered unreachable code: Hello world foo bar",
+        SourcePosition::at(0, 24),
     );
     assert_fails(
         r#"console.assertNotReached({}, 13 + 4);"#,
         "entered unreachable code: [object Object] 17",
+        SourcePosition::at(0, 24),
     );
 }
 
-fn assert_fails(source_code: &str, expected_detail_msg: &str) {
+fn assert_fails(source_code: &str, expected_detail_msg: &str, fail_at: SourcePosition) {
     let report = harness::exec_source_code(source_code);
     let err = match report.failure_reason() {
         Some(FailureReason::Runtime(err)) => err,
@@ -42,7 +46,7 @@ fn assert_fails(source_code: &str, expected_detail_msg: &str) {
         assert_eq!(err_source.detail_msg(), expected_detail_msg);
         assert_eq!(
             err.source_location(),
-            &SourceLocation::at_start_of("untitled")
+            &SourceLocation::new("untitled", fail_at)
         );
     } else {
         unreachable!("{err:#?}",);

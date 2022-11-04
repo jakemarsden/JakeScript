@@ -109,7 +109,7 @@ mod simple {
                     body: Block::single_statement(Statement::Return(ReturnStatement {
                         loc: at![loc@3:4],
                         value: Some(Expression::Binary(BinaryExpression {
-                            loc: at![loc@3:11],
+                            loc: at![loc@3:13],
                             op: BinaryOperator::Exponentiation,
                             lhs: Box::new(Expression::IdentifierReference(
                                 IdentifierReferenceExpression {
@@ -126,7 +126,7 @@ mod simple {
                 })],
                 vec![Statement::Expression(Expression::Member(
                     MemberExpression::FunctionCall(FunctionCallExpression {
-                        loc: at![loc@0:0],
+                        loc: at![loc@0:6],
                         function: Box::new(Expression::IdentifierReference(
                             IdentifierReferenceExpression {
                                 loc: at![loc@0:0],

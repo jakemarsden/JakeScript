@@ -2,7 +2,7 @@
 
 use harness::FailureReason;
 use jakescript::interpreter::{ErrorKind, Value};
-use jakescript::token::SourceLocation;
+use jakescript::token::{SourceLocation, SourcePosition};
 use std::assert_matches::assert_matches;
 
 pub mod harness;
@@ -18,13 +18,14 @@ fn assertion_passes_for_truthy_value() {
 
 #[test]
 fn assertion_fails_for_falsy_value() {
+    let fail_at = SourcePosition::at(0, 14);
     harness::init();
-    assert_fails(r#"console.assert(false);"#, "");
-    assert_fails(r#"console.assert(0);"#, "");
-    assert_fails(r#"console.assert("");"#, "");
-    assert_fails(r#"console.assert(null);"#, "");
-    assert_fails(r#"console.assert(undefined);"#, "");
-    assert_fails(r#"console.assert();"#, "");
+    assert_fails(r#"console.assert(false);"#, "", fail_at);
+    assert_fails(r#"console.assert(0);"#, "", fail_at);
+    assert_fails(r#"console.assert("");"#, "", fail_at);
+    assert_fails(r#"console.assert(null);"#, "", fail_at);
+    assert_fails(r#"console.assert(undefined);"#, "", fail_at);
+    assert_fails(r#"console.assert();"#, "", fail_at);
 }
 
 #[test]
@@ -40,19 +41,22 @@ fn assertion_passes_for_truthy_value_with_detail_msg() {
 
 #[test]
 fn assertion_fails_for_falsy_value_with_detail_msg() {
+    let fail_at = SourcePosition::at(0, 14);
     harness::init();
-    assert_fails(r#"console.assert(false, "msg");"#, "msg");
-    assert_fails(r#"console.assert(0, "msg");"#, "msg");
-    assert_fails(r#"console.assert("", "msg");"#, "msg");
-    assert_fails(r#"console.assert(null, "msg");"#, "msg");
-    assert_fails(r#"console.assert(undefined, "msg");"#, "msg");
+    assert_fails(r#"console.assert(false, "msg");"#, "msg", fail_at);
+    assert_fails(r#"console.assert(0, "msg");"#, "msg", fail_at);
+    assert_fails(r#"console.assert("", "msg");"#, "msg", fail_at);
+    assert_fails(r#"console.assert(null, "msg");"#, "msg", fail_at);
+    assert_fails(r#"console.assert(undefined, "msg");"#, "msg", fail_at);
     assert_fails(
         r#"console.assert(false, "Hello", "world", "foo", "bar");"#,
         "Hello world foo bar",
+        fail_at,
     );
     assert_fails(
         r#"console.assert(false, {}, 13 + 4);"#,
         "[object Object] 17",
+        fail_at,
     );
 }
 
@@ -61,7 +65,7 @@ fn assert_passes(source_code: &str) {
     assert_matches!(report.success_value(), Some(Value::Undefined));
 }
 
-fn assert_fails(source_code: &str, expected_detail_msg: &str) {
+fn assert_fails(source_code: &str, expected_detail_msg: &str, fail_at: SourcePosition) {
     let report = harness::exec_source_code(source_code);
     let err = match report.failure_reason() {
         Some(FailureReason::Runtime(err)) => err,
@@ -71,7 +75,7 @@ fn assert_fails(source_code: &str, expected_detail_msg: &str) {
         assert_eq!(err_source.detail_msg(), expected_detail_msg);
         assert_eq!(
             err.source_location(),
-            &SourceLocation::at_start_of("untitled")
+            &SourceLocation::new("untitled", fail_at)
         );
     } else {
         unreachable!("{err:#?}");

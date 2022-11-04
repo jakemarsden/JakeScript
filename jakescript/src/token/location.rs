@@ -98,6 +98,8 @@ impl ser::Serialize for SourceLocation {
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd)]
 pub struct SourcePosition(usize, usize);
 
+// TODO: Everything would be much better if this was all one-based (i.e.
+// `SourcePosition::at(1, 1)` is _actually_ line 1, column 1).
 impl SourcePosition {
     /// - `line` - Zero-based.
     /// - `column` - Zero-based.

@@ -2,7 +2,7 @@
 
 use harness::FailureReason;
 use jakescript::interpreter::{ErrorKind, Value};
-use jakescript::token::SourceLocation;
+use jakescript::token::{SourceLocation, SourcePosition};
 use std::assert_matches::assert_matches;
 
 pub mod harness;
@@ -24,30 +24,37 @@ fn assertion_fails_for_unequal_values() {
     assert_fails(
         r#"console.assertEqual(1, true);"#,
         "expected 'true' but was '1': ",
+        SourcePosition::at(0, 19),
     );
     assert_fails(
         r#"console.assertEqual(0, 1);"#,
         "expected '1' but was '0': ",
+        SourcePosition::at(0, 19),
     );
     assert_fails(
         r#"console.assertEqual("b", "a");"#,
         "expected 'a' but was 'b': ",
+        SourcePosition::at(0, 19),
     );
     assert_fails(
         r#"console.assertEqual("1", "NaN");"#,
         "expected 'NaN' but was '1': ",
+        SourcePosition::at(0, 19),
     );
     assert_fails(
         r#"console.assertEqual(undefined, true);"#,
         "expected 'true' but was 'undefined': ",
+        SourcePosition::at(0, 19),
     );
     assert_fails(
         r#"console.assertEqual(1);"#,
         "expected 'true' but was '1': ",
+        SourcePosition::at(0, 19),
     );
     assert_fails(
         r#"console.assertEqual();"#,
         "expected 'true' but was 'undefined': ",
+        SourcePosition::at(0, 19),
     );
 }
 
@@ -69,30 +76,37 @@ fn assertion_fails_for_unequal_values_with_detail_msg() {
     assert_fails(
         r#"console.assertEqual(1, true, "msg");"#,
         "expected 'true' but was '1': msg",
+        SourcePosition::at(0, 19),
     );
     assert_fails(
         r#"console.assertEqual(0, 1, "msg");"#,
         "expected '1' but was '0': msg",
+        SourcePosition::at(0, 19),
     );
     assert_fails(
         r#"console.assertEqual("b", "a", "msg");"#,
         "expected 'a' but was 'b': msg",
+        SourcePosition::at(0, 19),
     );
     assert_fails(
         r#"console.assertEqual("1", "NaN", "msg");"#,
         "expected 'NaN' but was '1': msg",
+        SourcePosition::at(0, 19),
     );
     assert_fails(
         r#"console.assertEqual(undefined, true, "msg");"#,
         "expected 'true' but was 'undefined': msg",
+        SourcePosition::at(0, 19),
     );
     assert_fails(
         r#"console.assertEqual(1, true, "Hello", "world", "foo", "bar");"#,
         "expected 'true' but was '1': Hello world foo bar",
+        SourcePosition::at(0, 19),
     );
     assert_fails(
         r#"console.assertEqual(1, true, {}, 13 + 4);"#,
         "expected 'true' but was '1': [object Object] 17",
+        SourcePosition::at(0, 19),
     );
 }
 
@@ -101,7 +115,7 @@ fn assert_passes(source_code: &str) {
     assert_matches!(report.success_value(), Some(Value::Undefined));
 }
 
-fn assert_fails(source_code: &str, expected_detail_msg: &str) {
+fn assert_fails(source_code: &str, expected_detail_msg: &str, fail_at: SourcePosition) {
     let report = harness::exec_source_code(source_code);
     let err = match report.failure_reason() {
         Some(FailureReason::Runtime(err)) => err,
@@ -111,7 +125,7 @@ fn assert_fails(source_code: &str, expected_detail_msg: &str) {
         assert_eq!(err_source.detail_msg(), expected_detail_msg);
         assert_eq!(
             err.source_location(),
-            &SourceLocation::at_start_of("untitled")
+            &SourceLocation::new("untitled", fail_at)
         );
     } else {
         unreachable!("{err:#?}");
