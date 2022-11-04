@@ -98,7 +98,7 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                 .parse_primary_update_expression(loc, op_kind)
                 .map(Expression::Update)?,
 
-            op_kind => unreachable!("expected primary prefix expression but was: {op_kind:?}"),
+            op_kind => unreachable!("expected primary prefix expression but was {op_kind:?}"),
         }))
     }
 

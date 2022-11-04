@@ -197,7 +197,7 @@ impl<I: FallibleIterator<Item = char, Error = io::Error>> Lexer<I> {
             2 => NumericLiteral::BinInt(value),
             8 => NumericLiteral::OctInt(value),
             16 => NumericLiteral::HexInt(value),
-            _ => unreachable!("{}", radix),
+            _ => unreachable!("{radix}"),
         }))
     }
 

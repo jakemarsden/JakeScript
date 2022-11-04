@@ -65,7 +65,7 @@ fn assert_fails(source_code: &str, expected_detail_msg: &str) {
     let report = harness::exec_source_code(source_code);
     let err = match report.failure_reason() {
         Some(FailureReason::Runtime(err)) => err,
-        err => unreachable!("{:#?}", err),
+        err => unreachable!("{err:#?}"),
     };
     if let ErrorKind::Assertion(err_source) = err.kind() {
         assert_eq!(err_source.detail_msg(), expected_detail_msg);
@@ -74,6 +74,6 @@ fn assert_fails(source_code: &str, expected_detail_msg: &str) {
             &SourceLocation::at_start_of("untitled")
         );
     } else {
-        unreachable!("{:#?}", err);
+        unreachable!("{err:#?}");
     }
 }

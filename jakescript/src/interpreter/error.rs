@@ -140,8 +140,8 @@ error_kinds!(pub enum ErrorKind {
     OutOfHeapSpace(#[derive(Default)] pub struct OutOfHeapSpaceError {}) => "out of heap space",
     OutOfStackSpace(#[derive(Default)] pub struct OutOfStackSpaceError {}) => "out of stack space",
 
-    #[doc = "Temporary hack to allow errors to be propagated outside of function calls while still \
-    retaining source location information."]
+    /// Temporary hack to allow errors to be propagated outside of function calls while still
+    /// retaining source location information.
     Boxed(pub struct BoxedError {
         inner: Box<Error>,
     }) => "function call",

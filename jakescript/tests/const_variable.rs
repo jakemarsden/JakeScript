@@ -28,7 +28,7 @@ a = 20;
     let report = harness::exec_source_code(source_code);
     let err = match report.failure_reason() {
         Some(FailureReason::Runtime(err)) => err,
-        err => unreachable!("{:#?}", err),
+        err => unreachable!("{err:#?}"),
     };
     if let ErrorKind::AssignToConstVariable(_) = err.kind() {
         assert_eq!(
@@ -36,6 +36,6 @@ a = 20;
             &SourceLocation::new("untitled", SourcePosition::at(2, 0))
         );
     } else {
-        unreachable!("{:#?}", err);
+        unreachable!("{err:#?}");
     }
 }
