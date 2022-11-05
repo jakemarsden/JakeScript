@@ -20,8 +20,9 @@ pub enum Operator {
 impl Operator {
     pub fn associativity(&self) -> Associativity {
         match self {
-            Self::MemberAccess => Associativity::LeftToRight,
-            Self::ComputedMemberAccess | Self::FunctionCall => Associativity::LeftToRight,
+            Self::ComputedMemberAccess | Self::MemberAccess | Self::FunctionCall => {
+                Associativity::LeftToRight
+            }
 
             Self::Assignment(kind) => kind.associativity(),
             Self::Binary(kind) => kind.associativity(),
