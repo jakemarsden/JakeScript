@@ -12,15 +12,13 @@ ast_node!(
     #[serde(tag = "expression_type")]
     pub enum Expression {
         IdentifierReference(IdentifierReferenceExpression),
-        Member(MemberExpression),
-        New(NewExpression),
         This(ThisExpression),
 
-        Array(ArrayExpression),
-        /// Boxed due to large size only.
-        Function(Box<FunctionExpression>),
-        Literal(LiteralExpression),
-        Object(ObjectExpression),
+        ComputedMemberAccess(ComputedMemberAccessExpression),
+        MemberAccess(MemberAccessExpression),
+
+        FunctionCall(FunctionCallExpression),
+        New(NewExpression),
 
         Assignment(AssignmentExpression),
         Binary(BinaryExpression),
@@ -29,6 +27,12 @@ ast_node!(
         Ternary(TernaryExpression),
         Unary(UnaryExpression),
         Update(UpdateExpression),
+
+        Array(ArrayExpression),
+        /// Boxed due to large size only.
+        Function(Box<FunctionExpression>),
+        Literal(LiteralExpression),
+        Object(ObjectExpression),
     }
 );
 
@@ -47,10 +51,9 @@ ast_node!(
 );
 
 ast_node!(
-    pub enum MemberExpression {
-        ComputedMemberAccess(ComputedMemberAccessExpression),
-        FunctionCall(FunctionCallExpression),
-        MemberAccess(MemberAccessExpression),
+    #[derive(Eq)]
+    pub struct ThisExpression {
+        pub loc: SourceLocation,
     }
 );
 
@@ -63,14 +66,6 @@ ast_node!(
 );
 
 ast_node!(
-    pub struct FunctionCallExpression {
-        pub loc: SourceLocation,
-        pub function: Box<Expression>,
-        pub arguments: Vec<Expression>,
-    }
-);
-
-ast_node!(
     pub struct MemberAccessExpression {
         pub loc: SourceLocation,
         pub base: Box<Expression>,
@@ -79,64 +74,20 @@ ast_node!(
 );
 
 ast_node!(
-    pub struct NewExpression {
+    pub struct FunctionCallExpression {
         pub loc: SourceLocation,
-        pub constructor: Identifier,
+        pub function: Box<Expression>,
         pub arguments: Vec<Expression>,
     }
 );
 
 ast_node!(
-    #[derive(Eq)]
-    pub struct ThisExpression {
+    pub struct NewExpression {
         pub loc: SourceLocation,
+        pub constructor: Box<Expression>,
+        pub arguments: Vec<Expression>,
     }
 );
-
-ast_node!(
-    pub struct ArrayExpression {
-        pub loc: SourceLocation,
-        pub declared_elements: Vec<Expression>,
-    }
-);
-
-ast_node!(
-    pub struct FunctionExpression {
-        pub loc: SourceLocation,
-        pub binding: Option<Identifier>,
-        pub parameters: Vec<Identifier>,
-        pub body: Block,
-    }
-);
-
-ast_node!(
-    pub struct LiteralExpression {
-        pub loc: SourceLocation,
-        pub value: Literal,
-    }
-);
-
-ast_node!(
-    pub struct ObjectExpression {
-        pub loc: SourceLocation,
-        pub declared_properties: Vec<ObjectProperty>,
-    }
-);
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct ObjectProperty {
-    pub name: ObjectPropertyName,
-    pub initialiser: Expression,
-}
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub enum ObjectPropertyName {
-    Computed(Expression),
-
-    Identifier(Identifier),
-    NumericLiteral(NumericLiteral),
-    StringLiteral(StringLiteral),
-}
 
 ast_node!(
     pub struct AssignmentExpression {
@@ -197,3 +148,48 @@ ast_node!(
         pub operand: Box<Expression>,
     }
 );
+
+ast_node!(
+    pub struct ArrayExpression {
+        pub loc: SourceLocation,
+        pub declared_elements: Vec<Expression>,
+    }
+);
+
+ast_node!(
+    pub struct FunctionExpression {
+        pub loc: SourceLocation,
+        pub binding: Option<Identifier>,
+        pub parameters: Vec<Identifier>,
+        pub body: Block,
+    }
+);
+
+ast_node!(
+    pub struct LiteralExpression {
+        pub loc: SourceLocation,
+        pub value: Literal,
+    }
+);
+
+ast_node!(
+    pub struct ObjectExpression {
+        pub loc: SourceLocation,
+        pub declared_properties: Vec<ObjectProperty>,
+    }
+);
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct ObjectProperty {
+    pub name: ObjectPropertyName,
+    pub initialiser: Expression,
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub enum ObjectPropertyName {
+    Computed(Expression),
+
+    Identifier(Identifier),
+    NumericLiteral(NumericLiteral),
+    StringLiteral(StringLiteral),
+}

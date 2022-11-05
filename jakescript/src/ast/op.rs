@@ -2,7 +2,10 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Operator {
-    Member(MemberOperator),
+    ComputedMemberAccess,
+    MemberAccess,
+
+    FunctionCall,
 
     Assignment(AssignmentOperator),
     Binary(BinaryOperator),
@@ -17,7 +20,8 @@ pub enum Operator {
 impl Operator {
     pub fn associativity(&self) -> Associativity {
         match self {
-            Self::Member(kind) => kind.associativity(),
+            Self::MemberAccess => Associativity::LeftToRight,
+            Self::ComputedMemberAccess | Self::FunctionCall => Associativity::LeftToRight,
 
             Self::Assignment(kind) => kind.associativity(),
             Self::Binary(kind) => kind.associativity(),
@@ -31,7 +35,7 @@ impl Operator {
 
     pub fn precedence(&self) -> Precedence {
         match self {
-            Self::Member(kind) => kind.precedence(),
+            Self::ComputedMemberAccess | Self::MemberAccess | Self::FunctionCall => Precedence(20),
 
             Self::Assignment(kind) => kind.precedence(),
             Self::Binary(kind) => kind.precedence(),
@@ -40,29 +44,6 @@ impl Operator {
             Self::Ternary => Precedence(4),
             Self::Unary(kind) => kind.precedence(),
             Self::Update(kind) => kind.precedence(),
-        }
-    }
-}
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
-pub enum MemberOperator {
-    ComputedMemberAccess,
-    FunctionCall,
-    MemberAccess,
-}
-
-impl MemberOperator {
-    pub fn associativity(&self) -> Associativity {
-        match self {
-            Self::ComputedMemberAccess | Self::FunctionCall | Self::MemberAccess => {
-                Associativity::LeftToRight
-            }
-        }
-    }
-
-    pub fn precedence(&self) -> Precedence {
-        match self {
-            Self::ComputedMemberAccess | Self::FunctionCall | Self::MemberAccess => Precedence(20),
         }
     }
 }

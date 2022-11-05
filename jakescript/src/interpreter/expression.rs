@@ -15,14 +15,13 @@ impl Eval for Expression {
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
         match self {
             Self::IdentifierReference(ref node) => node.eval(it),
-            Self::Member(ref node) => node.eval(it),
-            Self::New(ref node) => node.eval(it),
             Self::This(ref node) => node.eval(it),
 
-            Self::Array(ref node) => node.eval(it),
-            Self::Function(ref node) => node.eval(it),
-            Self::Literal(ref node) => node.eval(it),
-            Self::Object(ref node) => node.eval(it),
+            Self::ComputedMemberAccess(node) => node.eval(it),
+            Self::MemberAccess(node) => node.eval(it),
+
+            Self::FunctionCall(node) => node.eval(it),
+            Self::New(ref node) => node.eval(it),
 
             Self::Assignment(ref node) => node.eval(it),
             Self::Binary(ref node) => node.eval(it),
@@ -31,6 +30,11 @@ impl Eval for Expression {
             Self::Ternary(ref node) => node.eval(it),
             Self::Unary(ref node) => node.eval(it),
             Self::Update(ref node) => node.eval(it),
+
+            Self::Array(ref node) => node.eval(it),
+            Self::Function(ref node) => node.eval(it),
+            Self::Literal(ref node) => node.eval(it),
+            Self::Object(ref node) => node.eval(it),
         }
     }
 }
@@ -61,15 +65,16 @@ impl Eval for IdentifierReferenceExpression {
     }
 }
 
-impl Eval for MemberExpression {
+impl Eval for ThisExpression {
     type Output = Value;
 
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        match self {
-            Self::ComputedMemberAccess(node) => node.eval(it),
-            Self::FunctionCall(node) => node.eval(it),
-            Self::MemberAccess(node) => node.eval(it),
-        }
+        Ok(Value::Object(
+            it.vm()
+                .stack()
+                .receiver()
+                .unwrap_or_else(|| it.vm().runtime().global_object_ref()),
+        ))
     }
 }
 
@@ -96,26 +101,44 @@ impl Eval for ComputedMemberAccessExpression {
     }
 }
 
+impl Eval for MemberAccessExpression {
+    type Output = Value;
+
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
+        let base_value = self.base.eval(it)?;
+        match base_value {
+            Value::Object(base_refr) => {
+                let base_obj = it.vm().heap().resolve(base_refr);
+                let value = base_obj
+                    .as_ref()
+                    .get(it, &self.member, base_refr)
+                    .map_err(|err| Error::new(err, self.source_location()))?
+                    .unwrap_or_default();
+                Ok(value)
+            }
+            base_value => todo!("PropertyAccessExpression::eval: base={base_value:?}"),
+        }
+    }
+}
+
 impl Eval for FunctionCallExpression {
     type Output = Value;
 
     fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        let (receiver, function) = match self.function {
-            box Expression::Member(ref node) => match node {
-                MemberExpression::MemberAccess(node) => {
-                    // FIXME: Don't evaluate `node.base` twice!!
-                    (Some(node.base.eval(it)?), node.eval(it)?)
-                }
-                MemberExpression::ComputedMemberAccess(node) => {
-                    // FIXME: Don't evaluate `node.base` twice!!
-                    (Some(node.base.eval(it)?), node.eval(it)?)
-                }
-                MemberExpression::FunctionCall(node) => {
-                    // FIXME: Don't evaluate `node.function` twice!!
-                    (Some(node.function.eval(it)?), node.eval(it)?)
-                }
-            },
-            box ref node => (None, node.eval(it)?),
+        let (receiver, function) = match self.function.as_ref() {
+            Expression::ComputedMemberAccess(node) => {
+                // FIXME: Don't evaluate `node.base` twice!!
+                (Some(node.base.eval(it)?), node.eval(it)?)
+            }
+            Expression::MemberAccess(node) => {
+                // FIXME: Don't evaluate `node.base` twice!!
+                (Some(node.base.eval(it)?), node.eval(it)?)
+            }
+            Expression::FunctionCall(node) => {
+                // FIXME: Don't evaluate `node.function` twice!!
+                (Some(node.function.eval(it)?), node.eval(it)?)
+            }
+            node => (None, node.eval(it)?),
         };
         let receiver = match receiver {
             Some(Value::Object(receiver)) => Some(receiver),
@@ -143,44 +166,11 @@ impl Eval for FunctionCallExpression {
     }
 }
 
-impl Eval for MemberAccessExpression {
-    type Output = Value;
-
-    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        let base_value = self.base.eval(it)?;
-        match base_value {
-            Value::Object(base_refr) => {
-                let base_obj = it.vm().heap().resolve(base_refr);
-                let value = base_obj
-                    .as_ref()
-                    .get(it, &self.member, base_refr)
-                    .map_err(|err| Error::new(err, self.source_location()))?
-                    .unwrap_or_default();
-                Ok(value)
-            }
-            base_value => todo!("PropertyAccessExpression::eval: base={base_value:?}"),
-        }
-    }
-}
-
 impl Eval for NewExpression {
     type Output = Value;
 
     fn eval(&self, _: &mut Interpreter) -> Result<Self::Output> {
         todo!("NewExpression::eval: {self:#?}")
-    }
-}
-
-impl Eval for ThisExpression {
-    type Output = Value;
-
-    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        Ok(Value::Object(
-            it.vm()
-                .stack()
-                .receiver()
-                .unwrap_or_else(|| it.vm().runtime().global_object_ref()),
-        ))
     }
 }
 
@@ -209,18 +199,7 @@ impl Eval for AssignmentExpression {
                     compute_updated,
                     map_err,
                 ),
-            Expression::Member(MemberExpression::MemberAccess(lhs_node)) => {
-                match lhs_node.base.eval(it)? {
-                    Value::Object(lhs_ref) => it.update_object_property(
-                        lhs_ref,
-                        &lhs_node.member,
-                        compute_updated,
-                        map_err,
-                    ),
-                    lhs => todo!("AssignmentExpression::eval: base_value={lhs:?}"),
-                }
-            }
-            Expression::Member(MemberExpression::ComputedMemberAccess(lhs_node)) => {
+            Expression::ComputedMemberAccess(lhs_node) => {
                 match lhs_node.base.eval(it)? {
                     Value::Object(lhs_ref) => {
                         let prop_value = lhs_node.index.eval(it)?;
@@ -228,8 +207,7 @@ impl Eval for AssignmentExpression {
                         let prop_key =
                             PropertyKey::try_from(prop_name.as_ref()).unwrap_or_else(|_| {
                                 // FIXME: Remove this restriction as I think it's actually OK to key
-                                // an object property by the empty
-                                // string.
+                                // an object property by the empty string.
                                 todo!("AssignmentExpression::eval: prop_name={prop_value:?}")
                             });
                         it.update_object_property(lhs_ref, &prop_key, compute_updated, map_err)
@@ -237,6 +215,12 @@ impl Eval for AssignmentExpression {
                     lhs => todo!("AssignmentExpression::eval: base_value={lhs:?}"),
                 }
             }
+            Expression::MemberAccess(lhs_node) => match lhs_node.base.eval(it)? {
+                Value::Object(lhs_ref) => {
+                    it.update_object_property(lhs_ref, &lhs_node.member, compute_updated, map_err)
+                }
+                lhs => todo!("AssignmentExpression::eval: base_value={lhs:?}"),
+            },
             lhs => todo!("AssignmentExpression::eval: lhs={lhs:#?}"),
         }
     }
@@ -351,17 +335,15 @@ impl Eval for UpdateExpression {
                     compute_updated,
                     map_err,
                 ),
-            Expression::Member(MemberExpression::MemberAccess(operand_node)) => {
-                match operand_node.base.eval(it)? {
-                    Value::Object(operand_ref) => it.update_object_property(
-                        operand_ref,
-                        &operand_node.member,
-                        compute_updated,
-                        map_err,
-                    ),
-                    operand => todo!("UpdateExpression::eval: operand={operand:?}"),
-                }
-            }
+            Expression::MemberAccess(operand_node) => match operand_node.base.eval(it)? {
+                Value::Object(operand_ref) => it.update_object_property(
+                    operand_ref,
+                    &operand_node.member,
+                    compute_updated,
+                    map_err,
+                ),
+                operand => todo!("UpdateExpression::eval: operand={operand:?}"),
+            },
             operand => todo!("UpdateExpression::eval: operand={operand:#?}"),
         }
     }

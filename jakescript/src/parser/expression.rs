@@ -41,11 +41,12 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
             Some(elem) if elem.identifier().is_some() => self
                 .parse_identifier_reference_expression()
                 .map(Expression::IdentifierReference)?,
-            Some(elem) if elem.keyword() == Some(New) => {
-                self.parse_new_expression().map(Expression::New)?
-            }
             Some(elem) if elem.keyword() == Some(This) => {
                 self.parse_this_expression().map(Expression::This)?
+            }
+
+            Some(elem) if elem.keyword() == Some(New) => {
+                self.parse_new_expression().map(Expression::New)?
             }
 
             Some(elem) if elem.punctuator() == Some(OpenBracket) => {
@@ -121,9 +122,16 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         self.skip_non_tokens()?;
 
         Ok(ParseSecondaryExpressionOutcome::Secondary(match op_kind {
-            Operator::Member(kind) => self
-                .parse_member_expression(loc, kind, lhs)
-                .map(Expression::Member)?,
+            Operator::ComputedMemberAccess => self
+                .parse_computed_member_access_expression(loc, lhs)
+                .map(Expression::ComputedMemberAccess)?,
+            Operator::MemberAccess => self
+                .parse_member_access_expression(loc, lhs)
+                .map(Expression::MemberAccess)?,
+
+            Operator::FunctionCall => self
+                .parse_function_call_expression(loc, lhs)
+                .map(Expression::FunctionCall)?,
 
             Operator::Assignment(kind) => self
                 .parse_assignment_expression(loc, kind, lhs)
@@ -154,23 +162,9 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         Ok(IdentifierReferenceExpression { loc, identifier })
     }
 
-    fn parse_member_expression(
-        &mut self,
-        loc: SourceLocation,
-        op: MemberOperator,
-        lhs: Expression,
-    ) -> Result<MemberExpression> {
-        match op {
-            MemberOperator::ComputedMemberAccess => self
-                .parse_computed_member_access_expression(loc, lhs)
-                .map(MemberExpression::ComputedMemberAccess),
-            MemberOperator::FunctionCall => self
-                .parse_function_call_expression(loc, lhs)
-                .map(MemberExpression::FunctionCall),
-            MemberOperator::MemberAccess => self
-                .parse_member_access_expression(loc, lhs)
-                .map(MemberExpression::MemberAccess),
-        }
+    fn parse_this_expression(&mut self) -> Result<ThisExpression> {
+        let loc = self.expect_keyword(This)?;
+        Ok(ThisExpression { loc })
     }
 
     fn parse_computed_member_access_expression(
@@ -188,6 +182,25 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         })
     }
 
+    fn parse_member_access_expression(
+        &mut self,
+        loc: SourceLocation,
+        base: Expression,
+    ) -> Result<MemberAccessExpression> {
+        let member = match self.parse_expression_impl(Operator::MemberAccess.precedence())? {
+            Expression::IdentifierReference(member_expr) => member_expr.identifier,
+            member_expr => todo!(
+                "Unsupported member access expression (only simple `a.b` expressions are \
+                 supported): {member_expr:#?}"
+            ),
+        };
+        Ok(MemberAccessExpression {
+            loc,
+            base: Box::new(base),
+            member,
+        })
+    }
+
     fn parse_function_call_expression(
         &mut self,
         loc: SourceLocation,
@@ -199,6 +212,30 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
         Ok(FunctionCallExpression {
             loc,
             function: Box::new(function),
+            arguments,
+        })
+    }
+
+    fn parse_new_expression(&mut self) -> Result<NewExpression> {
+        let loc = self.expect_keyword(New)?;
+        self.skip_non_tokens()?;
+        let constructor = self.parse_expression()?;
+        self.skip_non_tokens()?;
+        let arguments = if self
+            .source
+            .next_if(|elem| elem.punctuator() == Some(OpenParen))?
+            .is_some()
+        {
+            let args = self.parse_fn_arguments()?;
+            self.skip_non_tokens()?;
+            self.expect_punctuator(CloseParen)?;
+            args
+        } else {
+            vec![]
+        };
+        Ok(NewExpression {
+            loc,
+            constructor: Box::new(constructor),
             arguments,
         })
     }
@@ -222,54 +259,6 @@ impl<I: FallibleIterator<Item = Element, Error = lexer::Error>> Parser<I> {
                 elem => return Err(Error::unexpected((Comma, CloseParen), elem.cloned())),
             }
         }
-    }
-
-    fn parse_member_access_expression(
-        &mut self,
-        loc: SourceLocation,
-        base: Expression,
-    ) -> Result<MemberAccessExpression> {
-        let member = match self.parse_expression_impl(MemberOperator::MemberAccess.precedence())? {
-            Expression::IdentifierReference(member_expr) => member_expr.identifier,
-            member_expr => todo!(
-                "Unsupported member access expression (only simple `a.b` expressions are \
-                 supported): {member_expr:#?}"
-            ),
-        };
-        Ok(MemberAccessExpression {
-            loc,
-            base: Box::new(base),
-            member,
-        })
-    }
-
-    fn parse_new_expression(&mut self) -> Result<NewExpression> {
-        let loc = self.expect_keyword(New)?;
-        self.skip_non_tokens()?;
-        let (constructor, _) = self.expect_identifier("type_name")?;
-        self.skip_non_tokens()?;
-        let arguments = if self
-            .source
-            .next_if(|elem| elem.punctuator() == Some(OpenParen))?
-            .is_some()
-        {
-            let args = self.parse_fn_arguments()?;
-            self.skip_non_tokens()?;
-            self.expect_punctuator(CloseParen)?;
-            args
-        } else {
-            vec![]
-        };
-        Ok(NewExpression {
-            loc,
-            constructor,
-            arguments,
-        })
-    }
-
-    fn parse_this_expression(&mut self) -> Result<ThisExpression> {
-        let loc = self.expect_keyword(This)?;
-        Ok(ThisExpression { loc })
     }
 
     fn parse_assignment_expression(

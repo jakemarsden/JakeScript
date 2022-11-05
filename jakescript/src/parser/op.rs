@@ -14,31 +14,24 @@ pub(super) trait ParseOperator {
 
 impl ParseOperator for Operator {
     fn try_parse(punc: Punctuator, pos: Position) -> Option<Self> {
-        MemberOperator::try_parse(punc, pos)
-            .map(Self::Member)
-            .or_else(|| AssignmentOperator::try_parse(punc, pos).map(Self::Assignment))
+        AssignmentOperator::try_parse(punc, pos)
+            .map(Self::Assignment)
             .or_else(|| BinaryOperator::try_parse(punc, pos).map(Self::Binary))
             .or_else(|| RelationalOperator::try_parse(punc, pos).map(Self::Relational))
             .or_else(|| UnaryOperator::try_parse(punc, pos).map(Self::Unary))
             .or_else(|| UpdateOperator::try_parse(punc, pos).map(Self::Update))
             .or_else(|| {
                 Some(match (punc, pos) {
+                    (OpenBracket, Position::PostfixOrInfix) => Self::ComputedMemberAccess,
+                    (Dot, Position::PostfixOrInfix) => Self::MemberAccess,
+
+                    (OpenParen, Position::PostfixOrInfix) => Self::FunctionCall,
+
                     (OpenParen, Position::Prefix) => Self::Grouping,
                     (Question, Position::PostfixOrInfix) => Self::Ternary,
                     (_, _) => return None,
                 })
             })
-    }
-}
-
-impl ParseOperator for MemberOperator {
-    fn try_parse(punc: Punctuator, pos: Position) -> Option<Self> {
-        Some(match (punc, pos) {
-            (Dot, Position::PostfixOrInfix) => Self::MemberAccess,
-            (OpenBracket, Position::PostfixOrInfix) => Self::ComputedMemberAccess,
-            (OpenParen, Position::PostfixOrInfix) => Self::FunctionCall,
-            (_, _) => return None,
-        })
     }
 }
 

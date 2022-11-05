@@ -5,6 +5,40 @@ use super::{Eval, Interpreter};
 use crate::ast::*;
 use std::collections::HashMap;
 
+impl Eval for ArrayExpression {
+    type Output = Value;
+
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
+        let mut elems = Vec::with_capacity(self.declared_elements.len());
+        for elem_expr in &self.declared_elements {
+            elems.push(elem_expr.eval(it)?);
+        }
+        let obj_ref = it
+            .vm_mut()
+            .alloc_array(elems)
+            .map_err(|err| Error::new(err, self.source_location()))?;
+        Ok(Value::Object(obj_ref))
+    }
+}
+
+impl Eval for FunctionExpression {
+    type Output = Value;
+
+    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
+        let declared_scope = it.vm().stack().scope();
+        let fn_obj_ref = it
+            .vm_mut()
+            .alloc_function(UserFunction::new(
+                self.binding.clone(),
+                declared_scope,
+                self.parameters.clone(),
+                self.body.clone(),
+            ))
+            .map_err(|err| Error::new(err, self.source_location()))?;
+        Ok(Value::Object(fn_obj_ref))
+    }
+}
+
 impl Eval for LiteralExpression {
     type Output = Value;
 
@@ -22,22 +56,6 @@ impl Eval for LiteralExpression {
             ),
             Literal::Null => Value::Null,
         })
-    }
-}
-
-impl Eval for ArrayExpression {
-    type Output = Value;
-
-    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        let mut elems = Vec::with_capacity(self.declared_elements.len());
-        for elem_expr in &self.declared_elements {
-            elems.push(elem_expr.eval(it)?);
-        }
-        let obj_ref = it
-            .vm_mut()
-            .alloc_array(elems)
-            .map_err(|err| Error::new(err, self.source_location()))?;
-        Ok(Value::Object(obj_ref))
     }
 }
 
@@ -64,23 +82,5 @@ impl Eval for ObjectExpression {
             .alloc_object(resolved_props)
             .map_err(|err| Error::new(err, self.source_location()))?;
         Ok(Value::Object(obj_ref))
-    }
-}
-
-impl Eval for FunctionExpression {
-    type Output = Value;
-
-    fn eval(&self, it: &mut Interpreter) -> Result<Self::Output> {
-        let declared_scope = it.vm().stack().scope();
-        let fn_obj_ref = it
-            .vm_mut()
-            .alloc_function(UserFunction::new(
-                self.binding.clone(),
-                declared_scope,
-                self.parameters.clone(),
-                self.body.clone(),
-            ))
-            .map_err(|err| Error::new(err, self.source_location()))?;
-        Ok(Value::Object(fn_obj_ref))
     }
 }

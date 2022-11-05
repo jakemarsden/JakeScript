@@ -124,8 +124,8 @@ mod simple {
                         })),
                     })),
                 })],
-                vec![Statement::Expression(Expression::Member(
-                    MemberExpression::FunctionCall(FunctionCallExpression {
+                vec![Statement::Expression(Expression::FunctionCall(
+                    FunctionCallExpression {
                         loc: at![loc@0:6],
                         function: Box::new(Expression::IdentifierReference(
                             IdentifierReferenceExpression {
@@ -137,7 +137,7 @@ mod simple {
                             loc: at![loc@0:7],
                             value: Literal::Numeric(NumericLiteral::Int(4)),
                         })],
-                    }),
+                    },
                 ))],
             ),
         )
